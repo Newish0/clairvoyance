@@ -1,0 +1,22 @@
+---
+import "@/styles/globals.css";
+
+import Layout from "../layouts/Layout.astro";
+import Card from "../components/Card.astro";
+
+import * as L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import Map from "@/components/Map.tsx";
+
+
+---
+
+<Layout title="Clairvoance">
+    <main>
+        <h1>Map</h1>
+        <Map client:only />
+    </main>
+</Layout>
+
+<style></style>
