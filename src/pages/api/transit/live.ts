@@ -8,7 +8,7 @@
  */
 
 import type { APIRoute } from "astro";
-import { db, on, off, type GTFSEventHandler } from "@/utils/gtfs";
+import { db, on, off, type GTFSEventHandler } from "@/utils/backend-gtfs";
 import { getVehiclePositions } from "gtfs";
 
 export const GET: APIRoute = ({ params, request }) => {
@@ -17,13 +17,22 @@ export const GET: APIRoute = ({ params, request }) => {
     const stream = new ReadableStream({
         start(controller) {
             updateHandler = () => {
+                console.log("\n\n\n\n NEW EVENT SENT \n\n\n\n ");
+
                 const vehiclePositions = getVehiclePositions({}, [], [], {
                     db,
                 });
-                controller.enqueue(JSON.stringify(vehiclePositions));
+
+                const payload =
+                    "event: vehiclePositions" +
+                    "\n" +
+                    `data: ${JSON.stringify(vehiclePositions)}\n\n`;
+
+                controller.enqueue(payload);
             };
 
             on("rtupdate", updateHandler);
+            updateHandler();
         },
         cancel() {
             if (updateHandler) off("rtupdate", updateHandler);

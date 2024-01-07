@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { db } from "@/utils/gtfs";
+import { db } from "@/utils/backend-gtfs";
 import { getStopsAsGeoJSON } from "gtfs";
 
 export const GET: APIRoute = async ({ params, request }) => {

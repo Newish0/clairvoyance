@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { db } from "@/utils/gtfs";
+import { db } from "@/utils/backend-gtfs";
 import { getRoutes } from "gtfs";
 
 

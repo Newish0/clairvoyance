@@ -8,15 +8,11 @@ import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import Map from "@/components/Map.tsx";
-
-
+import { Button } from "@/components/ui/button"
 ---
 
 <Layout title="Clairvoance">
-    <main>
-        <h1>Map</h1>
-        <Map client:only />
-    </main>
+    <Map client:only></Map>
 </Layout>
 
 <style></style>

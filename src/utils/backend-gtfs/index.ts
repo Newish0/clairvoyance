@@ -15,7 +15,7 @@ export type GTFSEventHandler = () => void;
 
 type GTFSEvent = "rtupdate";
 
-const REALTIME_UPDATE_INTERVAL = 60000; // 60 seconds
+const REALTIME_UPDATE_INTERVAL = 30000; // 30 seconds
 
 let initialized = false;
 let initializing = false;
