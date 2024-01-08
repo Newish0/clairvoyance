@@ -1,5 +1,5 @@
 /**
- * Route: `api/transit/live`
+ * Route: `api/transit/stream`
  *
  * Description: An SSE route for providing live data. To be used with SSESubscriber class in frontend.
  *
@@ -17,8 +17,6 @@ export const GET: APIRoute = ({ params, request }) => {
     const stream = new ReadableStream({
         start(controller) {
             updateHandler = () => {
-                console.log("\n\n\n\n NEW EVENT SENT \n\n\n\n ");
-
                 const vehiclePositions = getVehiclePositions({}, [], [], {
                     db,
                 });

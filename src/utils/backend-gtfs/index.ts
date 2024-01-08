@@ -67,6 +67,9 @@ setInterval(async () => {
     try {
         console.log("[GTFS] Updating realtime data.");
         await updateGtfsRealtime(config);
+        
+        console.log("### NUM HANDLERS ### ", GTFSUpdateHandlers.rtupdate.length)
+
         for (const handler of GTFSUpdateHandlers.rtupdate) handler();
     } catch (error) {
         console.error(error);

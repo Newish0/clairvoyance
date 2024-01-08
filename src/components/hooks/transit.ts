@@ -30,7 +30,7 @@ export function useShapes({ lat, lon, distance }: { lat: number; lon: number; di
 }
 
 export function useRealtimePosition() {
-    const liveData = LiveData.getInstance("./api/transit/live");
+    const liveData = LiveData.getInstance("./api/transit/stream");
 
     const [vehiclePositions, setVehiclePositions] = useState<any[]>([]);
 
