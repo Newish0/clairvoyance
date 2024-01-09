@@ -32,13 +32,15 @@ const port = 3000;
 
 initGTFS();
 
+// Server startup logging 
 console.log();
 console.log(
-    chalk.white.bold.bgGreen(` ${pkgJson.displayName ?? pkgJson.name} `),
+    chalk.white.bold.bgGreen(` ${pkgJson.displayName || pkgJson.name} `),
     chalk.green(`v${pkgJson.version}`)
 );
 console.log();
 console.log(`┃ Local    ${chalk.cyan.underline(`http://localhost:${port}`)}`);
+console.log();
 
 serve({
     fetch: app.fetch,
