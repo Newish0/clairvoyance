@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
+import { cors } from "hono/cors";
 import chalk from "chalk";
 
 import { init as initGTFS } from "@/services/gtfs";
@@ -14,6 +15,12 @@ const app = new Hono();
 const ASTRO_ROOT = "../dist/";
 
 app.use("*", logger());
+app.use(
+    "/api/*",
+    cors({
+        origin: ["http://localhost:4321"],
+    })
+);
 
 app.route("/api", api);
 
@@ -32,7 +39,7 @@ const port = 3000;
 
 initGTFS();
 
-// Server startup logging 
+// Server startup logging
 console.log();
 console.log(
     chalk.white.bold.bgGreen(` ${pkgJson.displayName || pkgJson.name} `),

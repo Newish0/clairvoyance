@@ -1,6 +1,5 @@
 import { client } from "@/components/nanostores/store";
-import LiveData from "@/services/transit/LiveData";
-import { fetchShapes, fetchStops } from "@/services/transit/geojson";
+import { fetchShapes, fetchStops, getRealtimePosition } from "@/services/transit/geojson";
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -30,7 +29,7 @@ export function useShapes({ lat, lon, distance }: { lat: number; lon: number; di
 }
 
 export function useRealtimePosition() {
-    const liveData = LiveData.getInstance("./api/transit/stream");
+    const liveData = getRealtimePosition();
 
     const [vehiclePositions, setVehiclePositions] = useState<any[]>([]);
 

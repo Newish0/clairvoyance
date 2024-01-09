@@ -16,11 +16,11 @@ export default class LiveData {
         LiveData.createEventSource(this.sseEndPoint);
     }
 
-    public static getInstance(sseEndPoint: string): LiveData {
-        if (!LiveData.store.has(sseEndPoint)) {
-            LiveData.store.set(sseEndPoint, new LiveData(sseEndPoint));
+    public static getInstance(sseEndPoint: string | URL): LiveData {
+        if (!LiveData.store.has(sseEndPoint.toString())) {
+            LiveData.store.set(sseEndPoint.toString(), new LiveData(sseEndPoint.toString()));
         }
-        return LiveData.store.get(sseEndPoint)!;
+        return LiveData.store.get(sseEndPoint.toString())!;
     }
 
     public subscribe(field: LiveDataFields, handler: DataHandler) {

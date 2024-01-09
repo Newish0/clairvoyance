@@ -17,5 +17,10 @@ export default defineConfig({
     tailwind({
       applyBaseStyles: false,
     }),
-  ]
+  ],
+  vite: {
+    define: {
+      __GTFS_API_ENDPOINT__: "'http://localhost:3000'"
+    }
+  }
 });
