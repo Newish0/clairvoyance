@@ -1,18 +1,23 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
-import transitController from "@/controllers/transit";
+import { logger } from "hono/logger";
+import chalk from "chalk";
 
 import { init as initGTFS } from "@/services/gtfs";
+import api from "@/routes/api";
+
+import pkgJson from "@/../package.json";
 
 const app = new Hono();
 
-// app.get('/', (c) => {
-//   return c.text('Hello Hono!')
-// })
-
 const ASTRO_ROOT = "../dist/";
 
+app.use("*", logger());
+
+app.route("/api", api);
+
+// Very important that the wildcard static files comes after other routes.
 app.use(
     "/*",
     serveStatic({
@@ -23,12 +28,17 @@ app.use(
     })
 );
 
-transitController(app);
-
 const port = 3000;
-console.log(`Server is running on port ${port}`);
 
 initGTFS();
+
+console.log();
+console.log(
+    chalk.white.bold.bgGreen(` ${pkgJson.displayName ?? pkgJson.name} `),
+    chalk.green(`v${pkgJson.version}`)
+);
+console.log();
+console.log(`┃ Local    ${chalk.cyan.underline(`http://localhost:${port}`)}`);
 
 serve({
     fetch: app.fetch,

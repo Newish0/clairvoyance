@@ -5,17 +5,17 @@ import { db, on } from "@/services/gtfs";
 
 //  TODO: Use router
 export default function transitController(app: Hono) {
-    app.get("api/transit/geojson/shapes", async (c) => {
+    app.get("/geojson/shapes", async (c) => {
         const shapesGeojson = await getShapesAsGeoJSON({}, { db });
         return c.json(shapesGeojson);
     });
 
-    app.get("api/transit/geojson/stops", async (c) => {
+    app.get("/geojson/stops", async (c) => {
         const stopsGeojson = await getStopsAsGeoJSON({}, { db });
         return c.json(stopsGeojson);
     });
 
-    app.get("api/transit/routes", async (c) => {
+    app.get("/routes", async (c) => {
         const routes = getRoutes(
             {}, // query filters
             [], // return  fields
@@ -25,7 +25,7 @@ export default function transitController(app: Hono) {
         return c.json(routes);
     });
 
-    app.get("api/transit/stream", async (c) => {
+    app.get("/stream", async (c) => {
         let id = 0;
 
         return streamSSE(c, async (stream) => {
