@@ -30,8 +30,7 @@ const Map = () => {
         const osm = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
             maxZoom: 19,
             detectRetina: true,
-            attribution:
-                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles style by <a href="https://www.hotosm.org/" target="_blank">Humanitarian OpenStreetMap Team</a> hosted by <a href="https://openstreetmap.fr/" target="_blank">OpenStreetMap France</a>',
+            // TODO: add proper attribution
         });
 
         // Initialize the map
@@ -130,7 +129,7 @@ const Map = () => {
         };
     }, [vehiclePositions, map]);
 
-    return <div ref={mapContainerRef} style={{ height: "1000px" }}></div>;
+    return <div ref={mapContainerRef} className="h-[75dvh]"></div>;
 };
 
 export default Map;

@@ -53,12 +53,27 @@ export const stopGeoJsonSchema = z.object({
     }),
 });
 
-export const shapesApiDataSchema = z.object({
+export const tripSchema = z.object({
+    route_id: z.string(),
+    service_id: z.string(),
+    trip_id: z.string(),
+    trip_headsign: z.string(),
+    trip_short_name: z.nullable(z.string()),
+    direction_id: z.number(),
+    block_id: z.string(),
+    shape_id: z.string(),
+    wheelchair_accessible: z.number(),
+    bikes_allowed: z.number(),
+});
+
+export const shapesGeojsonApiDataSchema = z.object({
     features: z.array(shapeGeoJsonSchema),
     type: z.literal("FeatureCollection"),
 });
 
-export const stopsApiDataSchema = z.object({
+export const stopsGeojsonApiDataSchema = z.object({
     features: z.array(stopGeoJsonSchema),
     type: z.literal("FeatureCollection"),
 });
+
+export const tripsApiDataSchema = z.array(tripSchema);

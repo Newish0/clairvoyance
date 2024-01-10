@@ -1,0 +1,30 @@
+---
+interface Props {
+    shortName: string | number;
+    longName: string | number;
+    stopName: string;
+
+    /** Minutes until bus arrvies at stop */
+    minTillArrival: number;
+}
+
+const { shortName, longName, stopName, minTillArrival } = Astro.props;
+---
+
+<div class="flex w-full flex-row justify-between items-center px-4">
+    <div class="space-y-2">
+        <h2 class="text-3xl font-semibold">{shortName}</h2>
+
+        <p class="text-sm font-medium leading-none">
+            <span>icon</span>
+            <span class="text-muted-foreground">{longName}</span>
+        </p>
+
+        <p class="text-xs leading-none text-muted-foreground">{stopName}</p>
+    </div>
+
+    <div class="text-center">
+        <h2 class="text-3xl font-semibold">{minTillArrival}</h2>
+        <p class="text-xs leading-none">minutes</p>
+    </div>
+</div>

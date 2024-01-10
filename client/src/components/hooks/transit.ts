@@ -1,5 +1,6 @@
 import { client } from "@/components/nanostores/store";
-import { fetchShapes, fetchStops, getRealtimePosition } from "@/services/transit/geojson";
+import { fetchShapes, fetchStops } from "@/services/transit/geojson";
+import { fetchTrips, getRealtimePosition } from "@/services/transit";
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -23,6 +24,18 @@ export function useShapes({ lat, lon, distance }: { lat: number; lon: number; di
         {
             queryKey: ["transit-shapes", lat, lon, distance],
             queryFn: fetchShapes,
+        },
+        client
+    );
+}
+
+export function useTrips({ lat, lon, distance }: { lat: number; lon: number; distance: number }) {
+    // TODO: implement lat, lon, distance in query
+
+    return useQuery(
+        {
+            queryKey: ["transit-trips", lat, lon, distance],
+            queryFn: fetchTrips,
         },
         client
     );

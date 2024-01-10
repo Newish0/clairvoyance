@@ -36,7 +36,7 @@ const config = {
                 "http://victoria.mapstrat.com/current/gtfrealtime_TripUpdates.bin",
                 "http://victoria.mapstrat.com/current/gtfrealtime_ServiceAlerts.bin",
             ],
-            prefix: "VIC",
+            prefix: "BCT_VIC",
         },
     ],
 };
@@ -100,7 +100,7 @@ export const off = (event: GTFSEventType, handler: GTFSEventHandler) => {
 };
 
 export const db = {
-    primary: openDb(config),
+    primary: initialized ? openDb(config) : null,
 };
 
 // const routes = getRoutes(

@@ -2,17 +2,30 @@
 import "@/styles/globals.css";
 
 import Layout from "../layouts/Layout.astro";
-import Card from "../components/Card.astro";
-
-import * as L from "leaflet";
-import "leaflet/dist/leaflet.css";
 
 import Map from "@/components/Map.tsx";
-import { Button } from "@/components/ui/button"
+import "leaflet/dist/leaflet.css";
+import RouteItem from "@/components/RouteItem.astro";
+import RouteList from "@/components/RouteList";
 ---
 
 <Layout title="Clairvoance">
-    <Map client:only></Map>
+    <main class="min-h-[100dvh]">
+        <!-- Map -->
+        <Map client:only />
+
+        <!-- Content -->
+        <section>
+            <RouteItem
+                longName="Dockyard"
+                shortName="26"
+                stopName="Uvic Bus Loop"
+                minTillArrival={8}
+            />
+
+            <RouteList />
+        </section>
+    </main>
 </Layout>
 
 <style></style>
