@@ -23,7 +23,6 @@
     "astro": "^4.1.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "gtfs": "^4.5.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.306.0",
     "nanostores": "^0.9.5",

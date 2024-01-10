@@ -80,6 +80,8 @@ export const init = async () => {
             console.error(error);
         }
     }, REALTIME_UPDATE_INTERVAL);
+
+    if (!db.primary) db.primary = openDb(config);
 };
 
 export const on = (event: GTFSEventType, handler: GTFSEventHandler) => {
@@ -97,7 +99,9 @@ export const off = (event: GTFSEventType, handler: GTFSEventHandler) => {
     eventEmitter.off(event, handler);
 };
 
-export const db = initialized ? openDb(config) : null;
+export const db = {
+    primary: openDb(config),
+};
 
 // const routes = getRoutes(
 //     {}, // No query filters

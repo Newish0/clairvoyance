@@ -1,17 +1,23 @@
-import { getRoutes, getShapesAsGeoJSON, getStopsAsGeoJSON, getVehiclePositions } from "gtfs";
+import {
+    getRoutes,
+    getShapesAsGeoJSON,
+    getStopsAsGeoJSON,
+    getVehiclePositions,
+    getStops,
+    getTrips,
+} from "gtfs";
 import { type Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { db, on } from "@/services/gtfs";
 
-//  TODO: Use router
 export default function transitController(app: Hono) {
     app.get("/geojson/shapes", async (c) => {
-        const shapesGeojson = await getShapesAsGeoJSON({}, { db });
+        const shapesGeojson = await getShapesAsGeoJSON({}, { db: db.primary });
         return c.json(shapesGeojson);
     });
 
     app.get("/geojson/stops", async (c) => {
-        const stopsGeojson = await getStopsAsGeoJSON({}, { db });
+        const stopsGeojson = await getStopsAsGeoJSON({}, { db: db.primary });
         return c.json(stopsGeojson);
     });
 
@@ -20,9 +26,29 @@ export default function transitController(app: Hono) {
             {}, // query filters
             [], // return  fields
             [["route_short_name", "ASC"]], // sorting
-            { db }
+            { db: db.primary }
         );
         return c.json(routes);
+    });
+
+    app.get("/stops", async (c) => {
+        const stops = getStops(
+            {}, // query filters
+            [], // return  fields
+            [], // sorting
+            { db: db.primary }
+        );
+        return c.json(stops);
+    });
+
+    app.get("/trips", async (c) => {
+        const trips = getTrips(
+            {}, // query filters
+            [], // return  fields
+            [], // sorting
+            { db: db.primary }
+        );
+        return c.json(trips);
     });
 
     app.get("/stream", async (c) => {
@@ -31,7 +57,7 @@ export default function transitController(app: Hono) {
         return streamSSE(c, async (stream) => {
             const updateHandler = async () => {
                 const vehiclePositions = getVehiclePositions({}, [], [], {
-                    db,
+                    db: db.primary,
                 });
 
                 await stream.writeSSE({
