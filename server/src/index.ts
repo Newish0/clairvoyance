@@ -12,7 +12,7 @@ import pkgJson from "@/../package.json";
 
 const app = new Hono();
 
-const ASTRO_ROOT = "../dist/";
+const ASTRO_ROOT = "../client/dist/";
 
 app.use("*", logger());
 app.use(

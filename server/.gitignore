@@ -1,1 +1,10 @@
 node_modules
+
+
+# environment variables
+.env
+.env.production
+
+
+# tmp sqlite databases 
+*.sqlite

@@ -58,6 +58,7 @@ export const init = async () => {
     if (!initialized && !initializing && isDBStale(DB_PATH)) {
         initializing = true;
         try {
+            if (fs.existsSync(DB_PATH)) fs.rmSync(DB_PATH);
             await importGtfs(config);
             initialized = true;
         } catch (error) {
@@ -96,7 +97,7 @@ export const off = (event: GTFSEventType, handler: GTFSEventHandler) => {
     eventEmitter.off(event, handler);
 };
 
-export const db = openDb(config);
+export const db = initialized ? openDb(config) : null;
 
 // const routes = getRoutes(
 //     {}, // No query filters
