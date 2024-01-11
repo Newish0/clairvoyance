@@ -9,6 +9,9 @@ import api from "@/routes/api";
 
 import pkgJson from "@/../package.json";
 
+/** Whether we are ready to serve data */
+let ready = false;
+
 const app = new Hono();
 
 app.use("*", logger());
@@ -19,11 +22,20 @@ app.use(
     })
 );
 
+// Serves error 500 if not ready
+app.use("*", async (c, next) => {
+    if (ready) return await next();
+    else {
+        c.status(500);
+        return c.json({ message: "API Not Ready" });
+    }
+});
+
 app.route("/api", api);
 
-const port = 3000;
+const port = parseInt(process.env.PORT || "3000");
 
-initGTFS();
+initGTFS().then(() => (ready = true));
 
 // Server startup logging
 console.log();
