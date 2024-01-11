@@ -1,5 +1,4 @@
 import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
@@ -12,8 +11,6 @@ import pkgJson from "@/../package.json";
 
 const app = new Hono();
 
-const ASTRO_ROOT = "../client/dist/";
-
 app.use("*", logger());
 app.use(
     "/api/*",
@@ -23,17 +20,6 @@ app.use(
 );
 
 app.route("/api", api);
-
-// Very important that the wildcard static files comes after other routes.
-app.use(
-    "/*",
-    serveStatic({
-        root: ASTRO_ROOT,
-        onNotFound: (path, c) => {
-            console.log(`${path} is not found, you access ${c.req.path}`);
-        },
-    })
-);
 
 const port = 3000;
 
