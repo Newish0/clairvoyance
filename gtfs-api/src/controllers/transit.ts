@@ -51,11 +51,13 @@ export default function transitController(app: Hono) {
         return c.json(trips);
     });
 
+    // TODO: implement more efficient way of tracking last data update.
+    let lastRTUpdateTime = 0;
+    on("rtupdate", () => (lastRTUpdateTime = Date.now()));
     app.get("/stream", async (c) => {
         let id = 0;
-
         return streamSSE(c, async (stream) => {
-            const updateHandler = async () => {
+            while (true) {
                 const vehiclePositions = getVehiclePositions({}, [], [], {
                     db: db.primary,
                 });
@@ -65,10 +67,8 @@ export default function transitController(app: Hono) {
                     event: "vehiclePositions",
                     id: String(id++),
                 });
-            };
-
-            on("rtupdate", updateHandler);
-            updateHandler();
+                await stream.sleep(20000);
+            }
         });
     });
 }

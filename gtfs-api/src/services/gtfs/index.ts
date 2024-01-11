@@ -17,7 +17,7 @@ import { GTFSEventEmitter, GTFSEventHandler, GTFSEventType } from "@/services/gt
 
 const DB_PATH = "./db/gtfs-db.sqlite";
 
-const REALTIME_UPDATE_INTERVAL = 30000; // 30 seconds
+const REALTIME_UPDATE_INTERVAL = 10000; // 30 seconds
 
 const STALE_TIME = 3600 * 1000; // 1hr
 
