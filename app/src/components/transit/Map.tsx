@@ -1,11 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { groupBy } from "@/utils/convert";
-import { useRealtimePosition, useShapes, useStops } from "./hooks/transit";
-import LiveData from "@/services/transit/LiveData";
+import { useRealtimePosition, useShapes, useStops } from "@/components/hooks/transit";
+import { TripInfoDrawer } from "@/components/transit/TripInfoDrawer";
 
-const Map = () => {
+type TripClickHandler = (tripId: string) => void;
+
+interface MapProps {
+    onTripClick?: TripClickHandler;
+}
+
+const Map = ({ onTripClick: handleTripClick }: MapProps) => {
     const mapContainerRef = useRef<null | HTMLDivElement>(null);
     const [map, setMap] = useState<L.Map>();
 
@@ -21,6 +26,15 @@ const Map = () => {
     });
 
     const vehiclePositions = useRealtimePosition();
+
+    const [focTripInfo, setFocTripInfo] = useState({
+        tripId: "",
+        yourLoc: {
+            lat: 0,
+            lng: 0,
+        },
+    });
+    const [isTripDrawerOpen, setIsTripDrawerOpen] = useState(false);
 
     // Leaflet initialization (hooks into React)
     useEffect(() => {
@@ -108,15 +122,20 @@ const Map = () => {
         };
 
         const rtPosLayer = L.layerGroup();
-        for (const pos of vehiclePositions) {
-            const marker = L.circleMarker([pos.latitude, pos.longitude], markerOption).bindPopup(
-                JSON.stringify(pos, null, 2)
+        for (const veh of vehiclePositions) {
+            const marker = L.circleMarker([veh.latitude, veh.longitude], markerOption).bindPopup(
+                JSON.stringify(veh, null, 2)
             );
 
             // Handle on marker click
             marker.addEventListener("click", () => {
-                // TODO
-                throw new Error("No implementation.");
+                if (handleTripClick) {
+                    handleTripClick(veh.trip_id ?? "");
+                } else {
+                    openTripDrawer({
+                        tripId: veh.trip_id ?? "",
+                    });
+                }
             });
 
             marker.addTo(rtPosLayer);
@@ -129,7 +148,37 @@ const Map = () => {
         };
     }, [vehiclePositions, map]);
 
-    return <div ref={mapContainerRef} className="h-[75dvh]"></div>;
+    const openTripDrawer = ({
+        tripId = "",
+    }: {
+        tripId?: string;
+    } = {}) => {
+        setFocTripInfo({
+            tripId,
+            yourLoc: {
+                lat: 0,
+                lng: 0,
+            },
+        });
+        setIsTripDrawerOpen(true);
+    };
+
+    const handleTripDrawerClose = () => {
+        setIsTripDrawerOpen(false);
+    };
+
+    return (
+        <>
+            <div ref={mapContainerRef} className="h-[75dvh] z-0"></div>
+            {focTripInfo.tripId && (
+                <TripInfoDrawer
+                    isOpen={isTripDrawerOpen}
+                    info={focTripInfo}
+                    onClose={handleTripDrawerClose}
+                />
+            )}
+        </>
+    );
 };
 
 export default Map;

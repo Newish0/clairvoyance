@@ -66,6 +66,18 @@ export const tripSchema = z.object({
     bikes_allowed: z.number(),
 });
 
+export const vehiclePositionSchema = z.object({
+    update_id: z.string(),
+    bearing: z.number().nullable(),
+    latitude: z.number(),
+    longitude: z.number(),
+    speed: z.number().nullable(),
+    trip_id: z.string().nullable(),
+    vehicle_id: z.string(),
+    timestamp: z.string(),
+    isUpdated: z.number(),
+});
+
 export const shapesGeojsonApiDataSchema = z.object({
     features: z.array(shapeGeoJsonSchema),
     type: z.literal("FeatureCollection"),
@@ -77,3 +89,5 @@ export const stopsGeojsonApiDataSchema = z.object({
 });
 
 export const tripsApiDataSchema = z.array(tripSchema);
+
+export const vehiclePositionsApiDataSchema = z.array(vehiclePositionSchema);

@@ -36,7 +36,9 @@ const config = {
                 "http://victoria.mapstrat.com/current/gtfrealtime_TripUpdates.bin",
                 "http://victoria.mapstrat.com/current/gtfrealtime_ServiceAlerts.bin",
             ],
-            prefix: "BCT_VIC",
+
+            // TODO: Use prefix to avoid conflict but need to ensure it works with realtime data
+            // prefix: "BCT_VIC",
         },
     ],
 };

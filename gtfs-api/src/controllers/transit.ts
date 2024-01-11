@@ -10,6 +10,9 @@ import { type Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { db, on } from "@/services/gtfs";
 
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+
 export default function transitController(app: Hono) {
     app.get("/geojson/shapes", async (c) => {
         const shapesGeojson = await getShapesAsGeoJSON({}, { db: db.primary });
@@ -41,15 +44,29 @@ export default function transitController(app: Hono) {
         return c.json(stops);
     });
 
-    app.get("/trips", async (c) => {
-        const trips = getTrips(
-            {}, // query filters
-            [], // return  fields
-            [], // sorting
-            { db: db.primary }
-        );
-        return c.json(trips);
-    });
+    app.get(
+        "/trips",
+        zValidator(
+            "query",
+            z.object({
+                trip_id: z.string().optional(),
+            })
+        ),
+        async (c) => {
+            const { trip_id } = c.req.valid("query");
+
+            const filter: Record<string, string | string[] | number | number[]> = {};
+            if (trip_id) filter.trip_id = trip_id;
+
+            const trips = getTrips(
+                filter, // query filters
+                [], // return  fields
+                [], // sorting
+                { db: db.primary }
+            );
+            return c.json(trips);
+        }
+    );
 
     // TODO: implement more efficient way of tracking last data update.
     let lastRTUpdateTime = 0;

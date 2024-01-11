@@ -1,9 +1,11 @@
 import { tripsApiDataSchema } from "@/schemas/zod/transit";
 import LiveData from "./LiveData";
 
-export async function fetchTrips() {
+export async function fetchTrips(query?: { trip_id?: string }) {
     // TODO: implement lat, lon, distance in query
-    const res = await fetch(new URL("./api/transit/trips", __GTFS_API_ENDPOINT__));
+    const res = await fetch(
+        new URL("./api/transit/trips", __GTFS_API_ENDPOINT__) + "?" + new URLSearchParams(query)
+    );
     const data = await res.json();
     return tripsApiDataSchema.parse(data);
 }
