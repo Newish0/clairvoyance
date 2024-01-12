@@ -31,6 +31,8 @@ export const TripInfoDrawer = ({ info, isOpen, onClose }: TripInfoDrawerProps) =
 
     const { data, isLoading } = useTrip(info.tripId);
 
+    const secondsSinceLastUpdate = (Date.now() - new Date(data?.timestamp ?? "").getTime()) / 1000;
+
     return (
         <Drawer open={isOpen} dismissible>
             <DrawerContent>
@@ -51,8 +53,7 @@ export const TripInfoDrawer = ({ info, isOpen, onClose }: TripInfoDrawerProps) =
                                 </div>
 
                                 <i className="text-sm text-muted-foreground">
-                                    Last updated:{" "}
-                                    {new Date(data?.timestamp ?? "").toLocaleString()}
+                                    Last updated: {Math.round(secondsSinceLastUpdate)} second(s) ago
                                 </i>
                             </div>
                         </>
