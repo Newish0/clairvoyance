@@ -1,31 +1,68 @@
-import { client } from "@/components/nanostores/store";
-import { fetchShapes, fetchStops } from "@/services/transit/geojson";
-import { fetchTrips, getRealtimePosition } from "@/services/transit";
+import { client } from "@/components/nanostores/tanstack";
+import {
+    fetchShapes as fetchShapesGeojson,
+    fetchStops as fetchStopsGeojson,
+} from "@/services/transit/geojson";
+import { fetchStops, fetchTrips, getRealtimePosition } from "@/services/transit";
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { vehiclePositionsApiDataSchema } from "@/schemas/zod/transit";
 import type { z } from "zod";
 
-export function useStops({ lat, lon, distance }: { lat: number; lon: number; distance: number }) {
+export function useStopsGeojson({
+    lat,
+    lon,
+    distance,
+}: {
+    lat: number;
+    lon: number;
+    distance: number;
+}) {
     // TODO: implement lat, lon, distance in query
 
     return useQuery(
         {
-            queryKey: ["transit-stops", lat, lon, distance],
-            queryFn: fetchStops,
+            queryKey: ["transit-stops-geojson", lat, lon, distance],
+            queryFn: fetchStopsGeojson,
         },
         client
     );
 }
 
-export function useShapes({ lat, lon, distance }: { lat: number; lon: number; distance: number }) {
+export function useShapesGeojson({
+    lat,
+    lon,
+    distance,
+}: {
+    lat: number;
+    lon: number;
+    distance: number;
+}) {
     // TODO: implement lat, lon, distance in query
 
     return useQuery(
         {
-            queryKey: ["transit-shapes", lat, lon, distance],
-            queryFn: fetchShapes,
+            queryKey: ["transit-shapes-geojson", lat, lon, distance],
+            queryFn: fetchShapesGeojson,
+        },
+        client
+    );
+}
+
+export function useStops({
+    lat,
+    lng,
+    radius,
+}: {
+    lat: number | string;
+    lng: number | string;
+    radius: number | string;
+}) {
+    return useQuery(
+        {
+            queryKey: ["transit-stops", lat, lng, radius],
+            queryFn: () => fetchStops({ lat, lng, radius }),
         },
         client
     );

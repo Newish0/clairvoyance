@@ -1,27 +1,34 @@
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "@nanostores/react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useRealtimePosition, useShapes, useStops } from "@/components/hooks/transit";
+import { useRealtimePosition, useShapesGeojson, useStopsGeojson } from "@/components/hooks/transit";
 import { TripInfoDrawer } from "@/components/transit/TripInfoDrawer";
 import { calculateDistance } from "@/utils/compute";
+import { mapCenter } from "@/components/nanostores/mainMapStore";
 
 type TripClickHandler = (tripId: string) => void;
+type LocationChangeHandler = (newLoc: L.LatLng) => void;
 
 interface MapProps {
     onTripClick?: TripClickHandler;
+    onLocationChange?: LocationChangeHandler;
 }
 
-const Map = ({ onTripClick: handleTripClick }: MapProps) => {
+const Map = ({
+    onTripClick: handleTripClick,
+    onLocationChange: handleLocationChange,
+}: MapProps) => {
     const mapContainerRef = useRef<null | HTMLDivElement>(null);
     const [map, setMap] = useState<L.Map>();
-    const [mapCenter, setMapCenter] = useState<L.LatLng>();
+    const $mapCenter = useStore(mapCenter);
 
-    const { data: stopsGeoJson, isFetched: stopsIsFetched } = useStops({
+    const { data: stopsGeoJson, isFetched: stopsIsFetched } = useStopsGeojson({
         distance: 0,
         lat: 0,
         lon: 0,
     });
-    const { data: shapesGeoJson, isFetched: shapesIsFetched } = useShapes({
+    const { data: shapesGeoJson, isFetched: shapesIsFetched } = useShapesGeojson({
         distance: 0,
         lat: 0,
         lon: 0,
@@ -57,13 +64,14 @@ const Map = ({ onTripClick: handleTripClick }: MapProps) => {
         });
 
         const handleMapMoveEnd = () => {
-            setMapCenter(map.getCenter());
+            mapCenter.set(map.getCenter());
+            if (handleLocationChange) handleLocationChange(map.getCenter());
         };
 
         map.on("moveend", handleMapMoveEnd);
 
         setMap(map);
-        setMapCenter(map.getCenter()); // Initialization
+        handleMapMoveEnd(); // initialization
 
         return () => {
             map.off();

@@ -6,7 +6,7 @@ import Layout from "../layouts/Layout.astro";
 import Map from "@/components/transit/Map";
 import "leaflet/dist/leaflet.css";
 import RouteItem from "@/components/RouteItem.astro";
-import RouteList from "@/components/RouteList";
+import NearbyRouteList from "@/components/NearbyRouteList";
 ---
 
 <Layout title="Clairvoance">
@@ -23,7 +23,7 @@ import RouteList from "@/components/RouteList";
                 minTillArrival={8}
             />
 
-            <RouteList />
+            <NearbyRouteList client:only />
         </section>
     </main>
 </Layout>
