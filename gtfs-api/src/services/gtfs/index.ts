@@ -9,6 +9,8 @@ import {
     getRoutes,
 } from "gtfs";
 
+import { type Database } from "better-sqlite3";
+
 import fs from "fs";
 import path from "path";
 import { isFileOlderThanNMS } from "@/utils/file";
@@ -101,7 +103,9 @@ export const off = (event: GTFSEventType, handler: GTFSEventHandler) => {
     eventEmitter.off(event, handler);
 };
 
-export const db = {
+export const db: {
+    primary: Database | null;
+} = {
     primary: initialized ? openDb(config) : null,
 };
 
