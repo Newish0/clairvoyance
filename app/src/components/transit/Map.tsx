@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useRealtimePosition, useShapes, useStops } from "@/components/hooks/transit";
 import { TripInfoDrawer } from "@/components/transit/TripInfoDrawer";
+import { calculateDistance } from "@/utils/compute";
 
 type TripClickHandler = (tripId: string) => void;
 
@@ -13,6 +14,7 @@ interface MapProps {
 const Map = ({ onTripClick: handleTripClick }: MapProps) => {
     const mapContainerRef = useRef<null | HTMLDivElement>(null);
     const [map, setMap] = useState<L.Map>();
+    const [mapCenter, setMapCenter] = useState<L.LatLng>();
 
     const { data: stopsGeoJson, isFetched: stopsIsFetched } = useStops({
         distance: 0,
@@ -54,13 +56,55 @@ const Map = ({ onTripClick: handleTripClick }: MapProps) => {
             layers: [osm],
         });
 
+        const handleMapMoveEnd = () => {
+            setMapCenter(map.getCenter());
+        };
+
+        map.on("moveend", handleMapMoveEnd);
+
         setMap(map);
+        setMapCenter(map.getCenter()); // Initialization
 
         return () => {
             map.off();
             map.remove();
         };
     }, []);
+
+    useEffect(() => {
+        if (!map || !stopsGeoJson) return;
+        const centerMarker = L.marker(map.getCenter(), {}).addTo(map);
+        let midFlight = false;
+
+        // Maintain center marker at center & snap to stops
+        const updateCenterMarker = () => {
+            const coord = map.getCenter();
+            const closeStopCoord = stopsGeoJson?.features.find(({ geometry }) => {
+                const d = calculateDistance(
+                    geometry.coordinates[1],
+                    geometry.coordinates[0],
+                    coord.lat,
+                    coord.lng
+                );
+                return d < 0.01 && d > 0.0001;
+            })?.geometry.coordinates;
+
+            if (closeStopCoord && !midFlight) {
+                midFlight = true;
+                map.flyTo(new L.LatLng(closeStopCoord[1], closeStopCoord[0]));
+            }
+
+            centerMarker.setLatLng(coord);
+        };
+
+        map.on("move", updateCenterMarker);
+        map.on("zoomanim", updateCenterMarker);
+        map.on("moveend", () => (midFlight = false));
+        return () => {
+            map.off("move", updateCenterMarker);
+            map.off("zoomanim", updateCenterMarker);
+        };
+    }, [map, stopsGeoJson]);
 
     // Sync stops data with leaflet
     useEffect(() => {
