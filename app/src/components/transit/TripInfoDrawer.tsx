@@ -40,10 +40,21 @@ export const TripInfoDrawer = ({ info, isOpen, onClose }: TripInfoDrawerProps) =
                     ) : (
                         <>
                             <DrawerHeader>
-                                <DrawerTitle>{data?.trip_short_name}</DrawerTitle>
-                                <DrawerDescription>{JSON.stringify(data)}</DrawerDescription>
+                                <DrawerTitle>{data?.route_short_name}</DrawerTitle>
+                                <DrawerDescription>
+                                    {data?.route_desc || data?.route_long_name}
+                                </DrawerDescription>
                             </DrawerHeader>
-                            <div className="p-4 pb-0"></div>
+                            <div className="p-4 pb-0">
+                                <div className="text-sm font-medium leading-none">
+                                    Position: {data?.latitude} {data?.longitude}
+                                </div>
+
+                                <i className="text-sm text-muted-foreground">
+                                    Last updated:{" "}
+                                    {new Date(data?.timestamp ?? "").toLocaleString()}
+                                </i>
+                            </div>
                         </>
                     )}
                     <DrawerFooter>

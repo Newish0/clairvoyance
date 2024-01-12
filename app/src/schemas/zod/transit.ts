@@ -64,6 +64,19 @@ export const tripSchema = z.object({
     shape_id: z.string(),
     wheelchair_accessible: z.number(),
     bikes_allowed: z.number(),
+    route_short_name: z.string(),
+    route_long_name: z.string(),
+    route_desc: z.string(),
+    continuous_pickup: z.nullable(z.string()),
+    continuous_drop_off: z.nullable(z.string()),
+    route_color: z.string(),
+    route_type: z.number(),
+    bearing: z.number(),
+    latitude: z.number(),
+    longitude: z.number(),
+    speed: z.nullable(z.number()),
+    vehicle_id: z.string(),
+    timestamp: z.string(), // Assuming timestamp is always a string in the given format
 });
 
 export const vehiclePositionSchema = z.object({
