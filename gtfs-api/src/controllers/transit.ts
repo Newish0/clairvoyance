@@ -5,6 +5,9 @@ import {
     getVehiclePositions,
     getStops,
     getTrips,
+    advancedQuery,
+    JoinOptions,
+    AdvancedQueryOptions,
 } from "gtfs";
 import { type Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -12,6 +15,7 @@ import { db, on } from "@/services/gtfs";
 
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { reqQueryToAdvGTFSQuery, stripUndefines } from "@/utils/parse";
 
 export default function transitController(app: Hono) {
     app.get("/geojson/shapes", async (c) => {
@@ -53,17 +57,48 @@ export default function transitController(app: Hono) {
             })
         ),
         async (c) => {
-            const { trip_id } = c.req.valid("query");
+            const queryOptions: AdvancedQueryOptions = {
+                query: reqQueryToAdvGTFSQuery(c.req.valid("query"), "trips"),
+                fields: [
+                    "trips.route_id",
+                    "trips.service_id",
+                    "trips.trip_id",
+                    "trips.trip_headsign",
+                    "trips.trip_short_name",
+                    "trips.direction_id",
+                    "trips.block_id",
+                    "trips.shape_id",
+                    "trips.wheelchair_accessible",
+                    "trips.bikes_allowed",
+                    "routes.route_short_name",
+                    "routes.route_long_name",
+                    "routes.route_desc",
+                    "routes.continuous_pickup",
+                    "routes.continuous_drop_off",
+                    "routes.route_color",
+                    "routes.route_type",
+                    "vehicle_positions.bearing",
+                    "vehicle_positions.latitude",
+                    "vehicle_positions.longitude",
+                    "vehicle_positions.speed",
+                    "vehicle_positions.vehicle_id",
+                    "vehicle_positions.timestamp",
+                ],
+                join: [
+                    {
+                        type: "INNER",
+                        table: "routes",
+                        on: "trips.route_id = routes.route_id",
+                    },
+                    {
+                        type: "INNER",
+                        table: "vehicle_positions",
+                        on: "trips.trip_id = vehicle_positions.trip_id",
+                    },
+                ],
+            };
 
-            const filter: Record<string, string | string[] | number | number[]> = {};
-            if (trip_id) filter.trip_id = trip_id;
-
-            const trips = getTrips(
-                filter, // query filters
-                [], // return  fields
-                [], // sorting
-                { db: db.primary }
-            );
+            const trips = advancedQuery("trips", queryOptions);
             return c.json(trips);
         }
     );
