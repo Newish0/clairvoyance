@@ -12,9 +12,9 @@ export const shapeGeoJsonSchema = z.object({
         route_long_name: z.string(),
         route_desc: z.string(),
         route_type: z.number(),
-        route_color: z.string(),
-        route_text_color: z.string(),
-        network_id: z.string().nullable(),
+        route_color: z.string().nullable(),
+        route_text_color: z.string().nullable(),
+        network_id: z.string().nullable().optional(),
     }),
     geometry: z.object({
         type: z.literal("LineString"),
@@ -29,9 +29,9 @@ export const routeSchema = z.object({
     route_long_name: z.string(),
     route_desc: z.string(),
     route_type: z.number(),
-    route_color: z.string(),
-    route_text_color: z.string(),
-    network_id: z.string().nullable(),
+    route_color: z.string().nullable(),
+    route_text_color: z.string().nullable(),
+    network_id: z.string().nullable().optional(),
 });
 
 export const stopGeoJsonSchema = z.object({
@@ -40,10 +40,10 @@ export const stopGeoJsonSchema = z.object({
         stop_id: z.string(),
         stop_code: z.string(),
         stop_name: z.string(),
-        zone_id: z.string().nullable(),
+        zone_id: z.string().nullable().optional(),
         location_type: z.number(),
         wheelchair_boarding: z.number(),
-        level_id: z.string().nullable(),
+        level_id: z.string().nullable().optional(),
         routes: z.array(routeSchema),
         agency_name: z.string(),
     }),
