@@ -1,0 +1,1 @@
+Project root for the SSG frontend.
