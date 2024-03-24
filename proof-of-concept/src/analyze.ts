@@ -1,6 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { json2csv } from "json-2-csv";
+import * as math from "mathjs";
+
+import regression from "regression";
 
 const TMP_DATA_PATH = "./tmp_data";
 const GEOJSON_PATH = path.join(TMP_DATA_PATH, "routes.geo.json");
@@ -124,6 +127,28 @@ function percentageAlongLine(
     return distanceTraveled / totalDistance;
 }
 
+interface DataPoint {
+    [key: string]: number;
+}
+
+function polynomialRegression(
+    data: DataPoint[],
+    independentVariable: string,
+    dependentVariable: string,
+    degree: number
+): number[] {
+    // Perform polynomial regression
+    const result = regression.polynomial(
+        data.map((point) => [point[independentVariable], point[dependentVariable]]),
+        { order: degree, precision: 32 }
+    );
+
+    // Retrieve coefficients of the regression equation
+    const coefficients: number[] = result.equation;
+
+    return coefficients;
+}
+
 // Read all files in the directory
 fs.readdirSync(TMP_DATA_PATH).forEach((file) => {
     // Check if the file matches the specified pattern
@@ -190,11 +215,7 @@ rtvp95.forEach(
 );
 
 // Remove data point when near start or end
-rtvp95 = rtvp95.filter(
-    (data) =>
-        haversineDistance([data.longitude, data.latitude], coords95.at(0)!) > 0.05 &&
-        haversineDistance([data.longitude, data.latitude], coords95.at(-1)!) > 0.05
-);
+rtvp95 = rtvp95.filter((data) => data.percentage > 0.0001);
 
 // Remove trips that did not get it's entire trip recorded.
 const tripsWithNearStart: Record<string, boolean> = {};
@@ -213,7 +234,71 @@ rtvp95.forEach((data) => {
 
 rtvp95.forEach((data) => (data.rel_timestamp = data.timestamp - tripStartTimeRec[data.trip_id]));
 
+// Filter by observing points at similar rel_timestamp
+
+// const sortedRelTime = rtvp95.map((data) => data.rel_timestamp).toSorted((a, b) => a - b);
+// const rtQ1 = sortedRelTime[Math.floor(sortedRelTime.length * 0.25)];
+// const rtQ3 = sortedRelTime[Math.ceil(sortedRelTime.length * 0.75)];
+// const rtIQR = rtQ3 - rtQ1;
+// const rtLower = rtQ1 - 1.5 * rtIQR;
+// const rtUpper = rtQ3 + 1.5 * rtIQR;
+
+const bucketRange = 10000; // Defines what is consider to be near another point
+
+// const numRTInRange = rtvp95.filter(
+//     (data) => data.rel_timestamp > rtLower && data.rel_timestamp < rtUpper
+// ).length;
+// const numRTPerBucket = numRTInRange / bucketSize;
+
+const outliersPointCountByTrip: Record<string, number> = {};
+
+rtvp95.forEach((d1) => {
+    if (!outliersPointCountByTrip[d1.trip_id]) outliersPointCountByTrip[d1.trip_id] = 0;
+
+    //  Find all points that are near the current point
+    const similarRelTimePoints = rtvp95.filter(
+        (d2) => Math.abs(d2.rel_timestamp - d1.rel_timestamp) < bucketRange
+    );
+
+    // // Must contain at least 10%  of expect num points in a bucket to be valid
+    // if (similarRelTimePoints.length < numRTPerBucket * 0.1) {
+    //     outliersPointCountByTrip[d1.trip_id]++;
+    //     return;
+    // }
+
+    const avgPer = math.mean(similarRelTimePoints.map((d2) => d2.percentage));
+
+    // Must be within 0.1 percentage traveled to be close enough to cluster
+    if (Math.abs(avgPer - d1.percentage) > 0.1) {
+        outliersPointCountByTrip[d1.trip_id]++;
+    }
+});
+
+// Count the number of points each trip has
+const pointsPerTrip: Record<string, number> = {};
+rtvp95.forEach((d) => {
+    if (!pointsPerTrip[d.trip_id]) pointsPerTrip[d.trip_id] = 0;
+    pointsPerTrip[d.trip_id]++;
+});
+
+// No more than 25% of the points of the trip can be outliers
+const threshold = 0.25;
+rtvp95 = rtvp95.filter(
+    (d) => outliersPointCountByTrip[d.trip_id] < pointsPerTrip[d.trip_id] * threshold
+);
+
+
 console.log(rtvp95);
+
+// Perform polynomial regression, remove outlier with residual.
+// NOTE: We use regression to best fit a polynomial for data extrapolation use.
+//       When in use, we will have both x, y var.
+//        1. Compute prediction given X
+//        2. We offset polynomial to match prediction with our known y.
+//        3. We compute again for the predicted y using offset polynomial.
+const initialCoeff = polynomialRegression(rtvp95, "rel_timestamp", "percentage", 6);
+
+console.log(initialCoeff);
 
 const csv = json2csv(rtvp95);
 fs.writeFileSync(OUTPUT_CSV_PATH, csv);

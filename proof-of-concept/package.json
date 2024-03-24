@@ -6,6 +6,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "collect": "tsx src/index.ts",
     "analyze": "tsx src/analyze.ts"
   },
   "dependencies": {
@@ -15,11 +16,14 @@
     "gtfs": "^4.5.1",
     "hono": "^3.12.0",
     "json-2-csv": "^5.5.0",
+    "mathjs": "^12.4.1",
+    "regression": "^2.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/node": "^20.10.7",
+    "@types/regression": "^2.0.6",
     "better-sqlite3": "^9.2.2",
     "tsx": "^3.12.2"
   }

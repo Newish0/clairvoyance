@@ -40,19 +40,23 @@ try {
 
 const db = openDb(config);
 
-// Get GeoJSON for all routes 
+// Get GeoJSON for all routes
 const shapesGeojson = await getShapesAsGeoJSON({}, { db });
 fs.writeFileSync(path.join(TMP_DATA_PATH, "routes.geo.json"), JSON.stringify(shapesGeojson));
 
 // Collect RT update info
 setInterval(async () => {
-    await updateGtfsRealtime(config);
+    try {
+        await updateGtfsRealtime(config);
 
-    const vehiclePositions = getVehiclePositions({}, [], [], { db });
+        const vehiclePositions = getVehiclePositions({}, [], [], { db });
 
-    const fileName = `rtvp_${Date.now()}.json`;
-    const filePath = path.join(TMP_DATA_PATH, fileName);
+        const fileName = `rtvp_${Date.now()}.json`;
+        const filePath = path.join(TMP_DATA_PATH, fileName);
 
-    fs.writeFileSync(filePath, JSON.stringify(vehiclePositions));
-    console.log("Wrote", filePath);
+        fs.writeFileSync(filePath, JSON.stringify(vehiclePositions));
+        console.log("Wrote", filePath);
+    } catch (error) {
+        console.log("Failed to collect RT data at", Date.now());
+    }
 }, REALTIME_UPDATE_INTERVAL);
