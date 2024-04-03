@@ -1,0 +1,338 @@
+{
+  "id": "8bb17c1c-7c64-4a45-96cf-6f7d0bfd8c27",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "5",
+  "dialect": "pg",
+  "tables": {
+    "routes": {
+      "name": "routes",
+      "schema": "",
+      "columns": {
+        "route_id": {
+          "name": "route_id",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_short_name": {
+          "name": "route_short_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_long_name": {
+          "name": "route_long_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_desc": {
+          "name": "route_desc",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_type": {
+          "name": "route_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_url": {
+          "name": "route_url",
+          "type": "varchar(2047)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_color": {
+          "name": "route_color",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_text_color": {
+          "name": "route_text_color",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_sort_order": {
+          "name": "route_sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "continuous_pickup": {
+          "name": "continuous_pickup",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "continuous_drop_off": {
+          "name": "continuous_drop_off",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "network_id": {
+          "name": "network_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "vehical_position": {
+      "name": "vehical_position",
+      "schema": "",
+      "columns": {
+        "rtvp_id": {
+          "name": "rtvp_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bearing": {
+          "name": "bearing",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "speed": {
+          "name": "speed",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vehicle_id": {
+          "name": "vehicle_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rtvp_timestamp": {
+          "name": "rtvp_timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_updated": {
+          "name": "is_updated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "percentage": {
+          "name": "percentage",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rel_timestamp": {
+          "name": "rel_timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vehical_position_trip_id_trips_trip_id_fk": {
+          "name": "vehical_position_trip_id_trips_trip_id_fk",
+          "tableFrom": "vehical_position",
+          "tableTo": "trips",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "trip_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "shapes": {
+      "name": "shapes",
+      "schema": "",
+      "columns": {
+        "shape_id": {
+          "name": "shape_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape_pt_lat": {
+          "name": "shape_pt_lat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape_pt_lon": {
+          "name": "shape_pt_lon",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape_pt_sequence": {
+          "name": "shape_pt_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape_dist_traveled": {
+          "name": "shape_dist_traveled",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "shapes_shape_id_shape_pt_sequence_pk": {
+          "name": "shapes_shape_id_shape_pt_sequence_pk",
+          "columns": [
+            "shape_id",
+            "shape_pt_sequence"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "trips": {
+      "name": "trips",
+      "schema": "",
+      "columns": {
+        "trip_id": {
+          "name": "trip_id",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_id": {
+          "name": "service_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trip_headsign": {
+          "name": "trip_headsign",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_short_name": {
+          "name": "trip_short_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction_id": {
+          "name": "direction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block_id": {
+          "name": "block_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shape_id": {
+          "name": "shape_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wheelchair_accessible": {
+          "name": "wheelchair_accessible",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bikes_allowed": {
+          "name": "bikes_allowed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trips_route_id_routes_route_id_fk": {
+          "name": "trips_route_id_routes_route_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "routes",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "route_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trips_shape_id_shapes_shape_id_fk": {
+          "name": "trips_shape_id_shapes_shape_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "shapes",
+          "columnsFrom": [
+            "shape_id"
+          ],
+          "columnsTo": [
+            "shape_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

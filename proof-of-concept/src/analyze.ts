@@ -12,6 +12,12 @@ const OUTPUT_CSV_PATH = path.join(TMP_DATA_PATH, "rtvp_95.csv");
 const rtvpMap = new Map<string, any>();
 const tripIds = JSON.parse(fs.readFileSync(path.join(TMP_DATA_PATH, "95_trip_ids.json"), "utf8"));
 
+
+
+// TODO. Instead of using GEO JSON and approx distance traveled 
+//       Using the shape_id of the trip/route and thus => Shapes table to get shapes coordinates
+
+
 /**
  *
  * @param point1
