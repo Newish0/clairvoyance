@@ -11,6 +11,8 @@ import geojson from "./routes/geojson";
 import routes from "./routes/routes";
 import trips from "./routes/trips";
 
+import { migrateDb } from "@/db/index";
+
 /** Whether we are ready to serve data */
 let ready = false;
 
@@ -41,7 +43,6 @@ app.route("/trips", trips);
 
 const port = parseInt(process.env.PORT || "3000");
 
-initGTFS().then(() => (ready = true));
 
 // Server startup logging
 console.log();
@@ -52,6 +53,16 @@ console.log(
 console.log();
 console.log(`┃ Local    ${chalk.cyan.underline(`http://localhost:${port}`)}`);
 console.log();
+
+// Initialization process
+(async () => {
+    console.log();
+    console.log(chalk.white.bold.bgYellow(`Migrating DB`));
+    await migrateDb();
+    console.log(chalk.white.bold.bgCyan(`DB Migration Complete`));
+    await initGTFS();
+    ready = true;
+})();
 
 serve({
     fetch: app.fetch,

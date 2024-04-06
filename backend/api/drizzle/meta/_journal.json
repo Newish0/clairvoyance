@@ -1,12 +1,12 @@
 {
   "version": "5",
-  "dialect": "mysql",
+  "dialect": "pg",
   "entries": [
     {
       "idx": 0,
       "version": "5",
-      "when": 1712130630765,
-      "tag": "0000_equal_nighthawk",
+      "when": 1712391513094,
+      "tag": "0000_thick_skin",
       "breakpoints": true
     }
   ]

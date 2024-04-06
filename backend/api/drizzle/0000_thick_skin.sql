@@ -61,9 +61,3 @@ DO $$ BEGIN
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "trips" ADD CONSTRAINT "trips_shape_id_shapes_shape_id_fk" FOREIGN KEY ("shape_id") REFERENCES "shapes"("shape_id") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;

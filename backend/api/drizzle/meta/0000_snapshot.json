@@ -1,5 +1,5 @@
 {
-  "id": "8bb17c1c-7c64-4a45-96cf-6f7d0bfd8c27",
+  "id": "2c0c283c-e5de-4f23-a719-356bea9d09df",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -306,19 +306,6 @@
           ],
           "columnsTo": [
             "route_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "trips_shape_id_shapes_shape_id_fk": {
-          "name": "trips_shape_id_shapes_shape_id_fk",
-          "tableFrom": "trips",
-          "tableTo": "shapes",
-          "columnsFrom": [
-            "shape_id"
-          ],
-          "columnsTo": [
-            "shape_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
