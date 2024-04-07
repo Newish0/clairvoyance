@@ -21,7 +21,7 @@ const config = {
 
 export async function initGTFS() {
     try {
-        await importGtfs(config);
+        // await importGtfs(config);
     } catch (error) {
         console.error(error);
     }

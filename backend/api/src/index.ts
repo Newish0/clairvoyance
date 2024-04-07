@@ -5,13 +5,15 @@ import { cors } from "hono/cors";
 import chalk from "chalk";
 
 import pkgJson from "@/../package.json";
-import { initGTFS } from "./services/gtfs-init";
+import { initGTFS, db as gtfsDB } from "./services/gtfs-init";
 import stops from "./routes/stops";
 import geojson from "./routes/geojson";
 import routes from "./routes/routes";
 import trips from "./routes/trips";
 
 import { migrateDb } from "@/db/index";
+import pgDB from "@/db/index";
+import { syncGtfsStaticWithPG } from "./services/gtfs-sync";
 
 /** Whether we are ready to serve data */
 let ready = false;
@@ -43,7 +45,6 @@ app.route("/trips", trips);
 
 const port = parseInt(process.env.PORT || "3000");
 
-
 // Server startup logging
 console.log();
 console.log(
@@ -61,6 +62,14 @@ console.log();
     await migrateDb();
     console.log(chalk.white.bold.bgCyan(`DB Migration Complete`));
     await initGTFS();
+
+    if (!gtfsDB.primary) {
+        console.error("Failed to initialize GTFS");
+        return;
+    }
+
+    await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+
     ready = true;
 })();
 
