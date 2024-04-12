@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "routes" (
 	"network_id" varchar(255)
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "vehical_position" (
+CREATE TABLE IF NOT EXISTS "vehicle_position" (
 	"rtvp_id" serial PRIMARY KEY NOT NULL,
 	"bearing" real,
 	"latitude" real,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS "trips" (
 );
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "vehical_position" ADD CONSTRAINT "vehical_position_trip_id_trips_trip_id_fk" FOREIGN KEY ("trip_id") REFERENCES "trips"("trip_id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "vehicle_position" ADD CONSTRAINT "vehicle_position_trip_id_trips_trip_id_fk" FOREIGN KEY ("trip_id") REFERENCES "trips"("trip_id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

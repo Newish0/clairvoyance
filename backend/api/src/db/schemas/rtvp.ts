@@ -10,8 +10,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { trips } from "./trips";
 
-export const realtime_vehical_position = pgTable(
-    "vehical_position",
+export const realtime_vehicle_position = pgTable(
+    "vehicle_position",
     {
         rtvp_id: serial("rtvp_id").primaryKey().notNull(),
 
@@ -25,8 +25,8 @@ export const realtime_vehical_position = pgTable(
         timestamp: timestamp("rtvp_timestamp", { mode: "date" }).notNull(),
         is_updated: integer("is_updated").notNull(),
 
-        percentage: real("percentage"),
-        rel_timestamp: integer("rel_timestamp"),
+        p_traveled: real("p_traveled"),
+        rel_timestamp: integer("rel_timestamp"), // Assumes a trip won't run longer than 32 bits int
     },
     (rtvp) => ({})
 );

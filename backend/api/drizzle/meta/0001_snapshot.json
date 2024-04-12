@@ -1,6 +1,6 @@
 {
-  "id": "bd95d358-457c-4ae2-a580-4fabd3bcf504",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "ca7a8dae-f237-4c7e-92db-88252ad063e1",
+  "prevId": "bd95d358-457c-4ae2-a580-4fabd3bcf504",
   "version": "5",
   "dialect": "pg",
   "tables": {
@@ -150,8 +150,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "percentage": {
-          "name": "percentage",
+        "p_traveled": {
+          "name": "p_traveled",
           "type": "real",
           "primaryKey": false,
           "notNull": false
