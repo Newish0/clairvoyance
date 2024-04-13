@@ -34,6 +34,7 @@ export const isDuplicate = async (
 
 export const transformRtvp = async (
     rawRtvp: RawRTVP,
+    maxIntervalBtwTrips = 12 * 3600 * 1000,
     db: PostgresJsDatabase<Record<string, never>> = defaultDb
 ): Promise<typeof rtvpTable.$inferInsert> => {
     const { trip_id } = rawRtvp;
@@ -69,7 +70,7 @@ export const transformRtvp = async (
             .where(
                 and(
                     eq(rtvpTable.trip_id, trip_id),
-                    gte(rtvpTable.timestamp, new Date(timestamp.getTime() - 12 * 3600 * 1000))
+                    gte(rtvpTable.timestamp, new Date(timestamp.getTime() - maxIntervalBtwTrips))
                 )
             )
             .orderBy(asc(rtvpTable.timestamp))
