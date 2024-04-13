@@ -1,15 +1,19 @@
 import { RawRTVP } from "@/types/rtvp";
 import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
 import { trips as tripsTable } from "@/db/schemas/trips";
-import db from "@/db";
+import defaultDb from "@/db";
 import { eq, gte, and, asc } from "drizzle-orm";
 import { shapes as shapesTable } from "@/db/schemas/shapes";
+import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
 
 const parseRawRtvpTimestamp = (rawRtvpTimestamp: string | undefined): Date => {
     return rawRtvpTimestamp ? new Date(parseInt(rawRtvpTimestamp) * 1000) : new Date();
 };
 
-export const isDuplicate = async (rawRtvp: RawRTVP): Promise<boolean> => {
+export const isDuplicate = async (
+    rawRtvp: RawRTVP,
+    db: PostgresJsDatabase<Record<string, never>> = defaultDb
+): Promise<boolean> => {
     const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
 
     const rtvps = await db
@@ -28,12 +32,15 @@ export const isDuplicate = async (rawRtvp: RawRTVP): Promise<boolean> => {
     return false;
 };
 
-export const transformRtvp = async (rawRtvp: RawRTVP): Promise<typeof rtvpTable.$inferInsert> => {
+export const transformRtvp = async (
+    rawRtvp: RawRTVP,
+    db: PostgresJsDatabase<Record<string, never>> = defaultDb
+): Promise<typeof rtvpTable.$inferInsert> => {
     const { trip_id } = rawRtvp;
     const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
 
     const trip = (
-        await db.select().from(tripsTable).where(eq(tripsTable.trip_id, trip_id)).limit(1)
+        await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, trip_id)).limit(1)
     ).at(0);
 
     if (!trip) throw new Error(`No trip found for trip_id: ${trip_id}`);
