@@ -2,9 +2,10 @@ import { RawRTVP } from "@/types/rtvp";
 import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
 import { trips as tripsTable } from "@/db/schemas/trips";
 import defaultDb from "@/db";
-import { eq, gte, and, asc } from "drizzle-orm";
+import { eq, gte, and, asc, sql, inArray, lte } from "drizzle-orm";
 import { shapes as shapesTable } from "@/db/schemas/shapes";
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
+import regression from "regression";
 
 const parseRawRtvpTimestamp = (rawRtvpTimestamp: string | undefined): Date => {
     return rawRtvpTimestamp ? new Date(parseInt(rawRtvpTimestamp) * 1000) : new Date();
@@ -12,7 +13,7 @@ const parseRawRtvpTimestamp = (rawRtvpTimestamp: string | undefined): Date => {
 
 export const isDuplicate = async (
     rawRtvp: RawRTVP,
-    db: PostgresJsDatabase<Record<string, never>> = defaultDb
+    db: typeof defaultDb = defaultDb
 ): Promise<boolean> => {
     const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
 
@@ -34,8 +35,8 @@ export const isDuplicate = async (
 
 export const transformRtvp = async (
     rawRtvp: RawRTVP,
-    maxIntervalBtwTrips = 12 * 3600 * 1000,
-    db: PostgresJsDatabase<Record<string, never>> = defaultDb
+
+    db: typeof defaultDb = defaultDb
 ): Promise<typeof rtvpTable.$inferInsert> => {
     const { trip_id } = rawRtvp;
     const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
@@ -62,25 +63,6 @@ export const transformRtvp = async (
             ? percentageAlongLine(lineCoords, [rawRtvp.longitude, rawRtvp.latitude])
             : undefined;
 
-    // TODO: Validate tripRootRtvp logic and refactor
-    const tripRootRtvp = (
-        await db
-            .select()
-            .from(rtvpTable)
-            .where(
-                and(
-                    eq(rtvpTable.trip_id, trip_id),
-                    gte(rtvpTable.timestamp, new Date(timestamp.getTime() - maxIntervalBtwTrips))
-                )
-            )
-            .orderBy(asc(rtvpTable.timestamp))
-            .limit(1)
-    ).at(0);
-
-    const rel_timestamp = tripRootRtvp
-        ? timestamp.getTime() - tripRootRtvp?.timestamp.getTime()
-        : 0;
-
     return {
         bearing: rawRtvp.bearing,
         latitude: rawRtvp.latitude,
@@ -91,9 +73,128 @@ export const transformRtvp = async (
         timestamp,
         is_updated: rawRtvp.is_updated ?? 0,
         p_traveled,
-        rel_timestamp,
+        // rel_timestamp,
     };
 };
+
+const findElementWithAverageGreaterThanNextThree = (arr: number[]): number | undefined => {
+    // Iterate through the array until the third-to-last element
+    for (let i = 0; i <= arr.length - 4; i++) {
+        // Calculate the sum of the current element and the next 3 elements
+        const sumNextThree = arr[i] + arr[i + 1] + arr[i + 2] + arr[i + 3];
+
+        // Calculate the average of these elements
+        const averageNextThree = sumNextThree / 4;
+
+        // Check if the average is greater than the current element
+        if (averageNextThree > arr[i]) {
+            // Return the index of the first element that satisfies the condition
+            return i;
+        }
+    }
+
+    // Return undefined if no such element is found
+    return undefined;
+};
+
+const tripRootRtvpCache = new Map<string, typeof rtvpTable.$inferSelect | null>();
+
+const findTripRootRtvp = async (
+    rtvp: typeof rtvpTable.$inferSelect,
+    maxIntervalBtwTrips = 12 * 3600 * 1000,
+    nearStartThreshold = [0.005, 0.02],
+    db: typeof defaultDb = defaultDb
+) => {
+    if (!rtvp.trip_id) return null;
+
+    const key = `${rtvp.trip_id}-${maxIntervalBtwTrips}-${nearStartThreshold.join("-")}`;
+
+    if (tripRootRtvpCache.has(key)) {
+        return tripRootRtvpCache.get(key)!;
+    }
+
+    const tripRootRtvpCandidates = await db
+        .select()
+        .from(rtvpTable)
+        .where(
+            and(
+                eq(rtvpTable.trip_id, rtvp.trip_id),
+
+                // Trip must be within time frame
+                gte(rtvpTable.timestamp, new Date(rtvp.timestamp.getTime() - maxIntervalBtwTrips)),
+
+                // Ignore trips near start of route
+                gte(rtvpTable.p_traveled, nearStartThreshold[0]),
+                lte(rtvpTable.p_traveled, nearStartThreshold[1])
+            )
+        )
+        .orderBy(asc(rtvpTable.timestamp));
+
+    const index = findElementWithAverageGreaterThanNextThree(
+        tripRootRtvpCandidates.map((rtvp) => rtvp.p_traveled ?? 0)
+    );
+
+    if (index !== undefined) {
+        const tripRootRtvp = tripRootRtvpCandidates.at(index) ?? null;
+        tripRootRtvpCache.set(key, tripRootRtvp);
+        return tripRootRtvp;
+    } else {
+        tripRootRtvpCache.set(key, null);
+        return null;
+    }
+};
+
+export const computePredictionPolynomial = async (routeId: string, db: typeof defaultDb = defaultDb) => {
+    // const trip = (
+    //     await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, tripId)).limit(1)
+    // ).at(0);
+
+    // if (!trip) return null;
+
+    const tripIds = (
+        await db
+            .select({ trip_id: tripsTable.trip_id })
+            .from(tripsTable)
+            .where(eq(tripsTable.route_id, routeId))
+    ).map(({ trip_id }) => trip_id);
+
+    const tripRtvps = await db.select().from(rtvpTable).where(inArray(rtvpTable.trip_id, tripIds));
+
+    for (const rtvp of tripRtvps) {
+        const tripRootRtvp = await findTripRootRtvp(rtvp);
+
+        if (!tripRootRtvp) {
+            continue; // Skip
+        }
+
+        const rel_timestamp = tripRootRtvp
+            ? rtvp.timestamp.getTime() - tripRootRtvp?.timestamp.getTime()
+            : 0;
+
+        rtvp.rel_timestamp = rel_timestamp;
+
+        await db
+            .update(rtvpTable)
+            .set({ rel_timestamp })
+            .where(eq(rtvpTable.rtvp_id, rtvp.rtvp_id));
+    }
+
+    // console.log(
+    //     tripRtvps
+    //         .filter((rtvp) => rtvp.rel_timestamp !== null && rtvp.rel_timestamp >= 0)
+    //         .forEach((rtvp) => console.log(`${rtvp.rel_timestamp}, ${rtvp.p_traveled}`))
+    // );
+
+    const initialCoeff = polynomialRegression(
+        tripRtvps.filter((rtvp) => rtvp.rel_timestamp !== null && rtvp.rel_timestamp >= 0),
+        "p_traveled",
+        "rel_timestamp",
+        6
+    );
+    return initialCoeff;
+};
+
+// computePredictionPolynomial("95-VIC")
 
 /**
  *
@@ -208,4 +309,22 @@ function percentageAlongLine(
     distanceTraveled += haversineDistance(linePoints[minIndex], [closestPointX, closestPointY]);
 
     return distanceTraveled / totalDistance;
+}
+
+function polynomialRegression(
+    data: any[],
+    independentVariable: string,
+    dependentVariable: string,
+    degree: number
+): number[] {
+    // Perform polynomial regression
+    const result = regression.polynomial(
+        data.map((point) => [point[independentVariable], point[dependentVariable]]),
+        { order: degree, precision: 32 }
+    );
+
+    // Retrieve coefficients of the regression equation
+    const coefficients: number[] = result.equation;
+
+    return coefficients;
 }

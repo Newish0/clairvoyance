@@ -4,6 +4,11 @@ import postgres from "postgres";
 import "dotenv/config";
 import path from "path";
 
+import * as tripsSchema from "./schemas/trips";
+import * as routesSchema from "./schemas/routes";
+import * as rtvpSchema from "./schemas/rtvp";
+import * as shapesSchema from "./schemas/shapes";
+
 const config = {
     host: process.env.DB_HOST!,
     port: parseInt(process.env.DB_PORT!),
@@ -13,7 +18,9 @@ const config = {
 };
 
 const queryClient = postgres({ ...config });
-const db = drizzle(queryClient);
+const db = drizzle(queryClient, {
+    schema: { ...tripsSchema, ...routesSchema, ...rtvpSchema, ...shapesSchema },
+});
 
 export default db;
 

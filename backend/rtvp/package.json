@@ -6,6 +6,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
     "import-test-data": "tsx src/dev/import-test-data.ts"
   },
   "dependencies": {

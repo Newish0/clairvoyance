@@ -4,24 +4,86 @@ import { getRoutes, getTrips, getShapes } from "gtfs";
 import { routes } from "@/db/schemas/routes";
 import { trips } from "@/db/schemas/trips";
 import { shapes } from "@/db/schemas/shapes";
-import { sql } from "drizzle-orm";
-import { type PgTableWithColumns } from "drizzle-orm/pg-core";
+import type defaultDB from "@/db";
+import { sql, eq } from "drizzle-orm";
+import {
+    IndexColumn,
+    PgInsertBase,
+    PgInsertOnConflictDoUpdateConfig,
+    type PgTableWithColumns,
+} from "drizzle-orm/pg-core";
+import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
+import { equalRecords } from "@/utils/compare";
 
-export async function syncGtfsStaticWithPG(
-    psDB: PostgresJsDatabase,
-    gtfsDB: BetterSqlite3.Database
-) {
+export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: BetterSqlite3.Database) {
     const inRoutes = getRoutes({}, [], [], { db: gtfsDB });
-    await psDB.execute(sql`TRUNCATE routes CASCADE;`);
-    await bulkInsert(psDB, routes, inRoutes);
+
+    for (const newRoute of inRoutes) {
+        const existingRoute = (
+            await psDB.select().from(routes).where(eq(routes.route_id, newRoute.route_id)).limit(1)
+        ).at(0);
+
+        if (existingRoute) {
+            if (!equalRecords(existingRoute, newRoute)) {
+                console.log("SKIPPED! Existing route is different from new route");
+                console.log("Existing route:", existingRoute);
+                console.log("New route:", newRoute);
+                console.log();
+            }
+        } else {
+            console.log("New route:", newRoute);
+            await psDB
+                .insert(routes)
+                .values(newRoute as typeof routes.$inferInsert)
+                .onConflictDoNothing();
+        }
+    }
 
     const inTrips = getTrips({}, [], [], { db: gtfsDB });
-    await psDB.execute(sql`TRUNCATE trips CASCADE;`);
-    await bulkInsert(psDB, trips, inTrips);
+
+    for (const newTrip of inTrips) {
+        const existingTrip = (
+            await psDB.select().from(trips).where(eq(trips.trip_id, newTrip.trip_id)).limit(1)
+        ).at(0);
+
+        if (existingTrip) {
+            if (!equalRecords(existingTrip, newTrip)) {
+                console.log("SKIPPED! Existing trip is different from new trip");
+                console.log("Existing trip:", existingTrip);
+                console.log("New trip:", newTrip);
+                console.log();
+            }
+        } else {
+            console.log("New trip:", newTrip);
+            await psDB
+                .insert(trips)
+                .values(newTrip as typeof trips.$inferInsert)
+                .onConflictDoNothing();
+        }
+    }
 
     const inShapes = getShapes({}, [], [], { db: gtfsDB });
-    await psDB.execute(sql`TRUNCATE shapes CASCADE;`);
-    await bulkInsert(psDB, shapes, inShapes);
+
+    for (const newShape of inShapes) {
+        const existingShape = (
+            await psDB.select().from(shapes).where(eq(shapes.shape_id, newShape.shape_id)).limit(1)
+        ).at(0);
+
+        if (existingShape) {
+            if (!equalRecords(existingShape, newShape)) {
+                console.log("SKIPPED! Existing shape is different from new shape");
+                console.log("Existing shape:", existingShape);
+                console.log("New shape:", newShape);
+                console.log();
+            }
+        } else {
+            console.log("New shape:", newShape);
+            await psDB
+                .insert(shapes)
+                .values(newShape as typeof shapes.$inferInsert)
+                .onConflictDoNothing();
+        }
+    }
 }
 
 /**
@@ -37,6 +99,7 @@ async function bulkInsert<T>(
     db: PostgresJsDatabase,
     table: PgTableWithColumns<any>,
     records: T[],
+    conflictTarget?: IndexColumn | IndexColumn[],
     bulkSize = 1000
 ) {
     const insertChunks = Math.ceil(records.length / bulkSize);
@@ -46,6 +109,15 @@ async function bulkInsert<T>(
 
         const chunk = records.slice(start, end);
 
-        await db.insert(table).values(chunk as unknown as (typeof table.$inferInsert)[]);
+        if (conflictTarget) {
+            await db
+                .insert(table)
+                .values(chunk as unknown as (typeof table.$inferInsert)[])
+                .onConflictDoUpdate({
+                    target: conflictTarget,
+                    set: {},
+                });
+        } else {
+        }
     }
 }

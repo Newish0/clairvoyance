@@ -61,7 +61,10 @@ console.log();
     console.log(chalk.white.bold.bgYellow(`Migrating DB`));
     await migrateDb();
     console.log(chalk.white.bold.bgCyan(`DB Migration Complete`));
+
+    console.log(chalk.white.bold.bgYellow(`Initializing GTFS`));
     await initGTFS();
+    console.log(chalk.white.bold.bgCyan(`GTFS Initialization Complete`));
 
     if (!gtfsDB.primary) {
         console.error("Failed to initialize GTFS");
