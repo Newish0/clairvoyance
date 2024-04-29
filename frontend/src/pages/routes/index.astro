@@ -1,0 +1,12 @@
+---
+import Layout from "@/layouts/Layout.astro";
+
+import GlobalMap from "@/components/maps/GlobalMap.tsx";
+import ArrivalBoard from "@/components/transit/ArrivalBoard.tsx";
+
+import "@/styles/globals.css";
+---
+
+<Layout title="Routes">
+    <GlobalMap client:only mode="route" transition:persist transition:name="global-map" />
+</Layout>

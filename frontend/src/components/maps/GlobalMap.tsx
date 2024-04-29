@@ -4,11 +4,15 @@ import "leaflet/dist/leaflet.css";
 
 // Import the Leaflet MapTiler Plugin
 import "@maptiler/leaflet-maptilersdk";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addCenterMarker } from "@/services/maps/centermaker";
 import { zoomFromCenter } from "@/services/maps/zoomfromcenter";
 
-const GlobalMap: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => {
+type GlobalMapProps = {
+    mode: "main" | "route";
+};
+
+const GlobalMap: React.FC<GlobalMapProps> = ({ mode = "main" }) => {
     const rootRef = useRef<null | HTMLDivElement>(null);
 
     useEffect(() => {
@@ -19,13 +23,12 @@ const GlobalMap: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => {
             zoom: 13,
         });
 
-        // FIXME: Use local open tiles 
+        // FIXME: Use local open tiles
         // MapTiler layer is tmp solution for dev
         const mtLayer = new L.MaptilerLayer({
             apiKey: import.meta.env.PUBLIC_MAPTILER_API_KEY,
-            style: "dataviz"
+            style: "dataviz",
         }).addTo(map);
-
 
         // zoomFromCenter(map);
         addCenterMarker(map);
@@ -35,7 +38,12 @@ const GlobalMap: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => {
         };
     }, [rootRef.current]);
 
-    return <div ref={rootRef} className="h-full min-h-[50dvh]"></div>;
+    return (
+        <>
+            <div ref={rootRef} className="h-full min-h-[50dvh]"></div>
+            <div>MODE: {mode}</div>
+        </>
+    );
 };
 
 GlobalMap.displayName = "GlobalMap";
