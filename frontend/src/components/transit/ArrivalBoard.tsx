@@ -1,6 +1,7 @@
 import React from "react";
-import { useNearbyTransits, type NearbyTransit } from "@/hooks/transit/nearby";
+import { useNearbyTransits } from "@/hooks/transit/nearby";
 import { ScrollArea } from "../ui/scroll-area";
+import type { NearbyTransit } from "@/services/api/transit";
 
 const BoardRow = ({
     stop_id,
@@ -11,6 +12,8 @@ const BoardRow = ({
     route_short_name,
     route_long_name,
 }: NearbyTransit) => {
+    console.log(route_id);
+
     return (
         <a href={`/routes?route_id=${route_id}`}>
             <div className="m-2 p-4 rounded-xl border bg-card text-card-foreground shadow">
@@ -34,11 +37,11 @@ type ArrivalBoardProps = {
 };
 
 const ArrivalBoard: React.FC<ArrivalBoardProps> = ({ lat, lng }) => {
-    const { nearbyRoutes } = useNearbyTransits({ lat, lng, radius: 0.5 });
+    const { data: nearbyTransits } = useNearbyTransits({ lat, lng, radius: 0.5 });
 
     return (
         <ScrollArea className="">
-            {nearbyRoutes?.map((nbt) => (
+            {nearbyTransits?.map((nbt) => (
                 <BoardRow key={nbt.stop_id} {...nbt}></BoardRow>
             ))}
         </ScrollArea>

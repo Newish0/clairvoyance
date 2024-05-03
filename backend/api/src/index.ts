@@ -14,6 +14,8 @@ import trips from "./routes/trips";
 import { migrateDb } from "@/db/index";
 import pgDB from "@/db/index";
 import { syncGtfsStaticWithPG } from "./services/gtfs-sync";
+import shapes from "./routes/shapes";
+import rtvp from "./routes/rtvp";
 
 /** Whether we are ready to serve data */
 let ready = false;
@@ -22,7 +24,7 @@ const app = new Hono();
 
 app.use("*", logger());
 app.use(
-    "/api/*",
+    "*",
     cors({
         origin: ["http://localhost:4321"],
     })
@@ -42,6 +44,8 @@ app.route("/stops", stops);
 app.route("/geojson", geojson);
 app.route("/routes", routes);
 app.route("/trips", trips);
+app.route("/shapes", shapes);
+app.route("/rtvp", rtvp);
 
 const port = parseInt(process.env.PORT || "3000");
 
@@ -71,7 +75,7 @@ console.log();
         return;
     }
 
-    await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+    // await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
 
     ready = true;
 })();

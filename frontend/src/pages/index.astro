@@ -1,14 +1,13 @@
 ---
 import Layout from "../layouts/Layout.astro";
 
-import GlobalMap from "@/components/maps/GlobalMap.tsx";
+import GlobalPageMap from "@/components/maps/GlobalPageMap";
 import ArrivalBoard from "@/components/transit/ArrivalBoard.tsx";
 
 import "@/styles/globals.css";
 ---
 
 <Layout title="Clairvoyance">
-    <GlobalMap client:only  mode="main" transition:persist transition:name="global-map" />
-    
+    <GlobalPageMap client:only transition:persist transition:name="global-map" />
 	<ArrivalBoard client:load lat={0} lng={0}/>
 </Layout>
