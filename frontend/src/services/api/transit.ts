@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
 
 export type NearbyTransit = {
     stop_id: string | number;
@@ -65,13 +65,39 @@ export const getRoute = async (route_id: string | number): Promise<RouteData> =>
     return data;
 };
 
+export type TripData =
+    | {
+          trip_id: string;
+          route_id: string;
+          service_id: string;
+          trip_headsign: string | null;
+          trip_short_name: string | null;
+          direction_id: number | null;
+          block_id: string | null;
+          shape_id: string | null;
+          wheelchair_accessible: number | null;
+          bikes_allowed: number | null;
+          route?: RouteData | null;
+      }
+    | undefined;
+
 export const getTrips = async ({
     trip_id,
     route_id,
 }: { trip_id?: string; route_id?: string } = {}) => {
-    const { data } = await axios.get<Array<Record<string, unknown>>>(
+    const { data } = await axios.get<Array<TripData>>(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/trips`,
         { params: { trip_id, route_id } }
+    );
+    return data;
+};
+
+export const getTrip = async (trip_id: string, { with_route }: { with_route?: boolean } = {}) => {
+    const { data } = await axios.get<TripData>(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/trips/${trip_id}`,
+        {
+            params: { with_route },
+        }
     );
     return data;
 };
@@ -110,10 +136,25 @@ export const getShapesGeojson = async ({
     return data;
 };
 
+export type RTVPData = {
+    rtvp_id: number;
+    bearing: number;
+    latitude: number;
+    longitude: number;
+    speed: number;
+    trip_id: string;
+    vehicle_id: string;
+    timestamp: string;
+    is_updated: number;
+    p_traveled: number;
+    rel_timestamp: number;
+    distance: number;
+};
+
 export const getRtvp = async (params: { lat: number; lng: number; radius: number }) => {
-    const { data } = await axios.get<Record<string, unknown>>(
-        `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp`,
+    const res: AxiosResponse<RTVPData[], unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/loc`,
         { params }
     );
-    return data;
+    return res.data;
 };

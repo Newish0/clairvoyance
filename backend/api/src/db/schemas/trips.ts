@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { shapes } from "./shapes";
 import { routes } from "./routes";
+import { relations } from "drizzle-orm";
 
 export const trips = pgTable("trips", {
     trip_id: varchar("trip_id", { length: 255 }).primaryKey(),
@@ -35,3 +36,10 @@ export const trips = pgTable("trips", {
     bikes_allowed: integer("bikes_allowed"),
     // .check((value) => value >= 0 && value <= 2)
 });
+
+export const tripRelations = relations(trips, ({ one, many }) => ({
+    route: one(routes, {
+        fields: [trips.route_id],
+        references: [routes.route_id],
+    }),
+}));

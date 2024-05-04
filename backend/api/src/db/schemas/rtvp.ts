@@ -9,6 +9,7 @@ import {
     timestamp,
 } from "drizzle-orm/pg-core";
 import { trips } from "./trips";
+import { relations } from "drizzle-orm";
 
 export const realtime_vehicle_position = pgTable(
     "vehicle_position",
@@ -30,3 +31,10 @@ export const realtime_vehicle_position = pgTable(
     },
     (rtvp) => ({})
 );
+
+export const rtvpRelations = relations(realtime_vehicle_position, ({ one }) => ({
+    route: one(trips, {
+        fields: [realtime_vehicle_position.trip_id],
+        references: [trips.trip_id],
+    }),
+}));

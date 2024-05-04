@@ -9,7 +9,7 @@ import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
 
 export default function (hono: Hono) {
     hono.get(
-        "/",
+        "/loc",
         zValidator(
             "query",
             z.object({
