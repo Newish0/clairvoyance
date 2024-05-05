@@ -32,30 +32,43 @@ const syncTable = async (
     newTuples: Iterable<unknown>,
     getExistingTuple: (nt: any) => any,
     compareTuples: (existingTuple: any, newTuple: any) => boolean,
-    transform?: (newTuple: any) => any
+    transform?: (newTuple: any) => any,
+    bulkSize: number = 1000
 ) => {
     const progressBar = new SingleBar({});
     progressBar.start(Array.from(newTuples).length, 0);
 
-    for (const newTuple of newTuples) {
-        const existingTuple = await getExistingTuple(newTuple);
-        if (existingTuple) {
-            if (!compareTuples(existingTuple, newTuple)) {
-                console.log("SKIPPED! Existing tuple is different from new tuple");
-                console.log("Existing tuple:", existingTuple);
-                console.log("New tuple:", newTuple);
-                console.log();
-            }
-        } else {
-            const newTupleToInsert = transform ? transform(newTuple) : newTuple;
-            await transaction
-                .insert(table)
-                .values(newTupleToInsert as typeof table.$inferInsert)
-                .onConflictDoNothing();
-        }
+    const bulk: Promise<void>[] = [];
 
-        progressBar.increment();
+    for (const newTuple of newTuples) {
+        const syncTuple = async () => {
+            const existingTuple = await getExistingTuple(newTuple);
+            if (existingTuple) {
+                if (!compareTuples(existingTuple, newTuple)) {
+                    console.log("SKIPPED! Existing tuple is different from new tuple");
+                    console.log("Existing tuple:", existingTuple);
+                    console.log("New tuple:", newTuple);
+                    console.log();
+                }
+            } else {
+                const newTupleToInsert = transform ? transform(newTuple) : newTuple;
+                await transaction
+                    .insert(table)
+                    .values(newTupleToInsert as typeof table.$inferInsert)
+                    .onConflictDoNothing();
+            }
+            progressBar.increment();
+        };
+
+        bulk.push(syncTuple());
+
+        if (bulk.length >= bulkSize) {
+            await Promise.all(bulk);
+            bulk.splice(0, bulk.length);
+        }
     }
+
+    await Promise.all(bulk);
     progressBar.stop();
 };
 
