@@ -1,5 +1,5 @@
 {
-  "id": "bd95d358-457c-4ae2-a580-4fabd3bcf504",
+  "id": "247487e2-0c87-44af-b4be-4d567714a9aa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -150,8 +150,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "percentage": {
-          "name": "percentage",
+        "p_traveled": {
+          "name": "p_traveled",
           "type": "real",
           "primaryKey": false,
           "notNull": false
@@ -225,6 +225,235 @@
           "columns": [
             "shape_id",
             "shape_pt_sequence"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "stops": {
+      "name": "stops",
+      "schema": "",
+      "columns": {
+        "stop_id": {
+          "name": "stop_id",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "stop_code": {
+          "name": "stop_code",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_name": {
+          "name": "stop_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tts_stop_name": {
+          "name": "tts_stop_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_desc": {
+          "name": "stop_desc",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_lat": {
+          "name": "stop_lat",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_lon": {
+          "name": "stop_lon",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone_id": {
+          "name": "zone_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_url": {
+          "name": "stop_url",
+          "type": "varchar(2047)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_type": {
+          "name": "location_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_station": {
+          "name": "parent_station",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_timezone": {
+          "name": "stop_timezone",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wheelchair_boarding": {
+          "name": "wheelchair_boarding",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "level_id": {
+          "name": "level_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "platform_code": {
+          "name": "platform_code",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "stop_times": {
+      "name": "stop_times",
+      "schema": "",
+      "columns": {
+        "trip_id": {
+          "name": "trip_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arrival_time": {
+          "name": "arrival_time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arrival_timestamp": {
+          "name": "arrival_timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_time": {
+          "name": "departure_time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_timestamp": {
+          "name": "departure_timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_id": {
+          "name": "stop_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_sequence": {
+          "name": "stop_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_headsign": {
+          "name": "stop_headsign",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pickup_type": {
+          "name": "pickup_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "drop_off_type": {
+          "name": "drop_off_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "continuous_pickup": {
+          "name": "continuous_pickup",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "continuous_drop_off": {
+          "name": "continuous_drop_off",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shape_dist_traveled": {
+          "name": "shape_dist_traveled",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timepoint": {
+          "name": "timepoint",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "stop_times_trip_id_trips_trip_id_fk": {
+          "name": "stop_times_trip_id_trips_trip_id_fk",
+          "tableFrom": "stop_times",
+          "tableTo": "trips",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "trip_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stop_times_stop_id_stops_stop_id_fk": {
+          "name": "stop_times_stop_id_stops_stop_id_fk",
+          "tableFrom": "stop_times",
+          "tableTo": "stops",
+          "columnsFrom": [
+            "stop_id"
+          ],
+          "columnsTo": [
+            "stop_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "stop_times_trip_id_stop_sequence_pk": {
+          "name": "stop_times_trip_id_stop_sequence_pk",
+          "columns": [
+            "trip_id",
+            "stop_sequence"
           ]
         }
       },

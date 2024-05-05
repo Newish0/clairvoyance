@@ -8,6 +8,8 @@ import * as tripsSchema from "./schemas/trips";
 import * as routesSchema from "./schemas/routes";
 import * as rtvpSchema from "./schemas/rtvp";
 import * as shapesSchema from "./schemas/shapes";
+import * as stopsSchema from "./schemas/stops";
+import * as stoptimesSchema from "./schemas/stop_times";
 
 const config = {
     host: process.env.DB_HOST!,
@@ -19,7 +21,14 @@ const config = {
 
 const queryClient = postgres({ ...config });
 const db = drizzle(queryClient, {
-    schema: { ...tripsSchema, ...routesSchema, ...rtvpSchema, ...shapesSchema },
+    schema: {
+        ...tripsSchema,
+        ...routesSchema,
+        ...rtvpSchema,
+        ...shapesSchema,
+        ...stopsSchema,
+        ...stoptimesSchema,
+    },
 });
 
 export default db;

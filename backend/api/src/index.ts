@@ -75,7 +75,9 @@ console.log();
         return;
     }
 
-    // await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+    console.log(chalk.white.bold.bgYellow(`Syncing GTFS`));
+    await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+    console.log(chalk.white.bold.bgCyan(`GTFS Sync Complete`));
 
     ready = true;
 })();
