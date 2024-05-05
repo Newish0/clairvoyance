@@ -48,11 +48,6 @@ const syncTable = async (
             }
         } else {
             const newTupleToInsert = transform ? transform(newTuple) : newTuple;
-            console.log("INSERT", newTupleToInsert);
-
-            for (const [key, value] of Object.entries(newTupleToInsert))
-                console.log(key, value, typeof value);
-
             await transaction
                 .insert(table)
                 .values(newTupleToInsert as typeof table.$inferInsert)
@@ -66,21 +61,23 @@ const syncTable = async (
 
 export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: BetterSqlite3.Database) {
     await psDB.transaction(async (tx) => {
-        // syncTable(
-        //     tx as any,
-        //     routes as any,
-        //     getRoutes({}, [], [], { db: gtfsDB }),
-        //     async (newRoute: Record<string, any>) => {
-        //         return (
-        //             await tx
-        //                 .select()
-        //                 .from(routes)
-        //                 .where(eq(routes.route_id, newRoute.route_id))
-        //                 .limit(1)
-        //         ).at(0);
-        //     },
-        //     equalRecords
-        // );
+        console.log("Sync routes...");
+
+        syncTable(
+            tx as any,
+            routes as any,
+            getRoutes({}, [], [], { db: gtfsDB }),
+            async (newRoute: Record<string, any>) => {
+                return (
+                    await tx
+                        .select()
+                        .from(routes)
+                        .where(eq(routes.route_id, newRoute.route_id))
+                        .limit(1)
+                ).at(0);
+            },
+            equalRecords
+        );
 
         // const inRoutes = getRoutes({}, [], [], { db: gtfsDB });
 
@@ -109,17 +106,19 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
         //     }
         // }
 
-        // await syncTable(
-        //     tx as any,
-        //     trips as any,
-        //     getTrips({}, [], [], { db: gtfsDB }),
-        //     async (newTrip: Record<string, any>) => {
-        //         return (
-        //             await tx.select().from(trips).where(eq(trips.trip_id, newTrip.trip_id)).limit(1)
-        //         ).at(0);
-        //     },
-        //     equalRecords
-        // );
+        console.log("Sync trips...");
+
+        await syncTable(
+            tx as any,
+            trips as any,
+            getTrips({}, [], [], { db: gtfsDB }),
+            async (newTrip: Record<string, any>) => {
+                return (
+                    await tx.select().from(trips).where(eq(trips.trip_id, newTrip.trip_id)).limit(1)
+                ).at(0);
+            },
+            equalRecords
+        );
 
         // const inTrips = getTrips({}, [], [], { db: gtfsDB });
 
@@ -144,26 +143,28 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
         //     }
         // }
 
-        // await syncTable(
-        //     tx as any,
-        //     shapes as any,
-        //     getShapes({}, [], [], { db: gtfsDB }),
-        //     async (newShape: Record<string, any>) => {
-        //         return (
-        //             await tx
-        //                 .select()
-        //                 .from(shapes)
-        //                 .where(
-        //                     and(
-        //                         eq(shapes.shape_id, newShape.shape_id),
-        //                         eq(shapes.shape_pt_sequence, newShape.shape_pt_sequence)
-        //                     )
-        //                 )
-        //                 .limit(1)
-        //         ).at(0);
-        //     },
-        //     equalRecords
-        // );
+        console.log("Sync shapes...");
+
+        await syncTable(
+            tx as any,
+            shapes as any,
+            getShapes({}, [], [], { db: gtfsDB }),
+            async (newShape: Record<string, any>) => {
+                return (
+                    await tx
+                        .select()
+                        .from(shapes)
+                        .where(
+                            and(
+                                eq(shapes.shape_id, newShape.shape_id),
+                                eq(shapes.shape_pt_sequence, newShape.shape_pt_sequence)
+                            )
+                        )
+                        .limit(1)
+                ).at(0);
+            },
+            equalRecords
+        );
 
         // const inShapes = getShapes({}, [], [], { db: gtfsDB });
 
@@ -197,17 +198,19 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
         //     }
         // }
 
-        // await syncTable(
-        //     tx as any,
-        //     stops as any,
-        //     getStops({}, [], [], { db: gtfsDB }),
-        //     async (newStop: Record<string, any>) => {
-        //         return (
-        //             await tx.select().from(stops).where(eq(stops.stop_id, newStop.stop_id)).limit(1)
-        //         ).at(0);
-        //     },
-        //     equalRecords
-        // );
+        console.log("Sync stops...");
+
+        await syncTable(
+            tx as any,
+            stops as any,
+            getStops({}, [], [], { db: gtfsDB }),
+            async (newStop: Record<string, any>) => {
+                return (
+                    await tx.select().from(stops).where(eq(stops.stop_id, newStop.stop_id)).limit(1)
+                ).at(0);
+            },
+            equalRecords
+        );
 
         // const inStops = getStops({}, [], [], { db: gtfsDB });
 
