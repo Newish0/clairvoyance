@@ -1,6 +1,7 @@
 import { pgEnum, pgTable, serial, varchar, real, integer } from "drizzle-orm/pg-core";
 import { trips } from "./trips";
-import { relations } from "drizzle-orm";
+import { Many, relations } from "drizzle-orm";
+import { stop_times } from "./stop_times";
 
 export const stops = pgTable("stops", {
     stop_id: varchar("stop_id", { length: 255 }).primaryKey().notNull(),
@@ -20,8 +21,8 @@ export const stops = pgTable("stops", {
     platform_code: varchar("platform_code", { length: 255 }),
 });
 
-export const stopsRelations = relations(stops, ({ many }) => ({
-    trips: many(trips),
+export const stopsRelation = relations(stops, ({ many }) => ({
+    stop_times: many(stop_times),
 }));
 
 // CREATE TABLE IF NOT EXISTS stops (

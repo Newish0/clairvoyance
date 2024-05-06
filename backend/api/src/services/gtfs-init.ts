@@ -19,11 +19,13 @@ const config = {
     ],
 };
 
-export async function initGTFS() {
-    try {
-        await importGtfs(config);
-    } catch (error) {
-        console.error(error);
+export async function initGTFS(skipImport = false) {
+    if (!skipImport) {
+        try {
+            await importGtfs(config);
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     const primary = openDb(config);

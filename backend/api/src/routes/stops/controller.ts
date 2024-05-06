@@ -71,21 +71,6 @@ export default function (hono: Hono) {
                     ),
             });
 
-            // const sqlQuery = `
-            //     SELECT *,
-            //            (6371 * acos(
-            //                cos(radians(?)) * cos(radians(stop_lat)) * cos(radians(stop_lon) - radians(?)) +
-            //                sin(radians(?)) * sin(radians(stop_lat))
-            //            )) AS distance
-            //     FROM stops
-            //     WHERE distance <= ?
-            //     ORDER BY distance ASC
-            // `;
-
-            // const stops = db.primary
-            //     ?.prepare(sqlQuery)
-            //     .all(targetLat, targetLng, targetLat, maxDistanceKm);
-
             return c.json(stops);
         }
     );

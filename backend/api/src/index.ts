@@ -16,6 +16,7 @@ import pgDB from "@/db/index";
 import { syncGtfsStaticWithPG } from "./services/gtfs-sync";
 import shapes from "./routes/shapes";
 import rtvp from "./routes/rtvp";
+import transits from "./routes/transits";
 
 /** Whether we are ready to serve data */
 let ready = false;
@@ -46,6 +47,7 @@ app.route("/routes", routes);
 app.route("/trips", trips);
 app.route("/shapes", shapes);
 app.route("/rtvp", rtvp);
+app.route("/transits", transits);
 
 const port = parseInt(process.env.PORT || "3000");
 
@@ -59,15 +61,18 @@ console.log();
 console.log(`┃ Local    ${chalk.cyan.underline(`http://localhost:${port}`)}`);
 console.log();
 
-// Initialization process
-(async () => {
+const criticalInit = async () => {
     console.log();
     console.log(chalk.white.bold.bgYellow(`Migrating DB`));
     await migrateDb();
     console.log(chalk.white.bold.bgCyan(`DB Migration Complete`));
+};
 
+const nonCriticalInit = async () => {
+    // Non critical initialization
     console.log(chalk.white.bold.bgYellow(`Initializing GTFS`));
-    await initGTFS();
+    await initGTFS(true);
+    // await initGTFS();
     console.log(chalk.white.bold.bgCyan(`GTFS Initialization Complete`));
 
     if (!gtfsDB.primary) {
@@ -76,10 +81,16 @@ console.log();
     }
 
     console.log(chalk.white.bold.bgYellow(`Syncing GTFS`));
-    await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+    // await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
     console.log(chalk.white.bold.bgCyan(`GTFS Sync Complete`));
+};
 
+// Initialization process
+(async () => {
+    await criticalInit();
     ready = true;
+    console.log(chalk.white.bold.bgGreen(`Server Ready`));
+    await nonCriticalInit();
 })();
 
 serve({
