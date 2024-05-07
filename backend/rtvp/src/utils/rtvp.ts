@@ -176,54 +176,48 @@ const findTripRootRtvp = async (
 
 export const computePredictionPolynomial = async (
     routeId: string,
+    directionId: number,
     db: typeof defaultDb = defaultDb
 ) => {
-    // const trip = (
-    //     await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, tripId)).limit(1)
-    // ).at(0);
-
-    // if (!trip) return null;
-
     const tripIds = (
         await db
             .select({ trip_id: tripsTable.trip_id })
             .from(tripsTable)
-            .where(eq(tripsTable.route_id, routeId))
+            .where(and(eq(tripsTable.route_id, routeId), eq(tripsTable.direction_id, directionId)))
     ).map(({ trip_id }) => trip_id);
 
-    const tripRtvps = await db.select().from(rtvpTable).where(inArray(rtvpTable.trip_id, tripIds));
+    const tripRtvpResults = await db.query.realtime_vehicle_position.findMany({
+        where: (rtvp, { inArray }) => inArray(rtvp.trip_id, tripIds),
+        with: {
+            tripUpdate: true,
+        },
+    });
 
-    for (const rtvp of tripRtvps) {
-        const tripRootRtvp = await findTripRootRtvp(rtvp);
+    const tripRtvpWithElapse: (typeof rtvpTable.$inferSelect & {
+        elapse: number | null;
+    })[] = tripRtvpResults
+        .map((rtvp) => {
+            let elapse: number | null = null;
 
-        if (!tripRootRtvp) {
-            continue; // Skip
-        }
+            if (rtvp.tripUpdate.trip_start_time && rtvp.tripUpdate.start_date) {
+                const tripStartDate = rtvp.tripUpdate.start_date.replace(
+                    /(\d{4})(\d{2})(\d{2})/,
+                    "$1-$2-$3"
+                ); // 20210619 -> 2021-06-19
+                const tripDate = new Date(tripStartDate);
+                const [h, m, s] = rtvp.tripUpdate.trip_start_time.split(":");
+                tripDate.setHours(parseInt(h), parseInt(m), parseInt(s), 0);
+                elapse = Math.round((tripDate.getTime() - rtvp.timestamp.getTime()) / 1000);
+            }
 
-        const rel_timestamp = tripRootRtvp
-            ? rtvp.timestamp.getTime() - tripRootRtvp?.timestamp.getTime()
-            : 0;
+            return {
+                ...rtvp,
+                elapse,
+            };
+        })
+        .filter((rtvp) => rtvp.elapse !== null);
 
-        rtvp.rel_timestamp = rel_timestamp;
-
-        await db
-            .update(rtvpTable)
-            .set({ rel_timestamp })
-            .where(eq(rtvpTable.rtvp_id, rtvp.rtvp_id));
-    }
-
-    // console.log(
-    //     tripRtvps
-    //         .filter((rtvp) => rtvp.rel_timestamp !== null && rtvp.rel_timestamp >= 0)
-    //         .forEach((rtvp) => console.log(`${rtvp.rel_timestamp}, ${rtvp.p_traveled}`))
-    // );
-
-    const initialCoeff = polynomialRegression(
-        tripRtvps.filter((rtvp) => rtvp.rel_timestamp !== null && rtvp.rel_timestamp >= 0),
-        "p_traveled",
-        "rel_timestamp",
-        6
-    );
+    const initialCoeff = polynomialRegression(tripRtvpWithElapse, "p_traveled", "elapse", 6);
     return initialCoeff;
 };
 
