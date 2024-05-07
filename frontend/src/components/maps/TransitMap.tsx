@@ -34,7 +34,11 @@ type TransitMapProps = {
 
 type RTVPDataModalData = TripData & RTVPData;
 
-const TransitMap: React.FC<TransitMapProps> = ({ mode = "main", routeId, onMoveEnd: moveEndHandler }) => {
+const TransitMap: React.FC<TransitMapProps> = ({
+    mode = "main",
+    routeId,
+    onMoveEnd: moveEndHandler,
+}) => {
     const rootRef = useRef<null | HTMLDivElement>(null);
 
     const [map, setMap] = useState<L.Map | null>(null);
@@ -63,6 +67,7 @@ const TransitMap: React.FC<TransitMapProps> = ({ mode = "main", routeId, onMoveE
 
         const rtvpMarkers: L.Marker<any>[] = [];
         const updateRtvp = debounce(() => {
+            if (!map) return;
             const bounds = map.getBounds();
             const ne = bounds.getNorthEast();
             const sw = bounds.getSouthWest();

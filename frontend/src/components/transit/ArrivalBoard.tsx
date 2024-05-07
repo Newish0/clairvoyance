@@ -76,11 +76,11 @@ const ArrivalBoard: React.FC<ArrivalBoardProps> = ({ lat, lng, radius }) => {
     const { data: nearbyTransits } = useNearbyTransits({ lat, lng, radius });
 
     return (
-        <ScrollArea className="">
+        <>
             {nearbyTransits?.map((nbt) => (
                 <BoardRow key={nbt.route_id} {...nbt}></BoardRow>
             ))}
-        </ScrollArea>
+        </>
     );
 };
 

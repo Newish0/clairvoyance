@@ -3,11 +3,14 @@ import Layout from "../layouts/Layout.astro";
 
 import GlobalPageMap from "@/components/maps/GlobalPageMap";
 import GlobalArrivalBoard from "@/components/transit/GlobalArrivalBoard";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 
 import "@/styles/globals.css";
 ---
 
 <Layout title="Clairvoyance">
-    <GlobalPageMap client:only transition:persist transition:name="global-map" />
-    <GlobalArrivalBoard client:only />
+    <div class="">
+        <GlobalPageMap client:only transition:persist transition:name="global-map" />
+        <GlobalArrivalBoard client:only />
+    </div>
 </Layout>
