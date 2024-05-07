@@ -17,6 +17,9 @@ dependencies:
   '@maptiler/leaflet-maptilersdk':
     specifier: ^2.0.0
     version: 2.0.0
+  '@nanostores/react':
+    specifier: ^0.7.2
+    version: 0.7.2(nanostores@0.10.3)(react@18.3.1)
   '@radix-ui/react-dialog':
     specifier: ^1.0.5
     version: 1.0.5(@types/react-dom@18.3.0)(@types/react@18.3.1)(react-dom@18.3.1)(react@18.3.1)
@@ -56,6 +59,9 @@ dependencies:
   lucide-react:
     specifier: ^0.376.0
     version: 0.376.0(react@18.3.1)
+  nanostores:
+    specifier: ^0.10.3
+    version: 0.10.3
   react:
     specifier: ^18.3.1
     version: 18.3.1
@@ -1082,6 +1088,17 @@ packages:
       js-base64: 3.7.7
       maplibre-gl: 3.6.2
       uuid: 9.0.1
+    dev: false
+
+  /@nanostores/react@0.7.2(nanostores@0.10.3)(react@18.3.1):
+    resolution: {integrity: sha512-e3OhHJFv3NMSFYDgREdlAQqkyBTHJM91s31kOZ4OvZwJKdFk5BLk0MLbh51EOGUz9QGX2aCHfy1RvweSi7fgwA==}
+    engines: {node: ^18.0.0 || >=20.0.0}
+    peerDependencies:
+      nanostores: ^0.9.0 || ^0.10.0
+      react: '>=18.0.0'
+    dependencies:
+      nanostores: 0.10.3
+      react: 18.3.1
     dev: false
 
   /@nodelib/fs.scandir@2.1.5:
@@ -4039,6 +4056,11 @@ packages:
     resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
+    dev: false
+
+  /nanostores@0.10.3:
+    resolution: {integrity: sha512-Nii8O1XqmawqSCf9o2aWqVxhKRN01+iue9/VEd1TiJCr9VT5XxgPFbF1Edl1XN6pwJcZRsl8Ki+z01yb/T/C2g==}
+    engines: {node: ^18.0.0 || >=20.0.0}
     dev: false
 
   /natural-compare@1.4.0:

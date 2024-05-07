@@ -1,13 +1,40 @@
 import axios, { type AxiosResponse } from "axios";
 
 export type NearbyTransit = {
-    stop_id: string | number;
-    stop_name: string;
-    stop_lat: number;
-    stop_lon: number;
-    route_id: string | number;
+    route_id: string;
     route_short_name: string;
     route_long_name: string;
+    route_type: number;
+    route_color: string;
+    route_text_color: string;
+    agency_id: string;
+    trips: {
+        trip_id: string;
+        trip_headsign: string;
+        direction_id: number;
+        shape_id: string;
+        route_id: string;
+        agency_id: string;
+        stop_time: {
+            arrival_time: string;
+            departure_time: string;
+            stop_id: string;
+            stop_sequence: number;
+            stop_headsign: string;
+            pickup_type: number;
+            drop_off_type: number;
+            shape_dist_traveled: number;
+            stop: {
+                stop_id: string;
+                stop_name: string;
+                stop_lat: number;
+                stop_lon: number;
+                location_type: number;
+                parent_station: string;
+                agency_id: string;
+            };
+        };
+    }[];
 };
 
 export const getNearbyTransits = async (
@@ -15,32 +42,10 @@ export const getNearbyTransits = async (
     lng: number,
     radius: number
 ): Promise<NearbyTransit[]> => {
-    // TODO: implement lat, lon, distance in query
-    // const { data } = await axios.get<NearbyTransit[]>(
-    //     `${import.meta.env.PUBLIC_GTFS_API_URL}/stops`,
-    //     { params: { lat, lng, radius } }
-    // );
-
-    const data = [
-        {
-            stop_id: "1",
-            stop_name: "Douglas St at Boleskine Rd - Uptown",
-            stop_lat: 48.45322,
-            stop_lon: -123.3759,
-            route_id: "95-VIC",
-            route_short_name: "95",
-            route_long_name: "Langford / Downtown Blink",
-        },
-        {
-            stop_id: "2",
-            stop_name: "Saanich Rd at Blanshard St - Uptown",
-            stop_lat: 48.45497,
-            stop_lon: -123.37295,
-            route_id: "26-VIC",
-            route_short_name: "26",
-            route_long_name: "Dockyard / UVic",
-        },
-    ];
+    const { data } = await axios.get<NearbyTransit[]>(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/transits/nearby`,
+        { params: { lat, lng, radius } }
+    );
 
     return data;
 };

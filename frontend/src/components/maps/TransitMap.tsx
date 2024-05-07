@@ -24,14 +24,17 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "../ui/button";
 
+type TransitMapEventHandler = (evt: L.LeafletEvent, map: L.Map) => void;
+
 type TransitMapProps = {
     mode: "route" | "main";
     routeId: string;
+    onMoveEnd?: TransitMapEventHandler;
 };
 
 type RTVPDataModalData = TripData & RTVPData;
 
-const TransitMap: React.FC<TransitMapProps> = ({ mode = "main", routeId }) => {
+const TransitMap: React.FC<TransitMapProps> = ({ mode = "main", routeId, onMoveEnd: moveEndHandler }) => {
     const rootRef = useRef<null | HTMLDivElement>(null);
 
     const [map, setMap] = useState<L.Map | null>(null);
@@ -116,6 +119,18 @@ const TransitMap: React.FC<TransitMapProps> = ({ mode = "main", routeId }) => {
     }, [rootRef.current]);
 
     useEffect(() => {
+        const wrappedHandler = (evt: L.LeafletEvent) => {
+            if (map && moveEndHandler) moveEndHandler(evt, map);
+        };
+
+        if (map) map.on("moveend", wrappedHandler);
+
+        return () => {
+            if (map) map.off("moveend", wrappedHandler);
+        };
+    }, [map, moveEndHandler]);
+
+    useEffect(() => {
         if (shapesGeojson && map) {
             const geoJsonLayer = L.geoJSON(shapesGeojson);
             geoJsonLayer.addTo(map);
@@ -148,9 +163,6 @@ const TransitMap: React.FC<TransitMapProps> = ({ mode = "main", routeId }) => {
                         <div className="text-sm text-muted-foreground">
                             Trip ID: {rtvpModalData?.trip_id}
                         </div>
-
-                      
-
                     </div>
 
                     <DrawerFooter>
