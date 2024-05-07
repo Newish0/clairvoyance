@@ -92,33 +92,6 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
             equalRecords
         );
 
-        // const inRoutes = getRoutes({}, [], [], { db: gtfsDB });
-
-        // for (const newRoute of inRoutes) {
-        //     const existingRoute = (
-        //         await tx
-        //             .select()
-        //             .from(routes)
-        //             .where(eq(routes.route_id, newRoute.route_id))
-        //             .limit(1)
-        //     ).at(0);
-
-        //     if (existingRoute) {
-        //         if (!equalRecords(existingRoute, newRoute)) {
-        //             console.log("SKIPPED! Existing route is different from new route");
-        //             console.log("Existing route:", existingRoute);
-        //             console.log("New route:", newRoute);
-        //             console.log();
-        //         }
-        //     } else {
-        //         // console.log("New route:", newRoute);
-        //         await tx
-        //             .insert(routes)
-        //             .values(newRoute as typeof routes.$inferInsert)
-        //             .onConflictDoNothing();
-        //     }
-        // }
-
         console.log("Sync trips...");
 
         await syncTable(
@@ -132,29 +105,6 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
             },
             equalRecords
         );
-
-        // const inTrips = getTrips({}, [], [], { db: gtfsDB });
-
-        // for (const newTrip of inTrips) {
-        //     const existingTrip = (
-        //         await tx.select().from(trips).where(eq(trips.trip_id, newTrip.trip_id)).limit(1)
-        //     ).at(0);
-
-        //     if (existingTrip) {
-        //         if (!equalRecords(existingTrip, newTrip)) {
-        //             console.log("SKIPPED! Existing trip is different from new trip");
-        //             console.log("Existing trip:", existingTrip);
-        //             console.log("New trip:", newTrip);
-        //             console.log();
-        //         }
-        //     } else {
-        //         // console.log("New trip:", newTrip);
-        //         await tx
-        //             .insert(trips)
-        //             .values(newTrip as typeof trips.$inferInsert)
-        //             .onConflictDoNothing();
-        //     }
-        // }
 
         console.log("Sync shapes...");
 
@@ -179,38 +129,6 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
             equalRecords
         );
 
-        // const inShapes = getShapes({}, [], [], { db: gtfsDB });
-
-        // for (const newShape of inShapes) {
-        //     const existingShape = (
-        //         await tx
-        //             .select()
-        //             .from(shapes)
-        //             .where(
-        //                 and(
-        //                     eq(shapes.shape_id, newShape.shape_id),
-        //                     eq(shapes.shape_pt_sequence, newShape.shape_pt_sequence)
-        //                 )
-        //             )
-        //             .limit(1)
-        //     ).at(0);
-
-        //     if (existingShape) {
-        //         if (!equalRecords(existingShape, newShape)) {
-        //             console.log("SKIPPED! Existing shape is different from new shape");
-        //             console.log("Existing shape:", existingShape);
-        //             console.log("New shape:", newShape);
-        //             console.log();
-        //         }
-        //     } else {
-        //         // console.log("New shape:", newShape);
-        //         await tx
-        //             .insert(shapes)
-        //             .values(newShape as typeof shapes.$inferInsert)
-        //             .onConflictDoNothing();
-        //     }
-        // }
-
         console.log("Sync stops...");
 
         await syncTable(
@@ -224,29 +142,6 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
             },
             equalRecords
         );
-
-        // const inStops = getStops({}, [], [], { db: gtfsDB });
-
-        // for (const newStop of inStops) {
-        //     const existingStop = (
-        //         await tx.select().from(stops).where(eq(stops.stop_id, newStop.stop_id)).limit(1)
-        //     ).at(0);
-
-        //     if (existingStop) {
-        //         if (!equalRecords(existingStop, newStop)) {
-        //             console.log("SKIPPED! Existing stop is different from new stop");
-        //             console.log("Existing stop:", existingStop);
-        //             console.log("New stop:", newStop);
-        //             console.log();
-        //         }
-        //     } else {
-        //         // console.log("New stop:", newStop);
-        //         await tx
-        //             .insert(stops)
-        //             .values(newStop as typeof stops.$inferInsert)
-        //             .onConflictDoNothing();
-        //     }
-        // }
 
         console.log("Sync stoptimes...");
 
@@ -270,38 +165,6 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
             },
             equalRecords
         );
-
-        // const inStopTimes = getStoptimes({}, [], [], { db: gtfsDB });
-
-        // for (const newStopTime of inStopTimes) {
-        //     const existingStopTime = (
-        //         await tx
-        //             .select()
-        //             .from(stopTimes)
-        //             .where(
-        //                 and(
-        //                     eq(stopTimes.trip_id, newStopTime.trip_id),
-        //                     eq(stopTimes.stop_sequence, newStopTime.stop_sequence)
-        //                 )
-        //             )
-        //             .limit(1)
-        //     ).at(0);
-
-        //     if (existingStopTime) {
-        //         if (!equalRecords(existingStopTime, newStopTime)) {
-        //             console.log("SKIPPED! Existing stop time is different from new stop time");
-        //             console.log("Existing stop time:", existingStopTime);
-        //             console.log("New stop time:", newStopTime);
-        //             console.log();
-        //         }
-        //     } else {
-        //         // console.log("New stop time:", newStopTime);
-        //         await tx
-        //             .insert(stopTimes)
-        //             .values(newStopTime as typeof stopTimes.$inferInsert)
-        //             .onConflictDoNothing();
-        //     }
-        // }
     });
 }
 
