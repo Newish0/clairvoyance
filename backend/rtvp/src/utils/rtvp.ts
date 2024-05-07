@@ -6,10 +6,26 @@ import { eq, gte, and, asc, sql, inArray, lte } from "drizzle-orm";
 import { shapes as shapesTable } from "@/db/schemas/shapes";
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
 import regression from "regression";
+import { tripUpdates as tripUpdatesTable } from "@/db/schemas/trip_updates";
 
 const parseRawRtvpTimestamp = (rawRtvpTimestamp: string | undefined): Date => {
     return rawRtvpTimestamp ? new Date(parseInt(rawRtvpTimestamp) * 1000) : new Date();
 };
+
+/**
+ * Formats a Date object into a string in the format YYYYMMDD.
+ * @param date The Date object to format.
+ * @returns The formatted date string in YYYYMMDD format.
+ */
+function formatDateToString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are zero-indexed
+    const day = String(date.getDate()).padStart(2, "0");
+
+    const dateString = `${year}${month}${day}`;
+
+    return dateString;
+}
 
 export const isDuplicate = async (
     rawRtvp: RawRTVP,
@@ -35,11 +51,24 @@ export const isDuplicate = async (
 
 export const transformRtvp = async (
     rawRtvp: RawRTVP,
-
+    tripUpdateMatch: {
+        start_date: string;
+        trip_start_time: string;
+    },
     db: typeof defaultDb = defaultDb
 ): Promise<typeof rtvpTable.$inferInsert> => {
     const { trip_id } = rawRtvp;
     const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
+
+    const tripUpdate = await defaultDb.query.tripUpdates.findFirst({
+        where: and(
+            eq(tripUpdatesTable.trip_id, trip_id),
+            eq(tripUpdatesTable.start_date, tripUpdateMatch.start_date),
+            lte(tripUpdatesTable.trip_start_time, tripUpdateMatch.trip_start_time)
+        ),
+    });
+
+    if (!tripUpdate) throw new Error(`No trip update found for trip_id: ${trip_id} at this time`);
 
     const trip = (
         await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, trip_id)).limit(1)
@@ -73,6 +102,7 @@ export const transformRtvp = async (
         timestamp,
         is_updated: rawRtvp.is_updated ?? 0,
         p_traveled,
+        trip_update_id: tripUpdate.trip_update_id,
         // rel_timestamp,
     };
 };
@@ -144,7 +174,10 @@ const findTripRootRtvp = async (
     }
 };
 
-export const computePredictionPolynomial = async (routeId: string, db: typeof defaultDb = defaultDb) => {
+export const computePredictionPolynomial = async (
+    routeId: string,
+    db: typeof defaultDb = defaultDb
+) => {
     // const trip = (
     //     await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, tripId)).limit(1)
     // ).at(0);

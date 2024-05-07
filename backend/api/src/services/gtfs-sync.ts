@@ -1,6 +1,6 @@
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
 import type BetterSqlite3 from "better-sqlite3";
-import { getRoutes, getTrips, getShapes, getStops, getStoptimes } from "gtfs";
+import { getRoutes, getTrips, getShapes, getStops, getStoptimes, getTripUpdates } from "gtfs";
 import { routes } from "@/db/schemas/routes";
 import { trips } from "@/db/schemas/trips";
 import { shapes } from "@/db/schemas/shapes";
@@ -21,6 +21,7 @@ import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { equalRecords } from "@/utils/compare";
 
 import { SingleBar } from "cli-progress";
+import { tripUpdates } from "@/db/schemas/trip_updates";
 
 const parseRawGtfsTimestamp = (rawGtfsTimestamp: string | undefined): Date | null => {
     return rawGtfsTimestamp ? new Date(parseInt(rawGtfsTimestamp) * 1000) : null;
@@ -33,13 +34,14 @@ const syncTable = async (
     getExistingTuple: (nt: any) => any,
     compareTuples: (existingTuple: any, newTuple: any) => boolean,
     transform?: (newTuple: any) => any,
-    bulkSize: number = 1000
+    bulkSize: number = 200
 ) => {
     const progressBar = new SingleBar({});
     progressBar.start(Array.from(newTuples).length, 0);
 
-    const bulk: Promise<void>[] = [];
+    const promises: Promise<void>[] = [];
 
+    let remainingTickets = bulkSize;
     for (const newTuple of newTuples) {
         const syncTuple = async () => {
             const existingTuple = await getExistingTuple(newTuple);
@@ -60,15 +62,19 @@ const syncTable = async (
             progressBar.increment();
         };
 
-        bulk.push(syncTuple());
+        remainingTickets--;
+        promises.push(
+            syncTuple().then(() => {
+                remainingTickets++;
+            })
+        );
 
-        if (bulk.length >= bulkSize) {
-            await Promise.all(bulk);
-            bulk.splice(0, bulk.length);
+        while (remainingTickets === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 5));
         }
     }
 
-    await Promise.all(bulk);
+    await Promise.all(promises);
     progressBar.stop();
 };
 
@@ -76,7 +82,7 @@ export async function syncGtfsStaticWithPG(psDB: typeof defaultDB, gtfsDB: Bette
     await psDB.transaction(async (tx) => {
         console.log("Sync routes...");
 
-        syncTable(
+        await syncTable(
             tx as any,
             routes as any,
             getRoutes({}, [], [], { db: gtfsDB }),

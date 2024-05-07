@@ -10,6 +10,7 @@ import * as rtvpSchema from "./schemas/rtvp";
 import * as shapesSchema from "./schemas/shapes";
 import * as stopsSchema from "./schemas/stops";
 import * as stoptimesSchema from "./schemas/stop_times";
+import * as tripUpdatesSchema from "./schemas/trip_updates";
 
 const config = {
     host: process.env.DB_HOST!,
@@ -28,6 +29,7 @@ const db = drizzle(queryClient, {
         ...shapesSchema,
         ...stopsSchema,
         ...stoptimesSchema,
+        ...tripUpdatesSchema,
     },
 });
 

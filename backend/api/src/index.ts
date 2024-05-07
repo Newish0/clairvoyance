@@ -71,8 +71,8 @@ const criticalInit = async () => {
 const nonCriticalInit = async () => {
     // Non critical initialization
     console.log(chalk.white.bold.bgYellow(`Initializing GTFS`));
-    await initGTFS(true);
-    // await initGTFS();
+    // await initGTFS(true);
+    await initGTFS();
     console.log(chalk.white.bold.bgCyan(`GTFS Initialization Complete`));
 
     if (!gtfsDB.primary) {
@@ -81,7 +81,7 @@ const nonCriticalInit = async () => {
     }
 
     console.log(chalk.white.bold.bgYellow(`Syncing GTFS`));
-    // await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+    await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
     console.log(chalk.white.bold.bgCyan(`GTFS Sync Complete`));
 };
 

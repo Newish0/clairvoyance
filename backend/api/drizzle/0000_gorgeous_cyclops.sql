@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "vehicle_position" (
 	"rtvp_timestamp" timestamp NOT NULL,
 	"is_updated" integer NOT NULL,
 	"p_traveled" real,
-	"rel_timestamp" integer
+	"trip_update_id" integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "shapes" (
@@ -57,9 +57,9 @@ CREATE TABLE IF NOT EXISTS "stops" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "stop_times" (
 	"trip_id" varchar(255) NOT NULL,
-	"arrival_time" time,
+	"arrival_time" varchar(255),
 	"arrival_timestamp" integer,
-	"departure_time" time,
+	"departure_time" varchar(255),
 	"departure_timestamp" integer,
 	"stop_id" varchar(255) NOT NULL,
 	"stop_sequence" integer NOT NULL,
@@ -86,8 +86,28 @@ CREATE TABLE IF NOT EXISTS "trips" (
 	"bikes_allowed" integer
 );
 --> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "trip_updates" (
+	"trip_update_id" serial PRIMARY KEY NOT NULL,
+	"vehicle_id" varchar(255),
+	"trip_id" varchar(255),
+	"trip_start_time" varchar(255),
+	"direction_id" integer,
+	"route_id" varchar(255),
+	"start_date" varchar(255),
+	"timestamp" varchar(255),
+	"schedule_relationship" varchar(255),
+	"is_updated" integer DEFAULT 1 NOT NULL,
+	CONSTRAINT "trip_updates_trip_id_start_date_trip_start_time_unique" UNIQUE NULLS NOT DISTINCT("trip_id","start_date","trip_start_time")
+);
+--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "vehicle_position" ADD CONSTRAINT "vehicle_position_trip_id_trips_trip_id_fk" FOREIGN KEY ("trip_id") REFERENCES "trips"("trip_id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "vehicle_position" ADD CONSTRAINT "vehicle_position_trip_update_id_trip_updates_trip_update_id_fk" FOREIGN KEY ("trip_update_id") REFERENCES "trip_updates"("trip_update_id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -106,6 +126,18 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "trips" ADD CONSTRAINT "trips_route_id_routes_route_id_fk" FOREIGN KEY ("route_id") REFERENCES "routes"("route_id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "trip_updates" ADD CONSTRAINT "trip_updates_trip_id_trips_trip_id_fk" FOREIGN KEY ("trip_id") REFERENCES "trips"("trip_id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "trip_updates" ADD CONSTRAINT "trip_updates_route_id_routes_route_id_fk" FOREIGN KEY ("route_id") REFERENCES "routes"("route_id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

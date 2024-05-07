@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1714804025110,
-      "tag": "0000_cheerful_cloak",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1714869208025,
-      "tag": "0001_material_dust",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1715057519741,
-      "tag": "0002_dry_lightspeed",
+      "when": 1715060002016,
+      "tag": "0000_gorgeous_cyclops",
       "breakpoints": true
     }
   ]

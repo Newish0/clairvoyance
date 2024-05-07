@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { trips } from "./trips";
 import { relations } from "drizzle-orm";
+import { tripUpdates } from "./trip_updates";
 
 export const realtime_vehicle_position = pgTable(
     "vehicle_position",
@@ -27,7 +28,10 @@ export const realtime_vehicle_position = pgTable(
         is_updated: integer("is_updated").notNull(),
 
         p_traveled: real("p_traveled"),
-        rel_timestamp: integer("rel_timestamp"), // Assumes a trip won't run longer than 32 bits int
+
+        trip_update_id: integer("trip_update_id")
+            .references(() => tripUpdates.trip_update_id)
+            .notNull(),
     },
     (rtvp) => ({})
 );
@@ -36,5 +40,9 @@ export const rtvpRelations = relations(realtime_vehicle_position, ({ one }) => (
     route: one(trips, {
         fields: [realtime_vehicle_position.trip_id],
         references: [trips.trip_id],
+    }),
+    tripUpdate: one(tripUpdates, {
+        fields: [realtime_vehicle_position.trip_update_id],
+        references: [tripUpdates.trip_update_id],
     }),
 }));
