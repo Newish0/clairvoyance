@@ -15,6 +15,13 @@
       "when": 1714869208025,
       "tag": "0001_material_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1715057519741,
+      "tag": "0002_dry_lightspeed",
+      "breakpoints": true
     }
   ]
 }
