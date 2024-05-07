@@ -17,7 +17,9 @@ export type NearbyTransit = {
         agency_id: string;
         stop_time: {
             arrival_time: string;
+            arrival_timestamp: number;
             departure_time: string;
+            departure_timestamp: number;
             stop_id: string;
             stop_sequence: number;
             stop_headsign: string;

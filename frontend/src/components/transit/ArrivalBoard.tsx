@@ -3,23 +3,66 @@ import { useNearbyTransits } from "@/hooks/transit/nearby";
 import { ScrollArea } from "../ui/scroll-area";
 import type { NearbyTransit } from "@/services/api/transit";
 
-const BoardRow = ({ route_id, route_short_name, route_long_name, trips }: NearbyTransit) => {
-    console.log(route_id);
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    CarouselNext,
+    CarouselPrevious,
+} from "@/components/ui/carousel";
+import { Card } from "../ui/card";
+import { IconCircleArrowRight, IconCircleArrowLeft } from "@tabler/icons-react";
+import { getSecondsSinceStartOfDay } from "@/utils/datetime";
+
+const DirectionArrow = ({ direction }: { direction: number }) => {
+    if (direction === 0) {
+        return <IconCircleArrowRight className="m-[-2px] size-5" />;
+    } else if (direction === 1) {
+        return <IconCircleArrowLeft className="m-[-2px] size-5" />;
+    } else {
+        return null;
+    }
+};
+
+const BoardRow = ({ route_id, route_short_name, trips }: NearbyTransit) => {
+    console.log(route_id, trips);
+
+    const secSinceStartOfDate = getSecondsSinceStartOfDay();
 
     return (
-        <a href={`/routes?route_id=${route_id}`}>
-            <div className="m-2 p-4 rounded-xl border bg-card text-card-foreground shadow">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <h3 className="text-xl font-semibold mb-1">{route_short_name}</h3>
-                        <p className="text-gray-500 mb-1">{route_long_name}</p>
-                    </div>
-                    <div className="flex items-center justify-end">
-                        <h3 className="text-xl font-semibold mb-2">{9}min</h3>
-                    </div>
-                </div>
-            </div>
-        </a>
+        <Carousel>
+            <CarouselContent>
+                {trips.map((trip) => {
+                    const etaSec = trip.stop_time.arrival_timestamp - secSinceStartOfDate; // FIXME: Broken for trips with time past 12:00AM
+                    const etaMin = (etaSec / 60).toFixed(0);
+
+                    return (
+                        <CarouselItem key={trip.trip_id}>
+                            <a href={`/routes?route_id=${route_id}`}>
+                                <div className="m-2 p-4 rounded-xl border bg-card text-card-foreground shadow">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <h3 className="text-xl font-semibold mb-1">
+                                                {route_short_name}
+                                            </h3>
+                                            <p className="text-muted-foreground mb-1 flex gap-1 items-center">
+                                                <DirectionArrow direction={trip.direction_id} />
+                                                {trip.trip_headsign}
+                                            </p>
+                                        </div>
+                                        <div className=" flex items-center justify-end">
+                                            <h3 className="text-muted-foreground text-xl font-semibold mb-2 ">
+                                                {etaMin} min
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </CarouselItem>
+                    );
+                })}
+            </CarouselContent>
+        </Carousel>
     );
 };
 

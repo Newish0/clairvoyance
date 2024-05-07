@@ -32,6 +32,9 @@ dependencies:
   '@radix-ui/react-slot':
     specifier: ^1.0.2
     version: 1.0.2(@types/react@18.3.1)(react@18.3.1)
+  '@tabler/icons-react':
+    specifier: ^3.3.0
+    version: 3.3.0(react@18.3.1)
   '@tanstack/react-query':
     specifier: ^5.32.0
     version: 5.32.0(react@18.3.1)
@@ -53,6 +56,9 @@ dependencies:
   clsx:
     specifier: ^2.1.1
     version: 2.1.1
+  embla-carousel-react:
+    specifier: ^8.0.4
+    version: 8.0.4(react@18.3.1)
   leaflet:
     specifier: ^1.9.4
     version: 1.9.4
@@ -1611,6 +1617,19 @@ packages:
     resolution: {integrity: sha512-7fedsBfuILDTBmrYZNFI8B6ATTxhQAasUHllHmjvSZPnoq4bULWoTpHwmuQvZ8Aq03/tAa2IGo6RXqWtHdWaCA==}
     dev: false
 
+  /@tabler/icons-react@3.3.0(react@18.3.1):
+    resolution: {integrity: sha512-Qn1Po+0gErh1zCWlaOdoVoGqeonWfSuiboYgwZBs6PIJNsj7yr3bIa4BkHmgJgtlXLT9LvCzt/RvwlgjxLfjjg==}
+    peerDependencies:
+      react: '>= 16'
+    dependencies:
+      '@tabler/icons': 3.3.0
+      react: 18.3.1
+    dev: false
+
+  /@tabler/icons@3.3.0:
+    resolution: {integrity: sha512-PLVe9d7b59sKytbx00KgeGhQG3N176Ezv8YMmsnSz4s0ifDzMWlp/h2wEfQZ0ZNe8e377GY2OW6kovUe3Rnd0g==}
+    dev: false
+
   /@tanstack/eslint-plugin-query@5.28.11(eslint@8.57.0)(typescript@5.4.5):
     resolution: {integrity: sha512-bODGLeG4WCGmHVKCh3bH1KLfq7xdi1jsRjTESV6ifCw1mZ0m2fBMxAjK42KjbhJwcvNdTlYHI+YY/aZWBk4Niw==}
     peerDependencies:
@@ -2540,6 +2559,28 @@ packages:
 
   /electron-to-chromium@1.4.750:
     resolution: {integrity: sha512-9ItEpeu15hW5m8jKdriL+BQrgwDTXEL9pn4SkillWFu73ZNNNQ2BKKLS+ZHv2vC9UkNhosAeyfxOf/5OSeTCPA==}
+    dev: false
+
+  /embla-carousel-react@8.0.4(react@18.3.1):
+    resolution: {integrity: sha512-3NlOmBmRhaGhtI0It9243yg9fz2wPRML5gGLDIE69Oyb/CuGsJnxpcgG74j905NQBDgReTEfFJwzOtIFAjeBfg==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.1 || ^18.0.0
+    dependencies:
+      embla-carousel: 8.0.4
+      embla-carousel-reactive-utils: 8.0.4(embla-carousel@8.0.4)
+      react: 18.3.1
+    dev: false
+
+  /embla-carousel-reactive-utils@8.0.4(embla-carousel@8.0.4):
+    resolution: {integrity: sha512-7lWM+8hanIF2roTAjxwfqfr0+VTbr9rYVlAs0r5PwPOVpz1G3/+bRelgAYvwcfWVm5Vydo2pKXVfFOPQjznF7w==}
+    peerDependencies:
+      embla-carousel: 8.0.4
+    dependencies:
+      embla-carousel: 8.0.4
+    dev: false
+
+  /embla-carousel@8.0.4:
+    resolution: {integrity: sha512-INndmilrV9KY4Wnb4F2tI55DuQnFjf3GPOaPDT2LGYiKhIWVNUhv1nz/RI7CZ6WoIZ8MYHP4t6Qm/cqpcGHknA==}
     dev: false
 
   /emmet@2.4.7:
