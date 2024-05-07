@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/carousel";
 import { Card } from "../ui/card";
 import { IconCircleArrowRight, IconCircleArrowLeft } from "@tabler/icons-react";
-import { getSecondsSinceStartOfDay } from "@/utils/datetime";
+import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay } from "@/utils/datetime";
 
 const DirectionArrow = ({ direction }: { direction: number }) => {
     if (direction === 0) {
@@ -33,7 +33,7 @@ const BoardRow = ({ route_id, route_short_name, trips }: NearbyTransit) => {
         <Carousel>
             <CarouselContent>
                 {trips.map((trip) => {
-                    const etaSec = trip.stop_time.arrival_timestamp - secSinceStartOfDate; // FIXME: Broken for trips with time past 12:00AM
+                    const etaSec = (trip.stop_time.arrival_timestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate ; 
                     const etaMin = (etaSec / 60).toFixed(0);
 
                     return (
