@@ -115,7 +115,9 @@ export default function (hono: Hono) {
 
             for (const rawTransit of nearbyTransitsRawResult) {
                 const { stop_times: remainingA, ...stop } = rawTransit;
+                if (!remainingA?.at(0)) continue;
                 const { trip: remainingB, ...stop_time } = remainingA[0];
+                if (!remainingB) continue;
                 const { route, ...trip } = remainingB;
 
                 const nbTrip = {
