@@ -52,15 +52,16 @@ export default function (hono: Hono) {
                 with: {
                     // Select next closest arrival time
                     stop_times: {
-                        where: (stop_times, { gte, or }) =>
-                            or(
-                                gte(stop_times.arrival_timestamp, secondsSinceStartOfDay),
-                                gte(
-                                    stop_times.arrival_timestamp,
-                                    secondsSinceStartOfDay + SECONDS_IN_A_DAY
-                                )
+                        where: (stop_times, { gte, sql }) =>
+                            gte(
+                                sql<number>`MOD(${stop_times.arrival_timestamp}, ${SECONDS_IN_A_DAY})`,
+                                secondsSinceStartOfDay
                             ),
-                        orderBy: (stop_times, { asc }) => asc(stop_times.arrival_timestamp),
+
+                        orderBy: (stop_times, { asc }) =>
+                            asc(
+                                sql<number>`MOD(${stop_times.arrival_timestamp}, ${SECONDS_IN_A_DAY})`
+                            ),
                         with: {
                             trip: {
                                 with: {
