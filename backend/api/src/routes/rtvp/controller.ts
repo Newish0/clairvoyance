@@ -42,6 +42,63 @@ export default function (hono: Hono) {
     });
 
     hono.get(
+        "/route/:route_id",
+        zValidator(
+            "query",
+            z.object({
+                direction_id: z.string().optional(),
+            })
+        ),
+        async (c) => {
+            const route_id = c.req.param("route_id");
+            const { direction_id: directionIdStr } = c.req.valid("query");
+
+            const tripIds = (
+                await pgDb.query.trips.findMany({
+                    where: (trip, { eq, and }) =>
+                        and(
+                            eq(trip.route_id, route_id ?? ""),
+                            directionIdStr
+                                ? eq(trip.direction_id, parseInt(directionIdStr))
+                                : undefined
+                        ),
+                    columns: { trip_id: true },
+                })
+            ).map(({ trip_id }) => trip_id);
+
+            const tripRtvpResults = await pgDb.query.realtime_vehicle_position.findMany({
+                where: (rtvp, { inArray }) => inArray(rtvp.trip_id, tripIds),
+                with: {
+                    tripUpdate: true,
+                },
+            });
+
+            const tripRtvpWithElapsed: (typeof rtvpTable.$inferSelect & {
+                elapsed: number | null;
+            })[] = tripRtvpResults
+                .map((rtvp) => {
+                    let elapsed: number | null = null;
+
+                    if (rtvp.tripUpdate.trip_start_timestamp) {
+                        elapsed = Math.round(
+                            (rtvp.timestamp.getTime() -
+                                rtvp.tripUpdate.trip_start_timestamp?.getTime()) /
+                                1000
+                        );
+                    }
+
+                    return {
+                        ...rtvp,
+                        elapsed,
+                    };
+                })
+                .filter((rtvp) => rtvp.elapsed !== null);
+
+            return c.json(tripRtvpWithElapsed);
+        }
+    );
+
+    hono.get(
         "/loc",
         zValidator(
             "query",

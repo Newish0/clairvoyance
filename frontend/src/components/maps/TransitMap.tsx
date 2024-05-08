@@ -23,7 +23,7 @@ import {
     DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Button } from "../ui/button";
-import { useRtvpByTripId } from "@/hooks/transit/rtvp";
+import { useRtvpByRouteId, useRtvpByTripId } from "@/hooks/transit/rtvp";
 
 import {
     LineChart,
@@ -34,6 +34,9 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
+    ScatterChart,
+    Scatter,
+    LabelList,
 } from "recharts";
 
 type TransitMapEventHandler = (evt: L.LeafletEvent, map: L.Map) => void;
@@ -60,8 +63,10 @@ const TransitMap: React.FC<TransitMapProps> = ({
     const [rtvpModalData, setRtvpModalData] = useState<RTVPDataModalData | null>(null);
 
     const { data: tripRtvpData } = useRtvpByTripId(rtvpModalData?.trip_id ?? "");
+    const { data: routeRtvpData } = useRtvpByRouteId(rtvpModalData?.route_id ?? "");
 
-    console.log(tripRtvpData);
+    console.log("tripRtvpData", tripRtvpData);
+    console.log("routeRtvpData", routeRtvpData);
 
     useEffect(() => {
         if (!rootRef.current) return;
@@ -186,14 +191,20 @@ const TransitMap: React.FC<TransitMapProps> = ({
                         </div>
 
                         {/* <ResponsiveContainer width="100%" height="100%"> */}
-                            <LineChart width={600} height={400} data={tripRtvpData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="elapsed" type="number" />
-                                <YAxis type="number" />
-                                <Tooltip />
-                                <Legend />
-                                <Line type="monotone" dataKey="p_traveled" stroke="#8884d8" />
-                            </LineChart>
+                        <LineChart width={600} height={400} data={tripRtvpData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="elapsed" type="number" />
+                            <YAxis type="number" />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="p_traveled" stroke="#8884d8" />
+                        </LineChart>
+                        <ScatterChart width={600} height={400}>
+                            <CartesianGrid />
+                            <XAxis type="number" dataKey="elapsed" />
+                            <YAxis type="number" dataKey="p_traveled" />
+                            <Scatter data={routeRtvpData} fill="#8884d8" />
+                        </ScatterChart>
                         {/* </ResponsiveContainer> */}
                     </div>
 
