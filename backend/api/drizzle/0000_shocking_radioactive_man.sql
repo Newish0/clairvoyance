@@ -22,10 +22,18 @@ CREATE TABLE IF NOT EXISTS "vehicle_position" (
 	"speed" real,
 	"trip_id" varchar(255),
 	"vehicle_id" varchar(255) NOT NULL,
-	"rtvp_timestamp" timestamp NOT NULL,
+	"rtvp_timestamp" timestamp with time zone NOT NULL,
 	"is_updated" integer NOT NULL,
 	"p_traveled" real,
 	"trip_update_id" integer NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "rtvp_polyregr" (
+	"route_id" varchar(255) NOT NULL,
+	"direction_id" integer NOT NULL,
+	"coefficient" double precision NOT NULL,
+	"coefficient_index" smallint NOT NULL,
+	CONSTRAINT "rtvp_polyregr_route_id_direction_id_pk" PRIMARY KEY("route_id","direction_id")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "shapes" (
@@ -97,6 +105,7 @@ CREATE TABLE IF NOT EXISTS "trip_updates" (
 	"timestamp" varchar(255),
 	"schedule_relationship" varchar(255),
 	"is_updated" integer DEFAULT 1 NOT NULL,
+	"trip_start_timestamp" timestamp with time zone,
 	CONSTRAINT "trip_updates_trip_id_start_date_trip_start_time_unique" UNIQUE NULLS NOT DISTINCT("trip_id","start_date","trip_start_time")
 );
 --> statement-breakpoint
@@ -108,6 +117,12 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "vehicle_position" ADD CONSTRAINT "vehicle_position_trip_update_id_trip_updates_trip_update_id_fk" FOREIGN KEY ("trip_update_id") REFERENCES "trip_updates"("trip_update_id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "rtvp_polyregr" ADD CONSTRAINT "rtvp_polyregr_route_id_routes_route_id_fk" FOREIGN KEY ("route_id") REFERENCES "routes"("route_id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

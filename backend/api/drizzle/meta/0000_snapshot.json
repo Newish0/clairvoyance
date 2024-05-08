@@ -1,5 +1,5 @@
 {
-  "id": "5a64992c-bf35-4506-809a-8900c7d6c64e",
+  "id": "6cbc24c1-7eee-4662-99cb-e8b2966ae61a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -140,7 +140,7 @@
         },
         "rtvp_timestamp": {
           "name": "rtvp_timestamp",
-          "type": "timestamp",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
@@ -193,6 +193,62 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "rtvp_polyregr": {
+      "name": "rtvp_polyregr",
+      "schema": "",
+      "columns": {
+        "route_id": {
+          "name": "route_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direction_id": {
+          "name": "direction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coefficient": {
+          "name": "coefficient",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coefficient_index": {
+          "name": "coefficient_index",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rtvp_polyregr_route_id_routes_route_id_fk": {
+          "name": "rtvp_polyregr_route_id_routes_route_id_fk",
+          "tableFrom": "rtvp_polyregr",
+          "tableTo": "routes",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "route_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "rtvp_polyregr_route_id_direction_id_pk": {
+          "name": "rtvp_polyregr_route_id_direction_id_pk",
+          "columns": [
+            "route_id",
+            "direction_id"
+          ]
+        }
+      },
       "uniqueConstraints": {}
     },
     "shapes": {
@@ -620,6 +676,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "trip_start_timestamp": {
+          "name": "trip_start_timestamp",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},

@@ -1,1 +1,0 @@
-ALTER TABLE "trip_updates" ADD COLUMN "trip_start_timestamp" timestamp;

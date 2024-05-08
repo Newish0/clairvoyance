@@ -174,11 +174,20 @@ const findTripRootRtvp = async (
     }
 };
 
+/**
+ * Computes the polynomial coefficients for a given route and direction.
+ *
+ * @param routeId - The ID of the route.
+ * @param directionId - The ID of the direction.
+ * @param db - The Drizzle Client instance.
+ * @returns The polynomial coefficients for the route and direction i.e. `c[i] * x^(n - i) ...`.
+ */
 export const computePredictionPolynomial = async (
     routeId: string,
     directionId: number,
     db: typeof defaultDb = defaultDb
 ) => {
+    // Get the trip IDs for the given route and direction.
     const tripIds = (
         await db
             .select({ trip_id: tripsTable.trip_id })
@@ -186,6 +195,9 @@ export const computePredictionPolynomial = async (
             .where(and(eq(tripsTable.route_id, routeId), eq(tripsTable.direction_id, directionId)))
     ).map(({ trip_id }) => trip_id);
 
+    if (tripIds.length === 0) return null;
+
+    // Get the realtime vehicle positions (RTVPs) for the trip IDs.
     const tripRtvpResults = await db.query.realtime_vehicle_position.findMany({
         where: (rtvp, { inArray }) => inArray(rtvp.trip_id, tripIds),
         with: {
@@ -193,6 +205,7 @@ export const computePredictionPolynomial = async (
         },
     });
 
+    // Add the elapsed time to each RTVP.
     const tripRtvpWithElapsed: (typeof rtvpTable.$inferSelect & {
         elapsed: number | null;
     })[] = tripRtvpResults
@@ -213,11 +226,8 @@ export const computePredictionPolynomial = async (
         })
         .filter((rtvp) => rtvp.elapsed !== null);
 
-    const initialCoeff = polynomialRegression(tripRtvpWithElapsed, "p_traveled", "elapsed", 6);
-    return initialCoeff;
+    return polynomialRegression(tripRtvpWithElapsed, "elapsed", "p_traveled", 6);
 };
-
-// computePredictionPolynomial("95-VIC", 0).then(console.log);
 
 /**
  *
@@ -339,15 +349,12 @@ function polynomialRegression(
     independentVariable: string,
     dependentVariable: string,
     degree: number
-): number[] {
+) {
     // Perform polynomial regression
     const result = regression.polynomial(
         data.map((point) => [point[independentVariable], point[dependentVariable]]),
         { order: degree, precision: 32 }
     );
 
-    // Retrieve coefficients of the regression equation
-    const coefficients: number[] = result.equation;
-
-    return coefficients;
+    return result;
 }
