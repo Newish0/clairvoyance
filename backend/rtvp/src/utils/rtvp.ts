@@ -193,35 +193,35 @@ export const computePredictionPolynomial = async (
         },
     });
 
-    const tripRtvpWithElapse: (typeof rtvpTable.$inferSelect & {
-        elapse: number | null;
+    const tripRtvpWithElapsed: (typeof rtvpTable.$inferSelect & {
+        elapsed: number | null;
     })[] = tripRtvpResults
         .map((rtvp) => {
-            let elapse: number | null = null;
+            let elapsed: number | null = null;
 
             if (rtvp.tripUpdate.trip_start_time && rtvp.tripUpdate.start_date) {
                 const tripStartDate = rtvp.tripUpdate.start_date.replace(
                     /(\d{4})(\d{2})(\d{2})/,
                     "$1-$2-$3"
                 ); // 20210619 -> 2021-06-19
-                const tripDate = new Date(tripStartDate);
+                const tripDate = new Date(tripStartDate + " GMT-0700 ");
                 const [h, m, s] = rtvp.tripUpdate.trip_start_time.split(":");
                 tripDate.setHours(parseInt(h), parseInt(m), parseInt(s), 0);
-                elapse = Math.round((tripDate.getTime() - rtvp.timestamp.getTime()) / 1000);
+                elapsed = Math.round((rtvp.timestamp.getTime() - tripDate.getTime()) / 1000);
             }
 
             return {
                 ...rtvp,
-                elapse,
+                elapsed,
             };
         })
-        .filter((rtvp) => rtvp.elapse !== null);
+        .filter((rtvp) => rtvp.elapsed !== null);
 
-    const initialCoeff = polynomialRegression(tripRtvpWithElapse, "p_traveled", "elapse", 6);
+    const initialCoeff = polynomialRegression(tripRtvpWithElapsed, "p_traveled", "elapsed", 6);
     return initialCoeff;
 };
 
-// computePredictionPolynomial("95-VIC")
+// computePredictionPolynomial("95-VIC", 0).then(console.log);
 
 /**
  *

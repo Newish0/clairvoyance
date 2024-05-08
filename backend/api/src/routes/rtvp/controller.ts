@@ -8,6 +8,42 @@ import { sql, and, gte, desc, lte } from "drizzle-orm";
 import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
 
 export default function (hono: Hono) {
+    hono.get("/trip/:trip_id", async (c) => {
+        const trip_id = c.req.param("trip_id");
+        const tripRtvpResults = await pgDb.query.realtime_vehicle_position.findMany({
+            where: (rtvp, { eq }) => eq(rtvp.trip_id, trip_id ?? ""),
+            with: {
+                tripUpdate: true,
+            },
+        });
+
+        const tripRtvpWithElapsed: (typeof rtvpTable.$inferSelect & {
+            elapsed: number | null;
+        })[] = tripRtvpResults
+            .map((rtvp) => {
+                let elapsed: number | null = null;
+
+                if (rtvp.tripUpdate.trip_start_time && rtvp.tripUpdate.start_date) {
+                    const tripStartDate = rtvp.tripUpdate.start_date.replace(
+                        /(\d{4})(\d{2})(\d{2})/,
+                        "$1-$2-$3"
+                    ); // 20210619 -> 2021-06-19
+                    const tripDate = new Date(tripStartDate + " GMT-0700 ");
+                    const [h, m, s] = rtvp.tripUpdate.trip_start_time.split(":");
+                    tripDate.setHours(parseInt(h), parseInt(m), parseInt(s), 0);
+                    elapsed = Math.round((rtvp.timestamp.getTime() - tripDate.getTime()) / 1000);
+                }
+
+                return {
+                    ...rtvp,
+                    elapsed,
+                };
+            })
+            .filter((rtvp) => rtvp.elapsed !== null);
+
+        return c.json(tripRtvpWithElapsed);
+    });
+
     hono.get(
         "/loc",
         zValidator(

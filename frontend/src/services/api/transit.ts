@@ -158,10 +158,17 @@ export type RTVPData = {
     distance: number;
 };
 
-export const getRtvp = async (params: { lat: number; lng: number; radius: number }) => {
+export const getRtvpByLoc = async (params: { lat: number; lng: number; radius: number }) => {
     const res: AxiosResponse<RTVPData[], unknown> = await axios.get(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/loc`,
         { params }
     );
     return res.data;
 };
+
+export const getRtvpByTripId = async (trip_id: string) => {
+    const res: AxiosResponse<RTVPData[], unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/trip/${trip_id}`
+    );
+    return res.data;
+}
