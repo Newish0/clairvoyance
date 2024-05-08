@@ -173,9 +173,9 @@ export const getRtvpByTripId = async (tripId: string) => {
     return res.data;
 }
 
-export const getRtvpByRouteId = async (routeId: string) => {
+export const getRtvpByRouteId = async (routeId: string, directionId: number) => {
     const res: AxiosResponse<RTVPData[], unknown> = await axios.get(
-        `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/route/${routeId}`
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/route/${routeId}?direction_id=${directionId}`
     );
     return res.data;
 }

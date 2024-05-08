@@ -77,6 +77,9 @@ dependencies:
   recharts:
     specifier: ^2.12.6
     version: 2.12.6(react-dom@18.3.1)(react@18.3.1)
+  regression:
+    specifier: ^2.0.1
+    version: 2.0.1
   tailwind-merge:
     specifier: ^2.3.0
     version: 2.3.0
@@ -4774,6 +4777,10 @@ packages:
 
   /regenerator-runtime@0.14.1:
     resolution: {integrity: sha512-dYnhHh0nJoMfnkZs6GmmhFknAGRrLznOu5nc9ML+EJxGvrx6H7teuevqVqCuPcPK//3eDrrjQhehXVx9cnkGdw==}
+    dev: false
+
+  /regression@2.0.1:
+    resolution: {integrity: sha512-A4XYsc37dsBaNOgEjkJKzfJlE394IMmUPlI/p3TTI9u3T+2a+eox5Pr/CPUqF0eszeWZJPAc6QkroAhuUpWDJQ==}
     dev: false
 
   /rehype-parse@9.0.0:

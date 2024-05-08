@@ -26,11 +26,11 @@ export function useRtvpByTripId(tripId: string) {
     return query;
 }
 
-export function useRtvpByRouteId(routeId: string) {
+export function useRtvpByRouteId(routeId: string, directionId: number) {
     const query = useQuery(
         {
             queryKey: ["transit-rtvp", routeId],
-            queryFn: () => getRtvpByRouteId(routeId),
+            queryFn: () => getRtvpByRouteId(routeId, directionId),
         },
         globalQueryClient
     );

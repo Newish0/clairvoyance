@@ -39,6 +39,8 @@ import {
     LabelList,
 } from "recharts";
 
+import regression from "regression";
+
 type TransitMapEventHandler = (evt: L.LeafletEvent, map: L.Map) => void;
 
 type TransitMapProps = {
@@ -63,7 +65,10 @@ const TransitMap: React.FC<TransitMapProps> = ({
     const [rtvpModalData, setRtvpModalData] = useState<RTVPDataModalData | null>(null);
 
     const { data: tripRtvpData } = useRtvpByTripId(rtvpModalData?.trip_id ?? "");
-    const { data: routeRtvpData } = useRtvpByRouteId(rtvpModalData?.route_id ?? "");
+    const { data: routeRtvpData } = useRtvpByRouteId(
+        rtvpModalData?.route_id ?? "",
+        rtvpModalData?.direction_id ?? 0
+    );
 
     console.log("tripRtvpData", tripRtvpData);
     console.log("routeRtvpData", routeRtvpData);
@@ -166,6 +171,14 @@ const TransitMap: React.FC<TransitMapProps> = ({
 
     console.log(routeId);
 
+    const coeff = polynomialRegression(routeRtvpData ?? [], "elapsed", "p_traveled", 6);
+    const regLine = new Array(3000).fill(0).map((e, x0) => ({
+        p_traveled: coeff.reduce((accum, c, i) => accum + c * x0 ** (6 - i), 0),
+        elapsed: x0,
+    }));
+
+    console.log(regLine);
+
     return (
         <>
             <div ref={rootRef} className="h-full min-h-[50dvh] z-0"></div>
@@ -198,6 +211,13 @@ const TransitMap: React.FC<TransitMapProps> = ({
                             <Tooltip />
                             <Legend />
                             <Line type="monotone" dataKey="p_traveled" stroke="#8884d8" />
+
+                            <Line
+                                data={regLine}
+                                stroke="red"
+                                dataKey="p_traveled"
+                                fillOpacity={0.1}
+                            />
                         </LineChart>
                         <ScatterChart width={600} height={400}>
                             <CartesianGrid />
@@ -220,6 +240,30 @@ const TransitMap: React.FC<TransitMapProps> = ({
         </>
     );
 };
+
+// TMP HACK
+function polynomialRegression(
+    data: any[],
+    independentVariable: string,
+    dependentVariable: string,
+    degree: number
+): number[] {
+    // Perform polynomial regression
+    const result = regression.polynomial(
+        data.map((point) => [point[independentVariable], point[dependentVariable]]),
+        { order: degree, precision: 32 }
+    );
+
+    console.log("Polynomial regression input:");
+    console.log(data.map((point) => [point[independentVariable], point[dependentVariable]]));
+    console.log("Polynomial regression result:");
+    console.log(result);
+
+    // Retrieve coefficients of the regression equation
+    const coefficients: number[] = result.equation;
+
+    return coefficients;
+}
 
 TransitMap.displayName = "GlobalMap";
 
