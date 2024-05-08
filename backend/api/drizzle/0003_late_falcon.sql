@@ -1,0 +1,1 @@
+ALTER TABLE "trip_updates" ALTER COLUMN "trip_start_timestamp" DROP NOT NULL;

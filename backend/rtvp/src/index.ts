@@ -27,7 +27,7 @@ const config = {
 await importGtfs(config);
 
 // Collect RT update info
-setInterval(async () => {
+const performUpdate = async () => {
     try {
         await updateGtfsRealtime(config);
 
@@ -44,7 +44,21 @@ setInterval(async () => {
 
             try {
                 if (!existingTU && tu.schedule_relationship === "SCHEDULED") {
-                    await db.insert(tripUpdatesTable).values(tu);
+                    let tripDate = null;
+                    if (tu.trip_start_time && tu.start_date) {
+                        const tripStartDate = tu.start_date.replace(
+                            /(\d{4})(\d{2})(\d{2})/,
+                            "$1-$2-$3"
+                        ); // 20210619 -> 2021-06-19
+                        tripDate = new Date(tripStartDate + " GMT-0700"); // FIXME: hardcoded timezone
+                        const [h, m, s] = tu.trip_start_time.split(":");
+                        tripDate.setHours(parseInt(h), parseInt(m), parseInt(s), 0);
+                        console.log(tripDate);
+                    }
+
+                    await db
+                        .insert(tripUpdatesTable)
+                        .values({ ...tu, trip_start_timestamp: tripDate });
                 }
             } catch (error) {
                 console.log("Failed to insert", tu, error);
@@ -100,4 +114,7 @@ setInterval(async () => {
         console.log("Failed to collect RT data at", Date.now());
         console.error(error);
     }
-}, REALTIME_UPDATE_INTERVAL);
+};
+
+setInterval(performUpdate, REALTIME_UPDATE_INTERVAL);
+performUpdate();

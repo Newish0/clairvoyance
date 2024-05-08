@@ -1,4 +1,4 @@
-import { integer, pgTable, primaryKey, serial, unique, varchar } from "drizzle-orm/pg-core";
+import { integer, pgTable, primaryKey, serial, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 import { trips } from "./trips";
 import { routes } from "./routes";
 import { realtime_vehicle_position as rtvpTable } from "./rtvp";
@@ -17,6 +17,7 @@ export const tripUpdates = pgTable(
         timestamp: varchar("timestamp", { length: 255 }),
         schedule_relationship: varchar("schedule_relationship", { length: 255 }),
         is_updated: integer("is_updated").default(1).notNull(),
+        trip_start_timestamp: timestamp("trip_start_timestamp", { mode: "date", withTimezone: true }),
     },
     (tripUpdates) => ({
         unq: unique()

@@ -8,6 +8,27 @@
       "when": 1715060002016,
       "tag": "0000_gorgeous_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1715134468490,
+      "tag": "0001_young_scrambler",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1715135880721,
+      "tag": "0002_robust_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1715136030459,
+      "tag": "0003_late_falcon",
+      "breakpoints": true
     }
   ]
 }

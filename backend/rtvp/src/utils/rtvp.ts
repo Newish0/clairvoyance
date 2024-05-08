@@ -199,15 +199,11 @@ export const computePredictionPolynomial = async (
         .map((rtvp) => {
             let elapsed: number | null = null;
 
-            if (rtvp.tripUpdate.trip_start_time && rtvp.tripUpdate.start_date) {
-                const tripStartDate = rtvp.tripUpdate.start_date.replace(
-                    /(\d{4})(\d{2})(\d{2})/,
-                    "$1-$2-$3"
-                ); // 20210619 -> 2021-06-19
-                const tripDate = new Date(tripStartDate + " GMT-0700 ");
-                const [h, m, s] = rtvp.tripUpdate.trip_start_time.split(":");
-                tripDate.setHours(parseInt(h), parseInt(m), parseInt(s), 0);
-                elapsed = Math.round((rtvp.timestamp.getTime() - tripDate.getTime()) / 1000);
+            if (rtvp.tripUpdate.trip_start_timestamp) {
+                elapsed = Math.round(
+                    (rtvp.timestamp.getTime() - rtvp.tripUpdate.trip_start_timestamp?.getTime()) /
+                        1000
+                );
             }
 
             return {

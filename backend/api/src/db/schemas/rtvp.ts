@@ -24,7 +24,7 @@ export const realtime_vehicle_position = pgTable(
 
         trip_id: varchar("trip_id", { length: 255 }).references(() => trips.trip_id),
         vehicle_id: varchar("vehicle_id", { length: 255 }).notNull(),
-        timestamp: timestamp("rtvp_timestamp", { mode: "date" }).notNull(),
+        timestamp: timestamp("rtvp_timestamp", { mode: "date", withTimezone: true }).notNull(),
         is_updated: integer("is_updated").notNull(),
 
         p_traveled: real("p_traveled"),
