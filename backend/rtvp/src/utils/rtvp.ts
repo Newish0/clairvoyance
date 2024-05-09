@@ -226,7 +226,7 @@ export const computePredictionPolynomial = async (
         })
         .filter((rtvp) => rtvp.elapsed !== null);
 
-    return polynomialRegression(tripRtvpWithElapsed, "elapsed", "p_traveled", 6);
+    return polynomialRegression(tripRtvpWithElapsed, "p_traveled", "elapsed",6);
 };
 
 /**

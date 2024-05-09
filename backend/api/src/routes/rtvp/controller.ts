@@ -99,6 +99,121 @@ export default function (hono: Hono) {
     );
 
     hono.get(
+        "/eta",
+        zValidator(
+            "query",
+            z.object({
+                trip_id: z.string(),
+                stop_id: z.string(),
+            })
+        ),
+        async (c) => {
+            const { trip_id, stop_id } = c.req.valid("query");
+
+            const stopDistanceTraveled = (
+                await pgDb.query.stop_times.findFirst({
+                    where: (st, { and, eq }) =>
+                        and(eq(st.trip_id, trip_id), eq(st.stop_id, stop_id)),
+                    columns: {
+                        shape_dist_traveled: true,
+                    },
+                })
+            )?.shape_dist_traveled;
+
+            const lastStopDistanceTraveled = (
+                await pgDb.query.stop_times.findFirst({
+                    where: (st, { and, eq }) => and(eq(st.trip_id, trip_id)),
+                    orderBy: (st, { desc }) => desc(st.stop_sequence),
+                    columns: {
+                        shape_dist_traveled: true,
+                    },
+                })
+            )?.shape_dist_traveled;
+
+            if (!stopDistanceTraveled || !lastStopDistanceTraveled) {
+                c.status(400);
+                return c.json({
+                    message: "No stop distance traveled or last stop distance traveled",
+                });
+            }
+
+            const pTraveled = stopDistanceTraveled / lastStopDistanceTraveled;
+
+            const trip = await pgDb.query.trips.findFirst({
+                where: (t, { eq }) => eq(t.trip_id, trip_id),
+            });
+
+            if (!trip || trip.direction_id === null) {
+                c.status(400);
+                return c.json({
+                    message: "No trip or direction id",
+                });
+            }
+
+            const polyRegr = await pgDb.query.rtvp_polyregr.findMany({
+                where: (rtvp_polyregr, { and, eq }) =>
+                    and(
+                        eq(rtvp_polyregr.route_id, trip.route_id),
+                        eq(rtvp_polyregr.direction_id, trip.direction_id!)
+                    ),
+            });
+
+            const latestRtvp = await pgDb.query.realtime_vehicle_position.findFirst({
+                where: (rtvp, { eq }) => eq(rtvp.trip_id, trip_id),
+                orderBy: (rtvp, { desc }) => desc(rtvp.timestamp),
+                with: {
+                    tripUpdate: true,
+                },
+            });
+
+            if (!latestRtvp || !latestRtvp.tripUpdate.trip_start_timestamp) {
+                c.status(400);
+                return c.json({
+                    message:
+                        "No realtime vehicle position or trip start timestamp; Trip may have not started.",
+                });
+            }
+
+            const latestRtvpWithElapsed = {
+                ...latestRtvp,
+                elapsed: Math.round(
+                    (latestRtvp.timestamp.getTime() -
+                        latestRtvp.tripUpdate.trip_start_timestamp.getTime()) /
+                        1000
+                ),
+            };
+
+            if (!latestRtvpWithElapsed.p_traveled) {
+                c.status(400);
+                return c.json({
+                    message: "No p_traveled",
+                });
+            }
+
+            const x0 = latestRtvpWithElapsed.p_traveled;
+            const predictedElapsedAtX0 = polyRegr.reduce(
+                (accum, { ci, i }) => accum + ci * x0 ** i,
+                0
+            );
+            const elapsedDelta = latestRtvpWithElapsed.elapsed - predictedElapsedAtX0;
+
+            const offsetPredictedElapsed =
+                polyRegr.reduce((accum, { ci, i }) => accum + ci * pTraveled ** i, 0) +
+                elapsedDelta;
+
+            return c.json({
+                stop_id,
+                trip_id,
+                stopDistanceTraveled,
+                lastStopDistanceTraveled,
+                pTraveled,
+                predictedElapsedAtStop: offsetPredictedElapsed,
+                eta: offsetPredictedElapsed - latestRtvpWithElapsed.elapsed,
+            });
+        }
+    );
+
+    hono.get(
         "/loc",
         zValidator(
             "query",

@@ -48,7 +48,7 @@ const performUpdate = async () => {
 const refreshPredictionCoeffs = async () => {
     const routes = await db.query.routes.findMany();
     for (const route of routes) {
-        const updateRtvpPolyRegr = async (results: RegressionResult | null) => {
+        const updateRtvpPolyRegr = async (results: RegressionResult | null, direction_id: number) => {
             if (!results) {
                 return;
             }
@@ -60,7 +60,7 @@ const refreshPredictionCoeffs = async () => {
 
                 const newPolyRegr: typeof rtvpPolyRegrTable.$inferInsert = {
                     route_id: route.route_id,
-                    direction_id: 0,
+                    direction_id,
                     ci: coeff,
                     i: pow,
                 };
@@ -82,8 +82,8 @@ const refreshPredictionCoeffs = async () => {
         const d0Result = await computePredictionPolynomial(route.route_id, 0);
         const d1Result = await computePredictionPolynomial(route.route_id, 1);
 
-        await updateRtvpPolyRegr(d0Result);
-        await updateRtvpPolyRegr(d1Result);
+        await updateRtvpPolyRegr(d0Result, 0);
+        await updateRtvpPolyRegr(d1Result, 1);
     }
 };
 

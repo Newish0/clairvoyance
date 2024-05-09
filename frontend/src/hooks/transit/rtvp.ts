@@ -1,4 +1,9 @@
-import { getRtvpByLoc, getRtvpByRouteId, getRtvpByTripId } from "@/services/api/transit";
+import {
+    getRtvpByLoc,
+    getRtvpByRouteId,
+    getRtvpByTripId,
+    getRtvpEta,
+} from "@/services/api/transit";
 import { globalQueryClient } from "@/services/tanstack";
 import { useQuery } from "@tanstack/react-query";
 
@@ -31,6 +36,18 @@ export function useRtvpByRouteId(routeId: string, directionId: number) {
         {
             queryKey: ["transit-rtvp", routeId],
             queryFn: () => getRtvpByRouteId(routeId, directionId),
+        },
+        globalQueryClient
+    );
+
+    return query;
+}
+
+export function useRtvpEta(tripId: string, stopId: string) {
+    const query = useQuery(
+        {
+            queryKey: ["transit-rtvp-eta", tripId, stopId],
+            queryFn: () => getRtvpEta(tripId, stopId),
         },
         globalQueryClient
     );

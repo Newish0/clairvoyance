@@ -13,6 +13,7 @@ import {
 import { Card } from "../ui/card";
 import { IconCircleArrowRight, IconCircleArrowLeft } from "@tabler/icons-react";
 import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay } from "@/utils/datetime";
+import { useRtvpEta } from "@/hooks/transit/rtvp";
 
 const DirectionArrow = ({ direction }: { direction: number }) => {
     if (direction === 0) {
@@ -24,43 +25,81 @@ const DirectionArrow = ({ direction }: { direction: number }) => {
     }
 };
 
+const TripItem = ({
+    tripId,
+    arrivalTimestamp,
+    routeId,
+    routeShortName,
+    tripHeadSign,
+    tripDirectionId,
+    stopId,
+}: {
+    tripId: string;
+    arrivalTimestamp: number;
+    routeId: string;
+    routeShortName: string;
+    tripHeadSign: string;
+    tripDirectionId: number;
+    stopId: string;
+}) => {
+    const secSinceStartOfDate = getSecondsSinceStartOfDay();
+    const staticEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate;
+    const staticEtaMin = Math.round(staticEtaSec / 60)
+
+    const { data } = useRtvpEta(tripId, stopId);
+
+    const rtvpEtaMin = data &&  Math.round(data.eta / 60)
+
+    return (
+        <CarouselItem>
+            <a href={`/routes?route_id=${routeId}`}>
+                <div className="m-2 p-4 rounded-xl border bg-card text-card-foreground shadow">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <h3 className="text-xl font-semibold mb-1">{routeShortName}</h3>
+                            <p className="text-muted-foreground mb-1 flex gap-1 items-center">
+                                <DirectionArrow direction={tripDirectionId} />
+                                {tripHeadSign}
+                            </p>
+                        </div>
+                        <div className=" flex items-center justify-end">
+                            {!rtvpEtaMin && (
+                                <h3 className="text-muted-foreground text-xl font-semibold mb-2">
+                                    {staticEtaMin} min
+                                </h3>
+                            )}
+                            {rtvpEtaMin && (
+                                <div className="flex items-center flex-col">
+                                    <h3 className="text-xl font-semibold mb-2">{rtvpEtaMin} min</h3>
+                                    <small>{rtvpEtaMin - staticEtaMin > 0 ? "+" : ""} {rtvpEtaMin - staticEtaMin} min</small>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </CarouselItem>
+    );
+};
+
 const BoardRow = ({ route_id, route_short_name, trips }: NearbyTransit) => {
     console.log(route_id, trips);
-
-    const secSinceStartOfDate = getSecondsSinceStartOfDay();
 
     return (
         <Carousel>
             <CarouselContent>
-                {trips.map((trip) => {
-                    const etaSec = (trip.stop_time.arrival_timestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate ; 
-                    const etaMin = (etaSec / 60).toFixed(0);
-
-                    return (
-                        <CarouselItem key={trip.trip_id}>
-                            <a href={`/routes?route_id=${route_id}`}>
-                                <div className="m-2 p-4 rounded-xl border bg-card text-card-foreground shadow">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <h3 className="text-xl font-semibold mb-1">
-                                                {route_short_name}
-                                            </h3>
-                                            <p className="text-muted-foreground mb-1 flex gap-1 items-center">
-                                                <DirectionArrow direction={trip.direction_id} />
-                                                {trip.trip_headsign}
-                                            </p>
-                                        </div>
-                                        <div className=" flex items-center justify-end">
-                                            <h3 className="text-muted-foreground text-xl font-semibold mb-2 ">
-                                                {etaMin} min
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
-                        </CarouselItem>
-                    );
-                })}
+                {trips.map((trip) => (
+                    <TripItem
+                        key={trip.trip_id}
+                        arrivalTimestamp={trip.stop_time.arrival_timestamp}
+                        routeId={trip.route_id}
+                        routeShortName={route_short_name}
+                        tripHeadSign={trip.trip_headsign}
+                        tripDirectionId={trip.direction_id}
+                        tripId={trip.trip_id}
+                        stopId={trip.stop_time.stop_id}
+                    />
+                ))}
             </CarouselContent>
         </Carousel>
     );

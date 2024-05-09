@@ -171,11 +171,30 @@ export const getRtvpByTripId = async (tripId: string) => {
         `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/trip/${tripId}`
     );
     return res.data;
-}
+};
 
 export const getRtvpByRouteId = async (routeId: string, directionId: number) => {
     const res: AxiosResponse<RTVPData[], unknown> = await axios.get(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/route/${routeId}?direction_id=${directionId}`
     );
     return res.data;
-}
+};
+
+type RtvpEta = {
+    stop_id: string;
+    trip_id: string;
+    stopDistanceTraveled: number;
+    lastStopDistanceTraveled: number;
+    pTraveled: number;
+    predictedElapsedAtStop: number;
+    eta: number;
+};
+
+export const getRtvpEta = async (tripId: string, stopId: string) => {
+    if (!tripId || !stopId) return null;
+
+    const res: AxiosResponse<RtvpEta, unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/eta?trip_id=${tripId}&stop_id=${stopId}`
+    );
+    return res.data;
+};
