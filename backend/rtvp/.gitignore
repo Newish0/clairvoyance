@@ -9,3 +9,5 @@ node_modules
 # tmp sqlite databases 
 
 *.sqlite
+
+tmp/

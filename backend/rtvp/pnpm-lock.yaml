@@ -14,6 +14,9 @@ dependencies:
   chalk:
     specifier: ^5.3.0
     version: 5.3.0
+  csv:
+    specifier: ^6.3.8
+    version: 6.3.8
   dotenv:
     specifier: ^16.4.5
     version: 16.4.5
@@ -32,6 +35,9 @@ dependencies:
   postgres:
     specifier: ^3.4.4
     version: 3.4.4
+  protobufjs:
+    specifier: ^7.2.6
+    version: 7.2.6
   regression:
     specifier: ^2.0.1
     version: 2.0.1
@@ -822,12 +828,26 @@ packages:
     engines: {node: '>= 6'}
     dev: false
 
+  /csv-generate@4.4.0:
+    resolution: {integrity: sha512-geM01acNPZ0wr4/9sKev5fCzFG/tsc/NbuFWrhLc47M1zQyUdEJH65+cxTLIVafEwhBjIYwQ7fdOL9roBqVltQ==}
+    dev: false
+
   /csv-parse@5.5.5:
     resolution: {integrity: sha512-erCk7tyU3yLWAhk6wvKxnyPtftuy/6Ak622gOO7BCJ05+TYffnPCJF905wmOQm+BpkX54OdAl8pveJwUdpnCXQ==}
     dev: false
 
   /csv-stringify@6.4.6:
     resolution: {integrity: sha512-h2V2XZ3uOTLilF5dPIptgUfN/o2ia/80Ie0Lly18LAnw5s8Eb7kt8rfxSUy24AztJZas9f6DPZpVlzDUtFt/ag==}
+    dev: false
+
+  /csv@6.3.8:
+    resolution: {integrity: sha512-gRh3yiT9bHBA5ka2yOpyFqAVu/ZpwWzajMUR/es0ljevAE88WyHBuMUy7jzd2o5j6LYQesEO/AyhbQ9BhbDXUA==}
+    engines: {node: '>= 0.1.90'}
+    dependencies:
+      csv-generate: 4.4.0
+      csv-parse: 5.5.5
+      csv-stringify: 6.4.6
+      stream-transform: 3.3.1
     dev: false
 
   /d@1.0.2:
@@ -1941,6 +1961,10 @@ packages:
   /sqlstring-sqlite@0.1.1:
     resolution: {integrity: sha512-9CAYUJ0lEUPYJrswqiqdINNSfq3jqWo/bFJ7tufdoNeSK0Fy+d1kFTxjqO9PIqza0Kri+ZtYMfPVf1aZaFOvrQ==}
     engines: {node: '>= 0.6'}
+    dev: false
+
+  /stream-transform@3.3.1:
+    resolution: {integrity: sha512-BL8pv9QL8Ikd11oZwlRDp1qYMhGR0i50zI9ltoijKGc4ubQWal/Rc4p6SYJp1TBOGpE0uAGchwbxOZ1ycwTuqQ==}
     dev: false
 
   /string-width@4.2.3:
