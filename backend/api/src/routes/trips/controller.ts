@@ -27,12 +27,9 @@ export default function (hono: Hono) {
             })
         ),
         async (c) => {
-            if (!db.primary) return c.status(500);
             const trip_id = c.req.param("trip_id");
 
             const { with_route } = c.req.valid("query");
-
-            console.log(with_route);
 
             const withObj: Record<string, boolean | undefined> = {
                 route: with_route === "true" || undefined,
