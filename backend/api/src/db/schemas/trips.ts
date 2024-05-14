@@ -11,6 +11,7 @@ import {
 import { shapes } from "./shapes";
 import { routes } from "./routes";
 import { relations } from "drizzle-orm";
+import { realtime_vehicle_position } from "./rtvp";
 
 export const trips = pgTable("trips", {
     trip_id: varchar("trip_id", { length: 255 }).primaryKey(),
@@ -42,4 +43,5 @@ export const tripRelations = relations(trips, ({ one, many }) => ({
         fields: [trips.route_id],
         references: [routes.route_id],
     }),
+    rtvps: many(realtime_vehicle_position),
 }));

@@ -37,7 +37,7 @@ export const realtime_vehicle_position = pgTable(
 );
 
 export const rtvpRelations = relations(realtime_vehicle_position, ({ one }) => ({
-    route: one(trips, {
+    trip: one(trips, {
         fields: [realtime_vehicle_position.trip_id],
         references: [trips.trip_id],
     }),

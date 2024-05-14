@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "@/services/gtfs-init";
 import pgDb from "@/db";
-import { and, lte, sql, eq } from "drizzle-orm";
+import { and, lte, sql, eq, or } from "drizzle-orm";
 
 import { stops as stopsTable } from "@/db/schemas/stops";
 import { stop_times as stopTimesTable } from "@/db/schemas/stop_times";
@@ -33,10 +33,10 @@ export default function (hono: Hono) {
         async (c) => {
             const { lat, lng, radius } = c.req.valid("query");
 
-            // FIXME: nearby transit fails to consider trip that are late. 
-            //        i.e. when trip have not pass stop b/c it's late, it will 
+            // FIXME: nearby transit fails to consider trip that are late.
+            //        i.e. when trip have not pass stop b/c it's late, it will
             //        be ignored since the static arrival time of that trip
-            //        has already been passed. 
+            //        has already been passed.
 
             const targetLat = parseFloat(lat);
             const targetLng = parseFloat(lng);
@@ -58,9 +58,26 @@ export default function (hono: Hono) {
                     // Select next closest arrival time
                     stop_times: {
                         where: (stop_times, { gte, sql }) =>
-                            gte(
-                                sql<number>`MOD(${stop_times.arrival_timestamp}, ${SECONDS_IN_A_DAY})`,
-                                secondsSinceStartOfDay
+                            or(
+                                gte(
+                                    sql<number>`MOD(${stop_times.arrival_timestamp}, ${SECONDS_IN_A_DAY})`,
+                                    secondsSinceStartOfDay
+                                ),
+                                gte(
+                                    sql<number>`
+                                        ${stop_times.shape_dist_traveled} /
+                                        (SELECT 
+                                            MAX(shape_dist_traveled) AS last_shape_dist_traveled
+                                        FROM 
+                                            stop_times
+                                        WHERE trip_id = ${stop_times.trip_id})`,
+                                    sql<number>`
+                                        (SELECT p_traveled FROM vehicle_position
+                                        WHERE trip_id = ${stop_times.trip_id}
+                                        ORDER BY rtvp_timestamp DESC
+                                        LIMIT 1)
+                                    `
+                                )
                             ),
 
                         orderBy: (stop_times, { asc }) =>
@@ -71,10 +88,23 @@ export default function (hono: Hono) {
                             trip: {
                                 with: {
                                     route: true,
+                                    rtvps: {
+                                        limit: 1,
+                                        orderBy: (rtvps, { desc }) => desc(rtvps.timestamp),
+                                    },
                                 },
                             },
                         },
                         limit: 1,
+                        extras: (stop_times, { sql }) => ({
+                            p_traveled: sql<number>`
+                                    ${stop_times.shape_dist_traveled} /
+                                    (SELECT 
+                                        MAX(shape_dist_traveled) AS last_shape_dist_traveled
+                                    FROM 
+                                        stop_times
+                                    WHERE trip_id = ${stop_times.trip_id})`.as("p_traveled"),
+                        }),
                     },
                 },
                 extras: (stops, { sql }) => ({
@@ -124,10 +154,14 @@ export default function (hono: Hono) {
                 if (!remainingA?.at(0)) continue;
                 const { trip: remainingB, ...stop_time } = remainingA[0];
                 if (!remainingB) continue;
-                const { route, ...trip } = remainingB;
+                const { route, ...remainingC } = remainingB;
+                const { rtvps, ...trip } = remainingC;
+
+                console.log(rtvps);
 
                 const nbTrip = {
                     ...trip,
+                    rtvp: rtvps[0],
                     stop_time: {
                         ...stop_time,
                         stop,
