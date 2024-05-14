@@ -92,11 +92,11 @@ export default function (hono: Hono) {
                 .orderBy(
                     tripsTable.route_id,
                     tripsTable.direction_id,
-                    desc(sql<number>`(6371 * acos(
+                    asc(sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${stopsTable.stop_lat})) * cos(radians(${stopsTable.stop_lon}) - radians(${targetLng})) +
                         sin(radians(${targetLat})) * sin(radians(${stopsTable.stop_lat}))
                     ))`),
-                    desc(stopTimesTable.arrival_timestamp)
+                    // desc(stopTimesTable.arrival_timestamp)
                 );
 
             const nearbyTransitStaticRaw = await pgDb
@@ -139,7 +139,7 @@ export default function (hono: Hono) {
                         cos(radians(${targetLat})) * cos(radians(${stopsTable.stop_lat})) * cos(radians(${stopsTable.stop_lon}) - radians(${targetLng})) +
                         sin(radians(${targetLat})) * sin(radians(${stopsTable.stop_lat}))
                     ))`),
-                    asc(stopTimesTable.arrival_timestamp)
+                    // asc(stopTimesTable.arrival_timestamp)
                 );
 
             const nearbyTransitsRawResult = [
