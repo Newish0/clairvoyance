@@ -71,7 +71,7 @@ const TripItem = ({
                             {rtvpEtaMin && (
                                 <div className="flex items-center flex-col">
                                     <h3 className="text-xl font-semibold mb-2">{rtvpEtaMin} min</h3>
-                                    <small>{rtvpEtaMin - staticEtaMin > 0 ? "+" : ""} {rtvpEtaMin - staticEtaMin} min</small>
+                                    <small className="text-muted-foreground">{staticEtaMin} min {rtvpEtaMin - staticEtaMin > 0 ? "+" : ""}{rtvpEtaMin - staticEtaMin}</small>
                                 </div>
                             )}
                         </div>

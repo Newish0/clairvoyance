@@ -14,19 +14,13 @@ export const stopTimesPTraveled = pgView("stop_times_p_traveled", {
             st1.stop_id,
             st1.stop_sequence,
             st1.shape_dist_traveled,
-            st1.shape_dist_traveled / last_stop.last_shape_dist_traveled AS p_traveled
+            st1.shape_dist_traveled / (
+                SELECT st2.shape_dist_traveled
+                FROM stop_times st2
+                WHERE st2.trip_id = st1.trip_id
+                ORDER BY st2.stop_sequence DESC
+                LIMIT 1
+            ) AS p_traveled
         FROM 
             stop_times st1
-        JOIN 
-            (SELECT 
-                trip_id, 
-                MAX(stop_sequence) AS last_stop_sequence,
-                MAX(shape_dist_traveled) AS last_shape_dist_traveled
-            FROM 
-                stop_times
-            GROUP BY 
-                trip_id
-            ) AS last_stop
-        ON 
-            st1.trip_id = last_stop.trip_id;
     `);

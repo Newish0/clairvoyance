@@ -49,7 +49,7 @@ export type NearbyTransit = {
             is_updated: number;
             p_traveled: number | null;
             trip_update_id: number;
-        };
+        } | null;
     }[];
 };
 
