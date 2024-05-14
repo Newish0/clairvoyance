@@ -43,7 +43,9 @@ const TripItem = ({
     stopId: string;
 }) => {
     const secSinceStartOfDate = getSecondsSinceStartOfDay();
-    const staticEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate;
+
+    const staticAbsEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate
+    const staticEtaSec = staticAbsEtaSec < 0 ? staticAbsEtaSec + secSinceStartOfDate : staticAbsEtaSec;
     const staticEtaMin = Math.round(staticEtaSec / 60)
 
     const { data } = useRtvpEta(tripId, stopId);
