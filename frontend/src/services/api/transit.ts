@@ -35,6 +35,20 @@ export type NearbyTransit = {
                 parent_station: string;
                 agency_id: string;
             };
+            p_traveled: number; 
+        };
+        rtvp: {
+            trip_id: string | null;
+            rtvp_id: number;
+            bearing: number | null;
+            latitude: number | null;
+            longitude: number | null;
+            speed: number | null;
+            vehicle_id: string;
+            timestamp: Date;
+            is_updated: number;
+            p_traveled: number | null;
+            trip_update_id: number;
         };
     }[];
 };

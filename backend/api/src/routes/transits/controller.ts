@@ -9,13 +9,16 @@ import { stops as stopsTable } from "@/db/schemas/stops";
 import { stop_times as stopTimesTable } from "@/db/schemas/stop_times";
 import { routes as routesTable } from "@/db/schemas/routes";
 import { trips as tripsTable } from "@/db/schemas/trips";
+import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
 import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay } from "@/utils/datetime";
 
 type NearbyTransit = typeof routesTable.$inferSelect & {
     trips: (typeof tripsTable.$inferSelect & {
         stop_time: typeof stopTimesTable.$inferSelect & {
+            p_traveled: number;
             stop: typeof stopsTable.$inferSelect;
         };
+        rtvp: typeof rtvpTable.$inferSelect;
     })[];
 };
 
