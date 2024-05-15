@@ -43,12 +43,14 @@ const TripItem = ({
     stopId: string;
 }) => {
     const secSinceStartOfDate = getSecondsSinceStartOfDay();
-    const staticEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate;
+
+    const staticAbsEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate
+    const staticEtaSec = staticAbsEtaSec < 0 ? staticAbsEtaSec + secSinceStartOfDate : staticAbsEtaSec;
     const staticEtaMin = Math.round(staticEtaSec / 60)
 
     const { data } = useRtvpEta(tripId, stopId);
 
-    const rtvpEtaMin = data &&  Math.round(data.eta / 60)
+    const rtvpEtaMin = (data && Math.round(data.eta / 60)) ?? null;
 
     return (
         <CarouselItem>
@@ -63,15 +65,16 @@ const TripItem = ({
                             </p>
                         </div>
                         <div className=" flex items-center justify-end">
-                            {!rtvpEtaMin && (
+                            {(rtvpEtaMin === null) && (
                                 <h3 className="text-muted-foreground text-xl font-semibold mb-2">
                                     {staticEtaMin} min
                                 </h3>
                             )}
-                            {rtvpEtaMin && (
+                            {(rtvpEtaMin !== null) && (
                                 <div className="flex items-center flex-col">
                                     <h3 className="text-xl font-semibold mb-2">{rtvpEtaMin} min</h3>
-                                    <small>{rtvpEtaMin - staticEtaMin > 0 ? "+" : ""} {rtvpEtaMin - staticEtaMin} min</small>
+                                    <small className="text-muted-foreground">{staticEtaMin} min {rtvpEtaMin - staticEtaMin > 0 ? "+" : ""} {rtvpEtaMin - staticEtaMin}</small>
+                         
                                 </div>
                             )}
                         </div>

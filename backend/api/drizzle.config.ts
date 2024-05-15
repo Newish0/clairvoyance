@@ -4,7 +4,7 @@ import type { Config } from "drizzle-kit";
 export default {
     schema: "./src/db/schemas",
     out: "./drizzle",
-    driver: "pg", // 'pg' | 'mysql2' | 'better-sqlite' | 'libsql' | 'turso'
+    dialect: "postgresql", 
     dbCredentials: {
         host: process.env.DB_HOST!,
         port: parseInt(process.env.DB_PORT!),
