@@ -43,7 +43,8 @@ type TransitMapEventHandler = (evt: L.LeafletEvent, map: L.Map) => void;
 
 type TransitMapProps = {
     mode: "route" | "main";
-    routeId: string;
+    routeId?: string;
+    tripId?: string;
     onMoveEnd?: TransitMapEventHandler;
 };
 
@@ -81,6 +82,7 @@ const TransitMap: React.FC<TransitMapProps> = ({
 
         // FIXME: Use local open tiles
         // MapTiler layer is tmp solution for dev
+        // @ts-ignore
         const mtLayer = new L.MaptilerLayer({
             apiKey: import.meta.env.PUBLIC_MAPTILER_API_KEY,
             style: "dataviz",
@@ -233,30 +235,6 @@ const TransitMap: React.FC<TransitMapProps> = ({
         </>
     );
 };
-
-// TMP HACK
-function polynomialRegression(
-    data: any[],
-    independentVariable: string,
-    dependentVariable: string,
-    degree: number
-): number[] {
-    // Perform polynomial regression
-    const result = regression.polynomial(
-        data.map((point) => [point[independentVariable], point[dependentVariable]]),
-        { order: degree, precision: 32 }
-    );
-
-    console.log("Polynomial regression input:");
-    console.log(data.map((point) => [point[independentVariable], point[dependentVariable]]));
-    console.log("Polynomial regression result:");
-    console.log(result);
-
-    // Retrieve coefficients of the regression equation
-    const coefficients: number[] = result.equation;
-
-    return coefficients;
-}
 
 TransitMap.displayName = "GlobalMap";
 
