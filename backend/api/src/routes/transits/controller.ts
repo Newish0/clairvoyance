@@ -45,7 +45,11 @@ export default function (hono: Hono) {
             const secondsSinceStartOfDay = getSecondsSinceStartOfDay(true);
 
             const nearbyTransitsWithRtvpRaw = await pgDb
-                .selectDistinctOn([tripsTable.route_id, tripsTable.direction_id])
+                .selectDistinctOn([
+                    tripsTable.route_id,
+                    tripsTable.direction_id,
+                    tripsTable.shape_id,
+                ])
                 .from(stopsTable)
                 .leftJoin(stopTimesTable, eq(stopTimesTable.stop_id, stopsTable.stop_id))
                 .leftJoin(tripsTable, eq(tripsTable.trip_id, stopTimesTable.trip_id))
@@ -77,6 +81,7 @@ export default function (hono: Hono) {
                 .orderBy(
                     tripsTable.route_id,
                     tripsTable.direction_id,
+                    tripsTable.shape_id,
                     asc(sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${stopsTable.stop_lat})) * cos(radians(${stopsTable.stop_lon}) - radians(${targetLng})) +
                         sin(radians(${targetLat})) * sin(radians(${stopsTable.stop_lat}))
@@ -85,7 +90,11 @@ export default function (hono: Hono) {
                 );
 
             const nearbyTransitStaticRaw = await pgDb
-                .selectDistinctOn([tripsTable.route_id, tripsTable.direction_id])
+                .selectDistinctOn([
+                    tripsTable.route_id,
+                    tripsTable.direction_id,
+                    tripsTable.shape_id,
+                ])
                 .from(stopsTable)
                 .leftJoin(stopTimesTable, eq(stopTimesTable.stop_id, stopsTable.stop_id))
                 .leftJoin(tripsTable, eq(tripsTable.trip_id, stopTimesTable.trip_id))
@@ -120,6 +129,7 @@ export default function (hono: Hono) {
                 .orderBy(
                     tripsTable.route_id,
                     tripsTable.direction_id,
+                    tripsTable.shape_id,
                     asc(sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${stopsTable.stop_lat})) * cos(radians(${stopsTable.stop_lon}) - radians(${targetLng})) +
                         sin(radians(${targetLat})) * sin(radians(${stopsTable.stop_lat}))
