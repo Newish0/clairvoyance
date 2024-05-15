@@ -44,9 +44,10 @@ const TripItem = ({
 }) => {
     const secSinceStartOfDate = getSecondsSinceStartOfDay();
 
-    const staticAbsEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate
-    const staticEtaSec = staticAbsEtaSec < 0 ? staticAbsEtaSec + secSinceStartOfDate : staticAbsEtaSec;
-    const staticEtaMin = Math.round(staticEtaSec / 60)
+    const staticAbsEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate;
+    const staticEtaSec =
+        staticAbsEtaSec < 0 ? staticAbsEtaSec + secSinceStartOfDate : staticAbsEtaSec;
+    const staticEtaMin = Math.round(staticEtaSec / 60);
 
     const { data } = useRtvpEta(tripId, stopId);
 
@@ -54,7 +55,9 @@ const TripItem = ({
 
     return (
         <CarouselItem>
-            <a href={`/routes?route_id=${routeId}`}>
+            <a
+                href={`/routes?routeId=${routeId}&directionId=${tripDirectionId}&stopId=${stopId}&tripId=${tripId}`}
+            >
                 <div className="m-2 p-4 rounded-xl border bg-card text-card-foreground shadow">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -65,16 +68,19 @@ const TripItem = ({
                             </p>
                         </div>
                         <div className=" flex items-center justify-end">
-                            {(rtvpEtaMin === null) && (
+                            {rtvpEtaMin === null && (
                                 <h3 className="text-muted-foreground text-xl font-semibold mb-2">
                                     {staticEtaMin} min
                                 </h3>
                             )}
-                            {(rtvpEtaMin !== null) && (
+                            {rtvpEtaMin !== null && (
                                 <div className="flex items-center flex-col">
                                     <h3 className="text-xl font-semibold mb-2">{rtvpEtaMin} min</h3>
-                                    <small className="text-muted-foreground">{staticEtaMin} min {rtvpEtaMin - staticEtaMin > 0 ? "+" : ""} {rtvpEtaMin - staticEtaMin}</small>
-                         
+                                    <small className="text-muted-foreground">
+                                        {staticEtaMin} min{" "}
+                                        {rtvpEtaMin - staticEtaMin > 0 ? "+" : ""}{" "}
+                                        {rtvpEtaMin - staticEtaMin}
+                                    </small>
                                 </div>
                             )}
                         </div>

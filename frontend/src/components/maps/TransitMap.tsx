@@ -7,7 +7,6 @@ import "@maptiler/leaflet-maptilersdk";
 import { useEffect, useRef, useState } from "react";
 import { addCenterMarker } from "@/services/maps/centermaker";
 import { zoomFromCenter } from "@/services/maps/zoomfromcenter";
-import { useShapes } from "@/hooks/transit/shapes";
 import { useShapesGeojson } from "@/hooks/transit/geojson";
 import { type RTVPData, getRtvpByLoc, getTrip, type TripData } from "@/services/api/transit";
 import { debounce } from "@/utils/general";
@@ -42,24 +41,23 @@ import {
 type TransitMapEventHandler = (evt: L.LeafletEvent, map: L.Map) => void;
 
 type TransitMapProps = {
-    mode: "route" | "main";
-    routeId?: string;
     tripId?: string;
+    defaultPosition?: L.LatLng;
     onMoveEnd?: TransitMapEventHandler;
 };
 
 type RTVPDataModalData = TripData & RTVPData;
 
 const TransitMap: React.FC<TransitMapProps> = ({
-    mode = "main",
-    routeId,
+    tripId,
+    defaultPosition,
     onMoveEnd: moveEndHandler,
 }) => {
     const rootRef = useRef<null | HTMLDivElement>(null);
 
     const [map, setMap] = useState<L.Map | null>(null);
 
-    const { data: shapesGeojson } = useShapesGeojson({ routeId });
+    const { data: shapesGeojson } = useShapesGeojson({ tripId });
 
     const [rtvpModalData, setRtvpModalData] = useState<RTVPDataModalData | null>(null);
 
@@ -71,12 +69,13 @@ const TransitMap: React.FC<TransitMapProps> = ({
 
     console.log("tripRtvpData", tripRtvpData);
     console.log("routeRtvpData", routeRtvpData);
+    console.log("shapesGeojson", shapesGeojson);
 
     useEffect(() => {
         if (!rootRef.current) return;
 
         const map = L.map(rootRef.current, {
-            center: L.latLng(48.45, -123.35),
+            center: defaultPosition,
             zoom: 13,
         });
 
@@ -162,19 +161,20 @@ const TransitMap: React.FC<TransitMapProps> = ({
     }, [map, moveEndHandler]);
 
     useEffect(() => {
+        let geoJsonLayer: L.GeoJSON | null = null;
         if (shapesGeojson && map) {
-            const geoJsonLayer = L.geoJSON(shapesGeojson);
-            geoJsonLayer.addTo(map);
+            geoJsonLayer = L.geoJSON(shapesGeojson);
+            setTimeout(() => geoJsonLayer?.addTo(map), 1000);
         }
-        // add geo json as layer to map
-    }, [map, mode, shapesGeojson]);
 
-    console.log(routeId);
+        return () => {
+            geoJsonLayer?.remove()
+        };
+    }, [map, shapesGeojson]);
 
     return (
         <>
             <div ref={rootRef} className="h-full min-h-[50dvh] z-0"></div>
-            <div>MODE: {mode}</div>
 
             <Drawer open={rtvpModalData ? true : false} onClose={() => setRtvpModalData(null)}>
                 <DrawerContent>

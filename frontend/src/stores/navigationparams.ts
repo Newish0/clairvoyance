@@ -6,6 +6,8 @@ export interface NavigationParams {
     lng?: string;
     radius?: string;
     routeId?: string;
+    tripId?: string;
+    stopId?: string;
     directionId?: string;
 }
 
@@ -20,4 +22,27 @@ export function setGlobalNavParams(newPartialNavParams: Partial<NavigationParams
     for (const [key, value] of Object.entries(newParams)) {
         updateQueryParam(key, value.toString());
     }
+
+    return newParams;
 }
+
+export function getGlobalNavParamsAsUrlQuery(globalNavParams?: NavigationParams) {
+    const params = globalNavParams || $globalNavParams.get();
+    return `?${Object.entries(params)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("&")}`;
+}
+
+function isSameObjects(obj1: any, obj2: any) {
+    for (const key in obj1) {
+        if (obj1[key] !== obj2[key]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+setInterval(() => {
+    const urlParams = getAllQueryParams();
+    if (!isSameObjects(urlParams, $globalNavParams.get())) $globalNavParams.set(urlParams);
+}, 100);

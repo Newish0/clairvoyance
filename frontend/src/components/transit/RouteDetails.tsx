@@ -4,9 +4,10 @@ import { useEffect } from "react";
 interface Props {
     routeId: string;
     stopId: string;
+    defaultDirectionId?: string | number;
 }
 
-const RouteDetails: React.FC<Props> = ({ routeId, stopId }) => {
+const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0 }) => {
     const { route } = useRoute(routeId);
 
     return (

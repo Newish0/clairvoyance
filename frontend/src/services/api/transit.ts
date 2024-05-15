@@ -1,3 +1,4 @@
+import { coordsToGeoJsonLine } from "@/utils/geojson";
 import axios, { type AxiosResponse } from "axios";
 
 export type NearbyTransit = {
@@ -35,7 +36,7 @@ export type NearbyTransit = {
                 parent_station: string;
                 agency_id: string;
             };
-            p_traveled: number; 
+            p_traveled: number;
         };
         rtvp: {
             trip_id: string | null;
@@ -123,7 +124,7 @@ export const getTrip = async (trip_id: string, { with_route }: { with_route?: bo
     return data;
 };
 
-export type Shape = {
+export type ShapeData = {
     shape_id: string;
     shape_pt_sequence: number;
     shape_pt_lat: number;
@@ -131,30 +132,22 @@ export type Shape = {
     shape_dist_traveled?: number;
 };
 
-export const getShapes = async ({
-    shape_id,
-    route_id,
-}: { shape_id?: string; route_id?: string } = {}): Promise<Shape[] | null> => {
-    if (!shape_id && !route_id) return null;
-
-    const { data } = await axios.get<Record<string, unknown>>(
-        `${import.meta.env.PUBLIC_GTFS_API_URL}/shapes`,
-        { params: { shape_id, route_id } }
-    );
-    return data as Shape[];
-};
-
 export const getShapesGeojson = async ({
     shape_id,
-    route_id,
-}: { shape_id?: string; route_id?: string } = {}): Promise<any> => {
-    if (!shape_id && !route_id) return null;
+    trip_id,
+}: { shape_id?: string; trip_id?: string } = {}) => {
+    if (!shape_id && !trip_id) return null;
 
-    const { data } = await axios.get<Record<string, unknown>>(
-        `${import.meta.env.PUBLIC_GTFS_API_URL}/geojson/shapes`,
-        { params: { shape_id, route_id } }
-    );
-    return data;
+    const { data } = await axios.get<ShapeData[]>(`${import.meta.env.PUBLIC_GTFS_API_URL}/shapes`, {
+        params: { shape_id, trip_id },
+    });
+
+    const coordinates: [number, number][] = data.map((point) => [
+        point.shape_pt_lon,
+        point.shape_pt_lat,
+    ]);
+
+    return [coordsToGeoJsonLine(coordinates)];
 };
 
 export type RTVPData = {
