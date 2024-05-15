@@ -38,11 +38,6 @@ export default function (hono: Hono) {
         async (c) => {
             const { lat, lng, radius } = c.req.valid("query");
 
-            // FIXME: nearby transit fails to consider trip that are late.
-            //        i.e. when trip have not pass stop b/c it's late, it will
-            //        be ignored since the static arrival time of that trip
-            //        has already been passed.
-
             const targetLat = parseFloat(lat);
             const targetLng = parseFloat(lng);
             const maxDistanceKm = parseFloat(radius);
@@ -72,20 +67,10 @@ export default function (hono: Hono) {
                             ))`,
                             maxDistanceKm
                         ),
-                        or(
-                            and(
-                                isNotNull(rtvpTable),
-                                gte(rtvpTable.timestamp, sql`NOW() - INTERVAL '1 minute'`),
-                                gte(stopTimesPTraveled.p_traveled, rtvpTable.p_traveled)
-                            )
-                            // and(
-                            //     isNull(rtvpTable),
-                            //     eq(tripsTable.trip_id, stopTimesTable.trip_id),
-                            //     gte(
-                            //         sql<number>`MOD(${stopTimesTable.arrival_timestamp}, ${SECONDS_IN_A_DAY})`,
-                            //         secondsSinceStartOfDay
-                            //     )
-                            // )
+                        and(
+                            isNotNull(rtvpTable),
+                            gte(rtvpTable.timestamp, sql`NOW() - INTERVAL '1 minute'`),
+                            gte(stopTimesPTraveled.p_traveled, rtvpTable.p_traveled)
                         )
                     )
                 )
