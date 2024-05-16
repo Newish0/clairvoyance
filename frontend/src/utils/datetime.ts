@@ -6,3 +6,15 @@ export function getSecondsSinceStartOfDay(asInt = false): number {
 }
 
 export const SECONDS_IN_A_DAY = 86400;
+
+export function formatHHMMSSFromSeconds(seconds: number): string {
+    const date = new Date(0);
+    date.setSeconds(seconds);
+    return (
+        date.getUTCHours().toString().padStart(2, "0") +
+        ":" +
+        date.getUTCMinutes().toString().padStart(2, "0") +
+        ":" +
+        date.getUTCSeconds().toString().padStart(2, "0")
+    );
+}

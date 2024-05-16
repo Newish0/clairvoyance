@@ -205,3 +205,40 @@ export const getRtvpEta = async (tripId: string, stopId: string) => {
     );
     return res.data;
 };
+
+type StopTimeData = {
+    trip_id: string;
+    arrival_time: string;
+    arrival_timestamp: number;
+    departure_time: string;
+    departure_timestamp: number;
+    stop_id: string;
+    stop_sequence: number;
+    stop_headsign: string | null;
+    pickup_type: number;
+    drop_off_type: number;
+    continuous_pickup: any;
+    continuous_drop_off: any;
+    shape_dist_traveled: number;
+    timepoint: number;
+    trip: {
+        trip_id: string;
+        route_id: string;
+        service_id: string;
+        trip_headsign: string;
+        trip_short_name: string | null;
+        direction_id: number;
+        block_id: string;
+        shape_id: string;
+        wheelchair_accessible: any;
+        bikes_allowed: any;
+    };
+};
+
+export const getStopTimesByRoute = async (routeId: string, stopId?: string | number) => {
+    const res: AxiosResponse<StopTimeData[], unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/stoptimes/route/${routeId}`,
+        { params: { stop_id: stopId } }
+    );
+    return res.data;
+};
