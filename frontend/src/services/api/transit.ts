@@ -206,7 +206,7 @@ export const getRtvpEta = async (tripId: string, stopId: string) => {
     return res.data;
 };
 
-type StopTimeData = {
+type StopTimeByRouteData = {
     trip_id: string;
     arrival_time: string;
     arrival_timestamp: number;
@@ -236,9 +236,52 @@ type StopTimeData = {
 };
 
 export const getStopTimesByRoute = async (routeId: string, stopId?: string | number) => {
-    const res: AxiosResponse<StopTimeData[], unknown> = await axios.get(
+    const res: AxiosResponse<StopTimeByRouteData[], unknown> = await axios.get(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/stoptimes/route/${routeId}`,
         { params: { stop_id: stopId } }
+    );
+    return res.data;
+};
+
+type StopTimeByTripData = {
+    trip_id: string;
+    arrival_time: string;
+    arrival_timestamp: number;
+    departure_time: string;
+    departure_timestamp: number;
+    stop_id: string;
+    stop_sequence: number;
+    stop_headsign: string | null;
+    pickup_type: number;
+    drop_off_type: number;
+    continuous_pickup: any;
+    continuous_drop_off: any;
+    shape_dist_traveled: number;
+    timepoint: number;
+    stop: {
+        stop_id: string;
+        stop_code: string;
+        stop_name: string;
+        tts_stop_name: string | null;
+        stop_desc: string | null;
+        stop_lat: number;
+        stop_lon: number;
+        zone_id: string | null;
+        stop_url: string | null;
+        location_type: string | null;
+        parent_station: string | null;
+        stop_timezone: string | null;
+        wheelchair_boarding: number;
+        level_id: string | null;
+        platform_code: string | null;
+    };
+};
+
+export const getStopTimesByTrip = async (tripId: string) => {
+    if (!tripId) return null;
+
+    const res: AxiosResponse<StopTimeByTripData[], unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/stoptimes/trip/${tripId}`
     );
     return res.data;
 };
