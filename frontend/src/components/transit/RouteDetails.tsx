@@ -1,6 +1,11 @@
 import { useRoute } from "@/hooks/transit/route";
 import { useStopTimesByRoute, useStopTimesByTrip } from "@/hooks/transit/stoptimes";
-import { formatHHMMSSFromSeconds, getSecondsSinceStartOfDay } from "@/utils/datetime";
+import {
+    SECONDS_IN_A_DAY,
+    formatHHMMSSFromSeconds,
+    getSecondsSinceStartOfDay,
+    secondsUntilTime,
+} from "@/utils/datetime";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Separator } from "@radix-ui/react-separator";
 import { useEffect, useState } from "react";
@@ -20,15 +25,12 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
 
     const { data: stopTimes } = useStopTimesByRoute(routeId, stopId);
 
-    const secondsSinceStartOfData = getSecondsSinceStartOfDay();
     const upcomingStopTimes = stopTimes
-        ?.filter((st) => st.arrival_timestamp - secondsSinceStartOfData > 0)
-        .map((st) => ({
+        ?.map((st) => ({
             ...st,
-            countDownMin: Math.round(
-                ((st.arrival_timestamp % 86400) - secondsSinceStartOfData) / 60
-            ),
-        }));
+            countDownMin: Math.round(secondsUntilTime(st.arrival_timestamp) / 60),
+        }))
+        .toSorted((a, b) => a.countDownMin - b.countDownMin);
 
     useEffect(() => {
         setSelectedStopTime(upcomingStopTimes?.at(0));
