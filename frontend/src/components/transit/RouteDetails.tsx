@@ -54,12 +54,12 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
                     {upcomingStopTimes?.map((stopTime) => (
                         <CarouselItem
                             key={`${stopTime.trip_id}-${stopTime.stop_sequence}`}
-                            className="basis-1/3 max-w-xs"
+                            className="basis-1/3 sm:basis-1/4 max-w-56"
                             onClick={() => handleSelectTrip(stopTime.trip_id)}
                         >
                             <Card>
-                                <CardContent className="flex flex-col items-center justify-center p-6">
-                                    <div className="text-xl font-semibold">
+                                <CardContent className="flex flex-col items-center justify-center p-4">
+                                    <div className="text-xl font-semibold text-center">
                                         {stopTime.countDownMin} min
                                     </div>
                                     <div>{formatHHMMSSFromSeconds(stopTime.arrival_timestamp)}</div>
