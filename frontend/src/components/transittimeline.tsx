@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 
 export type Stop = {
     title: string;
+    id: string | number;
     time: string;
 };
 
@@ -134,7 +135,7 @@ const TransitTimeline: React.FC<TimelineProps> = ({ stops, curStopIndex }) => {
 
             {prevStops.map((stop, index) => (
                 <TimelineElement
-                    key={index}
+                    key={stop.id}
                     stop={stop}
                     circleType="ring"
                     topColorClass="border-zinc-400"
@@ -145,7 +146,7 @@ const TransitTimeline: React.FC<TimelineProps> = ({ stops, curStopIndex }) => {
 
             {nextStops.map((stop, index) => (
                 <TimelineElement
-                    key={index}
+                    key={stop.id}
                     stop={stop}
                     circleType={
                         index === 0

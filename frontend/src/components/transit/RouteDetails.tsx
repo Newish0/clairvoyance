@@ -39,11 +39,9 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
     const ourStopTimeIndex = tripStopTimes?.findIndex((st) => st.stop_id === stopId);
 
     return (
-        <div className="flex flex-col overflow-x-hidden">
+        <div className="flex flex-col overflow-x-hidden p-2 gap-2">
             <h1>Route Details</h1>
-            <div>{routeId}</div>
-            <div>{route?.route_long_name}</div>
-            <div>{route?.route_short_name}</div>
+            
 
             <Carousel
                 opts={{
@@ -55,7 +53,7 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
                 <CarouselContent>
                     {upcomingStopTimes?.map((stopTime) => (
                         <CarouselItem
-                            key={stopTime.stop_sequence}
+                            key={`${stopTime.trip_id}-${stopTime.stop_sequence}`}
                             className="basis-1/3 max-w-xs"
                             onClick={() => handleSelectTrip(stopTime.trip_id)}
                         >
@@ -77,16 +75,17 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
                 </CarouselContent>
             </Carousel>
 
-            <div className="w-full p-4 overflow-auto h-full">
-                <TransitTimeline
+            <div className="w-full overflow-auto h-full">
+                {tripStopTimes && <TransitTimeline
                     curStopIndex={ourStopTimeIndex ?? 0}
                     stops={
                         tripStopTimes?.map((st) => ({
                             title: st.stop.stop_name,
                             time: formatHHMMSSFromSeconds(st.arrival_timestamp),
+                            id: st.stop_id,
                         })) ?? []
                     }
-                />
+                />}
             </div>
         </div>
     );
