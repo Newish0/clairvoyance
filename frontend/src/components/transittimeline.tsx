@@ -12,6 +12,101 @@ type TimelineProps = {
     curStopIndex: number;
 };
 
+const TimelineElement: React.FC<{
+    stop: Stop;
+    topColorClass?: `border-${string}`;
+    topBorderType?: "solid" | "dotted";
+    bottomColorClass?: `border-${string}`;
+    bottomBorderType?: "solid" | "dotted";
+    circleType?: "ring" | "largeRing" | "solid";
+    circleColorClass?: string;
+}> = ({
+    stop,
+    topColorClass,
+    topBorderType = "solid",
+    bottomColorClass,
+    bottomBorderType = "solid",
+    circleType = "ring",
+    circleColorClass,
+}) => {
+    return (
+        <div className="relative flex flex-row justify-start gap-2">
+            <div className="min-w-5 max-w-5 flex-shrink flex flex-col gap-0 flex-grow justify-center items-center">
+                {/* Top line */}
+                <div
+                    className={cn(
+                        "flex-grow border-l-4 border-blue-500",
+                        topColorClass,
+                        `border-${topBorderType}`
+                    )}
+                ></div>
+
+                {/* ring circle */}
+                {circleType === "ring" && (
+                    <div
+                        className={cn(
+                            "w-[8px] h-[8px] ring-2 ring-blue-500 rounded-full",
+                            circleColorClass
+                        )}
+                    ></div>
+                )}
+                {/* large ring circle */}
+                {circleType === "largeRing" && (
+                    <div
+                        className={cn(
+                            "w-[10px] h-[10px] ring-2 ring-blue-500 rounded-full",
+                            circleColorClass
+                        )}
+                    ></div>
+                )}
+
+                {/* solid circle */}
+                {circleType === "solid" && (
+                    <div
+                        className={cn(
+                            "w-[12px] h-[12px] bg-blue-500 rounded-full",
+                            circleColorClass
+                        )}
+                    ></div>
+                )}
+
+                {/* bottom line */}
+                <div
+                    className={cn(
+                        "flex-grow border-l-4 border-blue-500",
+                        bottomColorClass,
+                        `border-${bottomBorderType}`
+                    )}
+                ></div>
+            </div>
+            <div className="relative w-full pt-3 pb-3 flex justify-between">
+                <div className="font-medium">{stop?.title}</div>
+                <div>{stop?.time}</div>
+            </div>
+        </div>
+    );
+};
+
+const TimelineExpand: React.FC<{
+    children: React.ReactNode;
+    borderColorClass?: `border-${string}`;
+}> = ({ borderColorClass, children }) => {
+    return (
+        <div className="relative flex flex-row justify-start gap-2 mb-1">
+            <div className="min-w-5 max-w-5 flex-shrink flex flex-col gap-0 flex-grow justify-center items-center">
+                {/*line */}
+                <div
+                    className={cn(
+                        "flex-grow border-l-4 border-dotted border-zinc-400",
+                        borderColorClass
+                    )}
+                ></div>
+            </div>
+            <div className="relative w-full">{children}</div>
+        </div>
+    );
+};
+
 const TransitTimeline: React.FC<TimelineProps> = ({ stops, curStopIndex }) => {
     const [showAllStops, setShowAllStops] = useState(false);
 
@@ -20,70 +115,57 @@ const TransitTimeline: React.FC<TimelineProps> = ({ stops, curStopIndex }) => {
     const nextStops = stops.slice(curStopIndex);
 
     return (
-        <div className="relative">
-            <ul className="space-y-6">
-                {numPrevStopsExcludingLastStop > 0 ? (
-                    <li className="relative flex gap-5">
-                        <div className="relative">
-                            <div className="absolute  left-[2px] top-2 border-l-4 border-dotted h-5 border-zinc-400"></div>
+        <div className="">
+            {numPrevStopsExcludingLastStop > 0 ? (
+                <TimelineExpand>
+                    <span className="font-normal text-sm text-nowrap ">
+                        {numPrevStopsExcludingLastStop} previous stops
+                    </span>
+                    <Button
+                        className=""
+                        variant="link"
+                        size="sm"
+                        onClick={() => setShowAllStops(!showAllStops)}
+                    >
+                        {showAllStops ? "Show less" : "Show all"}
+                    </Button>
+                </TimelineExpand>
+            ) : null}
 
-                            <div className="absolute left-[2px] top-8 border-l-4 h-9 border-zinc-400" />
-                        </div>
-                        <div className="relative top-2 flex gap-2 items-center">
-                            <h3 className="font-normal text-nowrap">
-                                {numPrevStopsExcludingLastStop} previous stops
-                            </h3>
-                            <Button
-                                className="m-0"
-                                variant="link"
-                                size="sm"
-                                onClick={() => setShowAllStops(!showAllStops)}
-                            >
-                                {showAllStops ? "Show less" : "Show all"}
-                            </Button>
-                        </div>
-                    </li>
-                ) : null}
+            {prevStops.map((stop, index) => (
+                <TimelineElement
+                    key={index}
+                    stop={stop}
+                    circleType="ring"
+                    topColorClass="border-zinc-400"
+                    bottomColorClass="border-zinc-400"
+                    circleColorClass="ring-zinc-400"
+                />
+            ))}
 
-                {prevStops.map(
-                    (prevStop, index) =>
-                        prevStop && (
-                            <li key={index} className="relative flex gap-5">
-                                <div className="relative">
-                                    <div className="absolute left-[0px] top-2 flex items-center justify-center bg-transparent rounded-full w-[8px] h-[8px] ring-2 ring-zinc-400"></div>
-
-                                    <div className="absolute left-[2px] top-4 border-l-4 h-10 border-zinc-400"></div>
-                                </div>
-                                <div className="relative flex gap-2 items-center">
-                                    <h3 className="font-semibold text-nowrap">{prevStop?.title}</h3>
-                                </div>
-                            </li>
-                        )
-                )}
-
-                {nextStops.map((stop, index) => (
-                    <li key={index} className="relative flex gap-5">
-                        <div className="relative">
-                            <div
-                                className={cn(
-                                    "absolute left-[0px] top-2 flex items-center justify-center bg-transparent rounded-full w-[8px] h-[8px] ring-2 ring-blue-500",
-                                    index === stops.length - 1 && "bg-blue-500 ring-2",
-                                    index === 0 && "ring-4"
-                                )}
-                            ></div>
-                            {index < nextStops.length - 1 && (
-                                <div className="absolute left-[2px] top-4 border-l-4 h-10 border-blue-500"></div>
-                            )}
-                        </div>
-                        <div className="relative w-full">
-                            <div className="flex justify-between">
-                                <h3 className="font-semibold">{stop.title}</h3>
-                                <div className="">{stop.time}</div>
-                            </div>
-                        </div>
-                    </li>
-                ))}
-            </ul>
+            {nextStops.map((stop, index) => (
+                <TimelineElement
+                    key={index}
+                    stop={stop}
+                    circleType={
+                        index === 0
+                            ? "largeRing"
+                            : index === nextStops.length - 1
+                            ? "solid"
+                            : "ring"
+                    }
+                    topColorClass={
+                        index === 0
+                            ? prevStops.length > 0
+                                ? "border-zinc-400"
+                                : "border-transparent"
+                            : undefined
+                    }
+                    bottomColorClass={
+                        index === nextStops.length - 1 ? "border-transparent" : undefined
+                    }
+                />
+            ))}
         </div>
     );
 };
