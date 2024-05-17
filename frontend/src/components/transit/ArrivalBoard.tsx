@@ -32,6 +32,7 @@ const TripItem = ({
     routeShortName,
     tripHeadSign,
     tripDirectionId,
+    arrivalDelaySec,
     stopId,
 }: {
     tripId: string;
@@ -40,6 +41,7 @@ const TripItem = ({
     routeShortName: string;
     tripHeadSign: string;
     tripDirectionId: number;
+    arrivalDelaySec?: number | null;
     stopId: string;
 }) => {
     const secSinceStartOfDate = getSecondsSinceStartOfDay();
@@ -49,9 +51,11 @@ const TripItem = ({
         staticAbsEtaSec < 0 ? staticAbsEtaSec + secSinceStartOfDate : staticAbsEtaSec;
     const staticEtaMin = Math.round(staticEtaSec / 60);
 
-    const { data } = useRtvpEta(tripId, stopId);
+    // const { data } = useRtvpEta(tripId, stopId);
 
-    const rtvpEtaMin = (data && Math.round(data.eta / 60)) ?? null;
+    // const rtvpEtaMin = (data && Math.round(data.eta / 60)) ?? null;
+    const rtvpEtaMin =
+        (arrivalDelaySec && Math.round((arrivalDelaySec + staticEtaSec) / 60)) ?? null;
 
     return (
         <CarouselItem className="flex-grow h-full">
@@ -107,6 +111,7 @@ const BoardRow = ({ route_id, route_short_name, trips }: NearbyTransit) => {
                         tripDirectionId={trip.direction_id}
                         tripId={trip.trip_id}
                         stopId={trip.stop_time.stop_id}
+                        arrivalDelaySec={trip.stop_time.stop_time_update?.arrival_delay}
                     />
                 ))}
             </CarouselContent>

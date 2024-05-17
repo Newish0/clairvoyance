@@ -36,7 +36,7 @@ export type NearbyTransit = {
                 parent_station: string;
                 agency_id: string;
             };
-            stop_time_update: {
+            stop_time_update?: {
                 trip_id: string | null;
                 trip_start_time: string | null;
                 direction_id: number | null;
@@ -49,7 +49,7 @@ export type NearbyTransit = {
                 arrival_timestamp: string | null;
                 schedule_relationship: string | null;
                 is_updated: number;
-            };
+            } | null;
             p_traveled: number;
         };
         rtvp: {
