@@ -1,4 +1,6 @@
 {
+  "id": "d2f424ca-768c-42b5-a714-535fb80480ff",
+  "prevId": "3f035982-d3e9-429f-b83a-577e1b92154b",
   "version": "6",
   "dialect": "postgresql",
   "tables": {
@@ -166,28 +168,28 @@
         "vehicle_position_trip_id_trips_trip_id_fk": {
           "name": "vehicle_position_trip_id_trips_trip_id_fk",
           "tableFrom": "vehicle_position",
+          "tableTo": "trips",
           "columnsFrom": [
             "trip_id"
           ],
-          "tableTo": "trips",
           "columnsTo": [
             "trip_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "vehicle_position_trip_update_id_trip_updates_trip_update_id_fk": {
           "name": "vehicle_position_trip_update_id_trip_updates_trip_update_id_fk",
           "tableFrom": "vehicle_position",
+          "tableTo": "trip_updates",
           "columnsFrom": [
             "trip_update_id"
           ],
-          "tableTo": "trip_updates",
           "columnsTo": [
             "trip_update_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -227,15 +229,15 @@
         "rtvp_polyregr_route_id_routes_route_id_fk": {
           "name": "rtvp_polyregr_route_id_routes_route_id_fk",
           "tableFrom": "rtvp_polyregr",
+          "tableTo": "routes",
           "columnsFrom": [
             "route_id"
           ],
-          "tableTo": "routes",
           "columnsTo": [
             "route_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -492,33 +494,124 @@
         "stop_times_trip_id_trips_trip_id_fk": {
           "name": "stop_times_trip_id_trips_trip_id_fk",
           "tableFrom": "stop_times",
+          "tableTo": "trips",
           "columnsFrom": [
             "trip_id"
           ],
-          "tableTo": "trips",
           "columnsTo": [
             "trip_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "stop_times_stop_id_stops_stop_id_fk": {
           "name": "stop_times_stop_id_stops_stop_id_fk",
           "tableFrom": "stop_times",
+          "tableTo": "stops",
           "columnsFrom": [
             "stop_id"
           ],
-          "tableTo": "stops",
           "columnsTo": [
             "stop_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "stop_times_trip_id_stop_sequence_pk": {
           "name": "stop_times_trip_id_stop_sequence_pk",
+          "columns": [
+            "trip_id",
+            "stop_sequence"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "public.stop_time_updates": {
+      "name": "stop_time_updates",
+      "schema": "",
+      "columns": {
+        "trip_id": {
+          "name": "trip_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_start_time": {
+          "name": "trip_start_time",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction_id": {
+          "name": "direction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_id": {
+          "name": "stop_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_sequence": {
+          "name": "stop_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arrival_delay": {
+          "name": "arrival_delay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_delay": {
+          "name": "departure_delay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_timestamp": {
+          "name": "departure_timestamp",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arrival_timestamp": {
+          "name": "arrival_timestamp",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schedule_relationship": {
+          "name": "schedule_relationship",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_updated": {
+          "name": "is_updated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "stop_time_updates_trip_id_stop_sequence_pk": {
+          "name": "stop_time_updates_trip_id_stop_sequence_pk",
           "columns": [
             "trip_id",
             "stop_sequence"
@@ -597,15 +690,15 @@
         "trips_route_id_routes_route_id_fk": {
           "name": "trips_route_id_routes_route_id_fk",
           "tableFrom": "trips",
+          "tableTo": "routes",
           "columnsFrom": [
             "route_id"
           ],
-          "tableTo": "routes",
           "columnsTo": [
             "route_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -688,40 +781,40 @@
         "trip_updates_trip_id_trips_trip_id_fk": {
           "name": "trip_updates_trip_id_trips_trip_id_fk",
           "tableFrom": "trip_updates",
+          "tableTo": "trips",
           "columnsFrom": [
             "trip_id"
           ],
-          "tableTo": "trips",
           "columnsTo": [
             "trip_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "trip_updates_route_id_routes_route_id_fk": {
           "name": "trip_updates_route_id_routes_route_id_fk",
           "tableFrom": "trip_updates",
+          "tableTo": "routes",
           "columnsFrom": [
             "route_id"
           ],
-          "tableTo": "routes",
           "columnsTo": [
             "route_id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "trip_updates_trip_id_start_date_trip_start_time_unique": {
           "name": "trip_updates_trip_id_start_date_trip_start_time_unique",
+          "nullsNotDistinct": true,
           "columns": [
             "trip_id",
             "start_date",
             "trip_start_time"
-          ],
-          "nullsNotDistinct": true
+          ]
         }
       }
     }
@@ -729,10 +822,8 @@
   "enums": {},
   "schemas": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "id": "3f035982-d3e9-429f-b83a-577e1b92154b",
-  "prevId": "6cbc24c1-7eee-4662-99cb-e8b2966ae61a"
+    "tables": {}
+  }
 }

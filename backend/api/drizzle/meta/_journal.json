@@ -15,6 +15,13 @@
       "when": 1715150206874,
       "tag": "0001_greedy_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1715922328823,
+      "tag": "0002_blue_turbo",
+      "breakpoints": true
     }
   ]
 }

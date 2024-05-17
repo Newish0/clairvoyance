@@ -1,9 +1,17 @@
-import { getTripUpdates, getVehiclePositions, importGtfs, openDb, updateGtfsRealtime } from "gtfs";
+import {
+    getStopTimeUpdates,
+    getTripUpdates,
+    getVehiclePositions,
+    importGtfs,
+    openDb,
+    updateGtfsRealtime,
+} from "gtfs";
 import type BetterSqlite3 from "better-sqlite3";
 
 import { realtime_vehicle_position as rtvpTable } from "./db/schemas/rtvp";
 import { rtvp_polyregr as rtvpPolyRegrTable } from "./db/schemas/rtvp_polyregr";
 import { tripUpdates as tripUpdatesTable } from "./db/schemas/trip_updates";
+import { stop_time_updates as stopTimeUpdatesTable } from "./db/schemas/stop_time_updates";
 import db from "./db";
 
 import { RawRTVP } from "./types/rtvp";
@@ -34,6 +42,8 @@ const performUpdate = async () => {
     try {
         await updateGtfsRealtime(config);
 
+        await updateStopTimeUpdates();
+
         await updateTripUpdates();
 
         await updateRtvp();
@@ -48,7 +58,10 @@ const performUpdate = async () => {
 const refreshPredictionCoeffs = async () => {
     const routes = await db.query.routes.findMany();
     for (const route of routes) {
-        const updateRtvpPolyRegr = async (results: RegressionResult | null, direction_id: number) => {
+        const updateRtvpPolyRegr = async (
+            results: RegressionResult | null,
+            direction_id: number
+        ) => {
             if (!results) {
                 return;
             }
@@ -92,6 +105,20 @@ performUpdate();
 
 setInterval(refreshPredictionCoeffs, PREDICTION_COEFF_UPDATE_INTERVAL);
 refreshPredictionCoeffs();
+
+async function updateStopTimeUpdates() {
+    const stopTimeUpdates = getStopTimeUpdates({}, [], [], {});
+
+    for (const stu of stopTimeUpdates) {
+        await db
+            .insert(stopTimeUpdatesTable)
+            .values(stu)
+            .onConflictDoUpdate({
+                target: [stopTimeUpdatesTable.trip_id, stopTimeUpdatesTable.stop_sequence],
+                set: { ...stu },
+            });
+    }
+}
 
 async function updateTripUpdates() {
     const tripUpdates = getTripUpdates({}, [], [], {});
