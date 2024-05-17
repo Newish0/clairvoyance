@@ -7,20 +7,18 @@ import { useEffect, useState } from "react";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 import { Card, CardContent } from "../ui/card";
 import TransitTimeline from "../transittimeline";
+import type { StopTimeByRouteData } from "@/services/api/transit";
+import { cn } from "@/lib/utils";
 interface Props {
     routeId: string;
     stopId: string;
-    defaultDirectionId?: string | number;
+    direction?: string | number;
 }
 
-const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0 }) => {
-    const { route } = useRoute(routeId);
+const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDirectionId = 0 }) => {
+    const { data: route } = useRoute(routeId);
 
     const { data: stopTimes } = useStopTimesByRoute(routeId, stopId);
-
-    const [selectedTrip, setSelectedTrip] = useState<string | null>(null);
-
-    const { data: tripStopTimes } = useStopTimesByTrip(selectedTrip ?? "");
 
     const secondsSinceStartOfData = getSecondsSinceStartOfDay();
     const upcomingStopTimes = stopTimes
@@ -32,16 +30,28 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
             ),
         }));
 
-    const handleSelectTrip = (tripId: string) => {
-        setSelectedTrip(tripId);
-    };
+    useEffect(() => {
+        setSelectedStopTime(upcomingStopTimes?.at(0));
+    }, [stopTimes]);
+
+    const [selectedStopTime, setSelectedStopTime] = useState<StopTimeByRouteData | undefined>(
+        upcomingStopTimes?.at(0)
+    );
+
+    const { data: tripStopTimes } = useStopTimesByTrip(selectedStopTime?.trip_id ?? "");
 
     const ourStopTimeIndex = tripStopTimes?.findIndex((st) => st.stop_id === stopId);
 
     return (
         <div className="flex flex-col overflow-x-hidden p-2 gap-2">
-            <h1>Route Details</h1>
-            
+            <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-semibold">{route?.route_short_name}</h1>
+                <h3>
+                    {selectedStopTime
+                        ? selectedStopTime?.trip.trip_headsign
+                        : route?.route_long_name}
+                </h3>
+            </div>
 
             <Carousel
                 opts={{
@@ -55,9 +65,15 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
                         <CarouselItem
                             key={`${stopTime.trip_id}-${stopTime.stop_sequence}`}
                             className="basis-1/3 sm:basis-1/4 max-w-56"
-                            onClick={() => handleSelectTrip(stopTime.trip_id)}
+                            onClick={() => setSelectedStopTime(stopTime)}
                         >
-                            <Card>
+                            <Card
+                                className={cn(
+                                    stopTime.trip_id === selectedStopTime?.trip_id
+                                        ? "shadow"
+                                        : "opacity-60 bg-muted"
+                                )}
+                            >
                                 <CardContent className="flex flex-col items-center justify-center p-4">
                                     <div className="text-xl font-semibold text-center">
                                         {stopTime.countDownMin} min
@@ -76,16 +92,18 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, defaultDirectionId = 0
             </Carousel>
 
             <div className="w-full overflow-auto h-full">
-                {tripStopTimes && <TransitTimeline
-                    curStopIndex={ourStopTimeIndex ?? 0}
-                    stops={
-                        tripStopTimes?.map((st) => ({
-                            title: st.stop.stop_name,
-                            time: formatHHMMSSFromSeconds(st.arrival_timestamp),
-                            id: st.stop_id,
-                        })) ?? []
-                    }
-                />}
+                {tripStopTimes && (
+                    <TransitTimeline
+                        curStopIndex={ourStopTimeIndex ?? 0}
+                        stops={
+                            tripStopTimes?.map((st) => ({
+                                title: st.stop.stop_name,
+                                time: formatHHMMSSFromSeconds(st.arrival_timestamp),
+                                id: st.stop_id,
+                            })) ?? []
+                        }
+                    />
+                )}
             </div>
         </div>
     );

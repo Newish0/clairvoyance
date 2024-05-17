@@ -21,7 +21,7 @@ const RouteDetailsFromParam: React.FC = () => {
         <RouteDetails
             routeId={globalNavParams.routeId}
             stopId={globalNavParams.stopId}
-            defaultDirectionId={globalNavParams.directionId}
+            direction={globalNavParams.directionId}
         />
     );
 };

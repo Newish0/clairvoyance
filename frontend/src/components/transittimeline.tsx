@@ -32,7 +32,7 @@ const TimelineElement: React.FC<{
 }) => {
     return (
         <div className="relative flex flex-row justify-start gap-2">
-            <div className="min-w-5 max-w-5 flex-shrink flex flex-col gap-0 flex-grow justify-center items-center">
+            <div className="min-w-[14px] max-w-[14px] flex-shrink flex flex-col gap-0 flex-grow justify-center items-center">
                 {/* Top line */}
                 <div
                     className={cn(
@@ -94,7 +94,7 @@ const TimelineExpand: React.FC<{
 }> = ({ borderColorClass, children }) => {
     return (
         <div className="relative flex flex-row justify-start gap-2 mb-1">
-            <div className="min-w-5 max-w-5 flex-shrink flex flex-col gap-0 flex-grow justify-center items-center">
+            <div className="min-w-[14px] max-w-[14px] flex-shrink flex flex-col gap-0 flex-grow justify-center items-center">
                 {/*line */}
                 <div
                     className={cn(

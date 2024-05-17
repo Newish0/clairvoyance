@@ -69,21 +69,24 @@ export const getNearbyTransits = async (
 
 export type RouteData = {
     route_id: string;
+    agency_id: string | null;
     route_short_name: string;
     route_long_name: string;
+    route_desc: string | null;
+    route_type: number;
+    route_url: string | null;
+    route_color: string;
+    route_text_color: string;
+    route_sort_order: number | null;
+    continuous_pickup: string | null;
+    continuous_drop_off: string | null;
+    network_id: string | null;
 };
 
 export const getRoute = async (route_id: string | number): Promise<RouteData> => {
-    // const { data } = await axios.get<Record<string, unknown>>(
-    //     `${import.meta.env.PUBLIC_GTFS_API_URL}/routes`,
-    //     { params: { route_id } }
-    // );
-
-    const data = {
-        route_id: "95-VIC",
-        route_short_name: "95",
-        route_long_name: "Langford / Downtown Blink",
-    };
+    const { data } = await axios.get<RouteData>(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/routes/${route_id}`
+    );
     return data;
 };
 
@@ -206,7 +209,7 @@ export const getRtvpEta = async (tripId: string, stopId: string) => {
     return res.data;
 };
 
-type StopTimeByRouteData = {
+export type StopTimeByRouteData = {
     trip_id: string;
     arrival_time: string;
     arrival_timestamp: number;
