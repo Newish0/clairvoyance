@@ -54,7 +54,7 @@ const TripItem = ({
     const rtvpEtaMin = (data && Math.round(data.eta / 60)) ?? null;
 
     return (
-        <CarouselItem>
+        <CarouselItem className="flex-grow h-full">
             <a
                 href={`/routes?routeId=${routeId}&directionId=${tripDirectionId}&stopId=${stopId}&tripId=${tripId}`}
             >
@@ -67,7 +67,7 @@ const TripItem = ({
                                 {tripHeadSign}
                             </p>
                         </div>
-                        <div className=" flex items-center justify-end">
+                        <div className="flex items-center justify-end">
                             {rtvpEtaMin === null && (
                                 <h3 className="text-muted-foreground text-xl font-semibold mb-2">
                                     {staticEtaMin} min
@@ -124,11 +124,11 @@ const ArrivalBoard: React.FC<ArrivalBoardProps> = ({ lat, lng, radius }) => {
     const { data: nearbyTransits } = useNearbyTransits({ lat, lng, radius });
 
     return (
-        <>
+        <ScrollArea>
             {nearbyTransits?.map((nbt) => (
                 <BoardRow key={nbt.route_id} {...nbt}></BoardRow>
             ))}
-        </>
+        </ScrollArea>
     );
 };
 
