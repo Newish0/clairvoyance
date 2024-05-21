@@ -37,9 +37,9 @@ export const stop_time_updates = pgTable(
         schedule_relationship: varchar("schedule_relationship", { length: 255 }),
         is_updated: integer("is_updated").default(1).notNull(),
     },
-    (stopTimeUpdates) => ({
+    (stop_time_updates) => ({
         primaryKey: primaryKey({
-            columns: [stopTimeUpdates.trip_id, stopTimeUpdates.stop_sequence],
+            columns: [stop_time_updates.trip_id, stop_time_updates.stop_sequence],
         }),
     })
 );

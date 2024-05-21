@@ -28,9 +28,19 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
     const upcomingStopTimes = stopTimes
         ?.map((st) => ({
             ...st,
-            countDownMin: Math.round(secondsUntilTime(st.arrival_timestamp) / 60),
+            staticCountDownMin: Math.round(secondsUntilTime(st.arrival_timestamp) / 60),
+            rtCountDownMin:
+                st.stop_time_update?.arrival_delay !== null &&
+                st.stop_time_update?.arrival_delay !== undefined
+                    ? Math.round(secondsUntilTime(st.arrival_timestamp) / 60) +
+                      st.stop_time_update?.arrival_delay
+                    : null,
         }))
-        .toSorted((a, b) => a.countDownMin - b.countDownMin);
+        .toSorted((a, b) => {
+            const aTime = a.rtCountDownMin ?? a.staticCountDownMin;
+            const bTime = b.rtCountDownMin ?? b.staticCountDownMin;
+            return aTime - bTime;
+        });
 
     useEffect(() => {
         setSelectedStopTime(upcomingStopTimes?.at(0));
@@ -77,9 +87,16 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
                                 )}
                             >
                                 <CardContent className="flex flex-col items-center justify-center p-4">
-                                    <div className="text-xl font-semibold text-center">
-                                        {stopTime.countDownMin} min
-                                    </div>
+                                    {stopTime.rtCountDownMin ? (
+                                        <div className="text-xl font-semibold text-center">
+                                            {stopTime.rtCountDownMin} min (rt)
+                                        </div>
+                                    ) : (
+                                        <div className="text-xl font-semibold text-center">
+                                            {stopTime.staticCountDownMin} min
+                                        </div>
+                                    )}
+
                                     <div>{formatHHMMSSFromSeconds(stopTime.arrival_timestamp)}</div>
                                     {/* <pre>
                                                 {

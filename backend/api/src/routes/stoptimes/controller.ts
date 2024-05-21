@@ -38,6 +38,7 @@ export default function (hono: Hono) {
                 orderBy: (stopTimesTable, { asc }) => asc(stopTimesTable.arrival_timestamp),
                 with: {
                     trip: true,
+                    stop_time_update: true,
                 },
             });
 

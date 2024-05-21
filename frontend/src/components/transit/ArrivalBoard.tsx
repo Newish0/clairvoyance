@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/carousel";
 import { Card } from "../ui/card";
 import { IconCircleArrowRight, IconCircleArrowLeft } from "@tabler/icons-react";
-import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay } from "@/utils/datetime";
+import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay, secondsUntilTime } from "@/utils/datetime";
 import { useRtvpEta } from "@/hooks/transit/rtvp";
 
 const DirectionArrow = ({ direction }: { direction: number }) => {
@@ -44,11 +44,7 @@ const TripItem = ({
     arrivalDelaySec?: number | null;
     stopId: string;
 }) => {
-    const secSinceStartOfDate = getSecondsSinceStartOfDay();
-
-    const staticAbsEtaSec = (arrivalTimestamp % SECONDS_IN_A_DAY) - secSinceStartOfDate;
-    const staticEtaSec =
-        staticAbsEtaSec < 0 ? staticAbsEtaSec + secSinceStartOfDate : staticAbsEtaSec;
+    const staticEtaSec = secondsUntilTime(arrivalTimestamp);
     const staticEtaMin = Math.round(staticEtaSec / 60);
 
     // const { data } = useRtvpEta(tripId, stopId);
