@@ -17,6 +17,7 @@ import { syncGtfsStaticWithPG } from "./services/gtfs-sync";
 import shapes from "./routes/shapes";
 import rtvp from "./routes/rtvp";
 import transits from "./routes/transits";
+import stoptimes from "./routes/stoptimes";
 
 /** Whether we are ready to serve data */
 let ready = false;
@@ -48,6 +49,7 @@ app.route("/trips", trips);
 app.route("/shapes", shapes);
 app.route("/rtvp", rtvp);
 app.route("/transits", transits);
+app.route("/stoptimes", stoptimes);
 
 const port = parseInt(process.env.PORT || "3000");
 

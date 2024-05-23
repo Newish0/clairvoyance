@@ -3,6 +3,11 @@ export const getQueryParams = (param: string) => {
     return urlParams.get(param);
 };
 
+export const getAllQueryParams = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return Object.fromEntries(urlParams.entries());
+};
+
 export const updateQueryParam = (paramName: string, value: string | null) => {
     const urlParams = new URLSearchParams(window.location.search);
     if (value) {

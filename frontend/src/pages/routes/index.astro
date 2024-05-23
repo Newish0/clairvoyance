@@ -8,8 +8,9 @@ import "@/styles/globals.css";
 import RouteDetailsFromParam from "@/components/transit/RouteDetailsFromParam.tsx";
 ---
 
-
 <Layout title="Routes">
-    <GlobalPageMap client:only transition:persist transition:name="global-map" />
-    <RouteDetailsFromParam client:only />
+    <div class="h-dvh grid grid-rows-2 overflow-hidden">
+        <GlobalPageMap client:only transition:persist transition:name="global-map" />
+        <RouteDetailsFromParam client:only />
+    </div>
 </Layout>

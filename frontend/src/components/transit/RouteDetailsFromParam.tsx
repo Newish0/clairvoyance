@@ -1,9 +1,29 @@
 import { getQueryParams } from "@/utils/url";
 import RouteDetails from "./RouteDetails.tsx";
+import { useStore } from "@nanostores/react";
+import { $globalNavParams } from "@/stores/navigationparams.ts";
 
 const RouteDetailsFromParam: React.FC = () => {
-    const routeId = getQueryParams("route_id") || "";
-    return <RouteDetails routeId={routeId} stopId=""/>;
+    const globalNavParams = useStore($globalNavParams);
+
+    if (!globalNavParams.routeId || !globalNavParams.stopId) {
+        return (
+            <>
+                <div>Route not found</div>
+                <pre>
+                    <code>{JSON.stringify(globalNavParams)}</code>
+                </pre>
+            </>
+        );
+    }
+
+    return (
+        <RouteDetails
+            routeId={globalNavParams.routeId}
+            stopId={globalNavParams.stopId}
+            direction={globalNavParams.directionId}
+        />
+    );
 };
 
 RouteDetailsFromParam.displayName = "RouteDetailsFromParam";

@@ -1,19 +1,12 @@
 {
-  "version": "5",
-  "dialect": "pg",
+  "version": "6",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1715149910367,
-      "tag": "0000_shocking_radioactive_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1715150206874,
-      "tag": "0001_greedy_barracuda",
+      "version": "6",
+      "when": 1716431437556,
+      "tag": "0000_nosy_fat_cobra",
       "breakpoints": true
     }
   ]

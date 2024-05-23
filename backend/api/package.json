@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "gen-migrations": "drizzle-kit generate:pg",
+    "gen-migrations": "drizzle-kit generate",
     "drizzle-studio": "drizzle-kit studio"
   },
   "dependencies": {

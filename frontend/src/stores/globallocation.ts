@@ -1,5 +1,6 @@
 import { getQueryParams, updateQueryParam } from "@/utils/url";
-import { atom } from "nanostores";
+import { atom, computed, type ReadableAtom } from "nanostores";
+import { $globalNavParams, setGlobalNavParams } from "./navigationparams";
 
 export interface Location {
     lat: number;
@@ -7,21 +8,18 @@ export interface Location {
     radius: number;
 }
 
-export const $globalLocation = atom<Location>({
-    lat: Number(getQueryParams("lat") ?? 48.4739178),
-    lng: Number(getQueryParams("lng") ?? -123.3510237),
-    radius: Number(getQueryParams("radius") ?? 1),
-});
+export const $globalLocation: ReadableAtom<Location> = computed($globalNavParams, (params) => ({
+    lat: Number(params.lat ?? 48.4739178),
+    lng: Number(params.lng ?? -123.3510237),
+    radius: Number(params.radius ?? 1),
+}));
 
-export function setGlobalLocation(
-    newPartialLoc: Partial<Location>,
-    { syncUrlParam = true }: { syncUrlParam?: boolean } = {}
-) {
+export function setGlobalLocation(newPartialLoc: Partial<Location>) {
     const newLoc = { ...$globalLocation.get(), ...newPartialLoc };
-    $globalLocation.set(newLoc);
-    if (syncUrlParam) {
-        updateQueryParam("lat", newLoc.lat.toString());
-        updateQueryParam("lng", newLoc.lng.toString());
-        updateQueryParam("radius", newLoc.radius.toString());
-    }
+
+    setGlobalNavParams({
+        lat: newLoc.lat.toString(),
+        lng: newLoc.lng.toString(),
+        radius: newLoc.radius.toString(),
+    });
 }

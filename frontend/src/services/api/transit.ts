@@ -1,3 +1,4 @@
+import { coordsToGeoJsonLine } from "@/utils/geojson";
 import axios, { type AxiosResponse } from "axios";
 
 export type NearbyTransit = {
@@ -35,7 +36,21 @@ export type NearbyTransit = {
                 parent_station: string;
                 agency_id: string;
             };
-            p_traveled: number; 
+            stop_time_update: {
+                trip_id: string | null;
+                trip_start_time: string | null;
+                direction_id: number | null;
+                route_id: string | null;
+                stop_id: string | null;
+                stop_sequence: number | null;
+                arrival_delay: number | null;
+                departure_delay: number | null;
+                departure_timestamp: string | null;
+                arrival_timestamp: string | null;
+                schedule_relationship: string | null;
+                is_updated: number;
+            } | null;
+            p_traveled: number;
         };
         rtvp: {
             trip_id: string | null;
@@ -68,21 +83,24 @@ export const getNearbyTransits = async (
 
 export type RouteData = {
     route_id: string;
+    agency_id: string | null;
     route_short_name: string;
     route_long_name: string;
+    route_desc: string | null;
+    route_type: number;
+    route_url: string | null;
+    route_color: string;
+    route_text_color: string;
+    route_sort_order: number | null;
+    continuous_pickup: string | null;
+    continuous_drop_off: string | null;
+    network_id: string | null;
 };
 
 export const getRoute = async (route_id: string | number): Promise<RouteData> => {
-    // const { data } = await axios.get<Record<string, unknown>>(
-    //     `${import.meta.env.PUBLIC_GTFS_API_URL}/routes`,
-    //     { params: { route_id } }
-    // );
-
-    const data = {
-        route_id: "95-VIC",
-        route_short_name: "95",
-        route_long_name: "Langford / Downtown Blink",
-    };
+    const { data } = await axios.get<RouteData>(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/routes/${route_id}`
+    );
     return data;
 };
 
@@ -123,7 +141,7 @@ export const getTrip = async (trip_id: string, { with_route }: { with_route?: bo
     return data;
 };
 
-export type Shape = {
+export type ShapeData = {
     shape_id: string;
     shape_pt_sequence: number;
     shape_pt_lat: number;
@@ -131,30 +149,22 @@ export type Shape = {
     shape_dist_traveled?: number;
 };
 
-export const getShapes = async ({
-    shape_id,
-    route_id,
-}: { shape_id?: string; route_id?: string } = {}): Promise<Shape[] | null> => {
-    if (!shape_id && !route_id) return null;
-
-    const { data } = await axios.get<Record<string, unknown>>(
-        `${import.meta.env.PUBLIC_GTFS_API_URL}/shapes`,
-        { params: { shape_id, route_id } }
-    );
-    return data as Shape[];
-};
-
 export const getShapesGeojson = async ({
     shape_id,
-    route_id,
-}: { shape_id?: string; route_id?: string } = {}): Promise<any> => {
-    if (!shape_id && !route_id) return null;
+    trip_id,
+}: { shape_id?: string; trip_id?: string } = {}) => {
+    if (!shape_id && !trip_id) return null;
 
-    const { data } = await axios.get<Record<string, unknown>>(
-        `${import.meta.env.PUBLIC_GTFS_API_URL}/geojson/shapes`,
-        { params: { shape_id, route_id } }
-    );
-    return data;
+    const { data } = await axios.get<ShapeData[]>(`${import.meta.env.PUBLIC_GTFS_API_URL}/shapes`, {
+        params: { shape_id, trip_id },
+    });
+
+    const coordinates: [number, number][] = data.map((point) => [
+        point.shape_pt_lon,
+        point.shape_pt_lat,
+    ]);
+
+    return [coordsToGeoJsonLine(coordinates)];
 };
 
 export type RTVPData = {
@@ -209,6 +219,100 @@ export const getRtvpEta = async (tripId: string, stopId: string) => {
 
     const res: AxiosResponse<RtvpEta, unknown> = await axios.get(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/rtvp/eta?trip_id=${tripId}&stop_id=${stopId}`
+    );
+    return res.data;
+};
+
+export type StopTimeByRouteData = {
+    trip_id: string;
+    arrival_time: string;
+    arrival_timestamp: number;
+    departure_time: string;
+    departure_timestamp: number;
+    stop_id: string;
+    stop_sequence: number;
+    stop_headsign: string | null;
+    pickup_type: number;
+    drop_off_type: number;
+    continuous_pickup: any;
+    continuous_drop_off: any;
+    shape_dist_traveled: number;
+    timepoint: number;
+    trip: {
+        trip_id: string;
+        route_id: string;
+        service_id: string;
+        trip_headsign: string;
+        trip_short_name: string | null;
+        direction_id: number;
+        block_id: string;
+        shape_id: string;
+        wheelchair_accessible: any;
+        bikes_allowed: any;
+    };
+    stop_time_update: {
+        trip_id: string | null;
+        trip_start_time: string | null;
+        direction_id: number | null;
+        route_id: string | null;
+        stop_id: string | null;
+        stop_sequence: number | null;
+        arrival_delay: number | null;
+        departure_delay: number | null;
+        departure_timestamp: string | null;
+        arrival_timestamp: string | null;
+        schedule_relationship: string | null;
+        is_updated: number;
+    } | null;
+};
+
+export const getStopTimesByRoute = async (routeId: string, stopId?: string | number) => {
+    const res: AxiosResponse<StopTimeByRouteData[], unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/stoptimes/route/${routeId}`,
+        { params: { stop_id: stopId } }
+    );
+    return res.data;
+};
+
+type StopTimeByTripData = {
+    trip_id: string;
+    arrival_time: string;
+    arrival_timestamp: number;
+    departure_time: string;
+    departure_timestamp: number;
+    stop_id: string;
+    stop_sequence: number;
+    stop_headsign: string | null;
+    pickup_type: number;
+    drop_off_type: number;
+    continuous_pickup: any;
+    continuous_drop_off: any;
+    shape_dist_traveled: number;
+    timepoint: number;
+    stop: {
+        stop_id: string;
+        stop_code: string;
+        stop_name: string;
+        tts_stop_name: string | null;
+        stop_desc: string | null;
+        stop_lat: number;
+        stop_lon: number;
+        zone_id: string | null;
+        stop_url: string | null;
+        location_type: string | null;
+        parent_station: string | null;
+        stop_timezone: string | null;
+        wheelchair_boarding: number;
+        level_id: string | null;
+        platform_code: string | null;
+    };
+};
+
+export const getStopTimesByTrip = async (tripId: string) => {
+    if (!tripId) return null;
+
+    const res: AxiosResponse<StopTimeByTripData[], unknown> = await axios.get(
+        `${import.meta.env.PUBLIC_GTFS_API_URL}/stoptimes/trip/${tripId}`
     );
     return res.data;
 };

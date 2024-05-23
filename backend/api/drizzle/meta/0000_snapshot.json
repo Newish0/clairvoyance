@@ -1,10 +1,46 @@
 {
-  "id": "6cbc24c1-7eee-4662-99cb-e8b2966ae61a",
+  "id": "f5f73f71-093a-41f1-b5ac-f86e85f79480",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "5",
-  "dialect": "pg",
+  "version": "6",
+  "dialect": "postgresql",
   "tables": {
-    "routes": {
+    "public.calendar_dates": {
+      "name": "calendar_dates",
+      "schema": "",
+      "columns": {
+        "service_id": {
+          "name": "service_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exception_type": {
+          "name": "exception_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "calendar_dates_service_id_date_pk": {
+          "name": "calendar_dates_service_id_date_pk",
+          "columns": [
+            "service_id",
+            "date"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "public.routes": {
       "name": "routes",
       "schema": "",
       "columns": {
@@ -92,7 +128,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "vehicle_position": {
+    "public.vehicle_position": {
       "name": "vehicle_position",
       "schema": "",
       "columns": {
@@ -195,7 +231,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "rtvp_polyregr": {
+    "public.rtvp_polyregr": {
       "name": "rtvp_polyregr",
       "schema": "",
       "columns": {
@@ -241,17 +277,18 @@
         }
       },
       "compositePrimaryKeys": {
-        "rtvp_polyregr_route_id_direction_id_pk": {
-          "name": "rtvp_polyregr_route_id_direction_id_pk",
+        "rtvp_polyregr_route_id_direction_id_coefficient_index_pk": {
+          "name": "rtvp_polyregr_route_id_direction_id_coefficient_index_pk",
           "columns": [
             "route_id",
-            "direction_id"
+            "direction_id",
+            "coefficient_index"
           ]
         }
       },
       "uniqueConstraints": {}
     },
-    "shapes": {
+    "public.shapes": {
       "name": "shapes",
       "schema": "",
       "columns": {
@@ -299,7 +336,7 @@
       },
       "uniqueConstraints": {}
     },
-    "stops": {
+    "public.stops": {
       "name": "stops",
       "schema": "",
       "columns": {
@@ -399,7 +436,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "stop_times": {
+    "public.stop_times": {
       "name": "stop_times",
       "schema": "",
       "columns": {
@@ -528,7 +565,98 @@
       },
       "uniqueConstraints": {}
     },
-    "trips": {
+    "public.stop_time_updates": {
+      "name": "stop_time_updates",
+      "schema": "",
+      "columns": {
+        "trip_id": {
+          "name": "trip_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_start_time": {
+          "name": "trip_start_time",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction_id": {
+          "name": "direction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_id": {
+          "name": "stop_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_sequence": {
+          "name": "stop_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arrival_delay": {
+          "name": "arrival_delay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_delay": {
+          "name": "departure_delay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_timestamp": {
+          "name": "departure_timestamp",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arrival_timestamp": {
+          "name": "arrival_timestamp",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schedule_relationship": {
+          "name": "schedule_relationship",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_updated": {
+          "name": "is_updated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "stop_time_updates_trip_id_stop_sequence_pk": {
+          "name": "stop_time_updates_trip_id_stop_sequence_pk",
+          "columns": [
+            "trip_id",
+            "stop_sequence"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "public.trips": {
       "name": "trips",
       "schema": "",
       "columns": {
@@ -612,7 +740,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "trip_updates": {
+    "public.trip_updates": {
       "name": "trip_updates",
       "schema": "",
       "columns": {

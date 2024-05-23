@@ -16,15 +16,15 @@ export default function (hono: Hono) {
             "query",
             z.object({
                 shape_id: z.string().optional(),
-                route_id: z.string().optional(),
+                trip_id: z.string().optional(),
             })
         ),
         async (c) => {
-            const { shape_id, route_id } = c.req.valid("query");
+            const { shape_id, trip_id } = c.req.valid("query");
 
             let shapes: Array<typeof shapesTable.$inferSelect> = [];
 
-            if (!shape_id && !route_id) {
+            if (!shape_id && !trip_id) {
                 return c.status(400);
             } else if (shape_id) {
                 shapes = await psDb
@@ -38,7 +38,7 @@ export default function (hono: Hono) {
                     .from(shapesTable)
                     .where(eq(shapesTable.shape_id, shape_id))
                     .orderBy(asc(shapesTable.shape_pt_sequence));
-            } else if (route_id) {
+            } else if (trip_id) {
                 shapes = await psDb
                     .select({
                         shape_id: shapesTable.shape_id,
@@ -49,14 +49,14 @@ export default function (hono: Hono) {
                     })
                     .from(shapesTable)
                     .where(
-                        inArray(
+                        eq(
                             shapesTable.shape_id,
                             psDb
                                 .select({
                                     shape_id: tripsTable.shape_id,
                                 })
                                 .from(tripsTable)
-                                .where(eq(tripsTable.route_id, route_id))
+                                .where(eq(tripsTable.trip_id, trip_id))
                         )
                     )
                     .orderBy(asc(shapesTable.shape_pt_sequence));

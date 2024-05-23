@@ -2,6 +2,7 @@ import { pgTable, varchar, integer, real, primaryKey, timestamp, time } from "dr
 import { trips } from "./trips";
 import { relations } from "drizzle-orm";
 import { stops } from "./stops";
+import { stop_time_updates } from "./stop_time_updates";
 
 export const stop_times = pgTable(
     "stop_times",
@@ -51,6 +52,10 @@ export const stopTimesRelations = relations(stop_times, ({ one }) => ({
     stop: one(stops, {
         fields: [stop_times.stop_id],
         references: [stops.stop_id],
+    }),
+    stop_time_update: one(stop_time_updates, {
+        fields: [stop_times.trip_id, stop_times.stop_sequence],
+        references: [stop_time_updates.trip_id, stop_time_updates.stop_sequence],
     }),
 }));
 

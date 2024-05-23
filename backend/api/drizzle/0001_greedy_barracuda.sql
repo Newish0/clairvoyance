@@ -1,2 +1,0 @@
-ALTER TABLE "rtvp_polyregr" DROP CONSTRAINT "rtvp_polyregr_route_id_direction_id_pk";--> statement-breakpoint
-ALTER TABLE "rtvp_polyregr" ADD CONSTRAINT "rtvp_polyregr_route_id_direction_id_coefficient_index_pk" PRIMARY KEY("route_id","direction_id","coefficient_index");

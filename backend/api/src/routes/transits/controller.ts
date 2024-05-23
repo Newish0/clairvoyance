@@ -10,6 +10,8 @@ import { stop_times as stopTimesTable } from "@/db/schemas/stop_times";
 import { routes as routesTable } from "@/db/schemas/routes";
 import { trips as tripsTable } from "@/db/schemas/trips";
 import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
+import { stop_time_updates as stopTimeUpdatesTable } from "@/db/schemas/stop_time_updates";
+
 import { stopTimesPTraveled } from "@/db/schemas/views/stop_times_p_traveled";
 import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay } from "@/utils/datetime";
 import { union } from "drizzle-orm/pg-core";
@@ -19,6 +21,7 @@ type NearbyTransit = typeof routesTable.$inferSelect & {
         stop_time: typeof stopTimesTable.$inferSelect & {
             p_traveled: number;
             stop: typeof stopsTable.$inferSelect;
+            stop_time_update: typeof stopTimeUpdatesTable.$inferSelect | null;
         };
         rtvp: typeof rtvpTable.$inferSelect | null;
     })[];
@@ -45,7 +48,11 @@ export default function (hono: Hono) {
             const secondsSinceStartOfDay = getSecondsSinceStartOfDay(true);
 
             const nearbyTransitsWithRtvpRaw = await pgDb
-                .selectDistinctOn([tripsTable.route_id, tripsTable.direction_id])
+                .selectDistinctOn([
+                    tripsTable.route_id,
+                    tripsTable.direction_id,
+                    tripsTable.shape_id,
+                ])
                 .from(stopsTable)
                 .leftJoin(stopTimesTable, eq(stopTimesTable.stop_id, stopsTable.stop_id))
                 .leftJoin(tripsTable, eq(tripsTable.trip_id, stopTimesTable.trip_id))
@@ -56,6 +63,13 @@ export default function (hono: Hono) {
                     and(
                         eq(stopTimesPTraveled.trip_id, stopTimesTable.trip_id),
                         eq(stopTimesPTraveled.stop_id, stopTimesTable.stop_id)
+                    )
+                )
+                .leftJoin(
+                    stopTimeUpdatesTable,
+                    and(
+                        eq(stopTimeUpdatesTable.trip_id, stopTimesTable.trip_id),
+                        eq(stopTimeUpdatesTable.stop_id, stopTimesTable.stop_id)
                     )
                 )
                 .where(
@@ -77,6 +91,7 @@ export default function (hono: Hono) {
                 .orderBy(
                     tripsTable.route_id,
                     tripsTable.direction_id,
+                    tripsTable.shape_id,
                     asc(sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${stopsTable.stop_lat})) * cos(radians(${stopsTable.stop_lon}) - radians(${targetLng})) +
                         sin(radians(${targetLat})) * sin(radians(${stopsTable.stop_lat}))
@@ -85,7 +100,11 @@ export default function (hono: Hono) {
                 );
 
             const nearbyTransitStaticRaw = await pgDb
-                .selectDistinctOn([tripsTable.route_id, tripsTable.direction_id])
+                .selectDistinctOn([
+                    tripsTable.route_id,
+                    tripsTable.direction_id,
+                    tripsTable.shape_id,
+                ])
                 .from(stopsTable)
                 .leftJoin(stopTimesTable, eq(stopTimesTable.stop_id, stopsTable.stop_id))
                 .leftJoin(tripsTable, eq(tripsTable.trip_id, stopTimesTable.trip_id))
@@ -96,6 +115,13 @@ export default function (hono: Hono) {
                     and(
                         eq(stopTimesPTraveled.trip_id, stopTimesTable.trip_id),
                         eq(stopTimesPTraveled.stop_id, stopTimesTable.stop_id)
+                    )
+                )
+                .leftJoin(
+                    stopTimeUpdatesTable,
+                    and(
+                        eq(stopTimeUpdatesTable.trip_id, stopTimesTable.trip_id),
+                        eq(stopTimeUpdatesTable.stop_id, stopTimesTable.stop_id)
                     )
                 )
                 .where(
@@ -120,6 +146,7 @@ export default function (hono: Hono) {
                 .orderBy(
                     tripsTable.route_id,
                     tripsTable.direction_id,
+                    tripsTable.shape_id,
                     asc(sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${stopsTable.stop_lat})) * cos(radians(${stopsTable.stop_lon}) - radians(${targetLng})) +
                         sin(radians(${targetLat})) * sin(radians(${stopsTable.stop_lat}))
@@ -152,6 +179,7 @@ export default function (hono: Hono) {
                     stops: stop,
                     trips: trip,
                     vehicle_position,
+                    stop_time_updates: stop_time_update,
                 } = rawTransit;
 
                 if (!route || !trip || !stop_time) continue;
@@ -162,6 +190,7 @@ export default function (hono: Hono) {
                     stop_time: {
                         ...stop_time,
                         stop,
+                        stop_time_update,
                         p_traveled: (stop_times_p_traveled as any)?.p_traveled,
                     },
                 };

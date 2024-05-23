@@ -6,3 +6,33 @@ export function getSecondsSinceStartOfDay(asInt = false): number {
 }
 
 export const SECONDS_IN_A_DAY = 86400;
+
+export function formatHHMMSSFromSeconds(seconds: number): string {
+    const date = new Date(0);
+    date.setSeconds(seconds);
+    return (
+        date.getUTCHours().toString().padStart(2, "0") +
+        ":" +
+        date.getUTCMinutes().toString().padStart(2, "0") +
+        ":" +
+        date.getUTCSeconds().toString().padStart(2, "0")
+    );
+}
+
+export function secondsUntilTime(secSinceMidnight: number): number {
+    // Normalize the given seconds to within one day
+    const normalizedGivenSeconds = secSinceMidnight % SECONDS_IN_A_DAY;
+
+    // Calculate current seconds since 12 AM
+    const curSecondsSinceMidnight = getSecondsSinceStartOfDay();
+
+    // Calculate the difference
+    let secondsUntil = normalizedGivenSeconds - curSecondsSinceMidnight;
+
+    // If the result is negative, adjust for the next day
+    if (secondsUntil < 0) {
+        secondsUntil += SECONDS_IN_A_DAY; // 24 * 60 * 60
+    }
+
+    return secondsUntil;
+}
