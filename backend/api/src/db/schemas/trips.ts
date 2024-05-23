@@ -20,7 +20,7 @@ export const trips = pgTable("trips", {
         .notNull()
         .references(() => routes.route_id),
 
-    service_id: varchar("service_id", { length: 255 }).notNull(), // TODO Add reference to services
+    service_id: varchar("service_id", { length: 255 }).notNull(), // TODO: add ref to calendar (NOT calendar_dates)
 
     trip_headsign: varchar("trip_headsign", { length: 255 }),
     trip_short_name: varchar("trip_short_name", { length: 255 }),
