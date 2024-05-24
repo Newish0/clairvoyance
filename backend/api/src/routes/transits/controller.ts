@@ -2,17 +2,17 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "@/services/gtfs-init";
-import pgDb from "@/db";
+import pgDb from "clairvoyance-db";
 import { and, lte, sql, eq, or, gte, desc, isNotNull, isNull, asc } from "drizzle-orm";
 
-import { stops as stopsTable } from "@/db/schemas/stops";
-import { stop_times as stopTimesTable } from "@/db/schemas/stop_times";
-import { routes as routesTable } from "@/db/schemas/routes";
-import { trips as tripsTable } from "@/db/schemas/trips";
-import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
-import { stop_time_updates as stopTimeUpdatesTable } from "@/db/schemas/stop_time_updates";
+import { stops as stopsTable } from "clairvoyance-db/schemas/stops";
+import { stop_times as stopTimesTable } from "clairvoyance-db/schemas/stop_times";
+import { routes as routesTable } from "clairvoyance-db/schemas/routes";
+import { trips as tripsTable } from "clairvoyance-db/schemas/trips";
+import { realtime_vehicle_position as rtvpTable } from "clairvoyance-db/schemas/rtvp";
+import { stop_time_updates as stopTimeUpdatesTable } from "clairvoyance-db/schemas/stop_time_updates";
 
-import { stopTimesPTraveled } from "@/db/schemas/views/stop_times_p_traveled";
+import { stopTimesPTraveled } from "clairvoyance-db/schemas/views/stop_times_p_traveled";
 import { SECONDS_IN_A_DAY, getSecondsSinceStartOfDay } from "@/utils/datetime";
 import { union } from "drizzle-orm/pg-core";
 

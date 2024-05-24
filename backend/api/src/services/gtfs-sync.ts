@@ -1,13 +1,13 @@
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
 import type BetterSqlite3 from "better-sqlite3";
 import { getRoutes, getTrips, getShapes, getStops, getStoptimes, getTripUpdates } from "gtfs";
-import { routes } from "@/db/schemas/routes";
-import { trips } from "@/db/schemas/trips";
-import { shapes } from "@/db/schemas/shapes";
-import { stops } from "@/db/schemas/stops";
-import { stop_times as stopTimes } from "@/db/schemas/stop_times";
+import { routes } from "clairvoyance-db/schemas/routes";
+import { trips } from "clairvoyance-db/schemas/trips";
+import { shapes } from "clairvoyance-db/schemas/shapes";
+import { stops } from "clairvoyance-db/schemas/stops";
+import { stop_times as stopTimes } from "clairvoyance-db/schemas/stop_times";
 
-import type defaultDB from "@/db";
+import type defaultDB from "clairvoyance-db";
 import { sql, eq, and } from "drizzle-orm";
 import {
     IndexColumn,
@@ -21,7 +21,7 @@ import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import { equalRecords } from "@/utils/compare";
 
 import { SingleBar } from "cli-progress";
-import { tripUpdates } from "@/db/schemas/trip_updates";
+import { tripUpdates } from "clairvoyance-db/schemas/trip_updates";
 
 const parseRawGtfsTimestamp = (rawGtfsTimestamp: string | undefined): Date | null => {
     return rawGtfsTimestamp ? new Date(parseInt(rawGtfsTimestamp) * 1000) : null;

@@ -11,8 +11,8 @@ import geojson from "./routes/geojson";
 import routes from "./routes/routes";
 import trips from "./routes/trips";
 
-import { migrateDb } from "@/db/index";
-import pgDB from "@/db/index";
+import { migrateDb } from "clairvoyance-db";
+import pgDB from "clairvoyance-db";
 import { syncGtfsStaticWithPG } from "./services/gtfs-sync";
 import shapes from "./routes/shapes";
 import rtvp from "./routes/rtvp";

@@ -1,12 +1,12 @@
 import { RawRTVP } from "@/types/rtvp";
-import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
-import { trips as tripsTable } from "@/db/schemas/trips";
-import defaultDb from "@/db";
+import { realtime_vehicle_position as rtvpTable } from "clairvoyance-db/schemas/rtvp";
+import { trips as tripsTable } from "clairvoyance-db/schemas/trips";
+import defaultDb from "clairvoyance-db";
 import { eq, gte, and, asc, sql, inArray, lte } from "drizzle-orm";
-import { shapes as shapesTable } from "@/db/schemas/shapes";
+import { shapes as shapesTable } from "clairvoyance-db/schemas/shapes";
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
 import regression from "regression";
-import { tripUpdates as tripUpdatesTable } from "@/db/schemas/trip_updates";
+import { tripUpdates as tripUpdatesTable } from "clairvoyance-db/schemas/trip_updates";
 
 const parseRawRtvpTimestamp = (rawRtvpTimestamp: string | undefined): Date => {
     return rawRtvpTimestamp ? new Date(parseInt(rawRtvpTimestamp) * 1000) : new Date();
