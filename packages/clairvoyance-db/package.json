@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "gen-migrations": "drizzle-kit generate",
+    "drizzle-studio": "drizzle-kit studio"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +19,6 @@
     "@types/node": "^20.10.7",
     "drizzle-kit": "^0.21.4",
     "pg": "^8.11.5"
-  }
+  },
+  "type": "module"
 }
