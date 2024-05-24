@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@/services/gtfs-init";
 import pgDb from "clairvoyance-db";
 import { stops as stopsTable } from "clairvoyance-db/schemas/stops";
 

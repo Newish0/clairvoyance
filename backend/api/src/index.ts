@@ -5,7 +5,6 @@ import { cors } from "hono/cors";
 import chalk from "chalk";
 
 import pkgJson from "@/../package.json";
-import { initGTFS, db as gtfsDB } from "./services/gtfs-init";
 import stops from "./routes/stops";
 import geojson from "./routes/geojson";
 import routes from "./routes/routes";
@@ -13,7 +12,6 @@ import trips from "./routes/trips";
 
 import { migrateDb } from "clairvoyance-db";
 import pgDB from "clairvoyance-db";
-import { syncGtfsStaticWithPG } from "./services/gtfs-sync";
 import shapes from "./routes/shapes";
 import rtvp from "./routes/rtvp";
 import transits from "./routes/transits";
@@ -73,17 +71,11 @@ const criticalInit = async () => {
 const nonCriticalInit = async () => {
     // Non critical initialization
     console.log(chalk.white.bold.bgYellow(`Initializing GTFS`));
-    // await initGTFS(true);
-    await initGTFS();
+    // TODO
     console.log(chalk.white.bold.bgCyan(`GTFS Initialization Complete`));
 
-    if (!gtfsDB.primary) {
-        console.error("Failed to initialize GTFS");
-        return;
-    }
-
     console.log(chalk.white.bold.bgYellow(`Syncing GTFS`));
-    await syncGtfsStaticWithPG(pgDB, gtfsDB.primary);
+    // TODO
     console.log(chalk.white.bold.bgCyan(`GTFS Sync Complete`));
 };
 

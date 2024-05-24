@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@/services/gtfs-init";
 import psDb from "clairvoyance-db";
-import { getShapes } from "gtfs";
 import { shapes as shapesTable } from "clairvoyance-db/schemas/shapes";
 import { asc, eq, inArray } from "drizzle-orm";
 import { trips as tripsTable } from "clairvoyance-db/schemas/trips";

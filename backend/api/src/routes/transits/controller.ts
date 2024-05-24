@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@/services/gtfs-init";
 import pgDb from "clairvoyance-db";
 import { and, lte, sql, eq, or, gte, desc, isNotNull, isNull, asc } from "drizzle-orm";
 
