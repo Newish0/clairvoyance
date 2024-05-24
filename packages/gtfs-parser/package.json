@@ -14,9 +14,11 @@
     "csv": "^6.3.9",
     "gtfs-realtime-bindings": "^1.1.1",
     "node-fetch": "^3.3.2",
-    "unzipper": "^0.11.6"
+    "unzipper": "^0.11.6",
+    "cli-progress": "^3.12.0"
   },
   "devDependencies": {
+    "@types/cli-progress": "^3.11.5",
     "@types/unzipper": "^0.10.9"
   }
 }

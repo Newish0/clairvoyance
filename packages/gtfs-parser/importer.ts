@@ -7,7 +7,9 @@ import stream, { Readable } from "stream";
 import fetch from "node-fetch";
 import unzipper from "unzipper";
 import { parse } from "csv";
+import { SingleBar } from "cli-progress";
 
+// TODO: Add support for other GTFS data files
 export enum InsertionType {
     Shapes,
     StopTimes,
@@ -68,16 +70,21 @@ export async function importGtfs(config: StaticImportConfig) {
             "calendar_dates.txt",
         ].filter((fileName) => files.includes(fileName));
 
-        console.log("Files to import:", orderedFiles);
-
         for (const fileName of orderedFiles) {
-            console.log("Importing", fileName);
             const filePath = path.join(tmpDirPath, fileName);
             const type = STATIC_GTFS_FILE_NAME_TO_TYPE[fileName];
 
             if (type === undefined) {
                 continue;
             }
+
+            const totalSize = fs.statSync(filePath).size;
+            const progressBar = new SingleBar({
+                format: `${fileName} \t| {bar} | {percentage}% ({eta}s)`,
+                barCompleteChar: "\u25AE",
+                barIncompleteChar: "\u25AF",
+            });
+            progressBar.start(1, 0);
 
             const streamA = fs.createReadStream(filePath);
             const streamB = fs.createReadStream(filePath);
@@ -94,12 +101,18 @@ export async function importGtfs(config: StaticImportConfig) {
                     });
             });
 
+            let processedSize = 0;
+            streamB.on("data", (chunk) => {
+                processedSize += chunk.length;
+                const progress = processedSize / totalSize;
+                progressBar.update(progress);
+            });
+
             const insertionPromises: Promise<void>[] = [];
             await new Promise<void>((resolve, reject) => {
                 streamB
                     .pipe(parse({ delimiter: ",", from_line: 2 }))
                     .on("data", function (row) {
-
                         insertionPromises.push(
                             (async () => {
                                 await config.insertFunc(
@@ -117,6 +130,7 @@ export async function importGtfs(config: StaticImportConfig) {
                     });
             }); // CSV read promise
             await Promise.all(insertionPromises);
+            progressBar.stop();
         } // for
 
         fs.rmSync(tmpDirPath, { recursive: true, force: true });
