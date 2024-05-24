@@ -8,7 +8,6 @@ export const tripUpdates = pgTable(
     "trip_updates",
     {
         trip_update_id: serial("trip_update_id").primaryKey().notNull(),
-        vehicle_id: varchar("vehicle_id", { length: 255 }),
         trip_id: varchar("trip_id", { length: 255 }).references(() => trips.trip_id),
         trip_start_time: varchar("trip_start_time", { length: 255 }),
         direction_id: integer("direction_id"),
@@ -16,7 +15,6 @@ export const tripUpdates = pgTable(
         start_date: varchar("start_date", { length: 255 }),
         timestamp: varchar("timestamp", { length: 255 }),
         schedule_relationship: varchar("schedule_relationship", { length: 255 }),
-        is_updated: integer("is_updated").default(1).notNull(),
         trip_start_timestamp: timestamp("trip_start_timestamp", { mode: "date", withTimezone: true }),
     },
     (tripUpdates) => ({
