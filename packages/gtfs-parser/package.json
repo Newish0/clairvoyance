@@ -2,7 +2,7 @@
   "name": "gtfs-parser",
   "version": "1.0.0",
   "description": "",
-  "main": "importer.ts",
+  "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,14 +11,15 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "cli-progress": "^3.12.0",
     "csv": "^6.3.9",
     "gtfs-realtime-bindings": "^1.1.1",
     "node-fetch": "^3.3.2",
-    "unzipper": "^0.11.6",
-    "cli-progress": "^3.12.0"
+    "unzipper": "^0.11.6"
   },
   "devDependencies": {
     "@types/cli-progress": "^3.11.5",
-    "@types/unzipper": "^0.10.9"
+    "@types/unzipper": "^0.10.9",
+    "tsx": "^3.12.2"
   }
 }
