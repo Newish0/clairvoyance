@@ -16,6 +16,7 @@ import shapes from "./routes/shapes";
 import rtvp from "./routes/rtvp";
 import transits from "./routes/transits";
 import stoptimes from "./routes/stoptimes";
+import { syncGtfs } from "./services/gtfs-sync";
 
 /** Whether we are ready to serve data */
 let ready = false;
@@ -70,12 +71,12 @@ const criticalInit = async () => {
 
 const nonCriticalInit = async () => {
     // Non critical initialization
-    console.log(chalk.white.bold.bgYellow(`Initializing GTFS`));
-    // TODO
-    console.log(chalk.white.bold.bgCyan(`GTFS Initialization Complete`));
+    // console.log(chalk.white.bold.bgYellow(`Initializing GTFS`));
+    // // TODO
+    // console.log(chalk.white.bold.bgCyan(`GTFS Initialization Complete`));
 
     console.log(chalk.white.bold.bgYellow(`Syncing GTFS`));
-    // TODO
+    await syncGtfs();
     console.log(chalk.white.bold.bgCyan(`GTFS Sync Complete`));
 };
 
