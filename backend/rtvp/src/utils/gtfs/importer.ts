@@ -3,50 +3,124 @@ import zlib from "zlib";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import stream, { Readable } from "stream";
+import fetch from "node-fetch";
+import unzipper from "unzipper";
+import { parse } from "csv";
 
-interface ImportConfig {
-    url: string;
-    realtimeUrls: string[];
+export enum InsertionType {
+    Shapes,
+    StopTimes,
+    Stops,
+    Trips,
+    Routes,
+    TripUpdates,
+    VehiclePositions,
+    CalendarDates,
 }
 
-export function importGtfs(config: ImportConfig) {}
+const STATIC_GTFS_FILE_NAME_TO_TYPE: Record<string, InsertionType> = {
+    "shapes.txt": InsertionType.Shapes,
+    "stop_times.txt": InsertionType.StopTimes,
+    "stops.txt": InsertionType.Stops,
+    "trips.txt": InsertionType.Trips,
+    "routes.txt": InsertionType.Routes,
+    "trip_updates.txt": InsertionType.TripUpdates,
+    "vehicle_positions.txt": InsertionType.VehiclePositions,
+    "calendar_dates.txt": InsertionType.CalendarDates,
+};
+
+type InsertFunction = (type: InsertionType, values: Record<string, unknown>) => void;
+
+interface StaticImportConfig {
+    url: string;
+    insertFunc: InsertFunction;
+}
+
+export async function importGtfs(config: StaticImportConfig) {
+    try {
+        const res = await fetch(config.url);
+
+        if (!res.ok) {
+            throw new Error("Failed to fetch GTFS data");
+        }
+
+        const zipStream = res.body;
+
+        if (!zipStream) {
+            throw new Error("No zip stream found");
+        }
+
+        const tmpDirPath = await extractZipStreamToTmp(zipStream);
+
+        const files = fs.readdirSync(tmpDirPath);
+
+        const insertionPromise: Promise<void>[] = [];
+        for (const fileName of files) {
+            const filePath = path.join(tmpDirPath, fileName);
+            const type = STATIC_GTFS_FILE_NAME_TO_TYPE[fileName];
+
+            if (type !== undefined) {
+                const stream = fs.createReadStream(filePath);
+
+                const keys = await new Promise<string[]>((resolve, reject) => {
+                    stream
+                        .pipe(parse({ delimiter: ",", to_line: 2, from_line: 1 }))
+                        .once("data", function (row) {
+                            resolve(row);
+                        })
+                        .once("error", (err) => {
+                            reject(err);
+                        });
+                });
+
+                insertionPromise.push(
+                    new Promise((resolve, reject) => {
+                        stream
+                            .pipe(parse({ delimiter: ",", from_line: 2 }))
+                            .on("data", function (row) {
+                                config.insertFunc(
+                                    type,
+                                    Object.fromEntries(keys.map((key, i) => [key, row[i]]))
+                                );
+                            })
+                            .once("finish", () => {
+                                resolve();
+                            })
+                            .once("error", (err) => {
+                                reject(err);
+                            });
+                    })
+                );
+            }
+        } // for
+
+        await Promise.all(insertionPromise);
+        fs.rmSync(tmpDirPath, { recursive: true, force: true });
+    } catch (error) {}
+}
 
 /**
  * Extracts a zip file to a temporary directory.
  *
- * @param fileToZip The path to the zip file.
+ * @param zipStream The stream of the zip file.
  * @returns The path to the temporary directory.
  */
-function extractZipToTmp(fileToZip: string) {
-    if (!fs.existsSync(fileToZip)) {
-        throw new Error(`File "${fileToZip}" does not exist`);
-    }
+function extractZipStreamToTmp(zipStream: NodeJS.ReadableStream) {
+    const randomUUID = crypto.randomUUID();
 
-    const pathToTmpDir = path.join(os.tmpdir(), path.parse(fileToZip).name);
-
-    const fileInputStream = fs.createReadStream(fileToZip);
-    const fileOutputStream = fs.createWriteStream(pathToTmpDir);
-
-    const gunzip = zlib.createGunzip();
-
-    // Pipe the streams together. The order matters.
-    fileInputStream.pipe(gunzip).pipe(fileOutputStream);
+    const pathToTmpDir = path.join(os.tmpdir(), randomUUID);
 
     return new Promise<string>((resolve, reject) => {
-        // When the file is fully extracted, resolve with the path to the
-        // temporary directory.
-        fileOutputStream.on("finish", () => {
-            resolve(pathToTmpDir);
-        });
-
-        // If an error occurs while extracting, reject with the error
-        // and delete the temporary directory to ensure we don't leave
-        // behind a partially extracted file.
-        fileOutputStream.on("error", (error) => {
-            fs.rmSync(pathToTmpDir);
-            reject(error);
-        });
+        zipStream
+            .pipe(unzipper.Extract({ path: pathToTmpDir }))
+            .on("close", () => {
+                resolve(pathToTmpDir);
+            })
+            .on("error", (err) => {
+                reject(err);
+            });
     });
 }
 
-function importStaticGtfs(fileToZip: string) {}
+function importStaticGtfs(pathToZip: string) {}
