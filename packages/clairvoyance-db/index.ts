@@ -13,6 +13,7 @@ import * as stoptimesSchema from "./schemas/stop_times";
 import * as tripUpdatesSchema from "./schemas/trip_updates";
 import * as rtvpPolyRegrSchema from "./schemas/rtvp_polyregr";
 import * as stopTimeUpdatesSchema from "./schemas/stop_time_updates";
+import * as CalendarDatesSchema from "./schemas/calendar_dates";
 
 const DEFAULT_CONFIG = {
     host: "localhost",
@@ -34,8 +35,6 @@ console.log(config);
 
 const queryClient = postgres({ ...config });
 
-
-
 const db = drizzle(queryClient, {
     schema: {
         ...tripsSchema,
@@ -47,6 +46,7 @@ const db = drizzle(queryClient, {
         ...tripUpdatesSchema,
         ...rtvpPolyRegrSchema,
         ...stopTimeUpdatesSchema,
+        ...CalendarDatesSchema,
     },
 });
 
