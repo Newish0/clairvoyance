@@ -1,0 +1,21 @@
+{
+  "name": "gtfs-parser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "importer.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv": "^6.3.9",
+    "gtfs-realtime-bindings": "^1.1.1",
+    "node-fetch": "^3.3.2",
+    "unzipper": "^0.11.6"
+  },
+  "devDependencies": {
+    "@types/unzipper": "^0.10.9"
+  }
+}
