@@ -142,6 +142,7 @@ async function updateVehiclePositions(feeds: GtfsRealtimeBindings.transit_realti
                 longitude: entity.vehicle.position?.longitude,
                 bearing: entity.vehicle.position?.bearing,
                 speed: entity.vehicle.position?.speed,
+                stop_id: entity.vehicle.stopId,
                 p_traveled: -1,
                 trip_update_id: -1,
             };

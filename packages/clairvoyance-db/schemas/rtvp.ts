@@ -11,6 +11,7 @@ import {
 import { trips } from "./trips";
 import { relations } from "drizzle-orm";
 import { trip_updates } from "./trip_updates";
+import { stops } from "./stops";
 
 export const realtime_vehicle_position = pgTable(
     "vehicle_position",
@@ -28,6 +29,9 @@ export const realtime_vehicle_position = pgTable(
 
         p_traveled: real("p_traveled"),
 
+        /* Next stop or currently at stop */
+        stop_id: varchar("stop_id", { length: 255 }).references(() => stops.stop_id),
+
         trip_update_id: integer("trip_update_id")
             .references(() => trip_updates.trip_update_id)
             .notNull(),
@@ -43,5 +47,9 @@ export const rtvpRelations = relations(realtime_vehicle_position, ({ one }) => (
     tripUpdate: one(trip_updates, {
         fields: [realtime_vehicle_position.trip_update_id],
         references: [trip_updates.trip_update_id],
+    }),
+    stop: one(stops, {
+        fields: [realtime_vehicle_position.stop_id],
+        references: [stops.stop_id],
     }),
 }));
