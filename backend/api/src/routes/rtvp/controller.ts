@@ -239,7 +239,6 @@ export default function (hono: Hono) {
                     trip_id: rtvpTable.trip_id,
                     vehicle_id: rtvpTable.vehicle_id,
                     timestamp: rtvpTable.timestamp,
-                    is_updated: rtvpTable.is_updated,
                     p_traveled: rtvpTable.p_traveled,
                     distance: sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${rtvpTable.latitude})) * cos(radians(${rtvpTable.longitude}) - radians(${targetLng})) +
