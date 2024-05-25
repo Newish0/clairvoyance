@@ -8,8 +8,18 @@ import { stop_times as stoptimesTable } from "clairvoyance-db/schemas/stop_times
 import { calendar_dates as calendarDatesTable } from "clairvoyance-db/schemas/calendar_dates";
 
 import { importGtfs, InsertionType } from "gtfs-parser";
+import { getSecondsFromHHMMSS } from "@/utils/datetime";
 
 const agencies = ["https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48"];
+
+function parseIntUndefinedForNaN(value: string): number | undefined {
+    const int = parseInt(value);
+    return isNaN(int) ? undefined : int;
+}
+function parseFloatUndefinedForNaN(value: string): number | undefined {
+    const int = parseFloat(value);
+    return isNaN(int) ? undefined : int;
+}
 
 export async function syncGtfs() {
     let numCall = 0;
@@ -49,74 +59,152 @@ export async function syncGtfs() {
                         throw new Error(`Unsupported insertion type: ${type}`);
                 }
 
-                async function insertShapes(data: any) {
+                async function insertShapes(data: Record<string, string>) {
+                    const transformedData = {
+                        shape_id: data.shape_id,
+                        shape_pt_lat: parseFloat(data.shape_pt_lat),
+                        shape_pt_lon: parseFloat(data.shape_pt_lon),
+                        shape_pt_sequence: parseInt(data.shape_pt_sequence),
+                        shape_dist_traveled: parseIntUndefinedForNaN(data.shape_dist_traveled),
+                    };
+
                     await pgDb
                         .insert(shapesTable)
-                        .values(data)
+                        .values(transformedData)
                         .onConflictDoUpdate({
                             target: [shapesTable.shape_id, shapesTable.shape_pt_sequence],
-                            set: data,
+                            set: transformedData,
                         });
                 }
 
-                async function insertStopTimes(data: any) {
+                async function insertStopTimes(data: Record<string, string>) {
+                    const transformedData = {
+                        trip_id: data.trip_id,
+                        arrival_time: data.arrival_time,
+                        departure_time: data.departure_time,
+                        arrival_timestamp: getSecondsFromHHMMSS(data.arrival_time),
+                        departure_timestamp: getSecondsFromHHMMSS(data.departure_time),
+                        stop_id: data.stop_id,
+                        stop_sequence: parseInt(data.stop_sequence),
+                        stop_headsign: data.stop_headsign,
+                        pickup_type: parseIntUndefinedForNaN(data.pickup_type),
+                        drop_off_type: parseIntUndefinedForNaN(data.drop_off_type),
+                        shape_dist_traveled: parseIntUndefinedForNaN(data.shape_dist_traveled),
+                        timepoint: parseIntUndefinedForNaN(data.timepoint),
+
+                        // Ignored `continuous_drop_off`, `continuous_pickup`
+                    };
+
                     await pgDb
                         .insert(stoptimesTable)
-                        .values(data)
+                        .values(transformedData)
                         .onConflictDoUpdate({
                             target: [stoptimesTable.trip_id, stoptimesTable.stop_sequence],
-                            set: data,
+                            set: transformedData,
                         });
                 }
 
-                async function insertStops(data: any) {
+                async function insertStops(data: Record<string, string>) {
+                    const transformedData = {
+                        stop_id: data.stop_id,
+                        stop_name: data.stop_name,
+                        stop_lat: parseFloat(data.stop_lat),
+                        stop_lon: parseFloat(data.stop_lon),
+                        zone_id: data.zone_id,
+                        stop_url: data.stop_url,
+                        location_type: parseIntUndefinedForNaN(data.location_type),
+                        parent_station: data.parent_station,
+                        stop_timezone: data.stop_timezone,
+                        wheelchair_boarding: parseIntUndefinedForNaN(data.wheelchair_boarding),
+                        level_id: data.level_id,
+                        platform_code: data.platform_code,
+                        stop_code: data.stop_code,
+                        stop_desc: data.stop_desc,
+                        tts_stop_name: data.tts_stop_name,
+                    };
+
                     await pgDb
                         .insert(stopsTable)
-                        .values(data)
+                        .values(transformedData)
                         .onConflictDoUpdate({
                             target: [stopsTable.stop_id],
-                            set: data,
+                            set: transformedData,
                         });
                 }
 
-                async function insertTrips(data: any) {
+                async function insertTrips(data: Record<string, string>) {
+                    const transformedData = {
+                        route_id: data.route_id,
+                        service_id: data.service_id,
+                        trip_id: data.trip_id,
+                        trip_headsign: data.trip_headsign,
+                        direction_id: parseIntUndefinedForNaN(data.direction_id),
+                        block_id: data.block_id,
+                        shape_id: data.shape_id,
+                        wheelchair_accessible: parseIntUndefinedForNaN(data.wheelchair_accessible),
+                        bikes_allowed: parseIntUndefinedForNaN(data.bikes_allowed),
+                        trip_short_name: data.trip_short_name,
+                    };
+
                     await pgDb
                         .insert(tripsTable)
-                        .values(data)
+                        .values(transformedData)
                         .onConflictDoUpdate({
                             target: [tripsTable.trip_id],
-                            set: data,
+                            set: transformedData,
                         });
                 }
 
-                async function insertRoutes(data: any) {
+                async function insertRoutes(data: Record<string, string>) {
+                    const transformedData = {
+                        route_id: data.route_id,
+                        route_short_name: data.route_short_name,
+                        route_long_name: data.route_long_name,
+                        route_type: parseInt(data.route_type),
+                        route_color: data.route_color,
+                        route_text_color: data.route_text_color,
+                        route_sort_order: parseIntUndefinedForNaN(data.route_sort_order),
+                        route_url: data.route_url,
+                        route_desc: data.route_desc,
+                        agency_id: data.agency_id,
+                        continuous_drop_off: parseIntUndefinedForNaN(data.continuous_drop_off),
+                        continuous_pickup: parseIntUndefinedForNaN(data.continuous_pickup),
+                        network_id: data.network_id,
+                    };
+
                     await pgDb
                         .insert(routesTable)
-                        .values(data)
+                        .values(transformedData)
                         .onConflictDoUpdate({
                             target: [routesTable.route_id],
-                            set: data,
+                            set: transformedData,
                         });
                 }
 
-                async function insertTripUpdates(data: any) {
+                async function insertTripUpdates(data: Record<string, string>) {
                     // Ignore
                 }
 
-                async function insertVehiclePositions(data: any) {
+                async function insertVehiclePositions(data: Record<string, string>) {
                     // Ignore
                 }
 
-                async function insertCalendarDates(data: any) {
+                async function insertCalendarDates(data: Record<string, string>) {
+                    const transformedData = {
+                        date: parseInt(data.date),
+                        exception_type: parseInt(data.exception_type),
+                        service_id: data.service_id,
+                    };
+
                     await pgDb
                         .insert(calendarDatesTable)
-                        .values(data)
+                        .values(transformedData)
                         .onConflictDoUpdate({
                             target: [calendarDatesTable.service_id, calendarDatesTable.date],
-                            set: data,
+                            set: transformedData,
                         });
                 }
             },
         });
-    } // for 
+    } // for
 }

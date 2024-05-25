@@ -6,6 +6,8 @@ import unzipper from "unzipper";
 import { parse } from "csv";
 import { SingleBar } from "cli-progress";
 
+// TODO: Implement GTFS default values on blank fields
+
 // TODO: Add support for other GTFS data files
 export enum InsertionType {
     Shapes,
@@ -31,7 +33,7 @@ const STATIC_GTFS_FILE_NAME_TO_TYPE: Record<string, InsertionType> = {
 
 type InsertFunction = (
     type: InsertionType,
-    values: Record<string, unknown>
+    values: Record<string, string>
 ) => void | Promise<void>;
 
 interface StaticImportConfig {
