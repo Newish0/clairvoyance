@@ -29,9 +29,9 @@ export const stop_time_updates = pgTable(
         stop_sequence: integer("stop_sequence"),
         arrival_delay: integer("arrival_delay"),
         departure_delay: integer("departure_delay"),
-        departure_timestamp: varchar("departure_timestamp", { length: 255 }),
-        arrival_timestamp: varchar("arrival_timestamp", { length: 255 }),
-        schedule_relationship: varchar("schedule_relationship", { length: 255 }),
+        departure_timestamp: integer("departure_timestamp"),
+        arrival_timestamp: integer("arrival_timestamp"),
+        schedule_relationship: integer("schedule_relationship"),
     },
     (stop_time_updates) => ({
         primaryKey: primaryKey({

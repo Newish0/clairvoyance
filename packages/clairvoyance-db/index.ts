@@ -17,7 +17,7 @@ import * as CalendarDatesSchema from "./schemas/calendar_dates";
 
 const DEFAULT_CONFIG = {
     host: "localhost",
-    port: "32769",
+    port: "32768",
     user: "postgres",
     password: "postgrespw",
     database: "clairvoyance",

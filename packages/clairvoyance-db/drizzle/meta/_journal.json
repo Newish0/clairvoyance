@@ -15,6 +15,27 @@
       "when": 1716590895051,
       "tag": "0001_vengeful_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1716602227091,
+      "tag": "0002_natural_anthem",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1716602801005,
+      "tag": "0003_curved_wiccan",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1716604767628,
+      "tag": "0004_young_gressill",
+      "breakpoints": true
     }
   ]
 }

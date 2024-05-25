@@ -8,11 +8,21 @@ interface Long {
 }
 
 // Function to convert Long to number
-export function longToNumber(long: Long): number {
+function longToNumber(long: Long): number {
     if (long.unsigned) {
         return long.high * Math.pow(2, 32) + (long.low >>> 0);
     } else {
         return long.high * Math.pow(2, 32) + long.low;
+    }
+}
+
+export function timeToNumber(time: number | Long | undefined | null) {
+    if (time === undefined || time === null) {
+        return null;
+    } else if (typeof time === "number") {
+        return time;
+    } else {
+        return longToNumber(time);
     }
 }
 

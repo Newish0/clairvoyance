@@ -1,4 +1,3 @@
-import { RawRTVP } from "@/types/rtvp";
 import { realtime_vehicle_position as rtvpTable } from "clairvoyance-db/schemas/rtvp";
 import { trips as tripsTable } from "clairvoyance-db/schemas/trips";
 import defaultDb from "clairvoyance-db";
@@ -6,7 +5,7 @@ import { eq, gte, and, asc, sql, inArray, lte } from "drizzle-orm";
 import { shapes as shapesTable } from "clairvoyance-db/schemas/shapes";
 import { type PostgresJsDatabase } from "drizzle-orm/postgres-js/driver";
 import regression from "regression";
-import { tripUpdates as tripUpdatesTable } from "clairvoyance-db/schemas/trip_updates";
+import { trip_updates as tripUpdatesTable } from "clairvoyance-db/schemas/trip_updates";
 
 const parseRawRtvpTimestamp = (rawRtvpTimestamp: string | undefined): Date => {
     return rawRtvpTimestamp ? new Date(parseInt(rawRtvpTimestamp) * 1000) : new Date();
@@ -28,206 +27,230 @@ function formatDateToString(date: Date): string {
 }
 
 export const isDuplicate = async (
-    rawRtvp: RawRTVP,
+    rtvp: { timestamp: Date; trip_id: string; vehicle_id: string },
     db: typeof defaultDb = defaultDb
 ): Promise<boolean> => {
-    const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
-
     const rtvps = await db
         .select()
         .from(rtvpTable)
         .where(
             and(
-                eq(rtvpTable.timestamp, timestamp),
-                eq(rtvpTable.trip_id, rawRtvp.trip_id),
-                eq(rtvpTable.vehicle_id, rawRtvp.vehicle_id)
+                eq(rtvpTable.timestamp, rtvp.timestamp),
+                eq(rtvpTable.trip_id, rtvp.trip_id),
+                eq(rtvpTable.vehicle_id, rtvp.vehicle_id)
             )
         );
 
-    if (rtvps.length > 0) return true;
-
-    return false;
+    return rtvps.length > 0;
 };
 
-export const transformRtvp = async (
-    rawRtvp: RawRTVP,
-    tripUpdateMatch: {
-        start_date: string;
-        trip_start_time: string;
-    },
+export async function computeVehiclePTravelled(
+    tripId: string,
+    lat: number,
+    lng: number,
     db: typeof defaultDb = defaultDb
-): Promise<typeof rtvpTable.$inferInsert> => {
-    const { trip_id } = rawRtvp;
-    const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
-
-    const tripUpdate = await defaultDb.query.tripUpdates.findFirst({
-        where: and(
-            eq(tripUpdatesTable.trip_id, trip_id),
-            eq(tripUpdatesTable.start_date, tripUpdateMatch.start_date),
-            lte(tripUpdatesTable.trip_start_time, tripUpdateMatch.trip_start_time)
-        ),
+) {
+    const trip = await db.query.trips.findFirst({
+        where: (t, { eq }) => eq(t.trip_id, tripId),
     });
 
-    if (!tripUpdate) throw new Error(`No trip update found for trip_id: ${trip_id} at this time`);
+    if (!trip || !trip.shape_id) {
+        return null;
+    }
 
-    const trip = (
-        await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, trip_id)).limit(1)
-    ).at(0);
-
-    if (!trip) throw new Error(`No trip found for trip_id: ${trip_id}`);
-
-    if (!trip.shape_id) throw new Error(`No shape_id found for trip_id: ${trip_id}`);
-
-    const shapes = await db
-        .select()
-        .from(shapesTable)
-        .where(eq(shapesTable.shape_id, trip.shape_id));
+    const shapes = await db.query.shapes.findMany({
+        where: (s, { eq }) => eq(s.shape_id, trip.shape_id!),
+        orderBy: (s, { asc }) => asc(s.shape_pt_sequence),
+    });
 
     const lineCoords = shapes
         .toSorted((a, b) => a.shape_pt_sequence - b.shape_pt_sequence)
         .map((shape) => [shape.shape_pt_lon, shape.shape_pt_lat] as [number, number]);
 
-    const p_traveled =
-        rawRtvp.longitude && rawRtvp.latitude
-            ? percentageAlongLine(lineCoords, [rawRtvp.longitude, rawRtvp.latitude])
-            : undefined;
+    const p_traveled = lng && lat ? percentageAlongLine(lineCoords, [lng, lat]) : undefined;
 
-    return {
-        bearing: rawRtvp.bearing,
-        latitude: rawRtvp.latitude,
-        longitude: rawRtvp.longitude,
-        speed: rawRtvp.speed,
-        trip_id,
-        vehicle_id: rawRtvp.vehicle_id,
-        timestamp,
-        is_updated: rawRtvp.is_updated ?? 0,
-        p_traveled,
-        trip_update_id: tripUpdate.trip_update_id,
-        // rel_timestamp,
-    };
-};
+    return p_traveled;
+}
 
-const findElementWithAverageGreaterThanNextThree = (arr: number[]): number | undefined => {
-    // Iterate through the array until the third-to-last element
-    for (let i = 0; i <= arr.length - 4; i++) {
-        // Calculate the sum of the current element and the next 3 elements
-        const sumNextThree = arr[i] + arr[i + 1] + arr[i + 2] + arr[i + 3];
+// export const transformRtvp = async (
+//     rawRtvp: RawRTVP,
+//     tripUpdateMatch: {
+//         start_date: string;
+//         trip_start_time: string;
+//     },
+//     db: typeof defaultDb = defaultDb
+// ): Promise<typeof rtvpTable.$inferInsert> => {
+//     const { trip_id } = rawRtvp;
+//     const timestamp = parseRawRtvpTimestamp(rawRtvp.timestamp);
 
-        // Calculate the average of these elements
-        const averageNextThree = sumNextThree / 4;
+//     const tripUpdate = await defaultDb.query.tripUpdates.findFirst({
+//         where: and(
+//             eq(tripUpdatesTable.trip_id, trip_id),
+//             eq(tripUpdatesTable.start_date, tripUpdateMatch.start_date),
+//             lte(tripUpdatesTable.trip_start_time, tripUpdateMatch.trip_start_time)
+//         ),
+//     });
 
-        // Check if the average is greater than the current element
-        if (averageNextThree > arr[i]) {
-            // Return the index of the first element that satisfies the condition
-            return i;
-        }
-    }
+//     if (!tripUpdate) throw new Error(`No trip update found for trip_id: ${trip_id} at this time`);
 
-    // Return undefined if no such element is found
-    return undefined;
-};
+//     const trip = (
+//         await defaultDb.select().from(tripsTable).where(eq(tripsTable.trip_id, trip_id)).limit(1)
+//     ).at(0);
 
-const tripRootRtvpCache = new Map<string, typeof rtvpTable.$inferSelect | null>();
+//     if (!trip) throw new Error(`No trip found for trip_id: ${trip_id}`);
 
-const findTripRootRtvp = async (
-    rtvp: typeof rtvpTable.$inferSelect,
-    maxIntervalBtwTrips = 12 * 3600 * 1000,
-    nearStartThreshold = [0.005, 0.02],
-    db: typeof defaultDb = defaultDb
-) => {
-    if (!rtvp.trip_id) return null;
+//     if (!trip.shape_id) throw new Error(`No shape_id found for trip_id: ${trip_id}`);
 
-    const key = `${rtvp.trip_id}-${maxIntervalBtwTrips}-${nearStartThreshold.join("-")}`;
+//     const shapes = await db
+//         .select()
+//         .from(shapesTable)
+//         .where(eq(shapesTable.shape_id, trip.shape_id));
 
-    if (tripRootRtvpCache.has(key)) {
-        return tripRootRtvpCache.get(key)!;
-    }
+//     const lineCoords = shapes
+//         .toSorted((a, b) => a.shape_pt_sequence - b.shape_pt_sequence)
+//         .map((shape) => [shape.shape_pt_lon, shape.shape_pt_lat] as [number, number]);
 
-    const tripRootRtvpCandidates = await db
-        .select()
-        .from(rtvpTable)
-        .where(
-            and(
-                eq(rtvpTable.trip_id, rtvp.trip_id),
+//     const p_traveled =
+//         rawRtvp.longitude && rawRtvp.latitude
+//             ? percentageAlongLine(lineCoords, [rawRtvp.longitude, rawRtvp.latitude])
+//             : undefined;
 
-                // Trip must be within time frame
-                gte(rtvpTable.timestamp, new Date(rtvp.timestamp.getTime() - maxIntervalBtwTrips)),
+//     return {
+//         bearing: rawRtvp.bearing,
+//         latitude: rawRtvp.latitude,
+//         longitude: rawRtvp.longitude,
+//         speed: rawRtvp.speed,
+//         trip_id,
+//         vehicle_id: rawRtvp.vehicle_id,
+//         timestamp,
+//         is_updated: rawRtvp.is_updated ?? 0,
+//         p_traveled,
+//         trip_update_id: tripUpdate.trip_update_id,
+//         // rel_timestamp,
+//     };
+// };
 
-                // Ignore trips near start of route
-                gte(rtvpTable.p_traveled, nearStartThreshold[0]),
-                lte(rtvpTable.p_traveled, nearStartThreshold[1])
-            )
-        )
-        .orderBy(asc(rtvpTable.timestamp));
+// const findElementWithAverageGreaterThanNextThree = (arr: number[]): number | undefined => {
+//     // Iterate through the array until the third-to-last element
+//     for (let i = 0; i <= arr.length - 4; i++) {
+//         // Calculate the sum of the current element and the next 3 elements
+//         const sumNextThree = arr[i] + arr[i + 1] + arr[i + 2] + arr[i + 3];
 
-    const index = findElementWithAverageGreaterThanNextThree(
-        tripRootRtvpCandidates.map((rtvp) => rtvp.p_traveled ?? 0)
-    );
+//         // Calculate the average of these elements
+//         const averageNextThree = sumNextThree / 4;
 
-    if (index !== undefined) {
-        const tripRootRtvp = tripRootRtvpCandidates.at(index) ?? null;
-        tripRootRtvpCache.set(key, tripRootRtvp);
-        return tripRootRtvp;
-    } else {
-        tripRootRtvpCache.set(key, null);
-        return null;
-    }
-};
+//         // Check if the average is greater than the current element
+//         if (averageNextThree > arr[i]) {
+//             // Return the index of the first element that satisfies the condition
+//             return i;
+//         }
+//     }
 
-/**
- * Computes the polynomial coefficients for a given route and direction.
- *
- * @param routeId - The ID of the route.
- * @param directionId - The ID of the direction.
- * @param db - The Drizzle Client instance.
- * @returns The polynomial coefficients for the route and direction i.e. `c[i] * x^(n - i) ...`.
- */
-export const computePredictionPolynomial = async (
-    routeId: string,
-    directionId: number,
-    db: typeof defaultDb = defaultDb
-) => {
-    // Get the trip IDs for the given route and direction.
-    const tripIds = (
-        await db
-            .select({ trip_id: tripsTable.trip_id })
-            .from(tripsTable)
-            .where(and(eq(tripsTable.route_id, routeId), eq(tripsTable.direction_id, directionId)))
-    ).map(({ trip_id }) => trip_id);
+//     // Return undefined if no such element is found
+//     return undefined;
+// };
 
-    if (tripIds.length === 0) return null;
+// const tripRootRtvpCache = new Map<string, typeof rtvpTable.$inferSelect | null>();
 
-    // Get the realtime vehicle positions (RTVPs) for the trip IDs.
-    const tripRtvpResults = await db.query.realtime_vehicle_position.findMany({
-        where: (rtvp, { inArray }) => inArray(rtvp.trip_id, tripIds),
-        with: {
-            tripUpdate: true,
-        },
-    });
+// const findTripRootRtvp = async (
+//     rtvp: typeof rtvpTable.$inferSelect,
+//     maxIntervalBtwTrips = 12 * 3600 * 1000,
+//     nearStartThreshold = [0.005, 0.02],
+//     db: typeof defaultDb = defaultDb
+// ) => {
+//     if (!rtvp.trip_id) return null;
 
-    // Add the elapsed time to each RTVP.
-    const tripRtvpWithElapsed: (typeof rtvpTable.$inferSelect & {
-        elapsed: number | null;
-    })[] = tripRtvpResults
-        .map((rtvp) => {
-            let elapsed: number | null = null;
+//     const key = `${rtvp.trip_id}-${maxIntervalBtwTrips}-${nearStartThreshold.join("-")}`;
 
-            if (rtvp.tripUpdate.trip_start_timestamp) {
-                elapsed = Math.round(
-                    (rtvp.timestamp.getTime() - rtvp.tripUpdate.trip_start_timestamp?.getTime()) /
-                        1000
-                );
-            }
+//     if (tripRootRtvpCache.has(key)) {
+//         return tripRootRtvpCache.get(key)!;
+//     }
 
-            return {
-                ...rtvp,
-                elapsed,
-            };
-        })
-        .filter((rtvp) => rtvp.elapsed !== null);
+//     const tripRootRtvpCandidates = await db
+//         .select()
+//         .from(rtvpTable)
+//         .where(
+//             and(
+//                 eq(rtvpTable.trip_id, rtvp.trip_id),
 
-    return polynomialRegression(tripRtvpWithElapsed, "p_traveled", "elapsed",6);
-};
+//                 // Trip must be within time frame
+//                 gte(rtvpTable.timestamp, new Date(rtvp.timestamp.getTime() - maxIntervalBtwTrips)),
+
+//                 // Ignore trips near start of route
+//                 gte(rtvpTable.p_traveled, nearStartThreshold[0]),
+//                 lte(rtvpTable.p_traveled, nearStartThreshold[1])
+//             )
+//         )
+//         .orderBy(asc(rtvpTable.timestamp));
+
+//     const index = findElementWithAverageGreaterThanNextThree(
+//         tripRootRtvpCandidates.map((rtvp) => rtvp.p_traveled ?? 0)
+//     );
+
+//     if (index !== undefined) {
+//         const tripRootRtvp = tripRootRtvpCandidates.at(index) ?? null;
+//         tripRootRtvpCache.set(key, tripRootRtvp);
+//         return tripRootRtvp;
+//     } else {
+//         tripRootRtvpCache.set(key, null);
+//         return null;
+//     }
+// };
+
+// /**
+//  * Computes the polynomial coefficients for a given route and direction.
+//  *
+//  * @param routeId - The ID of the route.
+//  * @param directionId - The ID of the direction.
+//  * @param db - The Drizzle Client instance.
+//  * @returns The polynomial coefficients for the route and direction i.e. `c[i] * x^(n - i) ...`.
+//  */
+// export const computePredictionPolynomial = async (
+//     routeId: string,
+//     directionId: number,
+//     db: typeof defaultDb = defaultDb
+// ) => {
+//     // Get the trip IDs for the given route and direction.
+//     const tripIds = (
+//         await db
+//             .select({ trip_id: tripsTable.trip_id })
+//             .from(tripsTable)
+//             .where(and(eq(tripsTable.route_id, routeId), eq(tripsTable.direction_id, directionId)))
+//     ).map(({ trip_id }) => trip_id);
+
+//     if (tripIds.length === 0) return null;
+
+//     // Get the realtime vehicle positions (RTVPs) for the trip IDs.
+//     const tripRtvpResults = await db.query.realtime_vehicle_position.findMany({
+//         where: (rtvp, { inArray }) => inArray(rtvp.trip_id, tripIds),
+//         with: {
+//             tripUpdate: true,
+//         },
+//     });
+
+//     // Add the elapsed time to each RTVP.
+//     const tripRtvpWithElapsed: (typeof rtvpTable.$inferSelect & {
+//         elapsed: number | null;
+//     })[] = tripRtvpResults
+//         .map((rtvp) => {
+//             let elapsed: number | null = null;
+
+//             if (rtvp.tripUpdate.trip_start_timestamp) {
+//                 elapsed = Math.round(
+//                     (rtvp.timestamp.getTime() - rtvp.tripUpdate.trip_start_timestamp?.getTime()) /
+//                         1000
+//                 );
+//             }
+
+//             return {
+//                 ...rtvp,
+//                 elapsed,
+//             };
+//         })
+//         .filter((rtvp) => rtvp.elapsed !== null);
+
+//     return polynomialRegression(tripRtvpWithElapsed, "p_traveled", "elapsed",6);
+// };
 
 /**
  *
