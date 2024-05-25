@@ -5,6 +5,7 @@ import { trip_updates as tripUpdatesTable } from "clairvoyance-db/schemas/trip_u
 
 import { importGtfsRt, timeToNumber } from "gtfs-parser";
 import { computeVehiclePTravelled, isDuplicate } from "./utils/rtvp";
+import type GtfsRealtimeBindings from "gtfs-realtime-bindings";
 
 const REALTIME_UPDATE_INTERVAL = 15 * 1000; // 15 seconds
 const PREDICTION_COEFF_UPDATE_INTERVAL = 60 * 1000; // 60 seconds
@@ -29,7 +30,12 @@ async function updateGtfsRealtime() {
     // 3. Import vehicle positions
 
     console.log("Importing", feeds.length, "feeds");
+    await updateStopTimeUpdates(feeds);
+    await updateTripUpdates(feeds);
+    await updateVehiclePositions(feeds);
+}
 
+async function updateStopTimeUpdates(feeds: GtfsRealtimeBindings.transit_realtime.FeedMessage[]) {
     for (const feed of feeds) {
         for (const entity of feed.entity) {
             if (!entity.tripUpdate?.stopTimeUpdate) {
@@ -65,7 +71,9 @@ async function updateGtfsRealtime() {
             }
         } // for
     } // for
+}
 
+async function updateTripUpdates(feeds: GtfsRealtimeBindings.transit_realtime.FeedMessage[]) {
     for (const feed of feeds) {
         for (const entity of feed.entity) {
             if (!entity.tripUpdate) {
@@ -117,7 +125,9 @@ async function updateGtfsRealtime() {
             }
         } // for
     } // for
+}
 
+async function updateVehiclePositions(feeds: GtfsRealtimeBindings.transit_realtime.FeedMessage[]) {
     for (const feed of feeds) {
         for (const entity of feed.entity) {
             if (!entity.vehicle) {
@@ -187,12 +197,6 @@ async function updateGtfsRealtime() {
         } // for
     } // for
 }
-
-async function updateStopTimeUpdates() {}
-
-async function updateTripUpdates() {}
-
-async function updateVehiclePositions() {}
 
 setInterval(performUpdate, REALTIME_UPDATE_INTERVAL);
 performUpdate();
