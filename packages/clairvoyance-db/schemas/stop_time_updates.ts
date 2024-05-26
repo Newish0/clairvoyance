@@ -25,17 +25,13 @@ export const stop_time_updates = pgTable(
     "stop_time_updates",
     {
         trip_id: varchar("trip_id", { length: 255 }),
-        trip_start_time: varchar("trip_start_time", { length: 255 }),
-        direction_id: integer("direction_id"),
-        route_id: varchar("route_id", { length: 255 }),
         stop_id: varchar("stop_id", { length: 255 }),
         stop_sequence: integer("stop_sequence"),
         arrival_delay: integer("arrival_delay"),
         departure_delay: integer("departure_delay"),
-        departure_timestamp: varchar("departure_timestamp", { length: 255 }),
-        arrival_timestamp: varchar("arrival_timestamp", { length: 255 }),
-        schedule_relationship: varchar("schedule_relationship", { length: 255 }),
-        is_updated: integer("is_updated").default(1).notNull(),
+        departure_timestamp: integer("departure_timestamp"),
+        arrival_timestamp: integer("arrival_timestamp"),
+        schedule_relationship: integer("schedule_relationship"),
     },
     (stop_time_updates) => ({
         primaryKey: primaryKey({

@@ -19,7 +19,7 @@ export function formatHHMMSSFromSeconds(seconds: number): string {
     );
 }
 
-export function secondsUntilTime(secSinceMidnight: number): number {
+export function secondsUntilTime(secSinceMidnight: number, loopAroundThreshold = 0): number {
     // Normalize the given seconds to within one day
     const normalizedGivenSeconds = secSinceMidnight % SECONDS_IN_A_DAY;
 
@@ -30,7 +30,7 @@ export function secondsUntilTime(secSinceMidnight: number): number {
     let secondsUntil = normalizedGivenSeconds - curSecondsSinceMidnight;
 
     // If the result is negative, adjust for the next day
-    if (secondsUntil < 0) {
+    if (secondsUntil < loopAroundThreshold) {
         secondsUntil += SECONDS_IN_A_DAY; // 24 * 60 * 60
     }
 

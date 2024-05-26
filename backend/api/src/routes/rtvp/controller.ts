@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@/services/gtfs-init";
-import pgDb from "@/db";
+import pgDb from "clairvoyance-db";
 import { sql, and, gte, desc, lte } from "drizzle-orm";
 
-import { realtime_vehicle_position as rtvpTable } from "@/db/schemas/rtvp";
+import { realtime_vehicle_position as rtvpTable } from "clairvoyance-db/schemas/rtvp";
 
 export default function (hono: Hono) {
     hono.get("/trip/:trip_id", async (c) => {
@@ -240,7 +239,6 @@ export default function (hono: Hono) {
                     trip_id: rtvpTable.trip_id,
                     vehicle_id: rtvpTable.vehicle_id,
                     timestamp: rtvpTable.timestamp,
-                    is_updated: rtvpTable.is_updated,
                     p_traveled: rtvpTable.p_traveled,
                     distance: sql<number>`(6371 * acos(
                         cos(radians(${targetLat})) * cos(radians(${rtvpTable.latitude})) * cos(radians(${rtvpTable.longitude}) - radians(${targetLng})) +

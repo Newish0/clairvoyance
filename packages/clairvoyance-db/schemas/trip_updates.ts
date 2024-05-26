@@ -1,23 +1,32 @@
-import { integer, pgTable, primaryKey, serial, timestamp, unique, varchar } from "drizzle-orm/pg-core";
+import {
+    integer,
+    pgTable,
+    primaryKey,
+    serial,
+    timestamp,
+    unique,
+    varchar,
+} from "drizzle-orm/pg-core";
 import { trips } from "./trips";
 import { routes } from "./routes";
 import { realtime_vehicle_position as rtvpTable } from "./rtvp";
 import { relations } from "drizzle-orm/relations";
 
-export const tripUpdates = pgTable(
+export const trip_updates = pgTable(
     "trip_updates",
     {
         trip_update_id: serial("trip_update_id").primaryKey().notNull(),
-        vehicle_id: varchar("vehicle_id", { length: 255 }),
         trip_id: varchar("trip_id", { length: 255 }).references(() => trips.trip_id),
         trip_start_time: varchar("trip_start_time", { length: 255 }),
         direction_id: integer("direction_id"),
         route_id: varchar("route_id", { length: 255 }).references(() => routes.route_id),
         start_date: varchar("start_date", { length: 255 }),
-        timestamp: varchar("timestamp", { length: 255 }),
-        schedule_relationship: varchar("schedule_relationship", { length: 255 }),
-        is_updated: integer("is_updated").default(1).notNull(),
-        trip_start_timestamp: timestamp("trip_start_timestamp", { mode: "date", withTimezone: true }),
+        timestamp: integer("timestamp"),
+        schedule_relationship: integer("schedule_relationship"),
+        trip_start_timestamp: timestamp("trip_start_timestamp", {
+            mode: "date",
+            withTimezone: true,
+        }),
     },
     (tripUpdates) => ({
         unq: unique()
@@ -26,13 +35,13 @@ export const tripUpdates = pgTable(
     })
 );
 
-export const tripUpdatesRelation = relations(tripUpdates, ({ one, many }) => ({
+export const tripUpdatesRelation = relations(trip_updates, ({ one, many }) => ({
     trip: one(trips, {
-        fields: [tripUpdates.trip_id],
+        fields: [trip_updates.trip_id],
         references: [trips.trip_id],
     }),
     route: one(routes, {
-        fields: [tripUpdates.route_id],
+        fields: [trip_updates.route_id],
         references: [routes.route_id],
     }),
     rtvps: many(rtvpTable),

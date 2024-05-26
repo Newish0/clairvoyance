@@ -1,19 +1,18 @@
 import { useRoute } from "@/hooks/transit/route";
 import { useStopTimesByRoute, useStopTimesByTrip } from "@/hooks/transit/stoptimes";
-import {
-    SECONDS_IN_A_DAY,
-    formatHHMMSSFromSeconds,
-    getSecondsSinceStartOfDay,
-    secondsUntilTime,
-} from "@/utils/datetime";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { Separator } from "@radix-ui/react-separator";
-import { useEffect, useState } from "react";
-import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
-import { Card, CardContent } from "../ui/card";
-import TransitTimeline from "../transittimeline";
-import type { StopTimeByRouteData } from "@/services/api/transit";
 import { cn } from "@/lib/utils";
+import type { StopTimeByRouteData } from "@/services/api/transit";
+import {
+    formatHHMMSSFromSeconds, secondsUntilTime
+} from "@/utils/datetime";
+import { IconCircleX } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
+import TransitTimeline from "../transittimeline";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
+
+
 interface Props {
     routeId: string;
     stopId: string;
@@ -32,8 +31,11 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
             rtCountDownMin:
                 st.stop_time_update?.arrival_delay !== null &&
                 st.stop_time_update?.arrival_delay !== undefined
-                    ? Math.round(secondsUntilTime(st.arrival_timestamp) / 60) +
-                      st.stop_time_update?.arrival_delay
+                    ? Math.round(
+                          secondsUntilTime(
+                              st.arrival_timestamp + st.stop_time_update?.arrival_delay
+                          ) / 60
+                      )
                     : null,
         }))
         .toSorted((a, b) => {
@@ -56,13 +58,20 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
 
     return (
         <div className="flex flex-col overflow-x-hidden p-2 gap-2">
-            <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-semibold">{route?.route_short_name}</h1>
-                <h3>
-                    {selectedStopTime
-                        ? selectedStopTime?.trip.trip_headsign
-                        : route?.route_long_name}
-                </h3>
+            <div className="flex justify-between">
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-semibold">{route?.route_short_name}</h1>
+                    <h3>
+                        {selectedStopTime
+                            ? selectedStopTime?.trip.trip_headsign
+                            : route?.route_long_name}
+                    </h3>
+                </div>
+                <a href="./">
+                    <Button variant="ghost" size="icon">
+                        <IconCircleX className="" />
+                    </Button>
+                </a>
             </div>
 
             <Carousel
@@ -97,7 +106,15 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
                                         </div>
                                     )}
 
-                                    <div>{formatHHMMSSFromSeconds(stopTime.arrival_timestamp)}</div>
+                                    <div>
+                                        {stopTime.stop_time_update?.arrival_timestamp
+                                            ? new Date(
+                                                  parseInt(
+                                                      stopTime.stop_time_update.arrival_timestamp
+                                                  ) * 1000
+                                              ).toLocaleTimeString()
+                                            : formatHHMMSSFromSeconds(stopTime.arrival_timestamp)}
+                                    </div>
                                     {/* <pre>
                                                 {
                                                     JSON.stringify(stopTime, null, 2)

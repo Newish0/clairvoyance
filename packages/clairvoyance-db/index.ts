@@ -13,16 +13,28 @@ import * as stoptimesSchema from "./schemas/stop_times";
 import * as tripUpdatesSchema from "./schemas/trip_updates";
 import * as rtvpPolyRegrSchema from "./schemas/rtvp_polyregr";
 import * as stopTimeUpdatesSchema from "./schemas/stop_time_updates";
+import * as CalendarDatesSchema from "./schemas/calendar_dates";
 
-const config = {
-    host: process.env.DB_HOST!,
-    port: parseInt(process.env.DB_PORT!),
-    user: process.env.DB_USER!,
-    password: process.env.DB_PASSWORD!,
-    database: process.env.DB_NAME!,
+const DEFAULT_CONFIG = {
+    host: "localhost",
+    port: "32768",
+    user: "postgres",
+    password: "postgrespw",
+    database: "clairvoyance",
 };
 
+const config = {
+    host: process.env.DB_HOST ?? DEFAULT_CONFIG.host,
+    port: parseInt(process.env.DB_PORT ?? DEFAULT_CONFIG.port),
+    user: process.env.DB_USER ?? DEFAULT_CONFIG.user,
+    password: process.env.DB_PASSWORD ?? DEFAULT_CONFIG.password,
+    database: process.env.DB_NAME ?? DEFAULT_CONFIG.database,
+};
+
+console.log(config);
+
 const queryClient = postgres({ ...config });
+
 const db = drizzle(queryClient, {
     schema: {
         ...tripsSchema,
@@ -33,7 +45,8 @@ const db = drizzle(queryClient, {
         ...stoptimesSchema,
         ...tripUpdatesSchema,
         ...rtvpPolyRegrSchema,
-        ...stopTimeUpdatesSchema
+        ...stopTimeUpdatesSchema,
+        ...CalendarDatesSchema,
     },
 });
 
@@ -45,5 +58,7 @@ export const migrateDb = async () => {
         max: 1,
     });
 
-    await migrate(drizzle(migrationClient), { migrationsFolder: path.resolve("drizzle") });
+    await migrate(drizzle(migrationClient), {
+        migrationsFolder: path.resolve(import.meta.dirname, "drizzle"),
+    });
 };

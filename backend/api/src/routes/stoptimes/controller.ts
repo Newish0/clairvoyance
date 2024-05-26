@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@/services/gtfs-init";
-import { getTrips } from "gtfs";
-import pgDb from "@/db";
+import pgDb from "clairvoyance-db";
 
 export default function (hono: Hono) {
     // hono.get("/", async (c) => {
