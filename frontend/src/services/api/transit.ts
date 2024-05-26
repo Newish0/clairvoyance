@@ -265,12 +265,28 @@ export type StopTimeByRouteData = {
         schedule_relationship: string | null;
         is_updated: number;
     } | null;
+    calender_date: {
+        service_id: string;
+        date: number;
+        exception_type: number;
+    } | null;
 };
 
-export const getStopTimesByRoute = async (routeId: string, stopId?: string | number) => {
+/**
+ *
+ * @param routeId
+ * @param stopId
+ * @param date in the formate of YYYYMMDD (i.e. 20240517)
+ * @returns
+ */
+export const getStopTimesByRoute = async (
+    routeId: string,
+    stopId?: string | number,
+    date?: string
+) => {
     const res: AxiosResponse<StopTimeByRouteData[], unknown> = await axios.get(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/stoptimes/route/${routeId}`,
-        { params: { stop_id: stopId } }
+        { params: { stop_id: stopId, date } }
     );
     return res.data;
 };

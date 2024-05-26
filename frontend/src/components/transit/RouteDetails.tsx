@@ -3,7 +3,10 @@ import { useStopTimesByRoute, useStopTimesByTrip } from "@/hooks/transit/stoptim
 import { cn } from "@/lib/utils";
 import type { StopTimeByRouteData } from "@/services/api/transit";
 import {
-    formatHHMMSSFromSeconds, secondsUntilTime
+    formatDateAsYYYYMMDD,
+    formatHHMMSSFromSeconds,
+    getSecondsSinceStartOfDay,
+    secondsUntilTime,
 } from "@/utils/datetime";
 import { IconCircleX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
@@ -11,7 +14,6 @@ import TransitTimeline from "../transittimeline";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
-
 
 interface Props {
     routeId: string;
@@ -22,10 +24,21 @@ interface Props {
 const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDirectionId = 0 }) => {
     const { data: route } = useRoute(routeId);
 
-    const { data: stopTimes } = useStopTimesByRoute(routeId, stopId);
+    const { data: stopTimes } = useStopTimesByRoute(
+        routeId,
+        stopId,
+        formatDateAsYYYYMMDD(new Date())
+    );
 
     const upcomingStopTimes = stopTimes
-        ?.map((st) => ({
+        ?.filter(
+            (st) =>
+                (st.calender_date?.date === parseInt(formatDateAsYYYYMMDD(new Date())) &&
+                    st.arrival_timestamp > getSecondsSinceStartOfDay()) ||
+                st.calender_date?.date ===
+                    parseInt(formatDateAsYYYYMMDD(new Date(Date.now() - 24 * 60 * 60 * 1000)))
+        )
+        .map((st) => ({
             ...st,
             staticCountDownMin: Math.round(secondsUntilTime(st.arrival_timestamp) / 60),
             rtCountDownMin:
@@ -84,7 +97,7 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
                 <CarouselContent>
                     {upcomingStopTimes?.map((stopTime) => (
                         <CarouselItem
-                            key={`${stopTime.trip_id}-${stopTime.stop_sequence}`}
+                            key={`${stopTime.calender_date?.date}-${stopTime.trip_id}-${stopTime.stop_sequence}`}
                             className="basis-1/3 sm:basis-1/4 max-w-56"
                             onClick={() => setSelectedStopTime(stopTime)}
                         >

@@ -2,11 +2,11 @@ import { getStopTimesByRoute, getStopTimesByTrip } from "@/services/api/transit"
 import { globalQueryClient } from "@/services/tanstack";
 import { useQuery } from "@tanstack/react-query";
 
-export function useStopTimesByRoute(routeId: string, stopId?: string | number) {
+export function useStopTimesByRoute(routeId: string, stopId?: string | number, startDate?: string) {
     const query = useQuery(
         {
             queryKey: ["transit-stoptimes", routeId, stopId],
-            queryFn: () => getStopTimesByRoute(routeId, stopId),
+            queryFn: () => getStopTimesByRoute(routeId, stopId, startDate), // TODO implement pagination
         },
         globalQueryClient
     );
