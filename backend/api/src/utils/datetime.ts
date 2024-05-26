@@ -13,4 +13,17 @@ export function getSecondsSinceStartOfDay(asInt = false): number {
     return asInt ? Math.floor(secondsSinceMidnight) : secondsSinceMidnight;
 }
 
+export function getSecondsSinceStartOfDate(date: Date, asInt = false): number {
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const secondsSinceMidnight = (date.getTime() - startOfDay.getTime()) / 1000;
+    return asInt ? Math.floor(secondsSinceMidnight) : secondsSinceMidnight;
+}
+
+export function formatDateAsYYYYMMDD(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}${month}${day}`;
+}
+
 export const SECONDS_IN_A_DAY = 86400;

@@ -45,8 +45,8 @@ export type NearbyTransit = {
                 stop_sequence: number | null;
                 arrival_delay: number | null;
                 departure_delay: number | null;
-                departure_timestamp: string | null;
-                arrival_timestamp: string | null;
+                departure_timestamp: number | null;
+                arrival_timestamp: number | null;
                 schedule_relationship: string | null;
                 is_updated: number;
             } | null;
@@ -71,11 +71,12 @@ export type NearbyTransit = {
 export const getNearbyTransits = async (
     lat: number,
     lng: number,
-    radius: number
+    radius: number,
+    time = new Date()
 ): Promise<NearbyTransit[]> => {
     const { data } = await axios.get<NearbyTransit[]>(
         `${import.meta.env.PUBLIC_GTFS_API_URL}/transits/nearby`,
-        { params: { lat, lng, radius } }
+        { params: { lat, lng, radius, time } }
     );
 
     return data;
