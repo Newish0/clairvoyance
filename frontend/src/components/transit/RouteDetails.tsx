@@ -32,8 +32,11 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
             rtCountDownMin:
                 st.stop_time_update?.arrival_delay !== null &&
                 st.stop_time_update?.arrival_delay !== undefined
-                    ? Math.round(secondsUntilTime(st.arrival_timestamp) / 60) +
-                      st.stop_time_update?.arrival_delay
+                    ? Math.round(
+                          secondsUntilTime(
+                              st.arrival_timestamp + st.stop_time_update?.arrival_delay
+                          ) / 60
+                      )
                     : null,
         }))
         .toSorted((a, b) => {
@@ -97,7 +100,15 @@ const RouteDetails: React.FC<Props> = ({ routeId, stopId, direction: defaultDire
                                         </div>
                                     )}
 
-                                    <div>{formatHHMMSSFromSeconds(stopTime.arrival_timestamp)}</div>
+                                    <div>
+                                        {stopTime.stop_time_update?.arrival_timestamp
+                                            ? new Date(
+                                                  parseInt(
+                                                      stopTime.stop_time_update.arrival_timestamp
+                                                  ) * 1000
+                                              ).toLocaleTimeString()
+                                            : formatHHMMSSFromSeconds(stopTime.arrival_timestamp)}
+                                    </div>
                                     {/* <pre>
                                                 {
                                                     JSON.stringify(stopTime, null, 2)

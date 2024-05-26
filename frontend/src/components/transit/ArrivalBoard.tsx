@@ -27,7 +27,8 @@ const DirectionArrow = ({ direction }: { direction: number }) => {
 
 const TripItem = ({
     tripId,
-    arrivalTimestamp,
+    staticArrivalTime,
+    updatedArrivalTimestamp,
     routeId,
     routeShortName,
     tripHeadSign,
@@ -36,7 +37,8 @@ const TripItem = ({
     stopId,
 }: {
     tripId: string;
-    arrivalTimestamp: number;
+    staticArrivalTime: number; // Seconds since start of day
+    updatedArrivalTimestamp?: number; // Unix timestamp in seconds 
     routeId: string;
     routeShortName: string;
     tripHeadSign: string;
@@ -44,14 +46,19 @@ const TripItem = ({
     arrivalDelaySec?: number | null;
     stopId: string;
 }) => {
-    const staticEtaSec = secondsUntilTime(arrivalTimestamp);
-    const staticEtaMin = Math.round(staticEtaSec / 60);
+    let etaSec =
+        updatedArrivalTimestamp !== undefined
+            ? (new Date(updatedArrivalTimestamp * 1000).getTime() - Date.now()) / 1000
+            : secondsUntilTime(staticArrivalTime);
+    let etaMin = Math.round(etaSec / 60);
 
-    // const { data } = useRtvpEta(tripId, stopId);
+    // // const { data } = useRtvpEta(tripId, stopId);
 
-    // const rtvpEtaMin = (data && Math.round(data.eta / 60)) ?? null;
-    const rtvpEtaMin =
-        (arrivalDelaySec && Math.round((arrivalDelaySec + staticEtaSec) / 60)) ?? null;
+    // // const rtvpEtaMin = (data && Math.round(data.eta / 60)) ?? null;
+    // const rtvpEtaMin =
+    //     (arrivalDelaySec && Math.round((arrivalDelaySec + staticEtaSec) / 60)) ?? null;
+
+    const hasRtvpEta = arrivalDelaySec !== null && arrivalDelaySec !== undefined;
 
     return (
         <CarouselItem className="flex-grow h-full">
@@ -68,20 +75,17 @@ const TripItem = ({
                             </p>
                         </div>
                         <div className="flex items-center justify-end">
-                            {rtvpEtaMin === null && (
-                                <h3 className="text-muted-foreground text-xl font-semibold mb-2">
-                                    {staticEtaMin} min
-                                </h3>
-                            )}
-                            {rtvpEtaMin !== null && (
+                            {hasRtvpEta ? (
                                 <div className="flex items-center flex-col">
-                                    <h3 className="text-xl font-semibold mb-2">{rtvpEtaMin} min</h3>
+                                    <h3 className="text-xl font-semibold mb-2">{etaMin} min</h3>
                                     <small className="text-muted-foreground">
-                                        {staticEtaMin} min{" "}
-                                        {rtvpEtaMin - staticEtaMin > 0 ? "+" : ""}{" "}
-                                        {rtvpEtaMin - staticEtaMin}
+                                        delay {arrivalDelaySec} sec
                                     </small>
                                 </div>
+                            ) : (
+                                <h3 className="text-muted-foreground text-xl font-semibold mb-2">
+                                    {etaMin} min
+                                </h3>
                             )}
                         </div>
                     </div>
@@ -100,7 +104,10 @@ const BoardRow = ({ route_id, route_short_name, trips }: NearbyTransit) => {
                 {trips.map((trip) => (
                     <TripItem
                         key={trip.trip_id}
-                        arrivalTimestamp={trip.stop_time.arrival_timestamp}
+                        staticArrivalTime={trip.stop_time.arrival_timestamp}
+                        updatedArrivalTimestamp={
+                            trip.stop_time.stop_time_update?.arrival_timestamp ?? undefined
+                        }
                         routeId={trip.route_id}
                         routeShortName={route_short_name}
                         tripHeadSign={trip.trip_headsign}
