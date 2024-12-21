@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
-from database import Base
+from app.core.database import Base
 
 class Agency(Base):
     __tablename__ = "agencies"

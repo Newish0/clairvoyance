@@ -4,24 +4,23 @@ import pandas as pd
 from io import BytesIO
 from zipfile import ZipFile
 from sqlalchemy.orm import Session
-import models
 from google.transit import gtfs_realtime_pb2
-import time
 from datetime import datetime
 import logging
+
+from app.models.models import Agency, Route, Stop, Trip, StopTime, RealtimeUpdate
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-def load_agencies(db: Session):
+def load_agencies(db: Session, agencies_file: str):
     """Load agencies from agencies.json into the database"""
     try:
-        with open("agencies.json", "r") as f:
+        with open(agencies_file, "r") as f:
             agencies_data = json.load(f)
 
         for agency in agencies_data["agencies"]:
-            db_agency = models.Agency(
+            db_agency = Agency(
                 id=agency["id"],
                 name=agency["name"],
                 static_gtfs_url=agency["static_gtfs_url"],
@@ -31,18 +30,17 @@ def load_agencies(db: Session):
         db.commit()
         logger.info("Agencies loaded successfully")
     except FileNotFoundError:
-        raise FileNotFoundError("agencies.json file not found")
+        raise FileNotFoundError(f"Agencies file not found: {agencies_file}")
     except json.JSONDecodeError:
-        raise ValueError("Invalid JSON format in agencies.json")
+        raise ValueError(f"Invalid JSON format in {agencies_file}")
     except Exception as e:
         db.rollback()
         raise Exception(f"Error loading agencies: {str(e)}")
 
-
 def download_and_load_static_gtfs(db: Session, agency_id: str):
     """Download and load static GTFS data for an agency"""
     try:
-        agency = db.query(models.Agency).filter(models.Agency.id == agency_id).first()
+        agency = db.query(Agency).filter(Agency.id == agency_id).first()
         if not agency:
             raise Exception(f"Agency {agency_id} not found")
 
@@ -56,13 +54,12 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
         for file in required_files:
             if file not in gtfs_zip.namelist():
                 raise FileNotFoundError(f"Required file {file} not found in GTFS zip")
-            
 
         # Load routes
         logger.info("Loading routes")
         routes_df = pd.read_csv(gtfs_zip.open("routes.txt"))
         for _, route in routes_df.iterrows():
-            db_route = models.Route(
+            db_route = Route(
                 id=str(route["route_id"]),  # Ensure string type
                 agency_id=agency_id,
                 route_short_name=str(route.get("route_short_name", "")),
@@ -70,16 +67,13 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
                 route_type=int(route["route_type"]),
             )
             db.merge(db_route)
-        
-        
 
         # Load stops
         logger.info("Loading stops")
         stops_df = pd.read_csv(gtfs_zip.open("stops.txt"))
         for _, stop in stops_df.iterrows():
             try:
-      
-                db_stop = models.Stop(
+                db_stop = Stop(
                     id=str(stop["stop_id"]),
                     name=str(stop["stop_name"]),
                     lat=float(stop["stop_lat"]),
@@ -89,12 +83,12 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
             except ValueError as e:
                 logger.error(f"Error processing stop {stop['stop_id']}: {str(e)}")
                 continue
-    
+
         # Load trips
         logger.info("Loading trips")
         trips_df = pd.read_csv(gtfs_zip.open("trips.txt"))
         for _, trip in trips_df.iterrows():
-            db_trip = models.Trip(
+            db_trip = Trip(
                 id=str(trip["trip_id"]),
                 route_id=str(trip["route_id"]),
                 service_id=str(trip["service_id"]),
@@ -107,7 +101,7 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
         stop_times_df = pd.read_csv(gtfs_zip.open("stop_times.txt"))
         for _, stop_time in stop_times_df.iterrows():
             try:
-                db_stop_time = models.StopTime(
+                db_stop_time = StopTime(
                     trip_id=str(stop_time["trip_id"]),
                     stop_id=int(stop_time["stop_id"]),
                     arrival_time=str(stop_time["arrival_time"]),
@@ -127,11 +121,10 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
         db.rollback()
         raise Exception(f"Error processing GTFS data: {str(e)}") from e
 
-
 def fetch_realtime_updates(db: Session, agency_id: str):
     """Fetch and store realtime GTFS updates for an agency"""
     try:
-        agency = db.query(models.Agency).filter(models.Agency.id == agency_id).first()
+        agency = db.query(Agency).filter(Agency.id == agency_id).first()
         if not agency:
             raise Exception(f"Agency {agency_id} not found")
 
@@ -150,7 +143,7 @@ def fetch_realtime_updates(db: Session, agency_id: str):
                 trip_update = entity.trip_update
                 for stop_time_update in trip_update.stop_time_update:
                     try:
-                        db_update = models.RealtimeUpdate(
+                        db_update = RealtimeUpdate(
                             trip_id=str(trip_update.trip.trip_id),
                             stop_id=int(stop_time_update.stop_id),
                             arrival_delay=(
@@ -189,4 +182,4 @@ def fetch_realtime_updates(db: Session, agency_id: str):
         raise Exception(f"Error fetching realtime data: {str(e)}")
     except Exception as e:
         db.rollback()
-        raise Exception(f"Error processing realtime data: {str(e)}")
+        raise Exception(f"Error processing realtime data: {str(e)}") 
