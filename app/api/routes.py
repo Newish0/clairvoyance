@@ -45,34 +45,18 @@ def get_nearby(
     """
     Get nearby stops and their routes within a specified radius.
     Returns unique routes with their closest stops to the given location and next departure times.
-
-    Parameters:
-    - lat: Latitude of the search point
-    - lon: Longitude of the search point
-    - radius: Search radius in kilometers (default: 0.5km, min: 0.1km, max: 5km)
-    - current_time: Time to check against in HH:MM:SS format (default: current time)
     """
     try:
-        # Get current time if not provided
         if current_time is None:
             current_time = datetime.now().strftime("%H:%M:%S")
 
-        # Subquery to calculate distances and rank stops by distance and time
-        distance_subquery = (
+        # First, get nearby stops with distance calculation
+        nearby_stops_subquery = (
             db.query(
                 Stop.id.label("stop_id"),
-                Route.id.label("route_id"),
-                Route.route_short_name,
-                Route.route_long_name,
-                Route.route_type,
                 Stop.name.label("stop_name"),
                 Stop.lat.label("stop_lat"),
                 Stop.lon.label("stop_lon"),
-                StopTime.trip_id,
-                StopTime.arrival_time,
-                StopTime.departure_time,
-                StopTime.continuous_pickup,
-                StopTime.continuous_drop_off,
                 (
                     6371
                     * func.acos(
@@ -82,48 +66,61 @@ def get_nearby(
                         + func.sin(func.radians(lat)) * func.sin(func.radians(Stop.lat))
                     )
                 ).label("distance"),
-                # Rank by distance first, then by next departure time
+            )
+            .filter(
+                # Pre-filter using bounding box for better performance
+                Stop.lat.between(
+                    lat - (radius / 111.32),  # roughly degrees for given km
+                    lat + (radius / 111.32),
+                ),
+                Stop.lon.between(
+                    lon - (radius / (111.32 * func.cos(func.radians(lat)))),
+                    lon + (radius / (111.32 * func.cos(func.radians(lat)))),
+                ),
+            )
+            .subquery()
+        )
+
+        # Then, join with routes and get next departure times
+        route_times_subquery = (
+            db.query(
+                nearby_stops_subquery.c.stop_id,
+                nearby_stops_subquery.c.stop_name,
+                nearby_stops_subquery.c.stop_lat,
+                nearby_stops_subquery.c.stop_lon,
+                nearby_stops_subquery.c.distance,
+                Route.id.label("route_id"),
+                Route.route_short_name,
+                Route.route_long_name,
+                Route.route_type,
+                StopTime.trip_id,
+                StopTime.arrival_time,
+                StopTime.departure_time,
+                StopTime.continuous_pickup,
+                StopTime.continuous_drop_off,
                 func.row_number()
                 .over(
                     partition_by=Route.id,
                     order_by=[
-                        (
-                            6371
-                            * func.acos(
-                                func.cos(func.radians(lat))
-                                * func.cos(func.radians(Stop.lat))
-                                * func.cos(func.radians(Stop.lon) - func.radians(lon))
-                                + func.sin(func.radians(lat))
-                                * func.sin(func.radians(Stop.lat))
-                            )
-                        ),
-                        # Handle time wrapping around midnight
+                        nearby_stops_subquery.c.distance,
                         case((StopTime.departure_time >= current_time, 0), else_=1),
                         StopTime.departure_time,
                     ],
                 )
                 .label("rank"),
             )
-            .join(StopTime, Stop.id == StopTime.stop_id)
+            .join(StopTime, nearby_stops_subquery.c.stop_id == StopTime.stop_id)
             .join(Trip, StopTime.trip_id == Trip.id)
             .join(Route, Trip.route_id == Route.id)
-            # Filter for stops with departure times
             .filter(StopTime.departure_time.isnot(None))
-            # Get both future times and past times (for next day)
-            .filter(
-                or_(
-                    StopTime.departure_time >= current_time,
-                    StopTime.departure_time < current_time,
-                )
-            )
+            .filter(nearby_stops_subquery.c.distance <= radius)
             .subquery()
         )
 
-        # Main query to get the closest stop for each route within radius
+        # Final query to get only the closest stop per route
         results = (
-            db.query(distance_subquery)
-            .filter(distance_subquery.c.distance <= radius)
-            .filter(distance_subquery.c.rank == 1)
+            db.query(route_times_subquery)
+            .filter(route_times_subquery.c.rank == 1)
             .all()
         )
 
@@ -144,7 +141,6 @@ def get_nearby(
                 lon=result.stop_lon,
             )
 
-            # Determine if this is the last stop of the day
             is_last = result.departure_time < current_time
 
             stop_time_info = StopTimeInfo(
