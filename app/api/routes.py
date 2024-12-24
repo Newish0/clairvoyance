@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, or_, text
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.database import get_db
-from app.models.models import Agency, Route, Stop, StopTime, Trip
+from app.models.models import Agency, RealtimeTripUpdate, Route, Stop, StopTime, Trip
 
 from app.api.schemas import (
     AgencyResponse,
@@ -68,11 +68,7 @@ def get_nearby(
                 ).label("distance"),
             )
             .filter(
-                # Pre-filter using bounding box for better performance
-                Stop.lat.between(
-                    lat - (radius / 111.32),  # roughly degrees for given km
-                    lat + (radius / 111.32),
-                ),
+                Stop.lat.between(lat - (radius / 111.32), lat + (radius / 111.32)),
                 Stop.lon.between(
                     lon - (radius / (111.32 * func.cos(func.radians(lat)))),
                     lon + (radius / (111.32 * func.cos(func.radians(lat)))),
@@ -81,7 +77,13 @@ def get_nearby(
             .subquery()
         )
 
-        # Then, join with routes and get next departure times
+        # Get current timestamp for realtime updates
+        current_timestamp = datetime.now()
+        time_threshold = current_timestamp - timedelta(
+            minutes=5
+        )  # Consider updates within last 5 minutes
+
+        # Then, join with routes and get next departure times with realtime updates
         route_times_subquery = (
             db.query(
                 nearby_stops_subquery.c.stop_id,
@@ -98,6 +100,12 @@ def get_nearby(
                 StopTime.departure_time,
                 StopTime.continuous_pickup,
                 StopTime.continuous_drop_off,
+                func.coalesce(RealtimeTripUpdate.arrival_delay, 0).label(
+                    "arrival_delay"
+                ),
+                func.coalesce(RealtimeTripUpdate.departure_delay, 0).label(
+                    "departure_delay"
+                ),
                 func.row_number()
                 .over(
                     partition_by=Route.id,
@@ -112,6 +120,14 @@ def get_nearby(
             .join(StopTime, nearby_stops_subquery.c.stop_id == StopTime.stop_id)
             .join(Trip, StopTime.trip_id == Trip.id)
             .join(Route, Trip.route_id == Route.id)
+            .outerjoin(
+                RealtimeTripUpdate,
+                and_(
+                    RealtimeTripUpdate.trip_id == StopTime.trip_id,
+                    RealtimeTripUpdate.stop_id == nearby_stops_subquery.c.stop_id,
+                    RealtimeTripUpdate.timestamp >= time_threshold,
+                ),
+            )
             .filter(StopTime.departure_time.isnot(None))
             .filter(nearby_stops_subquery.c.distance <= radius)
             .subquery()
@@ -150,6 +166,8 @@ def get_nearby(
                 continuous_pickup=result.continuous_pickup or 0,
                 continuous_drop_off=result.continuous_drop_off or 0,
                 is_last=is_last,
+                arrival_delay=result.arrival_delay,
+                departure_delay=result.departure_delay,
             )
 
             response.append(

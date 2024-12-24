@@ -45,6 +45,8 @@ class StopTimeInfo(BaseModel):
     continuous_pickup: int
     continuous_drop_off: int
     is_last: bool
+    arrival_delay: Optional[int] = None
+    departure_delay: Optional[int] = None
 
 
 class NearbyResponse(BaseModel):

@@ -53,7 +53,7 @@ class VehiclePositionFetcher:
             self._background_thread.join()
             logger.info("Stopped background fetching")
 
-    def join_background_fetch(self) -> None: 
+    def join_background_fetch(self) -> None:
         if self._background_thread:
             self._background_thread.join()
 
@@ -61,9 +61,7 @@ class VehiclePositionFetcher:
         """Background loop for fetching vehicle positions."""
         while not self._stop_event.is_set():
             try:
-                success_count, total_count = self.fetch_vehicle_positions(
-                    agency_id
-                )
+                success_count, total_count = self.fetch_vehicle_positions(agency_id)
                 logger.info(
                     f"Background fetch completed: {success_count}/{total_count} positions processed"
                 )
@@ -227,200 +225,165 @@ class VehiclePositionFetcher:
             return False
 
 
-# def fetch_realtime_trip_updates(db: Session, agency_id: str):
-#     """Fetch and store realtime trip updates for an agency"""
-#     try:
-#         agency = db.query(Agency).filter(Agency.id == agency_id).first()
-#         if not agency or not agency.realtime_trip_updates_url:
-#             raise Exception(f"Agency {agency_id} not found or missing trip updates URL")
+class TripUpdateFetcher:
+    def __init__(self, db: Session):
+        self.db = db
+        self._stop_event = threading.Event()
+        self._background_thread = None
 
-#         logger.info(f"Fetching realtime trip updates for agency {agency_id}")
-#         response = requests.get(agency.realtime_trip_updates_url, timeout=30)
-#         response.raise_for_status()
+    def start_background_fetch(self, agency_id: str, polling_interval=30) -> None:
+        """Start background fetching for the specified agency."""
+        if self._background_thread and self._background_thread.is_alive():
+            raise RuntimeError("Background fetch already running")
 
-#         feed = gtfs_realtime_pb2.FeedMessage()
-#         feed.ParseFromString(response.content)
+        self._stop_event.clear()
+        self._background_thread = threading.Thread(
+            target=self._background_fetch_loop,
+            args=(agency_id, polling_interval),
+            daemon=True,
+        )
+        self._background_thread.start()
+        logger.info(f"Started background trip updates fetching for agency {agency_id}")
 
-#         current_time = datetime.now()
-#         updates_count = 0
+    def stop_background_fetch(self) -> None:
+        """Stop background fetching."""
+        if self._background_thread:
+            self._stop_event.set()
+            self._background_thread.join()
+            logger.info("Stopped background trip updates fetching")
 
-#         for entity in feed.entity:
-#             if entity.HasField("trip_update"):
-#                 trip_update = entity.trip_update
-#                 for stop_time_update in trip_update.stop_time_update:
-#                     try:
-#                         db_update = RealtimeTripUpdate(
-#                             trip_id=str(trip_update.trip.trip_id),
-#                             stop_id=str(stop_time_update.stop_id),
-#                             arrival_delay=(
-#                                 stop_time_update.arrival.delay
-#                                 if stop_time_update.HasField("arrival")
-#                                 else None
-#                             ),
-#                             departure_delay=(
-#                                 stop_time_update.departure.delay
-#                                 if stop_time_update.HasField("departure")
-#                                 else None
-#                             ),
-#                             timestamp=current_time,
-#                             vehicle_id=(
-#                                 trip_update.vehicle.id
-#                                 if trip_update.HasField("vehicle")
-#                                 else None
-#                             ),
-#                             current_status=(
-#                                 trip_update.trip.schedule_relationship.name
-#                                 if trip_update.trip.HasField("schedule_relationship")
-#                                 else None
-#                             ),
-#                             schedule_relationship=(
-#                                 trip_update.trip.schedule_relationship.name
-#                                 if trip_update.trip.HasField("schedule_relationship")
-#                                 else None
-#                             ),
-#                         )
-#                         db.add(db_update)
-#                         updates_count += 1
-#                     except ValueError as e:
-#                         logger.error(f"Error processing trip update: {str(e)}")
-#                         continue
+    def join_background_fetch(self) -> None:
+        if self._background_thread:
+            self._background_thread.join()
 
+    def _background_fetch_loop(self, agency_id: str, polling_interval: int) -> None:
+        """Background loop for fetching trip updates."""
+        while not self._stop_event.is_set():
+            try:
+                success_count, total_count = self.fetch_trip_updates(agency_id)
+                logger.info(
+                    f"Background fetch completed: {success_count}/{total_count} trip updates processed"
+                )
+            except Exception as e:
+                logger.error(f"Error in background fetch: {str(e)}")
 
-#         db.commit()
-#         logger.info(
-#             f"Trip updates loaded successfully: {updates_count} updates processed"
-#         )
-#     except requests.RequestException as e:
-#         raise Exception(f"Error fetching trip updates: {str(e)}")
-#     except Exception as e:
-#         db.rollback()
-#         raise Exception(f"Error processing trip updates: {str(e)}")
+            self._stop_event.wait(polling_interval)
 
+    def fetch_trip_updates(self, agency_id: str) -> Tuple[int, int]:
+        """
+        Main function to fetch and store realtime trip updates for an agency.
+        Returns tuple of (success_count, total_updates_count)
+        """
+        agency = self._get_agency(agency_id)
+        feed = self._fetch_gtfs_feed(agency.realtime_trip_updates_url)
+        return self._process_feed(feed)
 
-# def fetch_service_alerts(db: Session, agency_id: str):
-#     """Fetch and store service alerts for an agency"""
-#     try:
-#         agency = db.query(Agency).filter(Agency.id == agency_id).first()
-#         if not agency or not agency.realtime_service_alerts_url:
-#             raise Exception(
-#                 f"Agency {agency_id} not found or missing service alerts URL"
-#             )
+    def _get_agency(self, agency_id: str) -> Agency:
+        """Fetch agency from database and validate it has required URL."""
+        agency = self.db.query(Agency).filter(Agency.id == agency_id).first()
+        if not agency or not agency.realtime_trip_updates_url:
+            raise Exception(f"Agency {agency_id} not found or missing trip updates URL")
+        return agency
 
-#         logger.info(f"Fetching service alerts for agency {agency_id}")
-#         response = requests.get(agency.realtime_service_alerts_url, timeout=30)
-#         response.raise_for_status()
+    def _fetch_gtfs_feed(self, url: str) -> Message:
+        """Fetch and parse GTFS realtime feed from URL."""
+        try:
+            logger.info(f"Fetching trip updates from {url}")
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
 
-#         feed = gtfs_realtime_pb2.FeedMessage()
-#         feed.ParseFromString(response.content)
+            feed = gtfs_realtime_pb2.FeedMessage()
+            feed.ParseFromString(response.content)
+            return feed
+        except requests.RequestException as e:
+            raise Exception(f"Error fetching trip updates: {str(e)}")
 
-#         alerts_count = 0
-#         current_time = datetime.now()
+    def _process_feed(self, feed: Message) -> Tuple[int, int]:
+        """Process GTFS feed and store trip updates."""
+        updates_count = success_count = 0
+        current_time = datetime.now()
 
-#         # First, mark all existing alerts as inactive
-#         db.query(ServiceAlert).filter(
-#             ServiceAlert.agency_id == agency_id, ServiceAlert.active == True
-#         ).update({"active": False})
+        for entity in feed.entity:
+            if not entity.HasField("trip_update"):
+                continue
 
-#         for entity in feed.entity:
-#             if entity.HasField("alert"):
-#                 alert = entity.alert
-#                 try:
-#                     db_alert = ServiceAlert(
-#                         alert_id=str(entity.id),
-#                         agency_id=agency_id,
-#                         cause=alert.cause.name if alert.HasField("cause") else None,
-#                         effect=alert.effect.name if alert.HasField("effect") else None,
-#                         header_text=(
-#                             alert.header_text.translation[0].text
-#                             if alert.header_text.translation
-#                             else None
-#                         ),
-#                         description_text=(
-#                             alert.description_text.translation[0].text
-#                             if alert.description_text.translation
-#                             else None
-#                         ),
-#                         url=(
-#                             alert.url.translation[0].text
-#                             if alert.url.translation
-#                             else None
-#                         ),
-#                         timestamp=current_time,
-#                         start_time=(
-#                             datetime.fromtimestamp(alert.active_period[0].start)
-#                             if alert.active_period
-#                             and alert.active_period[0].HasField("start")
-#                             else None
-#                         ),
-#                         end_time=(
-#                             datetime.fromtimestamp(alert.active_period[0].end)
-#                             if alert.active_period
-#                             and alert.active_period[0].HasField("end")
-#                             else None
-#                         ),
-#                         severity_level=(
-#                             alert.severity_level.name
-#                             if alert.HasField("severity_level")
-#                             else None
-#                         ),
-#                         active=True,
-#                     )
-#                     db.add(db_alert)
-#                     db.flush()  # Flush to get the alert ID
+            try:
+                if self._process_trip_update(entity.trip_update, current_time):
+                    success_count += 1
+                updates_count += 1
+            except ValueError as e:
+                logger.error(f"Error processing trip update: {str(e)}")
+                continue
 
-#                     # Add affected entities
-#                     for informed_entity in alert.informed_entity:
-#                         if informed_entity.HasField("route_id"):
-#                             db_entity = AlertEntity(
-#                                 alert_id=db_alert.id,
-#                                 entity_type="route",
-#                                 entity_id=str(informed_entity.route_id),
-#                             )
-#                             db.add(db_entity)
-#                         elif informed_entity.HasField("trip"):
-#                             db_entity = AlertEntity(
-#                                 alert_id=db_alert.id,
-#                                 entity_type="trip",
-#                                 entity_id=str(informed_entity.trip.trip_id),
-#                             )
-#                             db.add(db_entity)
-#                         elif informed_entity.HasField("stop_id"):
-#                             db_entity = AlertEntity(
-#                                 alert_id=db_alert.id,
-#                                 entity_type="stop",
-#                                 entity_id=str(informed_entity.stop_id),
-#                             )
-#                             db.add(db_entity)
-#                         elif informed_entity.HasField("agency_id"):
-#                             db_entity = AlertEntity(
-#                                 alert_id=db_alert.id,
-#                                 entity_type="agency",
-#                                 entity_id=str(informed_entity.agency_id),
-#                             )
-#                             db.add(db_entity)
+        logger.info(
+            f"Trip updates loaded successfully: {success_count}/{updates_count} updates processed"
+        )
+        return success_count, updates_count
 
-#                     alerts_count += 1
-#                 except ValueError as e:
-#                     logger.error(f"Error processing service alert: {str(e)}")
-#                     continue
+    def _process_trip_update(
+        self, trip_update: Message, current_time: datetime
+    ) -> bool:
+        """Process single trip update and store in database. Returns success status."""
+        timestamp = self._get_update_timestamp(trip_update, current_time)
 
-#         db.commit()
-#         logger.info(
-#             f"Service alerts loaded successfully: {alerts_count} alerts processed"
-#         )
-#     except requests.RequestException as e:
-#         raise Exception(f"Error fetching service alerts: {str(e)}")
-#     except Exception as e:
-#         db.rollback()
-#         raise Exception(f"Error processing service alerts: {str(e)}")
+        for stop_time_update in trip_update.stop_time_update:
+            db_update = self._create_trip_update(
+                trip_update, stop_time_update, timestamp
+            )
+            if not self._save_update(db_update):
+                return False
+        return True
 
+    def _get_update_timestamp(
+        self, trip_update: Message, current_time: datetime
+    ) -> datetime:
+        """Get timestamp for trip update."""
+        return (
+            datetime.fromtimestamp(trip_update.timestamp)
+            if trip_update.HasField("timestamp")
+            else current_time
+        )
 
-# def fetch_all_realtime_data(db: Session, agency_id: str):
-#     """Fetch all types of realtime data for an agency"""
-#     try:
-#         fetch_realtime_trip_updates(db, agency_id)
-#         fetch_vehicle_positions(db, agency_id)
-#         fetch_service_alerts(db, agency_id)
-#     except Exception as e:
-#         logger.error(f"Error fetching realtime data for agency {agency_id}: {str(e)}")
-#         raise
+    def _create_trip_update(
+        self, trip_update: Message, stop_time_update: Message, timestamp: datetime
+    ) -> RealtimeTripUpdate:
+        """Create RealtimeTripUpdate object from GTFS trip update data."""
+        return RealtimeTripUpdate(
+            trip_id=str(trip_update.trip.trip_id),
+            stop_id=str(stop_time_update.stop_id),
+            arrival_delay=(
+                int(stop_time_update.arrival.delay)
+                if stop_time_update.HasField("arrival")
+                else None
+            ),
+            departure_delay=(
+                int(stop_time_update.departure.delay)
+                if stop_time_update.HasField("departure")
+                else None
+            ),
+            timestamp=timestamp,
+            vehicle_id=(
+                str(trip_update.vehicle.id) if trip_update.HasField("vehicle") else None
+            ),
+            current_status=(
+                trip_update.trip.schedule_relationship
+                if trip_update.trip.HasField("schedule_relationship")
+                else None
+            ),
+            schedule_relationship=(
+                stop_time_update.schedule_relationship
+                if stop_time_update.HasField("schedule_relationship")
+                else None
+            ),
+        )
+
+    def _save_update(self, update: RealtimeTripUpdate) -> bool:
+        """Save trip update to database. Returns success status."""
+        try:
+            self.db.add(update)
+            self.db.commit()
+            return True
+        except Exception as commit_error:
+            logger.error(f"Error committing trip update: {str(commit_error)}")
+            self.db.rollback()
+            return False
