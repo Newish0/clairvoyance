@@ -22,7 +22,7 @@ def main():
 
     # vehicle_pos_fetcher.fetch_vehicle_positions("bct-vic")
     
-    vehicle_pos_fetcher.start_background_fetch("bct-vic", 1)
+    vehicle_pos_fetcher.start_background_fetch("bct-vic", 30)
     vehicle_pos_fetcher.join_background_fetch()
 
 

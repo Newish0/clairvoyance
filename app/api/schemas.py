@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
 
+
 class AgencyResponse(BaseModel):
     id: str
     name: str
@@ -10,6 +11,7 @@ class AgencyResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class RouteResponse(BaseModel):
     id: str
@@ -21,6 +23,39 @@ class RouteResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class RouteInfo(BaseModel):
+    id: str
+    short_name: str
+    long_name: str
+    type: int
+
+
+class StopInfo(BaseModel):
+    id: str
+    name: str
+    lat: float
+    lon: float
+
+
+class StopTimeInfo(BaseModel):
+    trip_id: str
+    arrival_time: str
+    departure_time: str
+    continuous_pickup: int
+    continuous_drop_off: int
+    is_last: bool
+
+
+class NearbyResponse(BaseModel):
+    route: RouteInfo
+    stop: StopInfo
+    stop_time: StopTimeInfo
+
+    class Config:
+        from_attributes = True
+
+
 # class RealtimeUpdateResponse(BaseModel):
 #     trip_id: str
 #     stop_id: int
@@ -31,4 +66,4 @@ class RouteResponse(BaseModel):
 #     current_status: Optional[str]
 
 #     class Config:
-#         from_attributes = True 
+#         from_attributes = True
