@@ -4,7 +4,9 @@
             "id": "bct-vic",
             "name": "BC Transit Victoria",
             "static_gtfs_url": "https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48",
-            "realtime_gtfs_url": "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48"
+            "realtime_trip_updates_url": "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48",
+            "realtime_vehicle_positions_url": "https://bct.tmix.se/gtfs-realtime/vehiclepositions.pb?operatorIds=48",
+            "realtime_service_alerts_url": "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48"
         }
     ]
 } 

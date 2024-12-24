@@ -21,14 +21,14 @@ class RouteResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class RealtimeUpdateResponse(BaseModel):
-    trip_id: str
-    stop_id: int
-    arrival_delay: Optional[int]
-    departure_delay: Optional[int]
-    timestamp: datetime
-    vehicle_id: Optional[str]
-    current_status: Optional[str]
+# class RealtimeUpdateResponse(BaseModel):
+#     trip_id: str
+#     stop_id: int
+#     arrival_delay: Optional[int]
+#     departure_delay: Optional[int]
+#     timestamp: datetime
+#     vehicle_id: Optional[str]
+#     current_status: Optional[str]
 
-    class Config:
-        from_attributes = True 
+#     class Config:
+#         from_attributes = True 

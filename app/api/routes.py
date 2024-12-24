@@ -4,12 +4,9 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.database import get_db
-from app.models.models import Agency, Route, RealtimeUpdate, Trip
-from app.services.gtfs_service import (
-    download_and_load_static_gtfs,
-    fetch_realtime_updates,
-)
-from app.api.schemas import AgencyResponse, RouteResponse, RealtimeUpdateResponse
+from app.models.models import Agency, Route, Trip
+
+from app.api.schemas import AgencyResponse, RouteResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -89,50 +86,50 @@ def get_agency_routes(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get(
-    "/realtime/{agency_id}",
-    response_model=List[RealtimeUpdateResponse],
-    tags=["realtime"],
-)
-def get_realtime_updates(
-    agency_id: str,
-    db: Session = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-):
-    """
-    Get realtime updates for a specific transit agency with pagination support.
-    """
-    try:
-        # First check if agency exists
-        agency = db.query(Agency).filter(Agency.id == agency_id).first()
-        if not agency:
-            raise HTTPException(status_code=404, detail="Agency not found")
+# @router.get(
+#     "/realtime/{agency_id}",
+#     response_model=List[RealtimeUpdateResponse],
+#     tags=["realtime"],
+# )
+# def get_realtime_updates(
+#     agency_id: str,
+#     db: Session = Depends(get_db),
+#     skip: int = Query(0, ge=0),
+#     limit: int = Query(100, ge=1, le=1000),
+# ):
+#     """
+#     Get realtime updates for a specific transit agency with pagination support.
+#     """
+#     try:
+#         # First check if agency exists
+#         agency = db.query(Agency).filter(Agency.id == agency_id).first()
+#         if not agency:
+#             raise HTTPException(status_code=404, detail="Agency not found")
 
-        updates = (
-            db.query(RealtimeUpdate)
-            .join(Trip)
-            .join(Route)
-            .filter(Route.agency_id == agency_id)
-            .order_by(RealtimeUpdate.timestamp.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+#         updates = (
+#             db.query(RealtimeUpdate)
+#             .join(Trip)
+#             .join(Route)
+#             .filter(Route.agency_id == agency_id)
+#             .order_by(RealtimeUpdate.timestamp.desc())
+#             .offset(skip)
+#             .limit(limit)
+#             .all()
+#         )
 
-        if not updates:
-            raise HTTPException(
-                status_code=404, detail="No realtime updates found for this agency"
-            )
+#         if not updates:
+#             raise HTTPException(
+#                 status_code=404, detail="No realtime updates found for this agency"
+#             )
 
-        return updates
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(
-            f"Error fetching realtime updates for agency {agency_id}: {str(e)}"
-        )
-        raise HTTPException(status_code=500, detail="Internal server error")
+#         return updates
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(
+#             f"Error fetching realtime updates for agency {agency_id}: {str(e)}"
+#         )
+#         raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # @router.post("/agencies/{agency_id}/load-static", tags=["data-loading"])

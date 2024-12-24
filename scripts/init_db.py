@@ -10,7 +10,7 @@ import os
 
 from app.core.database import SessionLocal, engine
 from app.models.models import Agency, Base
-from app.services.gtfs_service import download_and_load_static_gtfs, load_agencies
+from app.services.gtfs_static_service import download_and_load_static_gtfs, load_agencies
 
 
 def init_db():
