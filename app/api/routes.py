@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.database import get_db
-from app.models.models import Agency, RealtimeTripUpdate, Route, Stop, StopTime, Trip
+from app.models.models import Agency, RealtimeTripUpdate, Route, Stop, StopTime, Trip, Shape
 
 from app.api.schemas import (
     AgencyResponse,
@@ -16,6 +16,9 @@ from app.api.schemas import (
     StopInfo,
     StopTimeInfo,
     TripInfo,
+    TripShapeResponse,
+    RouteStopTimeResponse,
+    ShapePoint,
 )
 
 # Configure logging
@@ -105,10 +108,10 @@ def get_nearby(
                 StopTime.departure_time,
                 StopTime.continuous_pickup,
                 StopTime.continuous_drop_off,
-                func.coalesce(RealtimeTripUpdate.arrival_delay, 0).label(
+                RealtimeTripUpdate.arrival_delay.label(
                     "arrival_delay"
                 ),
-                func.coalesce(RealtimeTripUpdate.departure_delay, 0).label(
+                RealtimeTripUpdate.departure_delay.label(
                     "departure_delay"
                 ),
                 func.row_number()
@@ -338,3 +341,129 @@ def get_agency_routes(
 #     except Exception as e:
 #         logger.error(f"Error loading realtime data for agency {agency_id}: {str(e)}")
 #         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/trips/{trip_id}/shape", response_model=TripShapeResponse, tags=["trips"])
+def get_trip_shape(trip_id: str, db: Session = Depends(get_db)):
+    """
+    Get the shape points for a specific trip, ordered by sequence number.
+    """
+    try:
+        # Get the shape_id for the trip
+        trip = db.query(Trip).filter(Trip.id == trip_id).first()
+        if not trip or not trip.shape_id:
+            raise HTTPException(status_code=404, detail="Trip or shape not found")
+
+        # Get shape points ordered by sequence
+        shape_points = (
+            db.query(Shape)
+            .filter(Shape.shape_id == trip.shape_id)
+            .order_by(Shape.shape_pt_sequence)
+            .all()
+        )
+
+        if not shape_points:
+            raise HTTPException(status_code=404, detail="No shape points found")
+
+        # Transform to response model
+        return TripShapeResponse(
+            trip_id=trip_id,
+            shape_points=[
+                ShapePoint(
+                    lat=point.shape_pt_lat,
+                    lon=point.shape_pt_lon,
+                    sequence=point.shape_pt_sequence,
+                    dist_traveled=point.shape_dist_traveled,
+                )
+                for point in shape_points
+            ],
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching shape for trip {trip_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
+    "/routes/{route_id}/stops/{stop_id}/times",
+    response_model=List[RouteStopTimeResponse],
+    tags=["routes", "stops"],
+)
+def get_route_stop_times(
+    route_id: str,
+    stop_id: str,
+    db: Session = Depends(get_db),
+    current_time: Optional[str] = Query(
+        None,
+        description="Current time in HH:MM:SS format. Defaults to current time if not provided",
+    ),
+):
+    """
+    Get all stop times for a specific route at a specific stop, including realtime updates if available.
+    Returns times sorted by departure time, with realtime delay information when available.
+    """
+    try:
+        if current_time is None:
+            current_time = datetime.now().strftime("%H:%M:%S")
+
+        # Get current timestamp for realtime updates
+        current_timestamp = datetime.now()
+        time_threshold = current_timestamp - timedelta(minutes=5)
+
+        # Query stop times with realtime updates
+        results = (
+            db.query(
+                StopTime.trip_id,
+                StopTime.arrival_time,
+                StopTime.departure_time,
+                Trip.trip_headsign,
+                RealtimeTripUpdate.arrival_delay,
+                RealtimeTripUpdate.departure_delay,
+                RealtimeTripUpdate.timestamp,
+            )
+            .join(Trip, StopTime.trip_id == Trip.id)
+            .filter(
+                Trip.route_id == route_id,
+                StopTime.stop_id == stop_id,
+                StopTime.departure_time >= current_time,
+            )
+            .outerjoin(
+                RealtimeTripUpdate,
+                and_(
+                    RealtimeTripUpdate.trip_id == StopTime.trip_id,
+                    RealtimeTripUpdate.stop_id == stop_id,
+                    RealtimeTripUpdate.timestamp >= time_threshold,
+                ),
+            )
+            .order_by(StopTime.departure_time)
+            .all()
+        )
+
+        if not results:
+            raise HTTPException(
+                status_code=404,
+                detail="No stop times found for this route and stop combination",
+            )
+
+        # Transform to response model
+        return [
+            RouteStopTimeResponse(
+                trip_id=result.trip_id,
+                arrival_time=result.arrival_time,
+                departure_time=result.departure_time,
+                trip_headsign=result.trip_headsign or "",
+                realtime_arrival_delay=result.arrival_delay,
+                realtime_departure_delay=result.departure_delay,
+                realtime_timestamp=result.timestamp,
+            )
+            for result in results
+        ]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error fetching stop times for route {route_id} at stop {stop_id}: {str(e)}"
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")

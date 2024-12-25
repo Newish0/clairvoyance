@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -79,3 +79,34 @@ class NearbyResponse(BaseModel):
 
 #     class Config:
 #         from_attributes = True
+
+
+class ShapePoint(BaseModel):
+    lat: float
+    lon: float
+    sequence: int
+    dist_traveled: Optional[float]
+
+    class Config:
+        from_attributes = True
+
+
+class TripShapeResponse(BaseModel):
+    trip_id: str
+    shape_points: List[ShapePoint]
+
+    class Config:
+        from_attributes = True
+
+
+class RouteStopTimeResponse(BaseModel):
+    trip_id: str
+    arrival_time: str
+    departure_time: str
+    trip_headsign: str
+    realtime_arrival_delay: Optional[int] = None
+    realtime_departure_delay: Optional[int] = None
+    realtime_timestamp: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
