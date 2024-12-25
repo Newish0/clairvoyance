@@ -84,8 +84,13 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
         if "shapes.txt" in gtfs_zip.namelist():
             logger.info("Loading shapes")
             shapes_df = pd.read_csv(gtfs_zip.open("shapes.txt"))
+
+            # Explicitly convert shape_id to string to avoid issues with `.0`
+            shapes_df["shape_id"] = shapes_df["shape_id"].astype(str)
+
             for _, shape in shapes_df.iterrows():
                 try:
+
                     db_shape = Shape(
                         shape_id=str(shape["shape_id"]),
                         shape_pt_lat=float(shape["shape_pt_lat"]),
