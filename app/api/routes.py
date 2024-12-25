@@ -15,6 +15,7 @@ from app.api.schemas import (
     RouteResponse,
     StopInfo,
     StopTimeInfo,
+    TripInfo,
 )
 
 # Configure logging
@@ -44,7 +45,7 @@ def get_nearby(
 ):
     """
     Get nearby stops and their routes within a specified radius.
-    Returns unique routes with their closest stops to the given location and next departure times.
+    Returns unique routes with their closest stops for each direction to the given location and next departure times.
     """
     try:
         if current_time is None:
@@ -79,9 +80,7 @@ def get_nearby(
 
         # Get current timestamp for realtime updates
         current_timestamp = datetime.now()
-        time_threshold = current_timestamp - timedelta(
-            minutes=5
-        )  # Consider updates within last 5 minutes
+        time_threshold = current_timestamp - timedelta(minutes=5)
 
         # Then, join with routes and get next departure times with realtime updates
         route_times_subquery = (
@@ -95,6 +94,12 @@ def get_nearby(
                 Route.route_short_name,
                 Route.route_long_name,
                 Route.route_type,
+                Trip.id.label("trip_id"),
+                Trip.service_id,
+                Trip.trip_headsign,
+                Trip.trip_short_name,
+                Trip.direction_id,
+                Trip.shape_id,
                 StopTime.trip_id,
                 StopTime.arrival_time,
                 StopTime.departure_time,
@@ -108,7 +113,10 @@ def get_nearby(
                 ),
                 func.row_number()
                 .over(
-                    partition_by=Route.id,
+                    partition_by=[
+                        Route.id,
+                        Trip.direction_id,
+                    ],  # Partition by both route and direction
                     order_by=[
                         nearby_stops_subquery.c.distance,
                         case((StopTime.departure_time >= current_time, 0), else_=1),
@@ -133,7 +141,7 @@ def get_nearby(
             .subquery()
         )
 
-        # Final query to get only the closest stop per route
+        # Final query to get only the closest stop per route direction
         results = (
             db.query(route_times_subquery)
             .filter(route_times_subquery.c.rank == 1)
@@ -148,6 +156,15 @@ def get_nearby(
                 short_name=result.route_short_name or "",
                 long_name=result.route_long_name or "",
                 type=result.route_type,
+            )
+
+            trip_info = TripInfo(
+                id=result.trip_id,
+                service_id=result.service_id,
+                trip_headsign=result.trip_headsign or "",
+                trip_short_name=result.trip_short_name or "",
+                direction_id=result.direction_id,
+                shape_id=result.shape_id,
             )
 
             stop_info = StopInfo(
@@ -172,7 +189,10 @@ def get_nearby(
 
             response.append(
                 NearbyResponse(
-                    route=route_info, stop=stop_info, stop_time=stop_time_info
+                    route=route_info,
+                    trip=trip_info,
+                    stop=stop_info,
+                    stop_time=stop_time_info,
                 )
             )
 

@@ -24,6 +24,15 @@ class RouteResponse(BaseModel):
         from_attributes = True
 
 
+class TripInfo(BaseModel):
+    id: str
+    service_id: str
+    trip_headsign: str
+    trip_short_name: str
+    direction_id: int
+    shape_id: Optional[str]
+
+
 class RouteInfo(BaseModel):
     id: str
     short_name: str
@@ -51,6 +60,7 @@ class StopTimeInfo(BaseModel):
 
 class NearbyResponse(BaseModel):
     route: RouteInfo
+    trip: TripInfo
     stop: StopInfo
     stop_time: StopTimeInfo
 
