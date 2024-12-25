@@ -110,3 +110,59 @@ class RouteStopTimeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RouteDetailsResponse(BaseModel):
+    id: str
+    agency_id: str
+    short_name: str
+    long_name: str
+    description: Optional[str]
+    route_type: int
+    url: Optional[str]
+    color: Optional[str]
+    text_color: Optional[str]
+    sort_order: Optional[int]
+    continuous_pickup: Optional[int]
+    continuous_drop_off: Optional[int]
+
+    class Config:
+        from_attributes = True
+
+
+class TripDetailsResponse(BaseModel):
+    id: str
+    route_id: str
+    service_id: str
+    headsign: str
+    short_name: str
+    direction_id: int
+    block_id: Optional[str]
+    shape_id: Optional[str]
+    wheelchair_accessible: Optional[int]
+    bikes_allowed: Optional[int]
+    current_status: Optional[str] = None
+    current_delay: Optional[int] = None
+    last_updated: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class VehiclePositionResponse(BaseModel):
+    vehicle_id: str
+    trip_id: Optional[str]
+    route_id: str
+    latitude: float
+    longitude: float
+    current_stop_id: Optional[str]
+    current_status: Optional[str]
+    timestamp: datetime
+    bearing: Optional[float]
+    speed: Optional[float]
+    congestion_level: Optional[str]
+    occupancy_status: Optional[str]
+    current_stop_sequence: Optional[int]
+
+    class Config:
+        from_attributes = True

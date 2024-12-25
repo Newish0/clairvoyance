@@ -6,7 +6,16 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.database import get_db
-from app.models.models import Agency, RealtimeTripUpdate, Route, Stop, StopTime, Trip, Shape
+from app.models.models import (
+    Agency,
+    RealtimeTripUpdate,
+    Route,
+    Stop,
+    StopTime,
+    Trip,
+    Shape,
+    VehiclePosition,
+)
 
 from app.api.schemas import (
     AgencyResponse,
@@ -19,6 +28,9 @@ from app.api.schemas import (
     TripShapeResponse,
     RouteStopTimeResponse,
     ShapePoint,
+    RouteDetailsResponse,
+    TripDetailsResponse,
+    VehiclePositionResponse,
 )
 
 # Configure logging
@@ -108,12 +120,8 @@ def get_nearby(
                 StopTime.departure_time,
                 StopTime.continuous_pickup,
                 StopTime.continuous_drop_off,
-                RealtimeTripUpdate.arrival_delay.label(
-                    "arrival_delay"
-                ),
-                RealtimeTripUpdate.departure_delay.label(
-                    "departure_delay"
-                ),
+                RealtimeTripUpdate.arrival_delay.label("arrival_delay"),
+                RealtimeTripUpdate.departure_delay.label("departure_delay"),
                 func.row_number()
                 .over(
                     partition_by=[
@@ -343,7 +351,7 @@ def get_agency_routes(
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/trips/{trip_id}/shape", response_model=TripShapeResponse, tags=["trips"])
+@router.get("/trips/{trip_id}/shapes", response_model=TripShapeResponse, tags=["trips"])
 def get_trip_shape(trip_id: str, db: Session = Depends(get_db)):
     """
     Get the shape points for a specific trip, ordered by sequence number.
@@ -466,4 +474,168 @@ def get_route_stop_times(
         logger.error(
             f"Error fetching stop times for route {route_id} at stop {stop_id}: {str(e)}"
         )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/routes/{route_id}", response_model=RouteDetailsResponse, tags=["routes"])
+def get_route_details(route_id: str, db: Session = Depends(get_db)):
+    """
+    Get detailed information about a specific route.
+    """
+    try:
+        route = db.query(Route).filter(Route.id == route_id).first()
+
+        if not route:
+            raise HTTPException(status_code=404, detail="Route not found")
+
+        return RouteDetailsResponse(
+            id=route.id,
+            agency_id=route.agency_id,
+            short_name=route.route_short_name or "",
+            long_name=route.route_long_name or "",
+            description=route.route_desc,
+            route_type=route.route_type,
+            url=route.route_url,
+            color=route.route_color,
+            text_color=route.route_text_color,
+            sort_order=route.route_sort_order,
+            continuous_pickup=route.continuous_pickup,
+            continuous_drop_off=route.continuous_drop_off,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching route details for route {route_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/trips/{trip_id}", response_model=TripDetailsResponse, tags=["trips"])
+def get_trip_details(trip_id: str, db: Session = Depends(get_db)):
+    """
+    Get detailed information about a specific trip, including any current realtime status.
+    """
+    try:
+        # Get current timestamp for realtime updates
+        current_timestamp = datetime.now()
+        time_threshold = current_timestamp - timedelta(minutes=5)
+
+        # Query trip with latest realtime update
+        result = (
+            db.query(
+                Trip,
+                RealtimeTripUpdate.current_status,
+                RealtimeTripUpdate.departure_delay,
+                RealtimeTripUpdate.timestamp,
+            )
+            .outerjoin(
+                RealtimeTripUpdate,
+                and_(
+                    RealtimeTripUpdate.trip_id == Trip.id,
+                    RealtimeTripUpdate.timestamp >= time_threshold,
+                ),
+            )
+            .filter(Trip.id == trip_id)
+            .first()
+        )
+
+        if not result or not result[0]:
+            raise HTTPException(status_code=404, detail="Trip not found")
+
+        trip = result[0]
+        return TripDetailsResponse(
+            id=trip.id,
+            route_id=trip.route_id,
+            service_id=trip.service_id,
+            headsign=trip.trip_headsign or "",
+            short_name=trip.trip_short_name or "",
+            direction_id=trip.direction_id,
+            block_id=trip.block_id,
+            shape_id=trip.shape_id,
+            wheelchair_accessible=trip.wheelchair_accessible,
+            bikes_allowed=trip.bikes_allowed,
+            current_status=result[1],
+            current_delay=result[2],
+            last_updated=result[3],
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching trip details for trip {trip_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
+    "/routes/{route_id}/vehicles",
+    response_model=List[VehiclePositionResponse],
+    tags=["routes", "vehicles"],
+)
+def get_route_vehicles(
+    route_id: str,
+    db: Session = Depends(get_db),
+    max_age: int = Query(
+        300, description="Maximum age of vehicle positions in seconds", ge=60, le=3600
+    ),
+    direction_id: Optional[int] = Query(
+        None,
+        description="Filter vehicles by direction (0 or 1)",
+        ge=0,
+        le=1,
+    ),
+):
+    """
+    Get current positions of all vehicles operating on a specific route.
+    Returns vehicle positions updated within the specified max_age (defaults to 300 seconds).
+    Optionally filter by direction_id (0 or 1) if provided.
+    """
+    try:
+        # Get current timestamp for filtering stale positions
+        current_timestamp = datetime.now()
+        time_threshold = current_timestamp - timedelta(seconds=max_age)
+
+        # Base query with trip join for direction filtering
+        query = (
+            db.query(VehiclePosition)
+            .join(Trip, VehiclePosition.trip_id == Trip.id, isouter=True)
+            .filter(
+                VehiclePosition.route_id == route_id,
+                VehiclePosition.timestamp >= time_threshold,
+            )
+        )
+
+        # Add direction filter if specified
+        if direction_id is not None:
+            query = query.filter(Trip.direction_id == direction_id)
+
+        # Get results ordered by timestamp
+        vehicles = query.order_by(VehiclePosition.timestamp.desc()).all()
+
+        if not vehicles:
+            raise HTTPException(
+                status_code=404,
+                detail="No active vehicles found for this route",
+            )
+
+        return [
+            VehiclePositionResponse(
+                vehicle_id=vehicle.vehicle_id,
+                trip_id=vehicle.trip_id,
+                route_id=vehicle.route_id,
+                latitude=vehicle.latitude,
+                longitude=vehicle.longitude,
+                current_stop_id=vehicle.stop_id,
+                current_status=vehicle.current_status,
+                timestamp=vehicle.timestamp,
+                bearing=vehicle.bearing,
+                speed=vehicle.speed,
+                congestion_level=vehicle.congestion_level,
+                occupancy_status=vehicle.occupancy_status,
+                current_stop_sequence=vehicle.current_stop_sequence,
+            )
+            for vehicle in vehicles
+        ]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching vehicle positions for route {route_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
