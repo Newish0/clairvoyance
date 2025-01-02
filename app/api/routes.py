@@ -49,14 +49,21 @@ def get_nearby(
         None,
         description="Current time in HH:MM:SS format. Defaults to current time if not provided",
     ),
+    current_date: Optional[str] = Query(
+        None,
+        description="Current date in YYYYMMDD format. Defaults to current date if not provided",
+    ),
 ):
     """
     Get nearby stops and their routes within a specified radius.
     Returns unique routes with their closest stops for each direction to the given location and next departure times.
+    Only returns trips that are operating on the specified date.
     """
     try:
         if current_time is None:
             current_time = datetime.now().strftime("%H:%M:%S")
+        if current_date is None:
+            current_date = datetime.now().strftime("%Y%m%d")
 
         return nearby_service.get_nearby_stops_and_routes(
             db=db,
@@ -64,6 +71,7 @@ def get_nearby(
             lon=lon,
             radius=radius,
             current_time=current_time,
+            current_date=current_date,
         )
     except Exception as e:
         logger.error(f"Error in get_nearby endpoint: {str(e)}")
@@ -176,20 +184,28 @@ def get_route_stop_times(
         None,
         description="Current time in HH:MM:SS format. Defaults to current time if not provided",
     ),
+    current_date: Optional[str] = Query(
+        None,
+        description="Current date in YYYYMMDD format. Defaults to current date if not provided",
+    ),
 ):
     """
     Get all stop times for a specific route at a specific stop.
     Returns times sorted by departure time, with realtime delay information when available.
+    Only returns trips that are operating on the specified date.
     """
     try:
         if current_time is None:
             current_time = datetime.now().strftime("%H:%M:%S")
+        if current_date is None:
+            current_date = datetime.now().strftime("%Y%m%d")
 
         times = route_service.get_route_stop_times(
             db=db,
             route_id=route_id,
             stop_id=stop_id,
             current_time=current_time,
+            current_date=current_date,
         )
         if not times:
             raise HTTPException(

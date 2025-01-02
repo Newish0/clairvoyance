@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
-from sqlalchemy import and_
+from sqlalchemy import and_, not_
 from sqlalchemy.orm import Session
 import logging
 
-from app.models.models import Route, Trip, StopTime, RealtimeTripUpdate
+from app.models.models import Route, Trip, StopTime, RealtimeTripUpdate, CalendarDate
 from app.api.schemas import RouteResponse, RouteDetailsResponse, RouteStopTimeResponse
 
 logger = logging.getLogger(__name__)
@@ -52,16 +52,36 @@ def get_route_details(db: Session, route_id: str) -> RouteDetailsResponse:
         raise
 
 def get_route_stop_times(
-    db: Session, route_id: str, stop_id: str, current_time: str
+    db: Session, route_id: str, stop_id: str, current_time: str, current_date: str
 ) -> List[RouteStopTimeResponse]:
     """
     Get all stop times for a specific route at a specific stop.
     Returns times sorted by departure time, with realtime delay information when available.
+    Only returns trips that are operating on the specified date.
     """
     try:
         # Get current timestamp for realtime updates
         current_timestamp = datetime.now()
         time_threshold = current_timestamp - timedelta(minutes=5)
+
+        # Get service IDs that are active on the current date
+        active_services_subquery = (
+            db.query(CalendarDate.service_id)
+            .filter(
+                CalendarDate.date == current_date,
+                CalendarDate.exception_type == 1
+            )
+            .subquery()
+        )
+
+        removed_services_subquery = (
+            db.query(CalendarDate.service_id)
+            .filter(
+                CalendarDate.date == current_date,
+                CalendarDate.exception_type == 2
+            )
+            .subquery()
+        )
 
         # Query stop times with realtime updates
         results = (
@@ -79,6 +99,8 @@ def get_route_stop_times(
                 Trip.route_id == route_id,
                 StopTime.stop_id == stop_id,
                 StopTime.departure_time >= current_time,
+                Trip.service_id.in_(active_services_subquery),
+                not_(Trip.service_id.in_(removed_services_subquery))
             )
             .outerjoin(
                 RealtimeTripUpdate,

@@ -57,6 +57,15 @@ class Trip(Base):
     stop_times = relationship("StopTime", back_populates="trip")
 
 
+class CalendarDate(Base):
+    __tablename__ = "calendar_dates"
+    __table_args__ = (PrimaryKeyConstraint("service_id", "date"),)
+
+    service_id = Column(String, index=True)
+    date = Column(String, nullable=False)  # Format: YYYYMMDD
+    exception_type = Column(Integer, nullable=False)  # 1 = service added, 2 = service removed
+
+
 class Stop(Base):
     __tablename__ = "stops"
 

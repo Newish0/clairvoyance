@@ -19,6 +19,7 @@ from app.models.models import (
     VehiclePosition,
     ServiceAlert,
     AlertEntity,
+    CalendarDate,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -73,11 +74,27 @@ def download_and_load_static_gtfs(db: Session, agency_id: str):
 
         gtfs_zip = ZipFile(BytesIO(response.content))
         required_files = ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
-        optional_files = ["shapes.txt"]
+        optional_files = ["shapes.txt", "calendar_dates.txt"]
 
         for file in required_files:
             if file not in gtfs_zip.namelist():
                 raise FileNotFoundError(f"Required file {file} not found in GTFS zip")
+
+        # Load calendar dates if available
+        if "calendar_dates.txt" in gtfs_zip.namelist():
+            logger.info("Loading calendar dates")
+            calendar_dates_df = pd.read_csv(gtfs_zip.open("calendar_dates.txt"))
+            for _, calendar_date in calendar_dates_df.iterrows():
+                try:
+                    db_calendar_date = CalendarDate(
+                        service_id=str(calendar_date["service_id"]),
+                        date=str(calendar_date["date"]),
+                        exception_type=int(calendar_date["exception_type"]),
+                    )
+                    db.merge(db_calendar_date)
+                except ValueError as e:
+                    logger.error(f"Error processing calendar date {calendar_date['service_id']}: {str(e)}")
+                    continue
 
         # Load shapes if available
         # Warning: Must load before trips since strips use shapes.shape_id as a foreign key.

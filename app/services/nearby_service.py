@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, case, func, or_, not_
 from sqlalchemy.orm import Session
 import logging
 
@@ -9,6 +9,7 @@ from app.models.models import (
     StopTime,
     Trip,
     RealtimeTripUpdate,
+    CalendarDate,
 )
 
 from app.api.schemas import (
@@ -27,10 +28,12 @@ def get_nearby_stops_and_routes(
     lon: float,
     radius: float,
     current_time: str,
+    current_date: str,  # Format: YYYYMMDD
 ) -> list[NearbyResponse]:
     """
     Get nearby stops and their routes within a specified radius.
     Returns unique routes with their closest stops for each direction.
+    Only returns trips that are operating on the specified date.
     """
     try:
         # First, get nearby stops with distance calculation
@@ -63,6 +66,25 @@ def get_nearby_stops_and_routes(
         # Get current timestamp for realtime updates
         current_timestamp = datetime.now()
         time_threshold = current_timestamp - timedelta(minutes=5)
+
+        # Get service IDs that are active on the current date
+        active_services_subquery = (
+            db.query(CalendarDate.service_id)
+            .filter(
+                CalendarDate.date == current_date,
+                CalendarDate.exception_type == 1
+            )
+            .subquery()
+        )
+
+        removed_services_subquery = (
+            db.query(CalendarDate.service_id)
+            .filter(
+                CalendarDate.date == current_date,
+                CalendarDate.exception_type == 2
+            )
+            .subquery()
+        )
 
         # Then, join with routes and get next departure times with realtime updates
         route_times_subquery = (
@@ -111,8 +133,12 @@ def get_nearby_stops_and_routes(
                     RealtimeTripUpdate.timestamp >= time_threshold,
                 ),
             )
-            .filter(StopTime.departure_time.isnot(None))
-            .filter(nearby_stops_subquery.c.distance <= radius)
+            .filter(
+                StopTime.departure_time.isnot(None),
+                nearby_stops_subquery.c.distance <= radius,
+                Trip.service_id.in_(active_services_subquery),
+                not_(Trip.service_id.in_(removed_services_subquery))
+            )
             .subquery()
         )
 
