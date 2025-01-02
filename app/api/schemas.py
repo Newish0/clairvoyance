@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AgencyResponse(BaseModel):
@@ -166,3 +166,69 @@ class VehiclePositionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+class TripStopResponse(BaseModel):
+    # StopTime fields
+    stop_time_id: int
+    trip_id: str
+    arrival_time: str
+    departure_time: str
+    stop_sequence: int
+    stop_headsign: Optional[str] = None
+    pickup_type: Optional[int] = Field(default=0)
+    drop_off_type: Optional[int] = Field(default=0)
+    shape_dist_traveled: Optional[float] = None
+    timepoint: Optional[int] = Field(default=1)
+    continuous_pickup: Optional[int] = None
+    continuous_drop_off: Optional[int] = None
+    
+    # Stop fields
+    stop_id: str
+    stop_name: str
+    stop_lat: float
+    stop_lon: float
+    stop_code: Optional[str] = None
+    stop_desc: Optional[str] = None
+    zone_id: Optional[str] = None
+    stop_url: Optional[str] = None
+    location_type: Optional[int] = Field(default=0)
+    parent_station: Optional[str] = None
+    stop_timezone: Optional[str] = None
+    wheelchair_boarding: Optional[int] = None
+    level_id: Optional[str] = None
+    platform_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "trip_id": "trip_123",
+                "arrival_time": "14:30:00",
+                "departure_time": "14:35:00",
+                "stop_sequence": 5,
+                "stop_headsign": "Downtown",
+                "pickup_type": 0,
+                "drop_off_type": 0,
+                "shape_dist_traveled": 23.5,
+                "timepoint": 1,
+                "continuous_pickup": 0,
+                "continuous_drop_off": 0,
+                "stop_id": "stop_456",
+                "stop_name": "Central Station",
+                "stop_lat": 40.7128,
+                "stop_lon": -74.0060,
+                "stop_code": "CS01",
+                "stop_desc": "Main entrance of Central Station",
+                "zone_id": "zone_1",
+                "stop_url": "http://example.com/stops/cs01",
+                "location_type": 0,
+                "parent_station": None,
+                "stop_timezone": "America/New_York",
+                "wheelchair_boarding": 1,
+                "level_id": "level_1",
+                "platform_code": "A"
+            }
+        }
