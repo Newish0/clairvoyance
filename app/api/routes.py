@@ -1,8 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import logging
+import asyncio
+import json
+from json import JSONEncoder
 
 from app.core.database import get_db
 from app.api.schemas import (
@@ -291,3 +295,97 @@ def get_route_vehicles(
     except Exception as e:
         logger.error(f"Error in get_route_vehicles endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+class DateTimeEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+@router.get(
+    "/routes/{route_id}/vehicles/stream",
+    tags=["routes", "vehicles"],
+)
+async def stream_route_vehicles(
+    route_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    max_age: int = Query(
+        300, description="Maximum age of vehicle positions in seconds", ge=60, le=3600
+    ),
+    direction_id: Optional[int] = Query(
+        None,
+        description="Filter vehicles by direction (0 or 1)",
+        ge=0,
+        le=1,
+    ),
+    update_interval: int = Query(
+        5, description="Update interval in seconds", ge=1, le=60
+    ),
+):
+    """
+    Stream real-time vehicle position updates for a specific route using Server-Sent Events (SSE).
+    Only sends updates when vehicle positions have changed.
+    """
+    
+    async def event_generator():
+        previous_positions = {}
+        
+        while True:
+            try:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+
+                # Get current vehicle positions
+                current_positions = vehicle_service.get_route_vehicles(
+                    db=db,
+                    route_id=route_id,
+                    max_age=max_age,
+                    direction_id=direction_id,
+                )
+                
+                # Convert to dictionary for easy comparison
+                current_dict = {
+                    pos.vehicle_id: pos.model_dump()
+                    for pos in current_positions
+                }
+                
+                # Find changed and removed vehicles
+                changed_positions = []
+                for vehicle_id, pos in current_dict.items():
+                    if vehicle_id not in previous_positions or pos != previous_positions[vehicle_id]:
+                        changed_positions.append(pos)
+                
+                removed_vehicles = [
+                    {"vehicle_id": vid, "removed": True}
+                    for vid in previous_positions.keys()
+                    if vid not in current_dict
+                ]
+                
+                # Update previous positions
+                previous_positions = current_dict
+                
+                # Send updates if there are any changes
+                if changed_positions or removed_vehicles:
+                    updates = changed_positions + removed_vehicles
+                    yield f"data: {json.dumps(updates, cls=DateTimeEncoder)}\n\n"
+                
+                await asyncio.sleep(update_interval)
+                
+            except Exception as e:
+                logger.error(f"Error in SSE stream: {str(e)}")
+                yield f"data: {json.dumps({'error': str(e)}, cls=DateTimeEncoder)}\n\n"
+                await asyncio.sleep(update_interval)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
