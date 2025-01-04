@@ -24,6 +24,25 @@ class RouteResponse(BaseModel):
         from_attributes = True
 
 
+class VehiclePositionResponse(BaseModel):
+    vehicle_id: str
+    trip_id: Optional[str]
+    route_id: str
+    latitude: float
+    longitude: float
+    current_stop_id: Optional[str]
+    current_status: Optional[str]
+    timestamp: datetime
+    bearing: Optional[float]
+    speed: Optional[float]
+    congestion_level: Optional[str]
+    occupancy_status: Optional[str]
+    current_stop_sequence: Optional[int]
+
+    class Config:
+        from_attributes = True
+
+
 class TripInfo(BaseModel):
     id: str
     service_id: str
@@ -54,9 +73,11 @@ class StopTimeInfo(BaseModel):
     departure_time: str
     continuous_pickup: int
     continuous_drop_off: int
+    sequence: int
     is_last: bool
     arrival_delay: Optional[int] = None
     departure_delay: Optional[int] = None
+    
 
 
 class NearbyResponse(BaseModel):
@@ -64,6 +85,7 @@ class NearbyResponse(BaseModel):
     trip: TripInfo
     stop: StopInfo
     stop_time: StopTimeInfo
+    vehicle_position: Optional[VehiclePositionResponse]
 
     class Config:
         from_attributes = True
@@ -150,26 +172,6 @@ class TripDetailsResponse(BaseModel):
         from_attributes = True
 
 
-class VehiclePositionResponse(BaseModel):
-    vehicle_id: str
-    trip_id: Optional[str]
-    route_id: str
-    latitude: float
-    longitude: float
-    current_stop_id: Optional[str]
-    current_status: Optional[str]
-    timestamp: datetime
-    bearing: Optional[float]
-    speed: Optional[float]
-    congestion_level: Optional[str]
-    occupancy_status: Optional[str]
-    current_stop_sequence: Optional[int]
-
-    class Config:
-        from_attributes = True
-
-
-
 class TripStopResponse(BaseModel):
     # StopTime fields
     stop_time_id: int
@@ -184,7 +186,7 @@ class TripStopResponse(BaseModel):
     timepoint: Optional[int] = Field(default=1)
     continuous_pickup: Optional[int] = None
     continuous_drop_off: Optional[int] = None
-    
+
     # Stop fields
     stop_id: str
     stop_name: str
@@ -230,6 +232,6 @@ class TripStopResponse(BaseModel):
                 "stop_timezone": "America/New_York",
                 "wheelchair_boarding": 1,
                 "level_id": "level_1",
-                "platform_code": "A"
+                "platform_code": "A",
             }
         }

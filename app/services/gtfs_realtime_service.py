@@ -227,6 +227,7 @@ class VehiclePositionFetcher:
 
 
 class TripUpdateFetcher:
+
     def __init__(self, db: Session, retention_period: int = 24):
         """
         Initialize TripUpdateFetcher
@@ -235,6 +236,14 @@ class TripUpdateFetcher:
             db: Database session
             retention_period: Hours to keep trip updates (default 24)
         """
+
+        self.TripScheduleRelationship = (
+            gtfs_realtime_pb2.TripDescriptor.ScheduleRelationship
+        )
+        self.StopTimeScheduleRelationship = (
+            gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship
+        )
+
         self.db = db
         self.retention_period = retention_period
         self._stop_event = threading.Event()
@@ -377,28 +386,30 @@ class TripUpdateFetcher:
             if trip_update.HasField("timestamp")
             else current_time
         )
-    
+
     @staticmethod
     def _extract_core_trip_id(trip_id: str) -> str:
         """
         Extracts the core trip ID by removing the part after the '#' symbol (if it exists).
-        
+
         :param trip_id: The full trip ID, possibly containing a '#' and an update identifier.
         :return: The core trip ID, without the '#<update_id>' part.
         """
-        if '#' in trip_id:
-            return trip_id.split('#')[0]  # Split at '#' and return the first part (the core trip ID)
+        if "#" in trip_id:
+            return trip_id.split("#")[
+                0
+            ]  # Split at '#' and return the first part (the core trip ID)
         return trip_id  # If no '#' exists, return the original trip ID as it is.
 
     def _create_trip_update(
         self, trip_update: Message, stop_time_update: Message, timestamp: datetime
     ) -> RealtimeTripUpdate:
         """Create RealtimeTripUpdate object from GTFS trip update data."""
-    
-        # We ignore the `#` since we use unique ID attribute 
+
+        # We ignore the `#` since we use unique ID attribute
         # in DB to store the same trip but with updated info.
         core_trip_id = self._extract_core_trip_id(trip_update.trip.trip_id)
-        
+
         return RealtimeTripUpdate(
             trip_id=str(core_trip_id),
             stop_id=str(stop_time_update.stop_id),
@@ -417,12 +428,16 @@ class TripUpdateFetcher:
                 str(trip_update.vehicle.id) if trip_update.HasField("vehicle") else None
             ),
             current_status=(
-                trip_update.trip.schedule_relationship
+                gtfs_realtime_pb2.TripDescriptor.ScheduleRelationship.Name(
+                    trip_update.trip.schedule_relationship
+                )
                 if trip_update.trip.HasField("schedule_relationship")
                 else None
             ),
             schedule_relationship=(
-                stop_time_update.schedule_relationship
+                gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship.Name(
+                    stop_time_update.schedule_relationship
+                )
                 if stop_time_update.HasField("schedule_relationship")
                 else None
             ),
