@@ -1,0 +1,51 @@
+---
+export const prerender = false;
+
+import CommonHeader from "~/components/headers/common-header.astro";
+import TripDetails from "~/components/info/trip-details.tsx";
+import TripMap from "~/components/maps/trip-map";
+import Layout from "~/layouts/root-layout.astro";
+import { Card, CardContent } from "~/components/ui/card.tsx";
+import { Show } from "solid-js";
+
+const { route_id: routeId, trip_id: tripId, stop_id: stopId } = Astro.params;
+
+if (!routeId || !tripId || !stopId) return Astro.redirect("/404");
+---
+
+<Layout>
+    <Fragment slot="header">
+        <CommonHeader title="Home" />
+    </Fragment>
+    <Fragment slot="body">
+        <div class="absolute z-0 top-0 left-0 w-full h-full">
+            <TripMap client:only="solid-js" tripId={tripId} stopId={stopId} />
+        </div>
+
+        <div
+            class="absolute z-10 inset-x-4 sm:top-4 bottom-4 md:max-w-sm max-w-md"
+        >
+            <Card class="w-full h-[calc(60dvh)] sm:h-[calc(100dvh-32px)]">
+                <CardContent class="flex flex-col px-4 py-2 h-full">
+                    {/* Render trip details here */}
+                    {/* You can use the Carousel component to display multiple trip details */}
+
+                    <TripDetails
+                        client:only="solidjs"
+                        tripId={tripId}
+                        routeId={routeId}
+                        stopId={stopId}
+                    />
+                </CardContent>
+            </Card>
+            <Show when={import.meta.env.DEV}>
+                <div class="absolute -bottom-4 text-xs text-muted-foreground p-2 flex gap-4">
+                    <code>DEV MODE</code>
+                    <code>{routeId}</code>
+                    <code>{tripId}</code>
+                    <code>{stopId}</code>
+                </div>
+            </Show>
+        </div>
+    </Fragment>
+</Layout>

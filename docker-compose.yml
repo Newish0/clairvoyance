@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+    nginx:
+        container_name: nginx_gateway
+        build:
+            context: .
+            dockerfile: Dockerfile.nginx
+        ports:
+            - "8080:80"
+        depends_on:
+            - api
+            - frontend
+
+    db:
+        container_name: postgres_db
+        image: postgres:14
+        environment:
+            POSTGRES_DB: gtfs_db
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: admin
+        expose:
+            - "5432"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U admin"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    api:
+        container_name: gtfs_api
+        build:
+            context: .
+            dockerfile: Dockerfile.api
+        environment:
+            DATABASE_URL: postgresql://admin:admin@db:5432/gtfs_db
+            STATIC_GTFS_PATH: /app/data/static
+        expose:
+            - "8000"
+        depends_on:
+            db:
+                condition: service_healthy
+
+    frontend:
+        container_name: clairvoyance_webapp
+        build:
+            context: .
+            dockerfile: Dockerfile.frontend
+        environment:
+            HOST: "0.0.0.0"
+            PORT: "4321"
+            PUBLIC_GTFS_API_ENDPOINT: http://localhost:8080/api
+        expose:
+            - "4321"
+        depends_on:
+            - api

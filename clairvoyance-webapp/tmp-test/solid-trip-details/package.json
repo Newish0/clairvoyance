@@ -1,0 +1,28 @@
+{
+  "name": "solid-trip-details",
+  "version": "1.0.0",
+  "description": "A Solid.js application to display trip details including route information and stop times.",
+  "main": "src/index.tsx",
+  "scripts": {
+    "dev": "solid-start dev",
+    "build": "solid-start build",
+    "serve": "solid-start serve"
+  },
+  "dependencies": {
+    "solid-js": "^1.0.0",
+    "shadcn-ui": "^1.0.0",
+    "lucide-solid": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.0.0",
+    "solid-start": "^1.0.0"
+  },
+  "keywords": [
+    "solidjs",
+    "trip",
+    "details",
+    "transportation"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
