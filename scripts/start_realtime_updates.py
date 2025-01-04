@@ -23,13 +23,13 @@ def main():
 
     trip_update_fetcher = TripUpdateFetcher(db)
 
-    # vehicle_pos_fetcher.fetch_vehicle_positions("bct-vic")
+    vehicle_pos_fetcher.fetch_vehicle_positions("bct-vic")
+    trip_update_fetcher.fetch_trip_updates("bct-vic")
 
     vehicle_pos_fetcher.start_background_fetch("bct-vic", 30)
-    
-    trip_update_fetcher.start_background_fetch("bct-vic")
-    
+    trip_update_fetcher.start_background_fetch("bct-vic", 30)
     vehicle_pos_fetcher.join_background_fetch()
+    trip_update_fetcher.join_background_fetch()
 
 
 if __name__ == "__main__":

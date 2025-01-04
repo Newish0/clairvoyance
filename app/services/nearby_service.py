@@ -10,6 +10,7 @@ from app.models.models import (
     Trip,
     RealtimeTripUpdate,
     CalendarDate,
+    VehiclePosition,
 )
 
 from app.api.schemas import (
@@ -21,6 +22,7 @@ from app.api.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 def get_nearby_stops_and_routes(
     db: Session,
@@ -70,19 +72,31 @@ def get_nearby_stops_and_routes(
         # Get service IDs that are active on the current date
         active_services_subquery = (
             db.query(CalendarDate.service_id)
-            .filter(
-                CalendarDate.date == current_date,
-                CalendarDate.exception_type == 1
-            )
+            .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 1)
             .subquery()
         )
 
         removed_services_subquery = (
             db.query(CalendarDate.service_id)
-            .filter(
-                CalendarDate.date == current_date,
-                CalendarDate.exception_type == 2
+            .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 2)
+            .subquery()
+        )
+
+        # Get the latest vehicle positions for each trip
+        latest_vehicle_positions = (
+            db.query(
+                VehiclePosition.trip_id,
+                VehiclePosition.stop_id,
+                VehiclePosition.current_status,
+                VehiclePosition.current_stop_sequence,
+                func.row_number()
+                .over(
+                    partition_by=VehiclePosition.trip_id,
+                    order_by=VehiclePosition.timestamp.desc(),
+                )
+                .label("pos_rank"),
             )
+            .filter(VehiclePosition.timestamp >= time_threshold)
             .subquery()
         )
 
@@ -107,16 +121,34 @@ def get_nearby_stops_and_routes(
                 StopTime.trip_id,
                 StopTime.arrival_time,
                 StopTime.departure_time,
+                StopTime.stop_sequence,
                 StopTime.continuous_pickup,
                 StopTime.continuous_drop_off,
                 RealtimeTripUpdate.arrival_delay.label("arrival_delay"),
                 RealtimeTripUpdate.departure_delay.label("departure_delay"),
+                latest_vehicle_positions.c.current_status,
+                latest_vehicle_positions.c.current_stop_sequence,
                 func.row_number()
                 .over(
                     partition_by=[Route.id, Trip.direction_id],
                     order_by=[
                         nearby_stops_subquery.c.distance,
-                        case((StopTime.departure_time >= current_time, 0), else_=1),
+                        # Use realtime data is available to determine next trip
+                        case(
+                            (
+                                # Only consider the transit has passed stop if it's next stop is subsequent stops
+                                latest_vehicle_positions.c.current_stop_sequence
+                                > StopTime.stop_sequence,
+                                1,  # Passed
+                            ),
+                            else_=case(
+                                (
+                                    StopTime.departure_time >= current_time,
+                                    0,  # Not Passed
+                                ),
+                                else_=1,  # Passed
+                            ),
+                        ),
                         StopTime.departure_time,
                     ],
                 )
@@ -125,6 +157,13 @@ def get_nearby_stops_and_routes(
             .join(StopTime, nearby_stops_subquery.c.stop_id == StopTime.stop_id)
             .join(Trip, StopTime.trip_id == Trip.id)
             .join(Route, Trip.route_id == Route.id)
+            .outerjoin(
+                latest_vehicle_positions,
+                and_(
+                    latest_vehicle_positions.c.trip_id == Trip.id,
+                    latest_vehicle_positions.c.pos_rank == 1,
+                ),
+            )
             .outerjoin(
                 RealtimeTripUpdate,
                 and_(
@@ -137,7 +176,7 @@ def get_nearby_stops_and_routes(
                 StopTime.departure_time.isnot(None),
                 nearby_stops_subquery.c.distance <= radius,
                 Trip.service_id.in_(active_services_subquery),
-                not_(Trip.service_id.in_(removed_services_subquery))
+                not_(Trip.service_id.in_(removed_services_subquery)),
             )
             .subquery()
         )
@@ -173,6 +212,7 @@ def get_nearby_stops_and_routes(
                 name=result.stop_name,
                 lat=result.stop_lat,
                 lon=result.stop_lon,
+                distance=result.distance,
             )
 
             is_last = result.departure_time < current_time
@@ -201,4 +241,4 @@ def get_nearby_stops_and_routes(
 
     except Exception as e:
         logger.error(f"Error fetching nearby stops: {str(e)}")
-        raise 
+        raise

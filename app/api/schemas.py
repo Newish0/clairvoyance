@@ -45,6 +45,7 @@ class StopInfo(BaseModel):
     name: str
     lat: float
     lon: float
+    distance: float
 
 
 class StopTimeInfo(BaseModel):

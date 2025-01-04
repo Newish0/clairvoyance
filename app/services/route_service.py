@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
-from sqlalchemy import and_, not_
+from sqlalchemy import and_, func, not_
 from sqlalchemy.orm import Session
 import logging
 
@@ -8,6 +8,7 @@ from app.models.models import Route, Trip, StopTime, RealtimeTripUpdate, Calenda
 from app.api.schemas import RouteResponse, RouteDetailsResponse, RouteStopTimeResponse
 
 logger = logging.getLogger(__name__)
+
 
 def get_agency_routes(
     db: Session, agency_id: str, skip: int = 0, limit: int = 100
@@ -26,13 +27,14 @@ def get_agency_routes(
         logger.error(f"Error fetching routes for agency {agency_id}: {str(e)}")
         raise
 
+
 def get_route_details(db: Session, route_id: str) -> RouteDetailsResponse:
     """Get detailed information about a specific route."""
     try:
         route = db.query(Route).filter(Route.id == route_id).first()
         if not route:
             return None
-            
+
         return RouteDetailsResponse(
             id=route.id,
             agency_id=route.agency_id,
@@ -51,12 +53,13 @@ def get_route_details(db: Session, route_id: str) -> RouteDetailsResponse:
         logger.error(f"Error fetching route details for route {route_id}: {str(e)}")
         raise
 
+
 def get_route_stop_times(
     db: Session, route_id: str, stop_id: str, current_time: str, current_date: str
 ) -> List[RouteStopTimeResponse]:
     """
     Get all stop times for a specific route at a specific stop.
-    Returns times sorted by departure time, with realtime delay information when available.
+    Returns times sorted by departure time, with latest realtime delay information when available.
     Only returns trips that are operating on the specified date.
     """
     try:
@@ -67,32 +70,51 @@ def get_route_stop_times(
         # Get service IDs that are active on the current date
         active_services_subquery = (
             db.query(CalendarDate.service_id)
-            .filter(
-                CalendarDate.date == current_date,
-                CalendarDate.exception_type == 1
-            )
+            .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 1)
             .subquery()
         )
 
         removed_services_subquery = (
             db.query(CalendarDate.service_id)
+            .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 2)
+            .subquery()
+        )
+
+        # Subquery to get the latest realtime update for each trip_id and stop_id
+        latest_updates_subquery = (
+            db.query(
+                RealtimeTripUpdate.trip_id,
+                RealtimeTripUpdate.stop_id,
+                RealtimeTripUpdate.arrival_delay,
+                RealtimeTripUpdate.departure_delay,
+                RealtimeTripUpdate.timestamp,
+            )
             .filter(
-                CalendarDate.date == current_date,
-                CalendarDate.exception_type == 2
+                RealtimeTripUpdate.stop_id == stop_id,
+                RealtimeTripUpdate.timestamp >= time_threshold,
+            )
+            .distinct(
+                RealtimeTripUpdate.trip_id,
+                RealtimeTripUpdate.stop_id,
+            )
+            .order_by(
+                RealtimeTripUpdate.trip_id,
+                RealtimeTripUpdate.stop_id,
+                RealtimeTripUpdate.timestamp.desc(),
             )
             .subquery()
         )
 
-        # Query stop times with realtime updates
+        # Main query with join to latest updates
         results = (
             db.query(
                 StopTime.trip_id,
                 StopTime.arrival_time,
                 StopTime.departure_time,
                 Trip.trip_headsign,
-                RealtimeTripUpdate.arrival_delay,
-                RealtimeTripUpdate.departure_delay,
-                RealtimeTripUpdate.timestamp,
+                latest_updates_subquery.c.arrival_delay,
+                latest_updates_subquery.c.departure_delay,
+                latest_updates_subquery.c.timestamp,
             )
             .join(Trip, StopTime.trip_id == Trip.id)
             .filter(
@@ -100,14 +122,13 @@ def get_route_stop_times(
                 StopTime.stop_id == stop_id,
                 StopTime.departure_time >= current_time,
                 Trip.service_id.in_(active_services_subquery),
-                not_(Trip.service_id.in_(removed_services_subquery))
+                not_(Trip.service_id.in_(removed_services_subquery)),
             )
             .outerjoin(
-                RealtimeTripUpdate,
+                latest_updates_subquery,
                 and_(
-                    RealtimeTripUpdate.trip_id == StopTime.trip_id,
-                    RealtimeTripUpdate.stop_id == stop_id,
-                    RealtimeTripUpdate.timestamp >= time_threshold,
+                    latest_updates_subquery.c.trip_id == StopTime.trip_id,
+                    latest_updates_subquery.c.stop_id == stop_id,
                 ),
             )
             .order_by(StopTime.departure_time)
@@ -134,4 +155,4 @@ def get_route_stop_times(
         logger.error(
             f"Error fetching stop times for route {route_id} at stop {stop_id}: {str(e)}"
         )
-        raise 
+        raise
