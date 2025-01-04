@@ -4,7 +4,7 @@ from sqlalchemy import and_, func, not_
 from sqlalchemy.orm import Session
 import logging
 
-from app.models.models import Route, Trip, StopTime, RealtimeTripUpdate, CalendarDate
+from app.models.models import Route, Trip, StopTime, RealtimeTripUpdate, CalendarDate, VehiclePosition
 from app.api.schemas import RouteResponse, RouteDetailsResponse, RouteStopTimeResponse
 
 logger = logging.getLogger(__name__)
@@ -61,13 +61,19 @@ def get_route_stop_times(
     Get all stop times for a specific route at a specific stop.
     Returns times sorted by departure time, with latest realtime delay information when available.
     Only returns trips that are operating on the specified date.
+
+    For determining next trips:
+    - If no vehicle position exists, uses static schedule (arrival_time >= current_time)
+    - If vehicle position exists:
+        - If vehicle has NOT passed our stop (not in TRANSIT_TO or STOPPED_AT for our stop
+          or subsequent stops), include this trip even if arrival_time < current_time
+        - If vehicle HAS passed our stop, use the next trip in the schedule
     """
     try:
-        # Get current timestamp for realtime updates
         current_timestamp = datetime.now()
         time_threshold = current_timestamp - timedelta(minutes=5)
 
-        # Get service IDs that are active on the current date
+        # Get active services
         active_services_subquery = (
             db.query(CalendarDate.service_id)
             .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 1)
@@ -80,7 +86,28 @@ def get_route_stop_times(
             .subquery()
         )
 
-        # Subquery to get the latest realtime update for each trip_id and stop_id
+        # Get all stop sequences for each trip to determine stop order
+        stop_sequences = (
+            db.query(StopTime.trip_id, StopTime.stop_id, StopTime.stop_sequence)
+            .filter(StopTime.trip_id == Trip.id)
+            .subquery()
+        )
+
+        # Get current vehicle positions
+        vehicle_positions = (
+            db.query(
+                VehiclePosition.trip_id,
+                VehiclePosition.current_status,
+                VehiclePosition.current_stop_sequence,
+                VehiclePosition.stop_id,
+            )
+            .filter(VehiclePosition.timestamp >= time_threshold)
+            .distinct(VehiclePosition.trip_id)
+            .order_by(VehiclePosition.trip_id, VehiclePosition.timestamp.desc())
+            .subquery()
+        )
+
+        # Get latest realtime updates
         latest_updates_subquery = (
             db.query(
                 RealtimeTripUpdate.trip_id,
@@ -88,10 +115,12 @@ def get_route_stop_times(
                 RealtimeTripUpdate.arrival_delay,
                 RealtimeTripUpdate.departure_delay,
                 RealtimeTripUpdate.timestamp,
+                RealtimeTripUpdate.schedule_relationship,
             )
             .filter(
                 RealtimeTripUpdate.stop_id == stop_id,
                 RealtimeTripUpdate.timestamp >= time_threshold,
+                RealtimeTripUpdate.schedule_relationship != "CANCELED",
             )
             .distinct(
                 RealtimeTripUpdate.trip_id,
@@ -105,22 +134,25 @@ def get_route_stop_times(
             .subquery()
         )
 
-        # Main query with join to latest updates
+        # Main query
         results = (
             db.query(
                 StopTime.trip_id,
                 StopTime.arrival_time,
                 StopTime.departure_time,
+                StopTime.stop_sequence,
                 Trip.trip_headsign,
                 latest_updates_subquery.c.arrival_delay,
                 latest_updates_subquery.c.departure_delay,
                 latest_updates_subquery.c.timestamp,
+                vehicle_positions.c.current_status,
+                vehicle_positions.c.current_stop_sequence,
+                stop_sequences.c.stop_sequence.label("target_stop_sequence"),
             )
             .join(Trip, StopTime.trip_id == Trip.id)
             .filter(
                 Trip.route_id == route_id,
                 StopTime.stop_id == stop_id,
-                StopTime.departure_time >= current_time,
                 Trip.service_id.in_(active_services_subquery),
                 not_(Trip.service_id.in_(removed_services_subquery)),
             )
@@ -131,6 +163,17 @@ def get_route_stop_times(
                     latest_updates_subquery.c.stop_id == stop_id,
                 ),
             )
+            .outerjoin(
+                vehicle_positions,
+                StopTime.trip_id == vehicle_positions.c.trip_id,
+            )
+            .join(
+                stop_sequences,
+                and_(
+                    StopTime.trip_id == stop_sequences.c.trip_id,
+                    StopTime.stop_id == stop_sequences.c.stop_id,
+                ),
+            )
             .order_by(StopTime.departure_time)
             .all()
         )
@@ -138,18 +181,43 @@ def get_route_stop_times(
         if not results:
             return []
 
-        return [
-            RouteStopTimeResponse(
-                trip_id=result.trip_id,
-                arrival_time=result.arrival_time,
-                departure_time=result.departure_time,
-                trip_headsign=result.trip_headsign or "",
-                realtime_arrival_delay=result.arrival_delay,
-                realtime_departure_delay=result.departure_delay,
-                realtime_timestamp=result.timestamp,
-            )
-            for result in results
-        ]
+        # Filter results based on vehicle position logic
+        filtered_results = []
+        for result in results:
+            is_next_trip = False
+
+            if result.current_status is None:
+                # No vehicle position data, use static schedule
+                is_next_trip = result.departure_time >= current_time
+            else:
+                # Vehicle position exists
+                if (
+                    result.current_stop_sequence is None
+                    or result.target_stop_sequence is None
+                ):
+                    # Missing sequence information, fall back to static schedule
+                    is_next_trip = result.departure_time >= current_time
+                else:
+                    # Vehicle has not passed our stop
+                    vehicle_not_passed = (
+                        result.current_stop_sequence <= result.target_stop_sequence
+                    )
+                    is_next_trip = vehicle_not_passed
+
+            if is_next_trip:
+                filtered_results.append(
+                    RouteStopTimeResponse(
+                        trip_id=result.trip_id,
+                        arrival_time=result.arrival_time,
+                        departure_time=result.departure_time,
+                        trip_headsign=result.trip_headsign or "",
+                        realtime_arrival_delay=result.arrival_delay,
+                        realtime_departure_delay=result.departure_delay,
+                        realtime_timestamp=result.timestamp,
+                    )
+                )
+
+        return filtered_results
 
     except Exception as e:
         logger.error(

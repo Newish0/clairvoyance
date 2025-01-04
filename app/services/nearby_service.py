@@ -77,6 +77,13 @@ def get_nearby_stops_and_routes(
         .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 1)
         .subquery()
     )
+    
+    # TODO: Ensure to account for removed services and frequencies.txt for a generalized approach
+    removed_services = (
+        db.query(CalendarDate.service_id)
+        .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 2)
+        .subquery()
+    )
 
     # Get all stop sequences for each trip to determine stop order
     stop_sequences = db.query(
