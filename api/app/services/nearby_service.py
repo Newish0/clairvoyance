@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import List, Tuple
 from sqlalchemy import and_, case, func, or_, not_
 from sqlalchemy.orm import Session
 import logging
@@ -77,13 +78,13 @@ def get_nearby_stops_and_routes(
         .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 1)
         .subquery()
     )
-    
+
     # TODO: Ensure to account for removed services and frequencies.txt for a generalized approach
-    removed_services = (
-        db.query(CalendarDate.service_id)
-        .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 2)
-        .subquery()
-    )
+    # removed_services = (
+    #     db.query(CalendarDate.service_id)
+    #     .filter(CalendarDate.date == current_date, CalendarDate.exception_type == 2)
+    #     .subquery()
+    # )
 
     # Get all stop sequences for each trip to determine stop order
     stop_sequences = db.query(
@@ -265,3 +266,84 @@ def get_nearby_stops_and_routes(
             )
 
     return list(results.values())
+
+
+def combine_and_select_best_transits(
+    cur_day_transits: List[NearbyResponse],
+    prev_day_late_night_transits: List[NearbyResponse],
+) -> List[NearbyResponse]:
+    """
+    Combines current day transits with previous day late-night transits,
+    selecting only the earliest departure for each unique route+direction combination.
+
+    Args:
+        cur_day_transits: List of NearbyResponse for current day
+        prev_day_late_night_transits: List of NearbyResponse for previous day's late night service
+
+    Returns:
+        List[NearbyResponse] containing earliest departure for each route+direction
+    """
+    # Dictionary to store best transit per route+direction
+    best_transits_dict = {}
+
+    def convert_time_to_minutes(time_str: str, is_prev_day: bool) -> int:
+        """Convert HH:MM:SS format to minutes since midnight (normalized over 23:59:59 time)."""
+        hours, minutes, seconds = map(int, time_str.split(":"))
+        return (
+            (hours % 24 if is_prev_day else hours) * 60
+            + minutes
+            + (1 if seconds > 30 else 0)
+        )  # Round seconds
+
+    def is_better_transit(
+        new_transit_and_flag: Tuple[NearbyResponse, bool],
+        existing_transit_and_flag: Tuple[NearbyResponse, bool],
+    ) -> bool:
+        """
+        Args:
+         - new_transit_and_flag (NearbyResponse, bool): Tuple containing transit and is_prev_day flag
+         - existing_transit_and_flag (NearbyResponse, bool): Tuple containing transit and is_prev_day flag
+
+        Determine if new_transit is better than existing_transit based on:
+        1. Earlier departure time
+        2. If times are equal, prefer closer stop
+        """
+
+        new_transit, nt_flag = new_transit_and_flag
+        existing_transit, ext_flag = existing_transit_and_flag
+
+        new_time = convert_time_to_minutes(
+            new_transit.stop_time.departure_time, nt_flag
+        )
+        existing_time = convert_time_to_minutes(
+            existing_transit.stop_time.departure_time, ext_flag
+        )
+
+        if new_time == existing_time:
+            return new_transit.stop.distance < existing_transit.stop.distance
+        return new_time < existing_time
+
+    def process_transit(transit: NearbyResponse, is_prev_day: bool):
+        # Create unique key for route+direction combination
+        key = (transit.route.id, transit.trip.direction_id)
+
+        new_pair = (transit, is_prev_day)
+
+        # If this route+direction hasn't been seen or if this transit is better
+        if key not in best_transits_dict or is_better_transit(
+            new_pair, best_transits_dict[key]
+        ):
+            best_transits_dict[key] = new_pair
+
+    # Process all transits
+    for transit in cur_day_transits:
+        process_transit(transit, False)
+
+    for transit in prev_day_late_night_transits:
+        process_transit(transit, True)
+
+    # Convert dictionary back to list, sorted by route ID and direction
+    best_transits = [transit for transit, _ in list(best_transits_dict.values())]
+    best_transits.sort(key=lambda x: (x.route.short_name, x.trip.direction_id))
+
+    return best_transits

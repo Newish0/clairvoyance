@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -51,7 +51,7 @@ def get_nearby(
     ),
     current_time: Optional[str] = Query(
         None,
-        description="Current time in HH:MM:SS format. Defaults to current time if not provided",
+        description="Current time in HH:MM:SS format (00:00:00 to 23:59:59). Defaults to current time if not provided. NOTE: This is NOT the GTFS time. For this function's purpose, stop times that exceed 24:00:00 from the previous day of `current_date` is automatically considered.",
     ),
     current_date: Optional[str] = Query(
         None,
@@ -69,7 +69,16 @@ def get_nearby(
         if current_date is None:
             current_date = datetime.now().strftime("%Y%m%d")
 
-        return nearby_service.get_nearby_stops_and_routes(
+        # Adjust current_time and current_date to include previous day's late-night (past 23:59:59) services
+        previous_date = (
+            datetime.strptime(current_date, "%Y%m%d") - timedelta(days=1)
+        ).strftime("%Y%m%d")
+
+        current_hours, minutes, seconds = current_time.split(":")
+        adjusted_hours = int(current_hours) + 24
+        adjusted_current_time = f"{adjusted_hours}:{minutes}:{seconds}"
+
+        cur_day_transits = nearby_service.get_nearby_stops_and_routes(
             db=db,
             lat=lat,
             lon=lon,
@@ -77,6 +86,22 @@ def get_nearby(
             current_time=current_time,
             current_date=current_date,
         )
+
+        prev_day_late_night_transits = nearby_service.get_nearby_stops_and_routes(
+            db=db,
+            lat=lat,
+            lon=lon,
+            radius=radius,
+            current_time=adjusted_current_time,
+            current_date=previous_date,
+        )
+
+        best_transit = nearby_service.combine_and_select_best_transits(
+            cur_day_transits, prev_day_late_night_transits
+        )
+
+        return best_transit
+
     except Exception as e:
         logger.error(f"Error in get_nearby endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -329,10 +354,10 @@ async def stream_route_vehicles(
     Stream real-time vehicle position updates for a specific route using Server-Sent Events (SSE).
     Only sends updates when vehicle positions have changed.
     """
-    
+
     async def event_generator():
         previous_positions = {}
-        
+
         while True:
             try:
                 # Check if client disconnected
@@ -346,40 +371,42 @@ async def stream_route_vehicles(
                     max_age=max_age,
                     direction_id=direction_id,
                 )
-                
+
                 # Convert to dictionary for easy comparison
                 current_dict = {
-                    pos.vehicle_id: pos.model_dump()
-                    for pos in current_positions
+                    pos.vehicle_id: pos.model_dump() for pos in current_positions
                 }
-                
+
                 # Find changed and removed vehicles
                 changed_positions = []
                 for vehicle_id, pos in current_dict.items():
-                    if vehicle_id not in previous_positions or pos != previous_positions[vehicle_id]:
+                    if (
+                        vehicle_id not in previous_positions
+                        or pos != previous_positions[vehicle_id]
+                    ):
                         changed_positions.append(pos)
-                
+
                 removed_vehicles = [
                     {"vehicle_id": vid, "removed": True}
                     for vid in previous_positions.keys()
                     if vid not in current_dict
                 ]
-                
+
                 # Update previous positions
                 previous_positions = current_dict
-                
+
                 # Send updates if there are any changes
                 if changed_positions or removed_vehicles:
                     updates = changed_positions + removed_vehicles
                     yield f"data: {json.dumps(updates, cls=DateTimeEncoder)}\n\n"
-                
+
                 await asyncio.sleep(update_interval)
-                
+
             except Exception as e:
                 logger.error(f"Error in SSE stream: {str(e)}")
                 yield f"data: {json.dumps({'error': str(e)}, cls=DateTimeEncoder)}\n\n"
                 await asyncio.sleep(update_interval)
-    
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
