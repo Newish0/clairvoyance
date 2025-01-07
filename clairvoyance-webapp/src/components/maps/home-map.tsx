@@ -55,7 +55,7 @@ const HomeMap: Component = () => {
                                 '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
                         },
                     },
-                    layers: layers("protomaps", "light", "en"),
+                    layers: layers("protomaps", "dark", "en"),
                 },
             }}
             viewport={viewport()}
