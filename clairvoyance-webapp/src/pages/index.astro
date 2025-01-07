@@ -14,13 +14,13 @@ import YourLocationInput from "~/components/maps/your-location-input";
     </Fragment>
     <Fragment slot="body">
         <!-- Full-screen map as background -->
-        <div class="absolute z-0 inset-0 w-[100dvw] h-[100dvh] overflow-hidden">
+        <div class="absolute z-0 inset-0 w-[100dvw] h-[155dvh] -translate-y-[55dvh] sm:h-[100dvh] overflow-hidden">
             <HomeMap client:only="solid-js" />
         </div>
 
         <!-- Card container with dynamic height -->
         <div class="absolute z-10 inset-x-4 sm:top-4 bottom-4 md:max-w-sm max-w-md">
-            <Card class="w-full h-[calc(50dvh)] sm:h-[calc(100dvh-32px)]">
+            <Card class="w-full h-[calc(60dvh)] sm:h-[calc(100dvh-32px)]">
                 <CardContent class="flex flex-col px-4 py-2 h-full">
                     <!-- Input at the top -->
                     <div class="my-4">

@@ -9,7 +9,7 @@ interface CarouselDotsProps {
 
 const CarouselDots: Component<CarouselDotsProps> = (props) => {
     return (
-        <div class="flex justify-center items-center space-x-2 mt-4">
+        <div class="flex justify-center items-center space-x-2">
             <For each={Array(props.totalSlides).fill(null)}>
                 {(_, index) => (
                     <button
