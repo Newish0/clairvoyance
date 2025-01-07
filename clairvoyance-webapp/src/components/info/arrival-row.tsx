@@ -35,7 +35,7 @@ export const ArrivalRow: Component<ArrivalRowProps> = (props) => {
     });
 
     return (
-        <div class="border-b last:border-b-0">
+        <div class="border-b pb-2 last:pb-0 last:border-b-0">
             <Carousel class="w-full" setApi={setApi}>
                 <CarouselContent>
                     <For each={props.entries}>
@@ -48,7 +48,7 @@ export const ArrivalRow: Component<ArrivalRowProps> = (props) => {
                 </CarouselContent>
             </Carousel>
 
-            <div class="py-2 text-center text-sm text-muted-foreground">
+            <div class="text-center text-sm text-muted-foreground">
                 <CarouselDots currentSlide={current()} totalSlides={count()} />
             </div>
         </div>
