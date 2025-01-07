@@ -6,6 +6,7 @@ import HomeMap from "~/components/maps/home-map.tsx";
 import { ArrivalBoard } from "~/components/info/arrival-board.tsx";
 import { Card, CardContent } from "~/components/ui/card";
 import YourLocationInput from "~/components/maps/your-location-input";
+import { ModeToggle } from "~/components/dark-mode-toggle";
 ---
 
 <Layout>
@@ -14,7 +15,9 @@ import YourLocationInput from "~/components/maps/your-location-input";
     </Fragment>
     <Fragment slot="body">
         <!-- Full-screen map as background -->
-        <div class="absolute z-0 inset-0 w-[100dvw] h-[155dvh] -translate-y-[55dvh] sm:translate-y-0 sm:h-[100dvh] overflow-hidden">
+        <div
+            class="absolute z-0 inset-0 w-[100dvw] h-[155dvh] -translate-y-[55dvh] sm:translate-y-0 sm:h-[100dvh] overflow-hidden"
+        >
             <HomeMap client:only="solid-js" />
         </div>
 
@@ -33,6 +36,11 @@ import YourLocationInput from "~/components/maps/your-location-input";
                     </div>
                 </CardContent>
             </Card>
+        </div>
+
+        <!-- Top right actions  -->
+        <div class="absolute z-10 top-4 right-4">
+            <ModeToggle client:only="solid-js" />
         </div>
     </Fragment>
 </Layout>
