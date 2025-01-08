@@ -15,7 +15,7 @@ export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
     const arrivalMinutes = getArrivalMinutes(stop_time.arrival_time, stop_time.arrival_delay ?? 0);
 
     return (
-        <a href={`/routes/${route.id}/trips/${trip.id}/stops/${stop.id}`}>
+        <a href={`${import.meta.env.BASE_URL}routes/${route.id}/trips/${trip.id}/stops/${stop.id}`}>
             <div class="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div class="flex-1">
                     <div class="flex items-center space-x-2">
