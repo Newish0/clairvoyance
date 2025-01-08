@@ -25,6 +25,7 @@ import { getTripGeojson } from "~/services/gtfs/geojson";
 import { getTripDetails } from "~/services/gtfs/trip";
 import { getRouteVehiclesPositions } from "~/services/gtfs/vehicle";
 import { useVehiclePositions } from "~/hooks/use-vehicle-positions";
+import { useTheme } from "~/hooks/use-theme";
 
 type TripMapProps = {
     tripId: string;
@@ -32,6 +33,8 @@ type TripMapProps = {
 };
 
 const TripMap: Component<TripMapProps> = (props) => {
+    const [, , isDark] = useTheme();
+
     const [geoJsons] = createResource(
         () => ({ tripId: props.tripId, stopId: props.stopId }),
         ({ tripId, stopId }) => getTripGeojson(tripId, stopId)
@@ -94,7 +97,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                 '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
                         },
                     },
-                    layers: layers("protomaps", "light", "en"),
+                    layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
                 },
             }}
             viewport={viewport()}

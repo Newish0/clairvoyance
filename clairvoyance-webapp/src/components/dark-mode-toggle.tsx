@@ -8,19 +8,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { useTheme } from "~/hooks/use-theme";
 
 export function ModeToggle() {
-    const [theme, setTheme] = createSignal<"light" | "dark" | "system">("light");
-
-    const isDarkMode = document.documentElement.classList.contains("dark");
-    setTheme(isDarkMode ? "dark" : "light");
-
-    createEffect(() => {
-        const isDark =
-            theme() === "dark" ||
-            (theme() === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.classList[isDark ? "add" : "remove"]("dark");
-    });
+    const [theme, setTheme] = useTheme();
 
     return (
         <DropdownMenu>
