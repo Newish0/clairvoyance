@@ -1,18 +1,15 @@
-import { createEffect, createResource, For, Show, type Component } from "solid-js";
-import { getRouteStopTimes } from "~/services/gtfs/stop_times";
-import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
-import { Card, CardContent } from "../ui/card";
-import { decomposeTime, getArrivalMinutes, hhmmssToString } from "~/utils/time";
-import { ChevronRight, Triangle, TriangleRight } from "lucide-solid";
-import { cn } from "~/lib/utils";
-import RealTimeIndicator from "../ui/realtime-indicator";
-import OccupancyBadge from "../ui/occupancy-badge";
-import { addDays, addHours, format } from "date-fns";
-import type { StopTimeResponse } from "tmp-test/solid-trip-details/src/types";
-import type { RouteStopTimeResponse } from "~/services/gtfs/types";
-import { Separator } from "../ui/separator";
-import { buttonVariants } from "../ui/button";
+import { addDays, format } from "date-fns";
 import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
+import { createEffect, createResource, For, Show, type Component } from "solid-js";
+import { cn } from "~/lib/utils";
+import { getRouteStopTimes } from "~/services/gtfs/stop_times";
+import type { RouteStopTimeResponse } from "~/services/gtfs/types";
+import { decomposeTime, getArrivalMinutes, hhmmssToString } from "~/utils/time";
+import { buttonVariants } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
+import OccupancyBadge from "../ui/occupancy-badge";
+import RealTimeIndicator from "../ui/realtime-indicator";
 
 type RouteStopStopTimesProps = {
     tripId: string;
@@ -33,7 +30,7 @@ const RouteStopStopTimes: Component<RouteStopStopTimesProps> = (props) => {
                     return hhmmssToString(hours + 24, minutes, seconds);
                 })(),
                 currentDate: format(addDays(new Date(), -1), "yyyyMMdd"),
-            })
+            }).catch(() => []) // Catch error and return empty array
     );
     const [todayStopTimes] = createResource(
         () => ({ routeId: props.routeId, stopId: props.stopId }),
@@ -42,7 +39,7 @@ const RouteStopStopTimes: Component<RouteStopStopTimesProps> = (props) => {
                 ...params,
                 currentTime: format(new Date(), "HH:mm:ss"),
                 currentDate: format(new Date(), "yyyyMMdd"),
-            })
+            }).catch(() => []) // Catch error and return empty array
     );
 
     createEffect(() => {
@@ -116,7 +113,9 @@ const StopTimeItem: Component<{
         <CarouselItem class="basis-1/2 lg:basis-1/3">
             <div class="p-1">
                 <a
-                    href={`${import.meta.env.BASE_URL}routes/${props.routeId}/trips/${props.stopTime.trip_id}/stops/${props.stopId}`}
+                    href={`${import.meta.env.BASE_URL}routes/${props.routeId}/trips/${
+                        props.stopTime.trip_id
+                    }/stops/${props.stopId}`}
                 >
                     <Card>
                         <CardContent
