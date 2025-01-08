@@ -71,7 +71,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                     sources: {
                         protomaps: {
                             type: "vector",
-                            url: "pmtiles:///map.pmtiles",
+                            url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
                             attribution:
                                 '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
                         },

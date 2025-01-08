@@ -116,7 +116,7 @@ const StopTimeItem: Component<{
         <CarouselItem class="basis-1/2 lg:basis-1/3">
             <div class="p-1">
                 <a
-                    href={`/routes/${props.routeId}/trips/${props.stopTime.trip_id}/stops/${props.stopId}`}
+                    href={`${import.meta.env.BASE_URL}routes/${props.routeId}/trips/${props.stopTime.trip_id}/stops/${props.stopId}`}
                 >
                     <Card>
                         <CardContent
