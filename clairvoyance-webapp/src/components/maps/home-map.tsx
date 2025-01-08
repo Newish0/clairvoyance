@@ -82,26 +82,6 @@ const HomeMap: Component = () => {
                     ),
                 }}
             ></Marker>
-
-            {/* <Source
-                source={{
-                    type: "geojson",
-                    data: {
-                        type: "Point",
-                        coordinates: viewport().center,
-                    },
-                }}
-            >
-                <Layer
-                    style={{
-                        type: "circle",
-                        paint: {
-                            "circle-radius": 10,
-                            "circle-color": "#007cbf",
-                        },
-                    }}
-                />
-            </Source> */}
         </MapGL>
     );
 };

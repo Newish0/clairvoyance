@@ -20,6 +20,7 @@ export function useVehiclePositions(
     });
 
     createEffect(() => {
+        // Explicit check for undefined because 0 is a valid directionId
         if (!routeId() || directionId() == undefined) return;
 
         // Subscribe to updates for a specific route

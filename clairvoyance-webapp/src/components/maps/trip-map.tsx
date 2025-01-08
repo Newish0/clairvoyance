@@ -1,31 +1,19 @@
-import {
-    createEffect,
-    createResource,
-    createSignal,
-    For,
-    onCleanup,
-    Show,
-    type Component,
-} from "solid-js";
+import { createResource, createSignal, For, onCleanup, Show, type Component } from "solid-js";
 
-import MapGL, { Marker, Source, type Viewport, Layer } from "solid-map-gl";
+import MapGL, { Layer, Marker, Source, type Viewport } from "solid-map-gl";
 
 import * as maplibre from "maplibre-gl";
-import { type Map as LibreGLMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Protocol } from "pmtiles";
 
 import layers from "protomaps-themes-base";
+import { useTheme } from "~/hooks/use-theme";
+import { useVehiclePositions } from "~/hooks/use-vehicle-positions";
 import { cn } from "~/lib/utils";
-import { $userLocation } from "~/stores/user-location-store";
-import { getShapes } from "~/services/gtfs/shapes";
-import { cubicInterpolation, pointsToLineString } from "~/utils/shapes";
 import { getTripGeojson } from "~/services/gtfs/geojson";
 import { getTripDetails } from "~/services/gtfs/trip";
-import { getRouteVehiclesPositions } from "~/services/gtfs/vehicle";
-import { useVehiclePositions } from "~/hooks/use-vehicle-positions";
-import { useTheme } from "~/hooks/use-theme";
+import { $userLocation } from "~/stores/user-location-store";
 
 type TripMapProps = {
     tripId: string;
@@ -44,15 +32,6 @@ const TripMap: Component<TripMapProps> = (props) => {
         () => props.tripId,
         (tripId) => getTripDetails(tripId)
     );
-
-    // const [vehiclePos] = createResource(
-    //     () => ({ routeId: tripDetails()?.route_id, directionId: tripDetails()?.direction_id }),
-    //     ({ routeId, directionId }) => {
-    //         // Explicit check for undefined because 0 is a valid directionId
-    //         if (!routeId || directionId == undefined) return [];
-    //         return getRouteVehiclesPositions(routeId, { directionId: directionId as 0 | 1 });
-    //     }
-    // );
 
     const vehiclePos = useVehiclePositions(
         () => tripDetails()?.route_id,
