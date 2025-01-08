@@ -13,8 +13,11 @@ import LocationMarker from "./location-marker";
 import { cn } from "~/lib/utils";
 import { DEFAULT_LOCATION } from "~/constants/location";
 import { $userLocation } from "~/stores/user-location-store";
+import { useTheme } from "~/hooks/use-theme";
 
 const HomeMap: Component = () => {
+    const [, , isDark] = useTheme();
+
     const [viewport, setViewport] = createSignal({
         // Format: [lon, lat]. Only get user location once. Do NOT rerender component on atom value change.
         // Rerendering of map on location change is handled by listeners logic below.
@@ -55,7 +58,7 @@ const HomeMap: Component = () => {
                                 '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
                         },
                     },
-                    layers: layers("protomaps", "dark", "en"),
+                    layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
                 },
             }}
             viewport={viewport()}
