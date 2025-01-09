@@ -1,4 +1,4 @@
-import { type Component, Switch, Match, For } from "solid-js";
+import { type Component, Switch, Match, For, type ComponentProps } from "solid-js";
 import { UserRound, HelpCircle } from "lucide-solid";
 import type { OccupancyStatus } from "~/services/gtfs/types";
 import { cn } from "~/lib/utils";
@@ -7,6 +7,7 @@ import { Badge } from "./badge";
 interface OccupancyBadgeProps {
     status: OccupancyStatus;
     size: number;
+    variant?: ComponentProps<typeof Badge>["variant"];
 }
 
 const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
@@ -31,16 +32,42 @@ const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
     const occupancyInfo = () => getOccupancyInfo(props.status);
 
     return (
-        <Badge variant={"secondary"} class="flex flex-col items-center justify-center w-min">
+        <Badge
+            variant={props.variant ?? "secondary"}
+            class="flex flex-col items-center justify-center w-min px-1"
+        >
             <div class="flex">
                 <Switch>
                     <Match when={occupancyInfo().icons >= 0}>
                         <For each={Array(occupancyInfo().icons).fill(0)}>
-                            {(_, index) => <UserRound size={props.size} class={"text-muted-foreground"} />}
+                            {(_, index) => (
+                                <UserRound
+                                    size={props.size}
+                                    class={cn(
+                                        props.variant && props.variant === "secondary"
+                                            ? "text-muted-foreground"
+                                            : "",
+                                        props.variant && props.variant === "default"
+                                            ? "text-primary-foreground"
+                                            : ""
+                                    )}
+                                    strokeWidth={props.size / 2}
+                                />
+                            )}
                         </For>
                     </Match>
                     <Match when={occupancyInfo().icons === -1}>
-                        <HelpCircle size={props.size} class={"text-muted-foreground"} />
+                        <HelpCircle
+                            size={props.size}
+                            class={cn(
+                                props.variant && props.variant === "secondary"
+                                    ? "text-muted-foreground"
+                                    : "",
+                                props.variant && props.variant === "default"
+                                    ? "text-primary-foreground"
+                                    : ""
+                            )}
+                        />
                     </Match>
                 </Switch>
             </div>
