@@ -37,7 +37,7 @@ if (!routeId || !tripId || !stopId) return Astro.redirect("/404");
                     />
 
                     <a
-                        href="/"
+                        href={import.meta.env.BASE_URL}
                         class={buttonVariants({
                             size: "sm",
                             variant: "ghost",
