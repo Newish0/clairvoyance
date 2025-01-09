@@ -14,6 +14,8 @@ import { cn } from "~/lib/utils";
 import { getTripGeojson } from "~/services/gtfs/geojson";
 import { getTripDetails } from "~/services/gtfs/trip";
 import { $userLocation } from "~/stores/user-location-store";
+import { BusFrontIcon } from "lucide-solid";
+import OccupancyBadge from "../ui/occupancy-badge";
 
 type TripMapProps = {
     tripId: string;
@@ -170,14 +172,28 @@ const TripMap: Component<TripMapProps> = (props) => {
                                     lngLat={[vp.longitude, vp.latitude]}
                                     options={{
                                         element: (
-                                            <div
-                                                class={cn(
-                                                    "rounded-full",
-                                                    "bg-red-500",
-                                                    "w-6 h-6 border-4",
-                                                    "border-white/90"
-                                                )}
-                                            ></div>
+                                            <div class="flex flex-col items-center justify-center">
+                                                <div
+                                                    class={cn(
+                                                        "w-8 h-8 bg-background flex flex-col",
+                                                        "justify-center items-center rounded-full text-foreground"
+                                                    )}
+                                                >
+                                                    <BusFrontIcon size={20} />
+                                                </div>
+
+                                                <Show when={vp.occupancy_status}>
+                                                    {(occupancy_status) => (
+                                                        <div class="-mt-1">
+                                                            <OccupancyBadge
+                                                                status={occupancy_status()}
+                                                                size={8}
+                                                                variant={"default"}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </Show>
+                                            </div>
                                         ),
                                     }}
                                 ></Marker>
