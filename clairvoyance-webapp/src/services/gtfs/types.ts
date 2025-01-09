@@ -33,11 +33,13 @@ export interface StopTimeInfo {
     departure_delay: number | null;
 }
 
+
 export interface NearbyResponse {
     route: RouteInfo;
     trip: TripInfo;
     stop: StopInfo;
     stop_time: StopTimeInfo;
+    vehicle_position: VehiclePositionResponse | null;
 }
 
 // Interface for individual shape points
