@@ -135,7 +135,7 @@ const StopTimeItem: Component<{
                             </div>
 
                             <div>
-                                <OccupancyBadge status="EMPTY" />
+                                <OccupancyBadge status="EMPTY" size={10}/>
                             </div>
 
                             <Show

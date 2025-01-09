@@ -7,6 +7,8 @@ import TripMap from "~/components/maps/trip-map";
 import Layout from "~/layouts/root-layout.astro";
 import { Card, CardContent } from "~/components/ui/card.tsx";
 import { Show } from "solid-js";
+import { XIcon } from "lucide-solid";
+import { buttonVariants } from "~/components/ui/button";
 
 const { route_id: routeId, trip_id: tripId, stop_id: stopId } = Astro.params;
 
@@ -22,20 +24,21 @@ if (!routeId || !tripId || !stopId) return Astro.redirect("/404");
             <TripMap client:only="solid-js" tripId={tripId} stopId={stopId} />
         </div>
 
-        <div
-            class="absolute z-10 inset-x-4 sm:top-4 bottom-4 md:max-w-sm max-w-md"
-        >
+        <div class="absolute z-10 inset-x-4 sm:top-4 bottom-4 md:max-w-sm max-w-md">
             <Card class="w-full h-[calc(60dvh)] sm:h-[calc(100dvh-32px)]">
                 <CardContent class="flex flex-col px-4 py-2 h-full">
-                    {/* Render trip details here */}
-                    {/* You can use the Carousel component to display multiple trip details */}
+                    <TripDetails client:only="solidjs" tripId={tripId} routeId={routeId} stopId={stopId} />
 
-                    <TripDetails
-                        client:only="solidjs"
-                        tripId={tripId}
-                        routeId={routeId}
-                        stopId={stopId}
-                    />
+                    <a
+                        href="/"
+                        class={buttonVariants({
+                            size: "sm",
+                            variant: "ghost",
+                            class: "absolute top-0 right-0 m-2",
+                        })}
+                    >
+                        <XIcon />
+                    </a>
                 </CardContent>
             </Card>
             <Show when={import.meta.env.DEV}>

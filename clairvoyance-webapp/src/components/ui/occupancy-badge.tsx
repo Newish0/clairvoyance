@@ -6,6 +6,7 @@ import { Badge } from "./badge";
 
 interface OccupancyBadgeProps {
     status: OccupancyStatus;
+    size: number;
 }
 
 const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
@@ -35,11 +36,11 @@ const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
                 <Switch>
                     <Match when={occupancyInfo().icons >= 0}>
                         <For each={Array(occupancyInfo().icons).fill(0)}>
-                            {(_, index) => <UserRound size={12} class={"text-muted-foreground"} />}
+                            {(_, index) => <UserRound size={props.size} class={"text-muted-foreground"} />}
                         </For>
                     </Match>
                     <Match when={occupancyInfo().icons === -1}>
-                        <HelpCircle size={12} class={"text-muted-foreground"} />
+                        <HelpCircle size={props.size} class={"text-muted-foreground"} />
                     </Match>
                 </Switch>
             </div>
