@@ -38,6 +38,17 @@ services:
         depends_on:
             db:
                 condition: service_healthy
+    gtfs_realtime_consumer:
+        container_name: gtfs_realtime_consumer
+        build:
+            context: .
+            dockerfile: Dockerfile.rt_consumer
+        environment:
+            DATABASE_URL: postgresql://admin:admin@db:5432/gtfs_db
+            STATIC_GTFS_PATH: /app/data/static
+        depends_on:
+            db:
+                condition: service_healthy
 
     frontend:
         container_name: clairvoyance_webapp

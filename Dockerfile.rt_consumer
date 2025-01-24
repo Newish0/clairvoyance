@@ -39,11 +39,5 @@ COPY api/ .
 # Copy agencies.json # HACK: Remove this line later 
 COPY api/data/agencies.json ./data/
 
-# Make the startup script executable
-RUN chmod +x start.sh
-
-# Expose port
-EXPOSE 8000
-
 # Use the startup script as the entry point
-CMD ["./start.sh"]
+CMD ["python", "./scripts/start_realtime_updates.py"]
