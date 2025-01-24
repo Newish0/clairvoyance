@@ -81,6 +81,7 @@ If you want to contribute or build from source:
     ```bash
     createdb gtfs_db
     python scripts/init_db.py
+    python scripts/init_gtfs.py
     ```
 
 5. In `clairvoyance-webapp`, start the frontend development server:

@@ -1,5 +1,4 @@
 from operator import and_
-import threading
 import requests
 from sqlalchemy.orm import Session
 from google.transit import gtfs_realtime_pb2
@@ -21,56 +20,33 @@ logger = logging.getLogger(__name__)
 
 
 class VehiclePositionFetcher:
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db: Session, retention_period: int = 24):
+        """
+        Initialize VehiclePositionFetcher
+
+        Args:
+            db: Database session
+            retention_period: Hours to keep vehicle positions (default 24)
+        """
+
         self.VehicleStopStatus = gtfs_realtime_pb2.VehiclePosition.VehicleStopStatus
         self.CongestionLevel = gtfs_realtime_pb2.VehiclePosition.CongestionLevel
         self.OccupancyStatus = gtfs_realtime_pb2.VehiclePosition.OccupancyStatus
 
-        self._stop_event = threading.Event()
-        self._background_thread = None
+        self.db = db
+        self.retention_period = retention_period
 
-    def start_background_fetch(self, agency_id: str, polling_interval=30) -> None:
-        """Start background fetching for the specified agency."""
-        if self._background_thread and self._background_thread.is_alive():
-            raise RuntimeError("Background fetch already running")
-
-        self._stop_event.clear()
-        self._background_thread = threading.Thread(
-            target=self._background_fetch_loop,
-            args=(
-                agency_id,
-                polling_interval,
-            ),
-            daemon=True,
-        )
-        self._background_thread.start()
-        logger.info(f"Started background fetching for agency {agency_id}")
-
-    def stop_background_fetch(self) -> None:
-        """Stop background fetching."""
-        if self._background_thread:
-            self._stop_event.set()
-            self._background_thread.join()
-            logger.info("Stopped background fetching")
-
-    def join_background_fetch(self) -> None:
-        if self._background_thread:
-            self._background_thread.join()
-
-    def _background_fetch_loop(self, agency_id: str, polling_interval: int) -> None:
-        """Background loop for fetching vehicle positions."""
-        while not self._stop_event.is_set():
-            try:
-                success_count, total_count = self.fetch_vehicle_positions(agency_id)
-                logger.info(
-                    f"Background fetch completed: {success_count}/{total_count} positions processed"
-                )
-            except Exception as e:
-                logger.error(f"Error in background fetch: {str(e)}")
-
-            # Wait for the next interval or until stopped
-            self._stop_event.wait(polling_interval)
+    def cleanup_old_updates(self) -> None:
+        """Remove vehicle positions older than retention period."""
+        try:
+            cutoff_time = datetime.now() - timedelta(hours=self.retention_period)
+            self.db.query(VehiclePosition).filter(
+                VehiclePosition.timestamp < cutoff_time
+            ).delete()
+            self.db.commit()
+        except Exception as e:
+            logger.error(f"Error cleaning up old vehicle positions: {str(e)}")
+            self.db.rollback()
 
     def fetch_vehicle_positions(self, agency_id: str) -> Tuple[int, int]:
         """
@@ -246,53 +222,6 @@ class TripUpdateFetcher:
 
         self.db = db
         self.retention_period = retention_period
-        self._stop_event = threading.Event()
-        self._background_thread: Optional[threading.Thread] = None
-
-    def start_background_fetch(
-        self, agency_id: str, polling_interval: int = 30
-    ) -> None:
-        """Start background fetching for the specified agency."""
-        if self._background_thread and self._background_thread.is_alive():
-            raise RuntimeError("Background fetch already running")
-
-        self._stop_event.clear()
-        self._background_thread = threading.Thread(
-            target=self._background_fetch_loop,
-            args=(agency_id, polling_interval),
-            daemon=True,
-        )
-        self._background_thread.start()
-        logger.info(f"Started background trip updates fetching for agency {agency_id}")
-
-    def stop_background_fetch(self) -> None:
-        """Stop background fetching."""
-        if self._background_thread:
-            self._stop_event.set()
-            self._background_thread.join()
-            logger.info("Stopped background trip updates fetching")
-
-    def join_background_fetch(self) -> None:
-        """Wait for background fetch to complete."""
-        if self._background_thread:
-            self._background_thread.join()
-
-    def _background_fetch_loop(
-        self, agency_id: str, polling_interval: int, auto_cleanup=False
-    ) -> None:
-        """Background loop for fetching trip updates."""
-        while not self._stop_event.is_set():
-            try:
-                success_count, total_count = self.fetch_trip_updates(agency_id)
-                if auto_cleanup:
-                    self.cleanup_old_updates()
-                logger.info(
-                    f"Background fetch completed: {success_count}/{total_count} trip updates processed"
-                )
-            except Exception as e:
-                logger.error(f"Error in background fetch: {str(e)}")
-
-            self._stop_event.wait(polling_interval)
 
     def cleanup_old_updates(self) -> None:
         """Remove trip updates older than retention period."""
@@ -392,9 +321,13 @@ class TripUpdateFetcher:
         """
         Extracts the core trip ID by removing the part after the '#' symbol (if it exists).
 
-        :param trip_id: The full trip ID, possibly containing a '#' and an update identifier.
-        :return: The core trip ID, without the '#<update_id>' part.
+        Args:
+            - trip_id: The full trip ID, possibly containing a '#' and an update identifier.
+
+        Returns:
+            - The core trip ID, without the '#<update_id>' part.
         """
+
         if "#" in trip_id:
             return trip_id.split("#")[
                 0
