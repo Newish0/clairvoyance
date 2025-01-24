@@ -39,7 +39,7 @@ def main():
         except: 
             pass
         
-        sleep(10)
+        sleep(30)
 
 
 if __name__ == "__main__":
