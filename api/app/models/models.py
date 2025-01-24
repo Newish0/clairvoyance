@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, PrimaryKeyConstraint, String, Float, ForeignKey, DateTime, Boolean
+from sqlalchemy import Column, Integer, PrimaryKeyConstraint, String, Float, ForeignKey, DateTime, Boolean, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -20,6 +20,9 @@ class Agency(Base):
     routes = relationship("Route", back_populates="agency")
     service_alerts = relationship("ServiceAlert", back_populates="agency")
 
+    # Index for agency lookups
+    __table_args__ = (Index('idx_agency_id', 'id'),)
+
 
 class Route(Base):
     __tablename__ = "routes"
@@ -39,6 +42,12 @@ class Route(Base):
     agency = relationship("Agency", back_populates="routes")
     trips = relationship("Trip", back_populates="route")
 
+    # Indexes for route lookups and sorting
+    __table_args__ = (
+        Index('idx_route_agency', 'agency_id'),
+        Index('idx_route_short_name', 'route_short_name'),
+    )
+
 
 class Trip(Base):
     __tablename__ = "trips"
@@ -56,10 +65,20 @@ class Trip(Base):
     route = relationship("Route", back_populates="trips")
     stop_times = relationship("StopTime", back_populates="trip")
 
+    # Indexes for trip lookups and filtering
+    __table_args__ = (
+        Index('idx_trip_route', 'route_id'),
+        Index('idx_trip_service', 'service_id'),
+        Index('idx_trip_direction', 'direction_id'),
+    )
+
 
 class CalendarDate(Base):
     __tablename__ = "calendar_dates"
-    __table_args__ = (PrimaryKeyConstraint("service_id", "date"),)
+    __table_args__ = (
+        PrimaryKeyConstraint("service_id", "date"),
+        Index('idx_calendar_date_lookup', 'date', 'service_id', 'exception_type'),
+    )
 
     service_id = Column(String, index=True)
     date = Column(String, nullable=False)  # Format: YYYYMMDD
@@ -86,6 +105,12 @@ class Stop(Base):
     stop_times = relationship("StopTime", back_populates="stop")
     child_stops = relationship("Stop")
 
+    # Spatial index for lat/lon lookups
+    __table_args__ = (
+        Index('idx_stop_location', 'lat', 'lon'),
+        Index('idx_stop_parent', 'parent_station'),
+    )
+
 
 class StopTime(Base):
     __tablename__ = "stop_times"
@@ -106,10 +131,21 @@ class StopTime(Base):
     trip = relationship("Trip", back_populates="stop_times")
     stop = relationship("Stop", back_populates="stop_times")
 
+    # Indexes for stop time lookups and filtering
+    __table_args__ = (
+        Index('idx_stoptime_trip_stop', 'trip_id', 'stop_id'),
+        Index('idx_stoptime_arrival', 'arrival_time'),
+        Index('idx_stoptime_departure', 'departure_time'),
+        Index('idx_stoptime_sequence', 'trip_id', 'stop_sequence'),
+    )
+
 
 class Shape(Base):
     __tablename__ = "shapes"
-    __table_args__ = (PrimaryKeyConstraint("shape_id", "shape_pt_sequence"),)
+    __table_args__ = (
+        PrimaryKeyConstraint("shape_id", "shape_pt_sequence"),
+        Index('idx_shape_lookup', 'shape_id', 'shape_pt_sequence'),
+    )
 
     shape_id = Column(String, index=True)
     shape_pt_lat = Column(Float, nullable=False)
@@ -131,6 +167,13 @@ class RealtimeTripUpdate(Base):
     current_status = Column(String)
     schedule_relationship = Column(String)
 
+    # Indexes for realtime updates
+    __table_args__ = (
+        Index('idx_realtime_trip_stop', 'trip_id', 'stop_id'),
+        Index('idx_realtime_timestamp', 'timestamp'),
+        Index('idx_realtime_vehicle', 'vehicle_id'),
+    )
+
 
 class VehiclePosition(Base):
     __tablename__ = "vehicle_positions"
@@ -150,6 +193,15 @@ class VehiclePosition(Base):
     current_status = Column(String)
     current_stop_sequence = Column(Integer)
     agency_id = Column(String, ForeignKey("agencies.id"), nullable=False)
+
+    # Indexes for vehicle position lookups
+    __table_args__ = (
+        Index('idx_vehicle_trip', 'trip_id'),
+        Index('idx_vehicle_route', 'route_id'),
+        Index('idx_vehicle_timestamp', 'timestamp'),
+        Index('idx_vehicle_location', 'latitude', 'longitude'),
+        Index('idx_vehicle_agency', 'agency_id'),
+    )
 
 
 class ServiceAlert(Base):
@@ -171,6 +223,13 @@ class ServiceAlert(Base):
     agency = relationship("Agency", back_populates="service_alerts")
     affected_entities = relationship("AlertEntity", back_populates="alert")
 
+    # Indexes for service alerts
+    __table_args__ = (
+        Index('idx_alert_agency', 'agency_id'),
+        Index('idx_alert_active', 'active'),
+        Index('idx_alert_time', 'start_time', 'end_time'),
+    )
+
 
 class AlertEntity(Base):
     __tablename__ = "alert_entities"
@@ -180,3 +239,8 @@ class AlertEntity(Base):
     entity_type = Column(String, nullable=False)  # route, trip, stop, or agency
     entity_id = Column(String, nullable=False)
     alert = relationship("ServiceAlert", back_populates="affected_entities")
+
+    # Index for alert entity lookups
+    __table_args__ = (
+        Index('idx_alert_entity_lookup', 'alert_id', 'entity_type', 'entity_id'),
+    )
