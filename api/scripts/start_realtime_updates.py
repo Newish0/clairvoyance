@@ -16,7 +16,12 @@ from app.services.gtfs_realtime_service import (
 
 
 def main():
-    init_db() # Ensure the database tables have been created. 
+    
+    # Try to continue anyways if we encounter DB init error 
+    try:
+        init_db() # Ensure the database tables have been created. 
+    except Exception as e:
+        print(f"Table creation issue: {e}")
     
     # Create a new session
     db = SessionLocal()
