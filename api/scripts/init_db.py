@@ -10,7 +10,7 @@ from app.models.models import Base
 
 def init_db():
     # Create tables
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 
 
 if __name__ == "__main__":
