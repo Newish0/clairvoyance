@@ -23,7 +23,7 @@
 ![Docker](https://img.shields.io/badge/docker-%232496ED.svg?style=for-the-badge&logo=docker&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-%23336791.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 
-A Realtime transit webapp using GTFS data.
+A Realtime transit webapp using GTFS data using a microservice architecture. 
 
 Visit the [demo site](https://bp.botnewish.xyz/clairvoyance2/).
 
