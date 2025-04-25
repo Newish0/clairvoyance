@@ -1,0 +1,18 @@
+{
+    "folders": [
+        {
+            "name": "Root",
+            "path": "../"
+        },
+        {
+            "name": "services/gtfs-processor",
+            "path": "../packages/foobar-package"
+        },
+    
+    ],
+    "settings": {
+        "files.exclude": {
+            
+        },
+    }
+}
