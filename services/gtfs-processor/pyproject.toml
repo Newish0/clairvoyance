@@ -1,0 +1,11 @@
+[project]
+name = "gtfs-processor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "beanie>=1.29.0",
+    "motor>=3.7.0",
+    "pytz>=2025.2",
+]
