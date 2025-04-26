@@ -2,6 +2,8 @@ import logging
 import datetime
 from typing import Any, Dict, List, Optional, Set
 from collections import defaultdict
+
+import pytz
 from domain import ScheduledTrip, StopTimeInfo
 
 class ParsedGTFSData:
@@ -115,7 +117,7 @@ class ParsedGTFSData:
                  self.logger.warning(f"Could not convert any stop times for trip {trip_id}, skipping.")
                  skipped_count += 1
                  continue
-
+            
 
             # Create a ScheduledTrip for each active date
             service_date_instance_count = 0
@@ -130,7 +132,7 @@ class ParsedGTFSData:
                         except (ValueError, TypeError):
                             self.logger.warning(f"Invalid direction_id '{direction_id_str}' for trip {trip_id}. Setting to None.")
 
-
+                    
                     scheduled_trip = ScheduledTrip(
                         trip_id=trip_id,
                         start_date=service_date,
