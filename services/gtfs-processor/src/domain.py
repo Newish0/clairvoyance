@@ -1,4 +1,3 @@
-
 import datetime
 import pytz  # Using pytz for robust timezone handling
 from typing import List, Optional, Dict, Any, Tuple, ClassVar
@@ -23,15 +22,29 @@ class OccupancyStatus(Enum):
     Values align with GTFS Realtime v2 specification.
     See: https://developers.google.com/transit/gtfs-realtime/reference#enum-occupancystatus
     """
-    EMPTY = 0                       # The vehicle or carriage is considered empty.
-    MANY_SEATS_AVAILABLE = 1        # Many seats are available.
-    FEW_SEATS_AVAILABLE = 2         # Few seats are available.
-    STANDING_ROOM_ONLY = 3          # Standing room only is available.
+
+    EMPTY = 0  # The vehicle or carriage is considered empty.
+    MANY_SEATS_AVAILABLE = 1  # Many seats are available.
+    FEW_SEATS_AVAILABLE = 2  # Few seats are available.
+    STANDING_ROOM_ONLY = 3  # Standing room only is available.
     CRUSHED_STANDING_ROOM_ONLY = 4  # Crushed standing room only is available.
-    FULL = 5                        # The vehicle or carriage is full.
-    NOT_ACCEPTING_PASSENGERS = 6    # The vehicle or carriage is not accepting passengers.
-    NO_DATA = 7                     # No occupancy data is available. (Matches proto value 7)
-    NOT_BOARDABLE = 8               # The vehicle or carriage is not boardable due to unmet requirements. (Matches proto value 8)
+    FULL = 5  # The vehicle or carriage is full.
+    NOT_ACCEPTING_PASSENGERS = 6  # The vehicle or carriage is not accepting passengers.
+    NO_DATA = 7  # No occupancy data is available. (Matches proto value 7)
+    NOT_BOARDABLE = 8  # The vehicle or carriage is not boardable due to unmet requirements. (Matches proto value 8)
+
+
+class VehicleStopStatus(Enum):
+    # The vehicle is just about to arrive at the stop (on a stop
+    # display, the vehicle symbol typically flashes).
+    INCOMING_AT = 0
+
+    # The vehicle is standing at the stop.
+    STOPPED_AT = 1
+
+    # The vehicle has departed and is in transit to the next stop.
+    IN_TRANSIT_TO = 2
+
 
 # --- Helper Dataclasses ---
 @dataclass(frozen=True)
@@ -89,7 +102,6 @@ class ScheduledTrip:
     trip_short_name: Optional[str] = None
     block_id: Optional[str] = None
     scheduled_stop_times: List[StopTimeInfo] = field(default_factory=list)
-        
 
     # --- Real-time Data Fields ---
     realtime_schedule_relationship: ScheduleRelationship = (
@@ -98,6 +110,12 @@ class ScheduledTrip:
     realtime_stop_updates: Dict[int, RealtimeStopTimeUpdate] = field(
         default_factory=dict
     )  # Key: stop_sequence
+    current_stop_sequence: Optional[int] = None
+    
+    # The exact status of the vehicle with respect to the current stop.
+    # Ignored if current_stop_sequence is missing.
+    current_status: Optional[VehicleStopStatus] = None
+
     vehicle_id: Optional[str] = None
     current_occupancy: Optional[OccupancyStatus] = None
     last_realtime_update_timestamp: Optional[datetime.datetime] = None  # TZ-aware UTC
@@ -106,16 +124,15 @@ class ScheduledTrip:
     current_position: Optional[Position] = None
     position_history: List[Position] = field(default_factory=list)
 
-    
     # -- Derived Fields ---
     @property
     def start_datetime(self) -> datetime.datetime:
-        
+
         parsed_st = ScheduledTrip._parse_hhmmss(self.start_time)
         if not parsed_st:
             return None
         h, m, s = parsed_st
-        
+
         base_date = datetime.datetime.strptime(self.start_date, "%Y%m%d").date()
         days_offset = h // 24
         actual_hour = h % 24
@@ -128,13 +145,12 @@ class ScheduledTrip:
         )
         # Localize to agency timezone
         local_dt = agency_tz.localize(naive_dt)
-        
+
         return local_dt
 
     # --- Methods ---
     def get_unique_identifier(self) -> Tuple[str, str, str]:
         return (self.trip_id, self.start_date, self.start_time)
-  
 
     @staticmethod
     def _parse_hhmmss(time_str: Optional[str]) -> Optional[Tuple[int, int, int]]:

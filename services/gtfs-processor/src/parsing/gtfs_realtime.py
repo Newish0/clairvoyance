@@ -9,7 +9,7 @@ from google.transit import gtfs_realtime_pb2
 from google.protobuf.message import Message
 
 from model import ScheduledTripDocument, StopTimeInfo, Position, RealtimeStopTimeUpdate
-from domain import ScheduleRelationship, OccupancyStatus
+from domain import ScheduleRelationship, OccupancyStatus, VehicleStopStatus
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,9 @@ class RealtimeUpdaterService:
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'DUPLICATED', -1): ScheduleRelationship.DUPLICATED,
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'DELETED', -1): ScheduleRelationship.DELETED,
         }
+        
+        
+        
 
         # TODO: Add mappings for stop time updates
         # TripUpdate.StopTimeUpdate.ScheduleRelationship
@@ -72,6 +75,13 @@ class RealtimeUpdaterService:
                 OccupancyStatus, "NOT_BOARDABLE", None
             ),
         }
+        
+        self._vehicle_stop_status_map: Dict[int, VehicleStopStatus] = {
+            gtfs_realtime_pb2.VehiclePosition.INCOMING_AT: VehicleStopStatus.INCOMING_AT,
+            gtfs_realtime_pb2.VehiclePosition.STOPPED_AT: VehicleStopStatus.STOPPED_AT,
+            gtfs_realtime_pb2.VehiclePosition.IN_TRANSIT_TO: VehicleStopStatus.IN_TRANSIT_TO
+        }
+        
         # Filter out None values from map in case V2 enums don't exist in domain
         self._occupancy_status_map = {
             k: v for k, v in self._occupancy_status_map.items() if v is not None
@@ -417,6 +427,20 @@ class RealtimeUpdaterService:
             vehicle_id = vehicle.vehicle.id
             if scheduled_trip.vehicle_id != vehicle_id:
                 scheduled_trip.vehicle_id = vehicle_id
+                needs_save = True
+        
+        # --- Update Status ---
+        if vehicle.HasField("current_status"):
+            new_status = self._vehicle_stop_status_map.get(vehicle.current_status)
+            if new_status is not None and scheduled_trip.current_status != new_status:
+                scheduled_trip.current_status = new_status
+                needs_save = True
+
+        # --- Update Current Stop Sequence ---
+        if vehicle.HasField("current_stop_sequence"):
+            new_seq = int(vehicle.current_stop_sequence)
+            if scheduled_trip.current_stop_sequence != new_seq:
+                scheduled_trip.current_stop_sequence = new_seq
                 needs_save = True
 
         # --- Update Position ---

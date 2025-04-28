@@ -10,7 +10,7 @@ import pymongo
 
 from enum import IntEnum
 
-from domain import ScheduleRelationship, OccupancyStatus
+from domain import ScheduleRelationship, OccupancyStatus, VehicleStopStatus
 
 
 # --- Helper Pydantic Models (for Beanie/MongoDB compatibility) ---
@@ -80,6 +80,13 @@ class ScheduledTripDocument(Document):
     realtime_stop_updates: Dict[str, RealtimeStopTimeUpdate] = Field(
         default_factory=dict
     )  # Key: str(stop_sequence)
+    current_stop_sequence: Optional[int] = None
+    
+    # The exact status of the vehicle with respect to the current stop.
+    # Ignored if current_stop_sequence is missing.
+    current_status: Optional[VehicleStopStatus] = None
+
+    
     vehicle_id: Optional[Indexed(str)] = None  # Index if querying by vehicle
     current_occupancy: Optional[OccupancyStatus] = None
     last_realtime_update_timestamp: Optional[Indexed(datetime.datetime)] = (
