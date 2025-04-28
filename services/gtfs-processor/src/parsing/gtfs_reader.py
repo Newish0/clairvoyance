@@ -56,7 +56,9 @@ class GTFSReader:
             trips,
             stop_times,
             service_dates,
-            _ # services set not directly needed by ParsedGTFSData constructor
+            _, # services set not directly needed by ParsedGTFSData constructor
+            stops,
+            shapes
         ) = self._read_gtfs_zip(zip_file_path)
         
         parsed_data = ParsedGTFSData(
@@ -65,6 +67,8 @@ class GTFSReader:
             trips=trips,
             stop_times=stop_times,
             service_dates=service_dates,
+            stops=stops,
+            shapes=shapes,
             log_level=self.log_level,
         )
         
@@ -86,6 +90,8 @@ class GTFSReader:
             - stop_times (Dict[str, List[Dict[str, Any]]])
             - service_dates (Dict[str, List[str]])
             - services (Set[str]) - All unique service_ids found
+            - stops (Dict[str, Dict[str, Any]]) 
+            - shapes (Dict[str, List[Dict[str, Any]]])  (grouped points)
 
         Raises:
             FileNotFoundError: If the zip file doesn't exist.
@@ -114,8 +120,10 @@ class GTFSReader:
                 service_dates = self._parse_calendar(zip_ref, filenames_in_zip)
                 service_dates = self._parse_calendar_dates(zip_ref, filenames_in_zip, service_dates)
                 stop_times = self._parse_stop_times(zip_ref, filenames_in_zip)
+                stops = self._parse_stops(zip_ref, filenames_in_zip)       
+                shapes = self._parse_shapes(zip_ref, filenames_in_zip)     
 
-                return agency_timezone, routes, trips, stop_times, service_dates, services
+                return agency_timezone, routes, trips, stop_times, service_dates, services, stops, shapes
 
         except zipfile.BadZipFile:
             self.logger.error(f"Invalid zip file: {zip_file_path}")
@@ -403,4 +411,93 @@ class GTFSReader:
         else:
              self.logger.warning(f"{filename} not found in GTFS zip file")
         return stop_times_by_trip
+
+    def _parse_stops(self, zip_ref: zipfile.ZipFile, filenames: Set[str]) -> Dict[str, Dict[str, Any]]:
+        """Parse stops.txt to build stop dictionary."""
+        stops: Dict[str, Dict[str, Any]] = {}
+        filename = "stops.txt"
+        if filename in filenames:
+            self.logger.debug(f"Parsing {filename}")
+            reader = self._read_csv_from_zip(zip_ref, filename)
+            if reader:
+                stop_count = 0
+                error_count = 0
+                try:
+                    for row in reader:
+                        stop_id = row.get("stop_id")
+                        if stop_id:
+                            stops[stop_id] = row
+                            stop_count += 1
+                        else:
+                            self.logger.warning(f"Found stop without stop_id in {filename}: {row}")
+                            error_count += 1
+                    self.logger.info(f"Parsed {stop_count} stops from {filename}")
+                    if error_count > 0:
+                        self.logger.warning(f"Skipped {error_count} stops due to missing stop_id in {filename}")
+                except Exception as e:
+                     self.logger.error(f"Error parsing {filename}: {e}", exc_info=True)
+            else:
+                 self.logger.warning(f"{filename} found but could not be read.")
+        else:
+             self.logger.warning(f"{filename} not found in GTFS zip file.")
+        return stops
+
+    def _parse_shapes(self, zip_ref: zipfile.ZipFile, filenames: Set[str]) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Parse shapes.txt, grouping points by shape_id.
+        The list for each shape_id will contain dicts with shape point data.
+        """
+        shapes_by_id: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        filename = "shapes.txt"
+        if filename in filenames:
+            self.logger.debug(f"Parsing {filename}")
+            reader = self._read_csv_from_zip(zip_ref, filename)
+            if reader:
+                point_count = 0
+                error_count = 0
+                shape_ids_found = set()
+                try:
+                    for row in reader:
+                        shape_id = row.get("shape_id")
+                        if shape_id:
+                            # Basic validation of required fields for geometry processing later
+                            try:
+                                # Ensure lat/lon are present and attempt float conversion early
+                                float(row.get("shape_pt_lat", ''))
+                                float(row.get("shape_pt_lon", ''))
+                                # Ensure sequence is present and attempt int conversion early
+                                int(row.get("shape_pt_sequence", ''))
+
+                                shapes_by_id[shape_id].append(row)
+                                shape_ids_found.add(shape_id)
+                                point_count += 1
+                            except (ValueError, TypeError, KeyError) as valid_err:
+                                self.logger.warning(f"Skipping shape point due to invalid/missing required fields (lat, lon, seq) in {filename}: {valid_err} - Row: {row}")
+                                error_count += 1
+                        else:
+                            self.logger.warning(f"Found shape point without shape_id in {filename}: {row}")
+                            error_count += 1
+                    self.logger.info(f"Parsed {point_count} shape points for {len(shape_ids_found)} distinct shapes from {filename}")
+                    if error_count > 0:
+                        self.logger.warning(f"Skipped {error_count} shape points due to errors in {filename}")
+
+                except Exception as e:
+                     self.logger.error(f"Error parsing {filename}: {e}", exc_info=True)
+            else:
+                 self.logger.warning(f"{filename} found but could not be read.")
+        else:
+             self.logger.info(f"{filename} not found in GTFS zip file.") # Info level might be okay here
+
+        # Sort points within each shape by sequence 
+        self.logger.debug("Sorting shape points by sequence...")
+        for shape_id in shapes_by_id:
+            try:
+                shapes_by_id[shape_id].sort(
+                    key=lambda x: int(x.get("shape_pt_sequence", "0")) # Graceful handling of missing sequence
+                )
+            except ValueError:
+                self.logger.error(f"Could not sort shape points for shape_id {shape_id} due to non-integer sequence numbers. Shape geometry might be incorrect.")
+        self.logger.debug("Finished sorting shape points.")
+
+        return shapes_by_id
 
