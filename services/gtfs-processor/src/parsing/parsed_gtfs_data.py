@@ -19,6 +19,8 @@ class ParsedGTFSData:
         trips: Dict[str, Dict[str, Any]],
         stop_times: Dict[str, List[Dict[str, Any]]],
         service_dates: Dict[str, List[str]],
+        stops: Dict[str, Dict[str, Any]],          
+        shapes: Dict[str, List[Dict[str, Any]]],   
         log_level=logging.INFO,
     ):
         """
@@ -30,6 +32,8 @@ class ParsedGTFSData:
             trips: Dictionary of trips keyed by trip_id.
             stop_times: Dictionary of stop time lists keyed by trip_id.
             service_dates: Dictionary of service date lists (YYYYMMDD) keyed by service_id.
+            stops: Dictionary of stops keyed by stop_id. 
+            shapes: Dictionary of shape point lists keyed by shape_id. 
             log_level: Logging level.
         """
         self.agency_timezone = agency_timezone
@@ -37,12 +41,16 @@ class ParsedGTFSData:
         self.trips = trips
         self.stop_times = stop_times
         self.service_dates = service_dates
+        self.stops = stops      
+        self.shapes = shapes    
         self.logger = self._setup_logger(log_level)
 
         self.logger.info("ParsedGTFSData initialized.")
         self.logger.info(f"Agency timezone: {self.agency_timezone}")
         self.logger.info(f"Loaded {len(routes)} routes.")
         self.logger.info(f"Loaded {len(trips)} trips.")
+        self.logger.info(f"Loaded {len(stops)} stops.") 
+        self.logger.info(f"Loaded {len(shapes)} shapes (with points).") 
         self.logger.info(f"Loaded stop times for {len(stop_times)} trips.")
         self.logger.info(f"Loaded service dates for {len(service_dates)} services.")
 
