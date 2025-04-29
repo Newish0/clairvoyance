@@ -58,6 +58,9 @@ class StopTimeInfo:
     drop_off_type: Optional[int] = None
     shape_dist_traveled: Optional[float] = None
 
+    # --- DERIVED FIELDS ---
+    arrival_datetime: Optional[datetime.datetime] = None
+
 
 @dataclass(frozen=True)
 class Position:
@@ -111,7 +114,7 @@ class ScheduledTrip:
         default_factory=dict
     )  # Key: stop_sequence
     current_stop_sequence: Optional[int] = None
-    
+
     # The exact status of the vehicle with respect to the current stop.
     # Ignored if current_stop_sequence is missing.
     current_status: Optional[VehicleStopStatus] = None
@@ -127,30 +130,37 @@ class ScheduledTrip:
     # -- Derived Fields ---
     @property
     def start_datetime(self) -> datetime.datetime:
-
-        parsed_st = ScheduledTrip._parse_hhmmss(self.start_time)
-        if not parsed_st:
-            return None
-        h, m, s = parsed_st
-
-        base_date = datetime.datetime.strptime(self.start_date, "%Y%m%d").date()
-        days_offset = h // 24
-        actual_hour = h % 24
-        actual_date = base_date + datetime.timedelta(days=days_offset)
-
-        # Create naive datetime in agency's timezone
-        agency_tz = pytz.timezone(self.agency_timezone_str)
-        naive_dt = datetime.datetime(
-            actual_date.year, actual_date.month, actual_date.day, actual_hour, m, s
+        return ScheduledTrip.convert_to_datetime(
+            self.start_date, self.start_time, self.agency_timezone_str
         )
-        # Localize to agency timezone
-        local_dt = agency_tz.localize(naive_dt)
-
-        return local_dt
 
     # --- Methods ---
     def get_unique_identifier(self) -> Tuple[str, str, str]:
         return (self.trip_id, self.start_date, self.start_time)
+
+    @staticmethod
+    def convert_to_datetime(
+        date_str: str, time_str: str, tz_str: str = "UTC"
+    ) -> datetime.datetime:
+        parsed_time = ScheduledTrip._parse_hhmmss(time_str)
+        if not parsed_time:
+            return None
+        h, m, s = parsed_time
+
+        base_date = datetime.datetime.strptime(date_str, "%Y%m%d").date()
+        days_offset = h // 24
+        actual_hour = h % 24
+        actual_date = base_date + datetime.timedelta(days=days_offset)
+
+        # Create naive datetime in given timezone
+        tz = pytz.timezone(tz_str)
+        naive_dt = datetime.datetime(
+            actual_date.year, actual_date.month, actual_date.day, actual_hour, m, s
+        )
+        # Localize to given timezone
+        local_dt = tz.localize(naive_dt)
+
+        return local_dt
 
     @staticmethod
     def _parse_hhmmss(time_str: Optional[str]) -> Optional[Tuple[int, int, int]]:

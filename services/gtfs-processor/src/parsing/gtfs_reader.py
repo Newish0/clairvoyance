@@ -15,7 +15,7 @@ class GTFSReader:
     Does not perform complex processing or object creation.
     """
 
-    def __init__(self, default_timezone: str = "UTC", log_level=logging.INFO):
+    def __init__(self, default_timezone: str = "UTC", logger: Optional[logging.Logger] = None):
         """
         Initialize the reader with a default timezone.
 
@@ -24,8 +24,7 @@ class GTFSReader:
             log_level: Logging level (default: INFO).
         """
         self.default_timezone = default_timezone
-        self.log_level = log_level
-        self.logger = self._setup_logger(log_level)
+        self.logger = logger or self._setup_logger(logging.INFO)
 
         # Validate timezone
         try:
@@ -69,7 +68,7 @@ class GTFSReader:
             service_dates=service_dates,
             stops=stops,
             shapes=shapes,
-            log_level=self.log_level,
+            logger=self.logger
         )
         
         return parsed_data

@@ -5,8 +5,16 @@
             "path": "../"
         },
         {
-            "name": "services/gtfs-processor",
-            "path": "../packages/foobar-package"
+            "name": "GTFS API Serivce",
+            "path": "../services/gtfs-api"
+        },
+        {
+            "name": "GTFS Processor",
+            "path": "../services/gtfs-processor"
+        },
+        {
+            "name": "Web App",
+            "path": "../services/web-app"
         },
     
     ],

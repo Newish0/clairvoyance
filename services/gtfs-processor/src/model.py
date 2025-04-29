@@ -24,6 +24,9 @@ class StopTimeInfo(BaseModel):
     pickup_type: Optional[int] = None
     drop_off_type: Optional[int] = None
     shape_dist_traveled: Optional[float] = None
+    
+    # --- DERIVED FIELDS ---
+    arrival_datetime: Optional[datetime.datetime] = None
 
 
 class Position(BaseModel):
