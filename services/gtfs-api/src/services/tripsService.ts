@@ -147,34 +147,6 @@ export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
     return { trips: scheduledTrips };
 };
 
-// export const fetchNearbyTrips = async (lat: number, lng: number, radius: number) => {
-//     const db = await getDb();
-
-//     console.log(lat, lng, radius);
-
-//     const stops = await db
-//         .collection("stops")
-//         .find({
-//             location: {
-//                 $near: {
-//                     $geometry: {
-//                         type: "Point",
-//                         coordinates: [lng, lat],
-//                     },
-//                     $maxDistance: radius,
-//                 },
-//             },
-//         })
-//         .project({ stop_id: 1 })
-//         .toArray();
-
-//     const stopIds = stops.map((stop) => stop.stop_id);
-
-//     // TODO: For each unique route id * direction id combo, find it's next scheduled trip at the stop nearest to the given lat, lng param.
-
-//     return { stops: stops, nextTrips: [] };
-// };
-
 export const fetchNearbyTrips = async (lat: number, lng: number, radius: number) => {
     const db = await getDb();
 
