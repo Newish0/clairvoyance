@@ -24,7 +24,7 @@ class StopTimeInfo(BaseModel):
     pickup_type: Optional[int] = None
     drop_off_type: Optional[int] = None
     shape_dist_traveled: Optional[float] = None
-    
+
     # --- DERIVED FIELDS ---
     arrival_datetime: Optional[datetime.datetime] = None
 
@@ -84,12 +84,11 @@ class ScheduledTripDocument(Document):
         default_factory=dict
     )  # Key: str(stop_sequence)
     current_stop_sequence: Optional[int] = None
-    
+
     # The exact status of the vehicle with respect to the current stop.
     # Ignored if current_stop_sequence is missing.
     current_status: Optional[VehicleStopStatus] = None
 
-    
     vehicle_id: Optional[Indexed(str)] = None  # Index if querying by vehicle
     current_occupancy: Optional[OccupancyStatus] = None
     last_realtime_update_timestamp: Optional[Indexed(datetime.datetime)] = (
@@ -199,33 +198,30 @@ class ScheduledTripDocument(Document):
             [("last_realtime_update_timestamp", pymongo.DESCENDING)],
             # Descending index on the computed start time (useful for time-based queries)
             [("start_datetime", pymongo.DESCENDING)],
+            # Indexes to speed up next trips queries
+            [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
+            [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
+            
+            # These 2 below does not appear to help.
+            # [("scheduled_stop_times.stop_sequence", pymongo.ASCENDING)],
+            # [("current_stop_sequence", pymongo.ASCENDING)],
         ]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # --- Helper GeoJSON Models ---
-
 class PointGeometry(BaseModel):
     """Represents a GeoJSON Point object."""
-    type: str = Field(default="Point", frozen=True)
-    coordinates: List[float] # [longitude, latitude]
 
-    @field_validator('coordinates')
+    type: str = Field(default="Point", frozen=True)
+    coordinates: List[float]  # [longitude, latitude]
+
+    @field_validator("coordinates")
     @classmethod
     def validate_coordinates(cls, v):
         if len(v) != 2:
-            raise ValueError("Coordinates must contain exactly two values: [longitude, latitude]")
+            raise ValueError(
+                "Coordinates must contain exactly two values: [longitude, latitude]"
+            )
         lon, lat = v
         if not (-180 <= lon <= 180):
             raise ValueError("Longitude must be between -180 and 180")
@@ -233,27 +229,37 @@ class PointGeometry(BaseModel):
             raise ValueError("Latitude must be between -90 and 90")
         return v
 
+
 class LineStringGeometry(BaseModel):
     """Represents a GeoJSON LineString object."""
-    type: str = Field(default="LineString", frozen=True)
-    coordinates: List[List[float]] # Array of [longitude, latitude] pairs
 
-    @field_validator('coordinates')
+    type: str = Field(default="LineString", frozen=True)
+    coordinates: List[List[float]]  # Array of [longitude, latitude] pairs
+
+    @field_validator("coordinates")
     @classmethod
     def validate_coordinates(cls, v):
-        if not v: # Must have at least one point, though GTFS usually requires >= 2
-             raise ValueError("Coordinates list cannot be empty for a LineString")
+        if not v:  # Must have at least one point, though GTFS usually requires >= 2
+            raise ValueError("Coordinates list cannot be empty for a LineString")
         for i, point in enumerate(v):
             if len(point) != 2:
-                raise ValueError(f"Each point in coordinates must contain exactly two values: [longitude, latitude]. Error at index {i}")
+                raise ValueError(
+                    f"Each point in coordinates must contain exactly two values: [longitude, latitude]. Error at index {i}"
+                )
             lon, lat = point
             if not (-180 <= lon <= 180):
-                raise ValueError(f"Longitude must be between -180 and 180. Error at index {i}")
+                raise ValueError(
+                    f"Longitude must be between -180 and 180. Error at index {i}"
+                )
             if not (-90 <= lat <= 90):
-                raise ValueError(f"Latitude must be between -90 and 90. Error at index {i}")
+                raise ValueError(
+                    f"Latitude must be between -90 and 90. Error at index {i}"
+                )
         return v
 
+
 # --- Enums based on GTFS Specification (same as before) ---
+
 
 class LocationType(IntEnum):
     STOP = 0
@@ -262,10 +268,12 @@ class LocationType(IntEnum):
     GENERIC_NODE = 3
     BOARDING_AREA = 4
 
+
 class WheelchairBoarding(IntEnum):
     NO_INFO = 0
     ACCESSIBLE = 1
     NOT_ACCESSIBLE = 2
+
 
 class RouteType(IntEnum):
     TRAM = 0
@@ -280,31 +288,35 @@ class RouteType(IntEnum):
     MONORAIL = 12
     # Add more as needed from GTFS spec
 
+
 class ContinuousPickupDropOff(IntEnum):
     CONTINUOUS = 0
     NONE = 1
     PHONE_AGENCY = 2
     COORDINATE_WITH_DRIVER = 3
 
+
 # --- Revised Beanie Document Models ---
+
 
 class Stop(Document):
     """
     Represents a GTFS stop or station (from stops.txt).
     Designed for geospatial queries using MongoDB's features.
     """
-    stop_id: Indexed(str, unique=True) # From stop_id
+
+    stop_id: Indexed(str, unique=True)  # From stop_id
     stop_code: Optional[Indexed(str)] = None
-    stop_name: Optional[Indexed(str)] = None # Index for searching by name
+    stop_name: Optional[Indexed(str)] = None  # Index for searching by name
     stop_desc: Optional[str] = None
     # Use PointGeometry for native MongoDB geospatial support
-    location: Optional[PointGeometry] = None # Derived from stop_lat, stop_lon
+    location: Optional[PointGeometry] = None  # Derived from stop_lat, stop_lon
     zone_id: Optional[str] = None
     stop_url: Optional[str] = None
     location_type: Optional[LocationType] = LocationType.STOP
     # parent_station can be used to link stations and stops.
     # Using the stop_id string for linking is flexible.
-    parent_station_id: Optional[Indexed(str)] = None # References stop_id of parent
+    parent_station_id: Optional[Indexed(str)] = None  # References stop_id of parent
     stop_timezone: Optional[str] = None
     wheelchair_boarding: Optional[WheelchairBoarding] = WheelchairBoarding.NO_INFO
     level_id: Optional[str] = None
@@ -316,12 +328,13 @@ class Stop(Document):
             # *** CRITICAL FOR GEOSPATIAL QUERIES ***
             # Use 2dsphere for accurate queries on sphere (Earth)
             pymongo.IndexModel(
-                [("location", pymongo.GEOSPHERE)], # Use GEOSPHERE for Point data on sphere
-                 name="location_geosphere_idx"
+                [
+                    ("location", pymongo.GEOSPHERE)
+                ],  # Use GEOSPHERE for Point data on sphere
+                name="location_geosphere_idx",
             ),
-            # Add other indexes via Indexed() decorator above or here
-            pymongo.IndexModel([("stop_name", pymongo.TEXT)], name="stop_name_text_idx") # Optional: for text search
         ]
+
 
 class Route(Document):
     """
@@ -329,8 +342,9 @@ class Route(Document):
     Kept relatively simple; relationships to Trips/Shapes are often better
     handled via linking or embedding within the Trip model (not shown here).
     """
-    route_id: Indexed(str, unique=True) # From route_id
-    agency_id: Optional[Indexed(str)] = None # Links to an Agency collection
+
+    route_id: Indexed(str, unique=True)  # From route_id
+    agency_id: Optional[Indexed(str)] = None  # Links to an Agency collection
     route_short_name: Optional[Indexed(str)] = None
     route_long_name: Optional[Indexed(str)] = None
     route_desc: Optional[str] = None
@@ -340,7 +354,9 @@ class Route(Document):
     route_text_color: Optional[str] = None
     route_sort_order: Optional[int] = None
     continuous_pickup: Optional[ContinuousPickupDropOff] = ContinuousPickupDropOff.NONE
-    continuous_drop_off: Optional[ContinuousPickupDropOff] = ContinuousPickupDropOff.NONE
+    continuous_drop_off: Optional[ContinuousPickupDropOff] = (
+        ContinuousPickupDropOff.NONE
+    )
 
     # Potential NoSQL Enhancement: Could embed agency details if Agency doesn't change often
     # agency_details: Optional[EmbeddedAgency] = None
@@ -348,12 +364,12 @@ class Route(Document):
     class Settings:
         name = "routes"
         indexes = [
-             # Add compound indexes if needed, e.g., (agency_id, route_short_name)
-             # Indexes are defined above using Indexed() decorator for single fields
-             pymongo.IndexModel(
-                 [("route_short_name", pymongo.TEXT), ("route_long_name", pymongo.TEXT)],
-                 name="route_name_text_idx" # Optional: for text search
-             )
+            # Add compound indexes if needed, e.g., (agency_id, route_short_name)
+            # Indexes are defined above using Indexed() decorator for single fields
+            pymongo.IndexModel(
+                [("route_short_name", pymongo.TEXT), ("route_long_name", pymongo.TEXT)],
+                name="route_name_text_idx",  # Optional: for text search
+            )
         ]
 
 
@@ -363,23 +379,28 @@ class Shape(Document):
     Leverages NoSQL by storing the entire shape geometry as one LineString,
     making it efficient to retrieve a shape's path.
     """
-    shape_id: Indexed(str, unique=True) # From shape_id - now unique per document
+
+    shape_id: Indexed(str, unique=True)  # From shape_id - now unique per document
 
     # Embed the entire geometry as a GeoJSON LineString
     geometry: LineStringGeometry
 
     # Store the sequence of distances traveled, parallel to the geometry coordinates
     # This preserves the shape_dist_traveled info from shapes.txt
-    distances_traveled: Optional[List[Optional[float]]] = None # Array of distances corresponding to each point
+    distances_traveled: Optional[List[Optional[float]]] = (
+        None  # Array of distances corresponding to each point
+    )
 
     class Settings:
         name = "shapes"
         indexes = [
             # Geospatial index on the LineString for spatial queries on shapes
             # (e.g., find shapes intersecting a region)
-             pymongo.IndexModel(
-                [("geometry", pymongo.GEOSPHERE)], # Use GEOSPHERE for LineString data on sphere
-                 name="geometry_geosphere_idx"
+            pymongo.IndexModel(
+                [
+                    ("geometry", pymongo.GEOSPHERE)
+                ],  # Use GEOSPHERE for LineString data on sphere
+                name="geometry_geosphere_idx",
             )
             # shape_id is already indexed uniquely via the decorator
         ]
