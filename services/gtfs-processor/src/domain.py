@@ -98,6 +98,7 @@ class ScheduledTrip:
     # --- Other Static GTFS Data ---
     route_id: str
     service_id: str
+    route_short_name: Optional[str] = None
     agency_timezone_str: str = "UTC"  # Default, should be set by parser from agency.txt
     direction_id: Optional[int] = None
     shape_id: Optional[str] = None

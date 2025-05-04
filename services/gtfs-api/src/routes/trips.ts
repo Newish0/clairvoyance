@@ -1,13 +1,17 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { fetchNearbyTrips, fetchScheduledTrips } from "@/services/tripsService";
+import {
+    fetchNearbyTrips,
+    fetchScheduledTrips,
+    fetchScheduledTripDetails,
+} from "@/services/tripsService";
 
 const router = new Hono();
 
-// GET /trips?routeId=&directionId=&stopId=&startDatetime?=&endDatetime?
+// GET /trips/next?routeId=&directionId=&stopId=&startDatetime?=&endDatetime?
 router.get(
-    "/",
+    "/next",
     zValidator(
         "query",
         z.object({
@@ -45,6 +49,18 @@ router.get(
     async (c) => {
         const { lat, lng, radius } = c.req.valid("query");
         const data = await fetchNearbyTrips(lat, lng, radius);
+        console.log(data);
+        return c.json(data);
+    }
+);
+
+// GET /trips/:tripObjectId
+router.get(
+    "/:tripObjectId",
+    zValidator("param", z.object({ tripObjectId: z.string() })),
+    async (c) => {
+        const { tripObjectId } = c.req.valid("param");
+        const data = await fetchScheduledTripDetails(tripObjectId);
         return c.json(data);
     }
 );

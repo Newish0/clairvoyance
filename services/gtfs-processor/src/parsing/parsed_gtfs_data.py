@@ -115,6 +115,8 @@ class ParsedGTFSData:
                 )
                 # Don't increment skipped_count here, as the trip itself might be valid but just not running
                 continue
+            
+            route_short_name = self._find_route_short_name(route_id)
 
             # Find start time from the (already sorted) stop times
             start_time = self._find_first_departure_time(trip_stop_times_raw)
@@ -157,6 +159,7 @@ class ParsedGTFSData:
                         start_date=service_date,
                         start_time=start_time,
                         route_id=route_id,
+                        route_short_name=route_short_name,
                         service_id=service_id,
                         agency_timezone_str=self.agency_timezone,
                         direction_id=direction_id,
@@ -213,6 +216,9 @@ class ParsedGTFSData:
             **stop_time_dict,
         )
 
+    def _find_route_short_name(self, route_id: str) -> Optional[str]:
+        return self.routes.get(route_id, {}).get("route_short_name")
+    
     def _find_first_departure_time(
         self, trip_stop_times_raw: List[Dict[str, Any]]
     ) -> Optional[str]:
