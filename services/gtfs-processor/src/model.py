@@ -66,6 +66,7 @@ class ScheduledTripDocument(Document):
     # --- Other Static GTFS Data ---
     route_id: Indexed(str)
     service_id: str
+    route_short_name: Optional[str] = None
     agency_timezone_str: str = "UTC"
     direction_id: Optional[int] = None
     shape_id: Optional[str] = None

@@ -1,4 +1,32 @@
 import { getDb } from "@/services/mongo";
+import { ObjectId } from "mongodb";
+import { StopNameService } from "./stopNameService";
+
+export const fetchScheduledTripDetails = async (tripObjectId: string) => {
+    const db = await getDb();
+    const stopNameService = StopNameService.getInstance(db);
+
+    const objId = (() => {
+        try {
+            return new ObjectId(tripObjectId);
+        } catch {
+            throw new Error("Invalid tripObjectId");
+        }
+    })();
+
+    const trip = await db.collection("scheduled_trips").findOne({ _id: objId });
+
+    // Add stop name to trip.scheduled_stop_times
+    if (trip) {
+        await Promise.all(
+            trip.scheduled_stop_times.map(async (stopTime: any) => {
+                stopTime.stop_name = await stopNameService.getStopNameByStopId(stopTime.stop_id);
+            })
+        );
+    }
+
+    return trip;
+};
 
 interface ScheduledTripsParams {
     routeId: string;
@@ -144,7 +172,20 @@ export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
         ])
         .toArray();
 
-    return { trips: scheduledTrips };
+    // // Add stop names to each trip
+    // const scheduledTripsWithStopNames = await Promise.all(
+    //     scheduledTrips.map(async (trip) => {
+    //         const stopNames = await Promise.all(
+    //             trip.relevantStopTimes.map(async (stopTime) => {
+    //                 const stopName = await stopNameService.getStopNameByStopId(stopTime.stop_id);
+    //                 return { ...stopTime, stop_name: stopName };
+    //             })
+    //         );
+    //         return { ...trip, relevantStopTimes: stopNames };
+    //     })
+    // )
+
+    return scheduledTrips;
 };
 
 export const fetchNearbyTrips = async (lat: number, lng: number, radius: number) => {
@@ -177,7 +218,7 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
     const nearbyStops = await nearbyStopsCursor.toArray();
 
     if (nearbyStops.length === 0) {
-        return { stops: [], nextTrips: [] };
+        return {};
     }
 
     // --- Step 2: Prepare ---
@@ -256,11 +297,13 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
         },
         {
             $project: {
-                _id: 0,
+                _id: 1,
                 trip_id: 1,
                 route_id: 1,
                 direction_id: 1,
                 start_datetime: 1,
+                route_short_name: 1,
+                trip_headsign: 1,
                 stop_time: "$scheduled_stop_times",
                 realtime_stop_updates: {
                     // Renamed for clarity
