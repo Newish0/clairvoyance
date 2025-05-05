@@ -5,6 +5,7 @@ import { connectDB } from "@/services/mongo";
 import stopsRouter from "@/routes/stops";
 import shapesRouter from "@/routes/shapes";
 import tripsRouter from "@/routes/trips";
+import routesRouter from "@/routes/routes";
 
 const port = Bun.env.PORT || 5888;
 const MONGO_CONNECTION_STRING = Bun.env.MONGO_CONNECTION_STRING || "mongodb://localhost:27017";
@@ -21,6 +22,7 @@ app.get("/", (c) => c.text("Hello Bun!"));
 app.route("/stops", stopsRouter);
 app.route("/shapes", shapesRouter);
 app.route("/trips", tripsRouter);
+app.route("/routes", routesRouter);
 
 export default {
     port,
