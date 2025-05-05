@@ -28,6 +28,7 @@ import { getScheduledTripDetails } from "~/services/trips";
 import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
 import { calculateHaversineDistance } from "~/utils/distance";
+import { useRouteLiveVehicles } from "~/hooks/use-route-live-vehicles";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -47,6 +48,11 @@ const TripMap: Component<TripMapProps> = (props) => {
             stopIds: tripDetails()?.scheduled_stop_times.map((st) => st.stop_id),
         }),
         ({ stopIds }) => stopIds && getStopsGeoJson(stopIds)
+    );
+
+    const { vehicles, isConnected, error } = useRouteLiveVehicles(
+        () => tripDetails()?.route_id,
+        () => tripDetails()?.direction_id
     );
 
     const ourStopIndex = () =>
@@ -302,6 +308,40 @@ const TripMap: Component<TripMapProps> = (props) => {
                     </Source>
                 )}
             </Show>
+
+            <For each={vehicles()}>
+                {(trip) => (
+                    <Marker
+                        lngLat={[trip.current_position.longitude, trip.current_position.latitude]}
+                        options={{
+                            element: (
+                                <div class="flex flex-col items-center justify-center">
+                                    <div
+                                        class={cn(
+                                            "w-8 h-8 bg-background flex flex-col",
+                                            "justify-center items-center rounded-full text-foreground"
+                                        )}
+                                    >
+                                        <BusFrontIcon size={20} />
+                                    </div>
+
+                                    <Show when={trip.current_occupancy}>
+                                        {(occupancyStatus) => (
+                                            <div class="-mt-1">
+                                                <OccupancyBadge
+                                                    status={occupancyStatus()}
+                                                    size={8}
+                                                    variant={"default"}
+                                                />
+                                            </div>
+                                        )}
+                                    </Show>
+                                </div>
+                            ),
+                        }}
+                    ></Marker>
+                )}
+            </For>
 
             {/* 
             <Show when={geoJson()}>
