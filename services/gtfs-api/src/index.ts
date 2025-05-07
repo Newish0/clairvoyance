@@ -27,4 +27,5 @@ app.route("/routes", routesRouter);
 export default {
     port,
     fetch: app.fetch,
+    idleTimeout: 30,
 };

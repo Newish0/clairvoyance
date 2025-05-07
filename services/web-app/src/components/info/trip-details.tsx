@@ -24,26 +24,6 @@ const TripDetails = (props: TripDetailsProps) => {
         return await getScheduledTripDetails(props.tripObjectId);
     });
 
-    // createEffect(() => {
-    //     console.log(ourTrip());
-    // });
-
-    // const [trip] = createResource(() => getTripDetails(props.tripId));
-    // const [route] = createResource(() => getRouteDetails(props.routeId));
-    // const [tripStops] = createResource(async () => {
-    //     const stops = await getTripStops(props.tripId);
-    //     const stopIndex = stops.findIndex((s) => s.stop_id === props.stopId);
-    //     return {
-    //         stops,
-    //         stopIndex,
-    //         currentStop: stops[stopIndex],
-    //     };
-    // });
-
-    createEffect(() => {
-        console.log(ourTrip());
-    });
-
     return (
         <div class="h-full flex flex-col gap-3">
             <div class="flex items-center space-x-2">
@@ -104,15 +84,12 @@ const TripDetails = (props: TripDetailsProps) => {
                                 // TODO: Use stop name
                                 // stopName: s.stop_name,
                                 stopName: s.stop_name,
-                                stopTime: trip().realtime_stop_updates ? (
+                                stopTime: trip().realtime_stop_updates[s.stop_sequence] ? (
                                     <div class="flex items-center">
                                         <span>
                                             {format(
-                                                new Date(
-                                                    trip().realtime_stop_updates[
-                                                        s.stop_sequence
-                                                    ].predicted_arrival_time
-                                                ),
+                                                trip().realtime_stop_updates[s.stop_sequence]
+                                                    .predicted_arrival_time,
                                                 "HH:mm:ss"
                                             )}
                                         </span>

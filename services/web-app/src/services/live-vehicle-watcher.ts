@@ -1,181 +1,233 @@
-type Vehicle = any; // TODO
+export type DirectionId = 0 | 1 | undefined;
+export type Vehicle = any; // Lazy type as requested
 
-interface LiveVehicleWatcherOptions {
-    onUpdate?: (vehicles: Map<string, Vehicle>) => void; // Callback with the updated map
-    onError?: (error: Event | { message: string }) => void; // Callback for connection or server errors
-    onOpen?: () => void; // Callback when connection opens
-    onClose?: () => void; // Callback when connection closes explicitly or due to error
-}
+export type ConnectionStatus = "idle" | "connecting" | "connected" | "disconnected" | "error";
+
+// Define callback types
+type UpdateCallback = (vehicles: Map<string, Vehicle>) => void;
+type StatusChangeCallback = (status: ConnectionStatus) => void;
+type ErrorCallback = (error: Event | string) => void;
 
 export class LiveVehicleWatcher {
     private routeId: string;
-    private directionId: 0 | 1 | undefined;
+    private directionId: DirectionId;
+    private apiUrl: string;
     private eventSource: EventSource | null = null;
-    private vehicles = new Map<string, Vehicle>();
-    private url: string;
-    private isConnected = false;
+    private vehicles: Map<string, Vehicle> = new Map();
 
-    private onUpdateCallback?: (vehicles: Map<string, Vehicle>) => void;
-    private onErrorCallback?: (error: Event | { message: string }) => void;
-    private onOpenCallback?: () => void;
-    private onCloseCallback?: () => void;
+    // Callbacks
+    private onUpdate: UpdateCallback = () => {};
+    private onStatusChange: StatusChangeCallback = () => {};
+    private onError: ErrorCallback = () => {};
 
-    constructor(routeId: string, directionId?: 0 | 1, options: LiveVehicleWatcherOptions = {}) {
+    constructor(routeId: string, directionId: DirectionId) {
         if (!routeId) {
-            throw new Error("routeId is required.");
+            throw new Error("routeId is required for LiveVehicleService");
         }
         this.routeId = routeId;
         this.directionId = directionId;
-        this.url = this.buildUrl();
-
-        this.onUpdateCallback = options.onUpdate;
-        this.onErrorCallback = options.onError;
-        this.onOpenCallback = options.onOpen;
-        this.onCloseCallback = options.onClose;
+        this.apiUrl = this.buildUrl();
+        console.debug(
+            `LiveVehicleService created for route ${routeId}, direction ${directionId}, url: ${this.apiUrl}`
+        );
     }
 
+    // --- Public Methods ---
+
+    /** Registers a callback for vehicle data updates. */
+    public setOnUpdate(callback: UpdateCallback): void {
+        this.onUpdate = callback;
+    }
+
+    /** Registers a callback for connection status changes. */
+    public setOnStatusChange(callback: StatusChangeCallback): void {
+        this.onStatusChange = callback;
+    }
+
+    /** Registers a callback for connection or stream errors. */
+    public setOnError(callback: ErrorCallback): void {
+        this.onError = callback;
+    }
+
+    /** Initiates the SSE connection. */
+    public connect(): void {
+        if (this.eventSource) {
+            console.warn(`[SSE ${this.routeId}] Already connected or connecting.`);
+            return;
+        }
+
+        try {
+            console.log(`[SSE ${this.routeId}] Connecting to ${this.apiUrl}...`);
+            this.updateStatus("connecting");
+            this.vehicles.clear(); // Clear previous state on new connection attempt
+            this.notifyUpdate(); // Notify that state is cleared
+
+            this.eventSource = new EventSource(this.apiUrl);
+
+            this.eventSource.onopen = this.handleOpen;
+            this.eventSource.onerror = this.handleError;
+
+            // Listen to specific events from the backend
+            this.eventSource.addEventListener("init", this.handleVehicleUpdate);
+            this.eventSource.addEventListener("add", this.handleVehicleUpdate);
+            this.eventSource.addEventListener("change", this.handleVehicleUpdate);
+            this.eventSource.addEventListener("remove", this.handleVehicleRemove);
+            this.eventSource.addEventListener("stream_error", this.handleStreamError);
+        } catch (error) {
+            console.error(`[SSE ${this.routeId}] Failed to create EventSource:`, error);
+            this.eventSource = null;
+            this.handleError(
+                `Failed to create EventSource: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+        }
+    }
+
+    /** Closes the SSE connection. */
+    public disconnect(isError: boolean = false): void {
+        if (this.eventSource) {
+            this.eventSource.close();
+            // Explicitly remove listeners to be safe, though close() should handle it
+            this.eventSource.removeEventListener("init", this.handleVehicleUpdate);
+            this.eventSource.removeEventListener("add", this.handleVehicleUpdate);
+            this.eventSource.removeEventListener("change", this.handleVehicleUpdate);
+            this.eventSource.removeEventListener("remove", this.handleVehicleRemove);
+            this.eventSource.removeEventListener("stream_error", this.handleStreamError);
+            this.eventSource.onopen = null;
+            this.eventSource.onerror = null;
+
+            this.eventSource = null;
+            console.log(`[SSE ${this.routeId}] Disconnected.`);
+        }
+        // Only update status if not already in an error state causing the disconnect
+        if (!isError) {
+            this.updateStatus("disconnected");
+        }
+    }
+
+    // --- Private Helper Methods ---
+
     private buildUrl(): string {
-        let url = `${import.meta.env.PUBLIC_GTFS_API_ENDPOINT}/routes/${
-            this.routeId
-        }/vehicles/live`;
-        if (this.directionId !== undefined) {
+        // Ensure the environment variable is accessed correctly
+        const apiBase = import.meta.env.PUBLIC_GTFS_API_ENDPOINT;
+        if (!apiBase) {
+            console.error("PUBLIC_GTFS_API_ENDPOINT environment variable is not set!");
+            // Fallback or throw error - let's throw for clarity
+            throw new Error("API endpoint base URL is not configured.");
+        }
+        let url = `${apiBase}/routes/${this.routeId}/vehicles/live`;
+        if (this.directionId !== undefined && this.directionId !== null) {
+            // Explicit check
             url += `?directionId=${this.directionId}`;
         }
         return url;
     }
 
-    connect() {
-        if (this.eventSource) {
-            console.warn("Already connected or connecting.");
-            return;
+    private updateStatus(newStatus: ConnectionStatus): void {
+        // console.debug(`[SSE ${this.routeId}] Status changed to: ${newStatus}`);
+        this.onStatusChange(newStatus);
+    }
+
+    private notifyUpdate(): void {
+        // Provide a *new* map instance to the callback to ensure reactivity
+        // in frameworks like SolidJS that rely on shallow comparison.
+        this.onUpdate(new Map(this.vehicles));
+    }
+
+    // --- Event Handlers (bound methods using arrow functions) ---
+
+    private handleOpen = (): void => {
+        console.log(`[SSE ${this.routeId}] Connection opened.`);
+        this.updateStatus("connected");
+        // Backend sends 'init' events, no need to clear state here
+    };
+
+    private handleError = (error: Event | string): void => {
+        // Distinguish between EventSource errors (like connection refused) and string errors passed internally
+        const isEvent = error instanceof Event;
+        const errorMessage = isEvent ? `EventSource error (type: ${error.type})` : error;
+
+        console.error(`[SSE ${this.routeId}] Error:`, errorMessage, isEvent ? error : "");
+        this.onError(error); // Notify listener
+        this.updateStatus("error");
+
+        // EventSource attempts reconnection automatically on some errors.
+        // However, if the error seems final (e.g., network error, 404), we should clean up.
+        // readyState 2 is CLOSED. Check if it's closed after an error event.
+        if (this.eventSource?.readyState === EventSource.CLOSED) {
+            console.warn(
+                `[SSE ${this.routeId}] EventSource closed after error, disconnecting fully.`
+            );
+            this.disconnect(true); // Pass true to indicate error state
         }
+        // If it's an initial connection error passed as a string, disconnect too.
+        if (
+            !isEvent &&
+            typeof error === "string" &&
+            error.startsWith("Failed to create EventSource")
+        ) {
+            this.disconnect(true);
+        }
+    };
 
-        console.log(`Connecting to ${this.url}...`);
-        this.eventSource = new EventSource(this.url);
+    private handleVehicleUpdate = (event: MessageEvent): void => {
+        // console.debug(`[SSE ${this.routeId}] Received ${event.type}:`, event.data);
+        try {
+            const vehicle: Vehicle = JSON.parse(event.data);
+            if (vehicle && typeof vehicle._id !== "undefined") {
+                this.vehicles.set(String(vehicle._id), vehicle);
+                this.notifyUpdate();
+            } else {
+                console.warn(
+                    `[SSE ${this.routeId}] Received malformed vehicle data for ${event.type}:`,
+                    event.data
+                );
+            }
+        } catch (e) {
+            console.error(
+                `[SSE ${this.routeId}] Failed to parse ${event.type} data:`,
+                event.data,
+                e
+            );
+        }
+    };
 
-        this.eventSource.onopen = () => {
-            console.log(`SSE connection opened for route ${this.routeId}`);
-            this.isConnected = true;
-            // Clear vehicles on reconnect to receive fresh 'init' events
-            this.vehicles.clear();
-            this.onOpenCallback?.();
-            this.notifyUpdate(); // Notify with empty map initially after open
-        };
-
-        this.eventSource.onerror = (event) => {
-            console.error(`SSE connection error for route ${this.routeId}:`, event);
-            this.isConnected = false;
-            this.onErrorCallback?.(event);
-            this.closeInternal(); // Close and nullify EventSource on error
-            this.onCloseCallback?.();
-        };
-
-        // --- Custom Event Listeners ---
-
-        this.eventSource.addEventListener("init", (event) => {
-            // console.debug("Received 'init' event:", event.data);
-            try {
-                const vehicle: Vehicle = JSON.parse(event.data);
-                if (vehicle && vehicle._id) {
-                    this.vehicles.set(vehicle._id, vehicle);
+    private handleVehicleRemove = (event: MessageEvent): void => {
+        // console.debug(`[SSE ${this.routeId}] Received remove:`, event.data);
+        try {
+            const data: { _id: string } = JSON.parse(event.data);
+            if (data && typeof data._id !== "undefined") {
+                const vehicleIdStr = String(data._id);
+                if (this.vehicles.has(vehicleIdStr)) {
+                    this.vehicles.delete(vehicleIdStr);
                     this.notifyUpdate();
                 } else {
-                    console.warn("Received invalid 'init' data:", event.data);
+                    console.warn(
+                        `[SSE ${this.routeId}] Received remove for unknown vehicle ID:`,
+                        vehicleIdStr
+                    );
                 }
-            } catch (e) {
-                console.error("Failed to parse 'init' event data:", e, event.data);
+            } else {
+                console.warn(`[SSE ${this.routeId}] Received malformed remove data:`, event.data);
             }
-        });
-
-        this.eventSource.addEventListener("add", (event) => {
-            // console.debug("Received 'add' event:", event.data);
-            try {
-                const vehicle: Vehicle = JSON.parse(event.data);
-                if (vehicle && vehicle._id) {
-                    this.vehicles.set(vehicle._id, vehicle);
-                    this.notifyUpdate();
-                } else {
-                    console.warn("Received invalid 'add' data:", event.data);
-                }
-            } catch (e) {
-                console.error("Failed to parse 'add' event data:", e, event.data);
-            }
-        });
-
-        this.eventSource.addEventListener("change", (event) => {
-            // console.debug("Received 'change' event:", event.data);
-            try {
-                const vehicle: Vehicle = JSON.parse(event.data);
-                if (vehicle && vehicle._id) {
-                    // Update existing entry
-                    this.vehicles.set(vehicle._id, vehicle);
-                    this.notifyUpdate();
-                } else {
-                    console.warn("Received invalid 'change' data:", event.data);
-                }
-            } catch (e) {
-                console.error("Failed to parse 'change' event data:", e, event.data);
-            }
-        });
-
-        this.eventSource.addEventListener("remove", (event) => {
-            // console.debug("Received 'remove' event:", event.data);
-            try {
-                const data: { _id: string } = JSON.parse(event.data);
-                if (data && data._id) {
-                    if (this.vehicles.delete(data._id)) {
-                        this.notifyUpdate();
-                    }
-                } else {
-                    console.warn("Received invalid 'remove' data:", event.data);
-                }
-            } catch (e) {
-                console.error("Failed to parse 'remove' event data:", e, event.data);
-            }
-        });
-
-        this.eventSource.addEventListener("stream_error", (event) => {
-            // This is for the custom 'stream_error' event sent by the server *before* closing
-            console.warn(`Received server error event for route ${this.routeId}:`, event.data);
-            try {
-                const errorData = JSON.parse(event.data);
-                this.onErrorCallback?.(errorData); // Pass the server-sent error details
-            } catch (e) {
-                console.error("Failed to parse server 'error' event data:", e, event.data);
-                // Still notify with a generic error object
-                this.onErrorCallback?.({ message: "Received unparsable server error event." });
-            }
-            // Note: The main 'onerror' handler will likely fire afterwards when the connection drops
-        });
-    }
-
-    disconnect() {
-        console.log(`Disconnecting SSE for route ${this.routeId}...`);
-        this.closeInternal();
-        if (this.isConnected) {
-            this.isConnected = false;
-            this.onCloseCallback?.();
+        } catch (e) {
+            console.error(`[SSE ${this.routeId}] Failed to parse remove data:`, event.data, e);
         }
-    }
+    };
 
-    private closeInternal() {
-        if (this.eventSource) {
-            this.eventSource.close();
-            this.eventSource = null;
+    private handleStreamError = (event: MessageEvent): void => {
+        console.error(`[SSE ${this.routeId}] Received stream_error from server:`, event.data);
+        let message = "Unknown stream error from server.";
+        try {
+            const errorData = JSON.parse(event.data);
+            message = errorData?.message || message;
+        } catch (e) {
+            console.error(`[SSE ${this.routeId}] Failed to parse stream_error data:`, e);
         }
-    }
-
-    private notifyUpdate() {
-        // Provide a *copy* of the map to the callback to prevent external mutation
-        this.onUpdateCallback?.(new Map(this.vehicles));
-    }
-
-    public getIsConnected(): boolean {
-        return this.isConnected;
-    }
-
-    public getCurrentVehicles(): Map<string, Vehicle> {
-        // Return a copy
-        return new Map(this.vehicles);
-    }
+        // Treat server-sent error as a critical error for this connection
+        this.handleError(`Server stream error: ${message}`);
+        // Disconnect after a server stream error, as the stream state might be corrupted
+        this.disconnect(true);
+    };
 }

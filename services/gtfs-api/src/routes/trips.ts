@@ -49,7 +49,6 @@ router.get(
     async (c) => {
         const { lat, lng, radius } = c.req.valid("query");
         const data = await fetchNearbyTrips(lat, lng, radius);
-        console.log(data);
         return c.json(data);
     }
 );
