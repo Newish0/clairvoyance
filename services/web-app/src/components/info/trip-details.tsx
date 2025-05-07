@@ -20,7 +20,7 @@ interface TripDetailsProps {
 }
 
 const TripDetails = (props: TripDetailsProps) => {
-    const [ourTrip] = createResource(async () => {
+    const [ourTrip, { refetch: refetchOurTrip }] = createResource(async () => {
         return await getScheduledTripDetails(props.tripObjectId);
     });
 
@@ -57,11 +57,13 @@ const TripDetails = (props: TripDetailsProps) => {
             <div>
                 <Show when={ourTrip()}>
                     {(viewingTrip) => (
+                        // TODO: Refactor - make `StopNextTrips` be a dumb component. Move interval logic outside 
                         <StopNextTrips
                             routeId={props.routeId}
                             directionId={viewingTrip().direction_id}
                             stopId={props.stopId}
-                            viewingTrip={viewingTrip()}
+                            viewingTrip={viewingTrip}
+                            refetchViewingTrip={refetchOurTrip} 
                         />
                     )}
                 </Show>
