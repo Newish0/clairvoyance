@@ -1,9 +1,9 @@
 import {
-    createEffect,
     createResource,
     createSignal,
     For,
     onCleanup,
+    onMount,
     Show,
     type Component,
 } from "solid-js";
@@ -15,20 +15,20 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Protocol } from "pmtiles";
 
-import layers from "protomaps-themes-base";
-import { useTheme } from "~/hooks/use-theme";
-import { useVehiclePositions } from "~/hooks/use-vehicle-positions";
-import { cn } from "~/lib/utils";
-import { getTripGeojson } from "~/services/gtfs/geojson";
-import { getTripDetails } from "~/services/gtfs/trip";
-import { $userLocation } from "~/stores/user-location-store";
+import { differenceInSeconds } from "date-fns";
 import { BusFrontIcon } from "lucide-solid";
-import OccupancyBadge from "../ui/occupancy-badge";
-import { getScheduledTripDetails } from "~/services/trips";
+import layers from "protomaps-themes-base";
+import { useRouteLiveVehicles } from "~/hooks/use-route-live-vehicles";
+import { useTheme } from "~/hooks/use-theme";
+import { cn } from "~/lib/utils";
 import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
+import { getScheduledTripDetails } from "~/services/trips";
+import { $userLocation } from "~/stores/user-location-store";
 import { calculateHaversineDistance } from "~/utils/distance";
-import { useRouteLiveVehicles } from "~/hooks/use-route-live-vehicles";
+
+import { ProgressCircle } from "~/components/ui/progress-circle";
+import { Badge } from "../ui/badge";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -50,10 +50,11 @@ const TripMap: Component<TripMapProps> = (props) => {
         ({ stopIds }) => stopIds && getStopsGeoJson(stopIds)
     );
 
-    const { vehicles, isConnected, error } = useRouteLiveVehicles(
-        () => tripDetails()?.route_id,
-        () => tripDetails()?.direction_id
-    );
+    const { vehicles: vehiclesMap, error } = useRouteLiveVehicles({
+        routeId: () => tripDetails()?.route_id,
+        directionId: () => tripDetails()?.direction_id,
+    });
+    const vehicles = () => vehiclesMap().values().toArray();
 
     const ourStopIndex = () =>
         rawStopsGeoJson()?.features.findIndex((f) => f.properties.stopId === props.stopId);
@@ -310,169 +311,83 @@ const TripMap: Component<TripMapProps> = (props) => {
             </Show>
 
             <For each={vehicles()}>
-                {(trip) => (
-                    <Marker
-                        lngLat={[trip.current_position.longitude, trip.current_position.latitude]}
-                        options={{
-                            element: (
-                                <div class="flex flex-col items-center justify-center">
-                                    <div
-                                        class={cn(
-                                            "w-8 h-8 bg-background flex flex-col",
-                                            "justify-center items-center rounded-full text-foreground"
-                                        )}
-                                    >
-                                        <BusFrontIcon size={20} />
+                {(trip) => {
+                    if (
+                        !trip.current_position ||
+                        typeof trip.current_position.longitude !== "number" ||
+                        typeof trip.current_position.latitude !== "number"
+                    ) {
+                        return null;
+                    }
+
+                    const calSecondsAgo = () =>
+                        differenceInSeconds(new Date(), trip.last_realtime_update_timestamp);
+
+                    const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
+
+                    const isNotAccepting = () => trip.current_occupancy === 0;
+
+                    const percentageFromOccupancyStatus = () => {
+                        if (!trip.current_occupancy) {
+                            return -1; // No data
+                        } else if (trip.current_occupancy === 0) {
+                            return -2; // Not accepting
+                        } else if (trip.current_occupancy === 1) {
+                            return 33;
+                        } else if (trip.current_occupancy === 2) {
+                            return 66;
+                        } else {
+                            return 100;
+                        }
+                    };
+
+                    let interval: ReturnType<typeof setInterval> | null = null;
+
+                    onMount(() => {
+                        interval = setInterval(() => {
+                            setSecondsAgo(calSecondsAgo());
+                        }, 1000);
+                    });
+
+                    onCleanup(() => {
+                        if (interval) {
+                            clearInterval(interval);
+                        }
+                    });
+
+                    return (
+                        <Marker
+                            lngLat={[
+                                trip.current_position.longitude,
+                                trip.current_position.latitude,
+                            ]}
+                            options={{
+                                element: (
+                                    <div class="relative flex flex-col items-center justify-center">
+                                        <div
+                                            class={cn(
+                                                "rounded-full bg-background p-[2px]",
+                                                isNotAccepting() ? "invert" : ""
+                                            )}
+                                        >
+                                            <ProgressCircle
+                                                value={percentageFromOccupancyStatus()}
+                                                class="w-10 h-10"
+                                            >
+                                                <BusFrontIcon size={20} />
+                                            </ProgressCircle>
+                                        </div>
+
+                                        <Badge variant={"default"} class="text-xs w-min p-0 px-1">
+                                            {secondsAgo()}s
+                                        </Badge>
                                     </div>
-
-                                    <Show when={trip.current_occupancy}>
-                                        {(occupancyStatus) => (
-                                            <div class="-mt-1">
-                                                <OccupancyBadge
-                                                    status={occupancyStatus()}
-                                                    size={8}
-                                                    variant={"default"}
-                                                />
-                                            </div>
-                                        )}
-                                    </Show>
-                                </div>
-                            ),
-                        }}
-                    ></Marker>
-                )}
+                                ),
+                            }}
+                        ></Marker>
+                    );
+                }}
             </For>
-
-            {/* 
-            <Show when={geoJson()}>
-                {(geoJsons) => (
-                    <>
-                        <For each={geoJsons().stops}>
-                            {(stop) => (
-                                <Marker
-                                    lngLat={[stop.stop_lon, stop.stop_lat]}
-                                    options={{
-                                        element: (
-                                            <div
-                                                class={cn(
-                                                    "rounded-full",
-                                                    stop.hasPassed ? "bg-black/20" : "bg-black/60",
-                                                    stop.isYourStop
-                                                        ? "w-6 h-6 border-4"
-                                                        : "w-4 h-4 border-2",
-                                                    "border-white/90"
-                                                )}
-                                            ></div>
-                                        ),
-                                    }}
-                                ></Marker>
-                            )}
-                        </For>
-
-                        <Source
-                            source={{
-                                type: "geojson",
-                                data: geoJsons().before,
-                            }}
-                        >
-                            <Layer
-                                style={{
-                                    type: "line",
-                                    layout: {
-                                        "line-join": "round",
-                                        "line-cap": "round",
-                                    },
-                                    paint: {
-                                        "line-color": "#999c",
-                                        "line-width": 8,
-                                    },
-                                }}
-                            />
-                        </Source>
-                        <Source
-                            source={{
-                                type: "geojson",
-                                data: geoJsons().after,
-                            }}
-                        >
-                            <Layer
-                                style={{
-                                    type: "line",
-                                    layout: {
-                                        "line-join": "round",
-                                        "line-cap": "round",
-                                    },
-                                    paint: {
-                                        "line-color": "#333e",
-                                        "line-width": 8,
-                                    },
-                                }}
-                            />
-                        </Source>
-
-                        <For each={vehiclePos()}>
-                            {(vp) => (
-                                <Marker
-                                    lngLat={[vp.longitude, vp.latitude]}
-                                    options={{
-                                        element: (
-                                            <div class="flex flex-col items-center justify-center">
-                                                <div
-                                                    class={cn(
-                                                        "w-8 h-8 bg-background flex flex-col",
-                                                        "justify-center items-center rounded-full text-foreground"
-                                                    )}
-                                                >
-                                                    <BusFrontIcon size={20} />
-                                                </div>
-
-                                                <Show when={vp.occupancy_status}>
-                                                    {(occupancy_status) => (
-                                                        <div class="-mt-1">
-                                                            <OccupancyBadge
-                                                                status={occupancy_status()}
-                                                                size={8}
-                                                                variant={"default"}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </Show>
-                                            </div>
-                                        ),
-                                    }}
-                                ></Marker>
-                            )}
-                        </For>
-                    </>
-                )}
-            </Show> */}
-
-            {/* <Source
-                source={{
-                    type: "geojson",
-                    data: shapesGeoJson() ?? {},
-                }}
-            ></Source> */}
-
-            {/* <Source
-                source={{
-                    type: "geojson",
-                    data: {
-                        type: "Point",
-                        coordinates: viewport().center,
-                    },
-                }}
-            >
-                <Layer
-                    style={{
-                        type: "circle",
-                        paint: {
-                            "circle-radius": 10,
-                            "circle-color": "#007cbf",
-                        },
-                    }}
-                />
-            </Source> */}
         </MapGL>
     );
 };

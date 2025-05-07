@@ -10,8 +10,6 @@ const router = new Hono();
 router.get(
     "/:routeId/vehicles/live",
     zValidator("param", z.object({ routeId: z.string() })),
-    // Use z.coerce.number() for cleaner string -> number conversion if needed,
-    // but enum + transform is fine. Resulting type is 0 | 1 | undefined.
     zValidator("query", z.object({ directionId: z.enum(["0", "1"]).transform(Number).optional() })),
     async (c) => {
         const { routeId } = c.req.valid("param");
