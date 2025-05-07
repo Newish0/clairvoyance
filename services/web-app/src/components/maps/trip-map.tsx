@@ -137,15 +137,12 @@ const TripMap: Component<TripMapProps> = (props) => {
         };
     };
 
-    // const vehiclePos = useVehiclePositions(
-    //     () => tripDetails()?.route_id,
-    //     () => tripDetails()?.direction_id as 0 | 1 | undefined
-    // );
+    const userLocationCenter = () =>
+        [$userLocation.get().current.lon, $userLocation.get().current.lat] as const;
 
     const [viewport, setViewport] = createSignal({
         // Format: [lon, lat]. Only get user location once. Do NOT rerender component on atom value change.
-        // Rerendering of map on location change is handled by listeners logic below.
-        center: [$userLocation.get().current.lon, $userLocation.get().current.lat],
+        center: userLocationCenter(),
         zoom: 11,
     } as Viewport);
 
@@ -158,10 +155,6 @@ const TripMap: Component<TripMapProps> = (props) => {
 
     const handleViewportChange = (evt: Viewport) => {
         setViewport(evt);
-        $userLocation.setKey("current", {
-            lon: evt.center[0],
-            lat: evt.center[1],
-        });
     };
 
     return (
@@ -188,7 +181,7 @@ const TripMap: Component<TripMapProps> = (props) => {
             onLoad={(evt) => {}}
         >
             <Marker
-                lngLat={viewport().center}
+                lngLat={userLocationCenter()}
                 options={{
                     element: (
                         <div

@@ -1,39 +1,70 @@
-import {
-    addDays,
-    addHours,
-    differenceInMinutes,
-    differenceInSeconds,
-    format,
-    type DateArg,
-} from "date-fns";
+import { addHours, differenceInMinutes, differenceInSeconds, set, type DateArg } from "date-fns";
 import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
-import { createEffect, createResource, For, Match, Show, Switch, type Component } from "solid-js";
+import {
+    createEffect,
+    createResource,
+    createSignal,
+    For,
+    onCleanup,
+    onMount,
+    Show,
+    type Accessor,
+    type Component,
+} from "solid-js";
 import { cn } from "~/lib/utils";
-import { getRouteStopTimes } from "~/services/gtfs/stop_times";
-// import type { RouteStopTimeResponse } from "~/services/gtfs/types";
-import { decomposeTime, getArrivalMinutes, hhmmssToString } from "~/utils/time";
+import { getRouteNextTripsAtStop } from "~/services/trips";
 import { buttonVariants } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 import OccupancyBadge from "../ui/occupancy-badge";
 import RealTimeIndicator from "../ui/realtime-indicator";
-import { getRouteNextTripsAtStop } from "~/services/trips";
+
+const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
+const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
 
 type StopNextTripsProps = {
     directionId: string;
     routeId: string;
     stopId: string;
-    viewingTrip?: any;
+    viewingTrip?: Accessor<any>;
+    refetchViewingTrip?: () => void;
+    clockUpdateInterval?: number;
+    refetchInterval?: number;
 };
 
 const StopNextTrips: Component<StopNextTripsProps> = (props) => {
-    const [stopNextTrips] = createResource(async () => {
-        return await getRouteNextTripsAtStop({
-            directionId: props.directionId as "0" | "1",
-            routeId: props.routeId,
-            stopId: props.stopId,
-            endDatetime: addHours(new Date(), 4),
+    const [viewingTrip, setViewingTrip] = createSignal<any>(props.viewingTrip());
+    const [stopNextTrips, { refetch: refetchStopNextTrips, mutate: setStopNextTrips }] =
+        createResource(async () => {
+            return await getRouteNextTripsAtStop({
+                directionId: props.directionId as "0" | "1",
+                routeId: props.routeId,
+                stopId: props.stopId,
+                endDatetime: addHours(new Date(), 4),
+            });
         });
+
+    let refetchInterval: null | ReturnType<typeof setInterval> = null;
+    let clockInterval: null | ReturnType<typeof setInterval> = null;
+    onMount(() => {
+        refetchInterval = setInterval(() => {
+            refetchStopNextTrips();
+            props.refetchViewingTrip?.();
+        }, props.refetchInterval ?? DEFAULT_REFETCH_INTERVAL);
+
+        clockInterval = setInterval(() => {
+            setStopNextTrips(stopNextTrips()); // force re-render
+            setViewingTrip(viewingTrip()); // force re-render
+        }, props.clockUpdateInterval ?? DEFAULT_CLOCK_UPDATE_INTERVAL);
+    });
+
+    onCleanup(() => {
+        if (refetchInterval) clearInterval(refetchInterval);
+        if (clockInterval) clearInterval(clockInterval);
+    });
+
+    createEffect(() => {
+        setViewingTrip(props.viewingTrip());
     });
 
     return (
@@ -42,9 +73,9 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                 <CarouselContent>
                     <Show
                         when={
-                            props.viewingTrip &&
-                            stopNextTrips()?.every((t) => t._id != props.viewingTrip._id)
-                                ? props.viewingTrip
+                            viewingTrip() &&
+                            stopNextTrips()?.every((t) => t._id != viewingTrip()._id)
+                                ? viewingTrip()
                                 : null
                         }
                     >
@@ -86,7 +117,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                         trip?.realtime_stop_updates[stop.stop_sequence]
                                             ?.predicted_arrival_time
                                     }
-                                    viewingTripObjectId={props.viewingTrip?._id}
+                                    viewingTripObjectId={viewingTrip()?._id}
                                     hasLeft={trip.current_stop_sequence > stop.stop_sequence}
                                 />
                             );
