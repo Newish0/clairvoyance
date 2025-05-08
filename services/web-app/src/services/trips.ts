@@ -26,6 +26,7 @@ interface GetRouteNextTripsAtStopParams extends Record<string, any> {
     directionId: 0 | 1 | "0" | "1";
     startDatetime?: string | Date;
     endDatetime?: string | Date;
+    limit?: number;
 }
 
 export const getRouteNextTripsAtStop = async (params: GetRouteNextTripsAtStopParams) => {

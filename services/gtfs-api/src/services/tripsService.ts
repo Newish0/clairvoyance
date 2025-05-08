@@ -34,10 +34,20 @@ interface ScheduledTripsParams {
     stopId: string;
     startDatetime?: string;
     endDatetime?: string;
+    limit?: number;
 }
 
-export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
+export const fetchScheduledTrips = async ({
+    routeId,
+    directionId,
+    stopId,
+    startDatetime,
+    endDatetime,
+    limit = 100,
+}: ScheduledTripsParams) => {
     const db = await getDb();
+
+    const dateFiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     const scheduledTrips = await db
         .collection("scheduled_trips")
@@ -47,14 +57,14 @@ export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
                 // and match the route and direction
                 // and match the start and end datetimes search range if provided
                 $match: {
-                    "scheduled_stop_times.stop_id": params.stopId,
-                    route_id: params.routeId,
-                    direction_id: parseInt(params.directionId),
-                    ...(params.startDatetime && {
-                        start_datetime: { $gte: new Date(params.startDatetime) },
+                    "scheduled_stop_times.stop_id": stopId,
+                    route_id: routeId,
+                    direction_id: parseInt(directionId),
+                    ...(startDatetime && {
+                        start_datetime: { $gte: new Date(startDatetime) },
                     }),
-                    ...(params.endDatetime && {
-                        start_datetime: { $lte: new Date(params.endDatetime) },
+                    ...(endDatetime && {
+                        start_datetime: { $lte: new Date(endDatetime) },
                     }),
                 },
             },
@@ -67,7 +77,7 @@ export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
                             cond: {
                                 $and: [
                                     // Filter to only include the stop times for our stop of interest
-                                    { $eq: ["$$stopTime.stop_id", params.stopId] },
+                                    { $eq: ["$$stopTime.stop_id", stopId] },
                                     {
                                         // Use realtime (if it exists) or use static schedule.
                                         // Include stops with arrival times in the future,
@@ -100,17 +110,11 @@ export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
                                                     },
                                                     then: {
                                                         $and: [
-                                                            // Ensure realtime data is NOT stale (AKA last realtime update was within 5 minutes)
+                                                            // Ensure realtime data is NOT stale (AKA last realtime update was within x minutes)
                                                             {
                                                                 $gte: [
                                                                     "$last_realtime_update_timestamp",
-                                                                    (() => {
-                                                                        const dt = new Date();
-                                                                        dt.setMinutes(
-                                                                            dt.getMinutes() - 5
-                                                                        );
-                                                                        return dt;
-                                                                    })(),
+                                                                    dateFiveMinAgo,
                                                                 ],
                                                             },
                                                             {
@@ -166,8 +170,7 @@ export const fetchScheduledTrips = async (params: ScheduledTripsParams) => {
                 $sort: { start_datetime: 1 },
             },
             {
-                // Limit to 100 results
-                $limit: 100,
+                $limit: limit,
             },
         ])
         .toArray();
