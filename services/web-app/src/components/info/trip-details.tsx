@@ -57,13 +57,13 @@ const TripDetails = (props: TripDetailsProps) => {
             <div>
                 <Show when={ourTrip()}>
                     {(viewingTrip) => (
-                        // TODO: Refactor - make `StopNextTrips` be a dumb component. Move interval logic outside 
+                        // TODO: Refactor - make `StopNextTrips` be a dumb component. Move interval logic outside
                         <StopNextTrips
                             routeId={props.routeId}
                             directionId={viewingTrip().direction_id}
                             stopId={props.stopId}
                             viewingTrip={viewingTrip}
-                            refetchViewingTrip={refetchOurTrip} 
+                            refetchViewingTrip={refetchOurTrip}
                         />
                     )}
                 </Show>
@@ -96,7 +96,7 @@ const TripDetails = (props: TripDetailsProps) => {
                                             )}
                                         </span>
 
-                                        <div class="relative h-6 rotate-45">
+                                        <div class="h-6 rotate-45">
                                             <WifiHighIcon size={16} class="animate-pulse" />
                                         </div>
                                     </div>

@@ -183,7 +183,7 @@ const TransitStopName: ParentComponent = (props) => {
 };
 
 const TransitStopTime: ParentComponent = (props) => {
-    return <div class="mb-1 text-sm text-muted-foreground">{props.children}</div>;
+    return <div class="mx-2 mb-1 text-sm text-muted-foreground">{props.children}</div>;
 };
 
 const TransitStopDescription: Component<ComponentProps<"p">> = (props) => {
