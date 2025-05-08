@@ -20,16 +20,19 @@ router.get(
             stopId: z.string(),
             startDatetime: z.string().optional(),
             endDatetime: z.string().optional(),
+            limit: z.string().transform(Number).optional(),
         })
     ),
     async (c) => {
-        const { routeId, directionId, stopId, startDatetime, endDatetime } = c.req.valid("query");
+        const { routeId, directionId, stopId, startDatetime, endDatetime, limit } =
+            c.req.valid("query");
         const data = await fetchScheduledTrips({
             routeId,
             directionId,
             stopId,
             startDatetime,
             endDatetime,
+            limit
         });
         return c.json(data);
     }

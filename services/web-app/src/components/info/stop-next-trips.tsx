@@ -41,6 +41,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                 routeId: props.routeId,
                 stopId: props.stopId,
                 endDatetime: addHours(new Date(), 4),
+                limit: 3,
             });
         });
 
