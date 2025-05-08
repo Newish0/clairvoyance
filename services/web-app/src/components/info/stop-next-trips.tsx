@@ -70,7 +70,12 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
 
     return (
         <div>
-            <Carousel plugins={[WheelGesturesPlugin()]}>
+            <Carousel
+                plugins={[WheelGesturesPlugin()]}
+                opts={{
+                    dragFree: true,
+                }}
+            >
                 <CarouselContent>
                     <Show
                         when={
@@ -183,9 +188,9 @@ const TripOptionItem: Component<{
         <CarouselItem class="basis-1/2 lg:basis-1/3">
             <div class="p-1">
                 <a
-                    href={`${import.meta.env.BASE_URL}routes/${props.routeId}/trips/${
-                        props.tripObjectId
-                    }/stops/${props.stopId}`}
+                    href={`${import.meta.env.BASE_URL}next-trips/?route=${props.routeId}&stop=${
+                        props.stopId
+                    }&trip=${props.tripObjectId}`}
                 >
                     <Card>
                         <CardContent

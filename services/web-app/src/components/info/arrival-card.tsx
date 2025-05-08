@@ -28,9 +28,9 @@ export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
 
     return (
         <a
-            href={`${import.meta.env.BASE_URL}routes/${props.routeId}/trips/${props.tripObjectId}/stops/${
+            href={`${import.meta.env.BASE_URL}next-trips/?route=${props.routeId}&stop=${
                 props.stopId
-            }`}
+            }&trip=${props.tripObjectId}`}
         >
             <div class="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div class="flex-1">
