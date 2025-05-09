@@ -61,10 +61,12 @@ export const fetchScheduledTrips = async ({
                     route_id: routeId,
                     direction_id: parseInt(directionId),
                     ...(startDatetime && {
-                        start_datetime: { $gte: new Date(startDatetime) },
-                    }),
-                    ...(endDatetime && {
-                        start_datetime: { $lte: new Date(endDatetime) },
+                        start_datetime: {
+                            $gte: new Date(startDatetime),
+                            ...(endDatetime && {
+                                $lte: new Date(endDatetime),
+                            }),
+                        },
                     }),
                 },
             },

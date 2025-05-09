@@ -88,11 +88,11 @@ const TripDetails = (props: TripDetailsProps) => {
                                 stopName: s.stop_name,
                                 stopTime: trip().realtime_stop_updates[s.stop_sequence] ? (
                                     <div class="flex items-center">
-                                        <span>
+                                        <span class="w-16 text-center">
                                             {format(
                                                 trip().realtime_stop_updates[s.stop_sequence]
                                                     .predicted_arrival_time,
-                                                "HH:mm:ss"
+                                                "p"
                                             )}
                                         </span>
 
@@ -101,7 +101,7 @@ const TripDetails = (props: TripDetailsProps) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    format(new Date(s.arrival_datetime), "HH:mm:ss")
+                                    format(new Date(s.arrival_datetime), "p")
                                 ),
                             }))}
                             activeStop={
