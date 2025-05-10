@@ -1,10 +1,11 @@
 import { useStore } from "@nanostores/solid";
-import { type Component, createResource, For, onCleanup, onMount } from "solid-js";
+import { type Component, createResource, For, onCleanup, onMount, Suspense } from "solid-js";
 import { getNearbyTrips } from "~/services/trips";
 import { $userLocation } from "~/stores/user-location-store";
 import { ArrivalRow } from "./arrival-row";
 
 import { debounce } from "@solid-primitives/scheduled";
+import { Skeleton } from "../ui/skeleton";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
@@ -56,24 +57,34 @@ export const ArrivalBoard: Component = () => {
 
     return (
         <div class="w-full mx-auto space-y-2">
-            <For each={Object.entries(nearbyTrips() || {})}>
-                {([_, trips]) => (
-                    <ArrivalRow
-                        entries={trips.map((trip) => ({
-                            routeId: trip.route_id,
-                            stopId: trip.stop_time.stop_id,
-                            routeShortName: trip.route_short_name,
-                            tripObjectId: trip._id, // NOTE: Requires Mongo Object ID b/c this is ScheduledTrip
-                            stopName: trip.stop_name,
-                            tripHeadsign: trip.trip_headsign,
-                            predictedArrivalTime: trip.realtime_stop_updates
-                                ? new Date(trip.realtime_stop_updates.predicted_arrival_time)
-                                : undefined,
-                            scheduledArrivalTime: new Date(trip.stop_time.arrival_datetime),
-                        }))}
-                    />
-                )}
-            </For>
+            <Suspense fallback={<ArrivalBoardSkeleton />}>
+                <For each={Object.entries(nearbyTrips() || {})}>
+                    {([_, trips]) => (
+                        <ArrivalRow
+                            entries={trips.map((trip) => ({
+                                routeId: trip.route_id,
+                                stopId: trip.stop_time.stop_id,
+                                routeShortName: trip.route_short_name,
+                                tripObjectId: trip._id, // NOTE: Requires Mongo Object ID b/c this is ScheduledTrip
+                                stopName: trip.stop_name,
+                                tripHeadsign: trip.trip_headsign,
+                                predictedArrivalTime: trip.realtime_stop_updates
+                                    ? new Date(trip.realtime_stop_updates.predicted_arrival_time)
+                                    : undefined,
+                                scheduledArrivalTime: new Date(trip.stop_time.arrival_datetime),
+                            }))}
+                        />
+                    )}
+                </For>
+            </Suspense>
         </div>
     );
 };
+
+const ArrivalBoardSkeleton: Component = () => (
+    <>
+        <For each={new Array(5).fill(0)}>
+            {() => <Skeleton height={98} radius={5} class="w-full" />}
+        </For>
+    </>
+);
