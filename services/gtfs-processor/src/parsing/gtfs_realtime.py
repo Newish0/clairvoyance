@@ -68,12 +68,8 @@ class RealtimeUpdaterService:
             gtfs_realtime_pb2.VehiclePosition.FULL: OccupancyStatus.FULL,
             gtfs_realtime_pb2.VehiclePosition.NOT_ACCEPTING_PASSENGERS: OccupancyStatus.NOT_ACCEPTING_PASSENGERS,
             # V2 Additions - map them if they exist in the domain enum
-            getattr(gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1): getattr(
-                OccupancyStatus, "NO_DATA", None
-            ),
-            getattr(gtfs_realtime_pb2.VehiclePosition, "NOT_BOARDABLE", -1): getattr(
-                OccupancyStatus, "NOT_BOARDABLE", None
-            ),
+            getattr(gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1): OccupancyStatus.NO_DATA,
+            getattr(gtfs_realtime_pb2.VehiclePosition, "NOT_BOARDABLE", -1): OccupancyStatus.NOT_BOARDABLE
         }
         
         self._vehicle_stop_status_map: Dict[int, VehicleStopStatus] = {

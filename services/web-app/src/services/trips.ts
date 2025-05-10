@@ -1,3 +1,5 @@
+import { recordToSearchParams } from "~/utils/urls";
+
 type GetNearbyTripsParams = {
     latitude: number;
     longitude: number;
@@ -23,16 +25,18 @@ export const getScheduledTripDetails = async (tripObjectId: string) => {
 interface GetRouteNextTripsAtStopParams extends Record<string, any> {
     routeId: string;
     stopId: string;
-    directionId: 0 | 1 | "0" | "1";
+    directionId?: 0 | 1 | "0" | "1";
     startDatetime?: string | Date;
     endDatetime?: string | Date;
     limit?: number;
+    excludedTripObjectIds?: string[];
 }
 
 export const getRouteNextTripsAtStop = async (params: GetRouteNextTripsAtStopParams) => {
-    const queryString = new URLSearchParams(params);
+    const queryString = recordToSearchParams(params);
+    console.log(queryString);
     const res = await fetch(
-        `${import.meta.env.PUBLIC_GTFS_API_ENDPOINT}/trips/next?${queryString.toString()}`
+        `${import.meta.env.PUBLIC_GTFS_API_ENDPOINT}/trips/next?${queryString}`
     );
     const json = await res.json();
     return json;

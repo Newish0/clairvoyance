@@ -1,13 +1,12 @@
-import { type Component, createEffect, createSignal, For } from "solid-js";
-import { Card, CardContent } from "@/components/ui/card";
 import {
     Carousel,
     CarouselContent,
     CarouselItem,
     type CarouselApi,
 } from "@/components/ui/carousel";
-import { ArrivalCard, type ArrivalCardProps } from "./arrival-card";
+import { createEffect, createSignal, For, type Component } from "solid-js";
 import CarouselDots from "../ui/carousel-dots";
+import { ArrivalCard, type ArrivalCardProps } from "./arrival-card";
 
 interface ArrivalRowProps {
     entries: ArrivalCardProps[];

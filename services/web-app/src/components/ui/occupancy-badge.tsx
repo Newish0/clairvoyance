@@ -1,11 +1,22 @@
-import { type Component, Switch, Match, For, type ComponentProps } from "solid-js";
-import { UserRound, HelpCircle } from "lucide-solid";
-import type { OccupancyStatus } from "~/services/gtfs/types";
+import { UserRound } from "lucide-solid";
+import { type Component, type ComponentProps, For, Show } from "solid-js";
 import { cn } from "~/lib/utils";
 import { Badge } from "./badge";
 
+export enum OccupancyStatus {
+    EMPTY = 0,
+    MANY_SEATS_AVAILABLE = 1,
+    FEW_SEATS_AVAILABLE = 2,
+    STANDING_ROOM_ONLY = 3,
+    CRUSHED_STANDING_ROOM_ONLY = 4,
+    FULL = 5,
+    NOT_ACCEPTING_PASSENGERS = 6,
+    NO_DATA = 7,
+    NOT_BOARDABLE = 8,
+}
+
 interface OccupancyBadgeProps {
-    status: OccupancyStatus;
+    status: number;
     size: number;
     variant?: ComponentProps<typeof Badge>["variant"];
 }
@@ -13,16 +24,16 @@ interface OccupancyBadgeProps {
 const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
     const getOccupancyInfo = (status: OccupancyStatus) => {
         switch (status) {
-            case "EMPTY":
-            case "MANY_SEATS_AVAILABLE":
+            case OccupancyStatus.EMPTY:
+            case OccupancyStatus.MANY_SEATS_AVAILABLE:
                 return { icons: 1, text: "Many seats" };
-            case "FEW_SEATS_AVAILABLE":
+            case OccupancyStatus.FEW_SEATS_AVAILABLE:
                 return { icons: 2, text: "Few seats" };
-            case "STANDING_ROOM_ONLY":
-            case "CRUSHED_STANDING_ROOM_ONLY":
-            case "FULL":
+            case OccupancyStatus.STANDING_ROOM_ONLY:
+            case OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
+            case OccupancyStatus.FULL:
                 return { icons: 3, text: "Standing room" };
-            case "NOT_ACCEPTING_PASSENGERS":
+            case OccupancyStatus.NOT_ACCEPTING_PASSENGERS:
                 return { icons: 0, text: "Not accepting" };
             default:
                 return { icons: -1, text: "No data" };
@@ -32,47 +43,32 @@ const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
     const occupancyInfo = () => getOccupancyInfo(props.status);
 
     return (
-        <Badge
-            variant={props.variant ?? "secondary"}
-            class="flex flex-col items-center justify-center w-min px-1"
-        >
-            <div class="flex">
-                <Switch>
-                    <Match when={occupancyInfo().icons >= 0}>
-                        <For each={Array(occupancyInfo().icons).fill(0)}>
-                            {(_, index) => (
-                                <UserRound
-                                    size={props.size}
-                                    class={cn(
-                                        props.variant && props.variant === "secondary"
-                                            ? "text-muted-foreground"
-                                            : "",
-                                        props.variant && props.variant === "default"
-                                            ? "text-primary-foreground"
-                                            : ""
-                                    )}
-                                    strokeWidth={props.size / 2}
-                                />
-                            )}
-                        </For>
-                    </Match>
-                    <Match when={occupancyInfo().icons === -1}>
-                        <HelpCircle
-                            size={props.size}
-                            class={cn(
-                                props.variant && props.variant === "secondary"
-                                    ? "text-muted-foreground"
-                                    : "",
-                                props.variant && props.variant === "default"
-                                    ? "text-primary-foreground"
-                                    : ""
-                            )}
-                        />
-                    </Match>
-                </Switch>
-            </div>
-            {/* <span class="text-muted-foreground font-semibold text-xs text-center">{occupancyInfo().text}</span> */}
-        </Badge>
+        <Show when={occupancyInfo().icons >= 0}>
+            <Badge
+                variant={props.variant ?? "secondary"}
+                class="flex flex-col items-center justify-center w-min px-1"
+            >
+                <div class="flex">
+                    <For each={Array(occupancyInfo().icons).fill(0)}>
+                        {(_, index) => (
+                            <UserRound
+                                size={props.size}
+                                class={cn(
+                                    props.variant && props.variant === "secondary"
+                                        ? "text-muted-foreground"
+                                        : "",
+                                    props.variant && props.variant === "default"
+                                        ? "text-primary-foreground"
+                                        : ""
+                                )}
+                                strokeWidth={props.size / 2}
+                            />
+                        )}
+                    </For>
+                </div>
+                {/* <span class="text-muted-foreground font-semibold text-xs text-center">{occupancyInfo().text}</span> */}
+            </Badge>
+        </Show>
     );
 };
 

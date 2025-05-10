@@ -9,12 +9,59 @@ import { Card, CardContent } from "~/components/ui/card.tsx";
 import { Show } from "solid-js";
 import { XIcon } from "lucide-solid";
 import { buttonVariants } from "~/components/ui/button";
+import { getRouteNextTripsAtStop } from "~/services/trips";
 
 const routeId = Astro.url.searchParams.get("route");
-const tripObjectId = Astro.url.searchParams.get("trip");
 const stopId = Astro.url.searchParams.get("stop");
+let tripObjectId = Astro.url.searchParams.get("trip");
 
-if (!routeId || !tripObjectId || !stopId) return Astro.redirect("/404");
+let altRouteId: string | null = Astro.url.searchParams.get("alt_route");
+let altStopId: string | null = Astro.url.searchParams.get("alt_stop");
+let altTripObjectId: string | null = Astro.url.searchParams.get("alt_trip");
+
+const redirectUrl = new URL(Astro.url);
+
+if (!routeId || !stopId) return Astro.redirect("/404");
+
+// Get the next trip's id if not provided
+if (!tripObjectId) {
+    const nextRoutes = await getRouteNextTripsAtStop({
+        routeId,
+        stopId,
+        limit: 1,
+    });
+    if (!nextRoutes.length) return Astro.redirect("/404");
+    tripObjectId = nextRoutes[0]?._id;
+    redirectUrl.searchParams.set("trip", tripObjectId);
+}
+
+// Get the latest tripObjectId if not provided
+if (altRouteId && altStopId && !altTripObjectId) {
+    const nextRoutes = await getRouteNextTripsAtStop({
+        routeId: altRouteId,
+        stopId: altStopId,
+        limit: 1,
+        excludedTripObjectIds: [tripObjectId],
+    });
+    console.log(JSON.stringify(nextRoutes, null, 2));
+    if (nextRoutes.length) altTripObjectId = nextRoutes[0]?._id;
+}
+
+// If one of the alt 3 required params is missing, clear all to prevent using invalid data
+if (!altRouteId || !altStopId || !altTripObjectId) {
+    altRouteId = null;
+    altTripObjectId = null;
+    altStopId = null;
+} else {
+    redirectUrl.searchParams.set("alt_route", altRouteId);
+    redirectUrl.searchParams.set("alt_trip", altTripObjectId);
+    redirectUrl.searchParams.set("alt_stop", altStopId);
+}
+
+// Only redirect if the URL has changed
+if (redirectUrl.toString() !== Astro.url.toString()) {
+    return Astro.redirect(redirectUrl.toString());
+}
 ---
 
 <Layout>
@@ -28,7 +75,7 @@ if (!routeId || !tripObjectId || !stopId) return Astro.redirect("/404");
             <TripMap client:only="solid-js" tripObjectId={tripObjectId} stopId={stopId} />
         </div>
 
-        <div class="absolute z-10 inset-x-2 sm:inset-x-4 md:top-4 bottom-4 md:max-w-sm lg:max-w-md">
+        <div class="absolute z-10 inset-x-1 bottom-1 md:inset-x-4 md:top-4 md:max-w-sm lg:max-w-md">
             <Card class="w-full h-[calc(60dvh)] md:h-[calc(100dvh-32px)]">
                 <CardContent class="flex flex-col px-4 py-2 h-full">
                     <TripDetails
@@ -36,6 +83,8 @@ if (!routeId || !tripObjectId || !stopId) return Astro.redirect("/404");
                         tripObjectId={tripObjectId}
                         routeId={routeId}
                         stopId={stopId}
+                        altRouteId={altRouteId}
+                        altStopId={altStopId}
                     />
 
                     <a
@@ -50,14 +99,15 @@ if (!routeId || !tripObjectId || !stopId) return Astro.redirect("/404");
                     </a>
                 </CardContent>
             </Card>
-            <Show when={import.meta.env.DEV}>
-                <div class="absolute -bottom-4 text-xs text-muted-foreground p-2 flex gap-4">
-                    <code>DEV MODE</code>
-                    <code>{routeId}</code>
-                    <code>{tripObjectId}</code>
-                    <code>{stopId}</code>
-                </div>
-            </Show>
         </div>
+
+        <Show when={import.meta.env.DEV}>
+            <div class="fixed bottom-0 text-xs text-muted-foreground p-2 flex gap-4">
+                <code>DEV MODE</code>
+                <code>{routeId}</code>
+                <code>{tripObjectId}</code>
+                <code>{stopId}</code>
+            </div>
+        </Show>
     </Fragment>
 </Layout>

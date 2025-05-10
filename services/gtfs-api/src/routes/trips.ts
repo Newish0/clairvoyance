@@ -16,23 +16,36 @@ router.get(
         "query",
         z.object({
             routeId: z.string(),
-            directionId: z.string(),
+            directionId: z.string().optional(),
             stopId: z.string(),
             startDatetime: z.string().optional(),
             endDatetime: z.string().optional(),
             limit: z.string().transform(Number).optional(),
+            excludedTripObjectIds: z.union([z.string(), z.array(z.string())]).optional(),
         })
     ),
     async (c) => {
-        const { routeId, directionId, stopId, startDatetime, endDatetime, limit } =
-            c.req.valid("query");
+        const {
+            routeId,
+            directionId,
+            stopId,
+            startDatetime,
+            endDatetime,
+            limit,
+            excludedTripObjectIds,
+        } = c.req.valid("query");
         const data = await fetchScheduledTrips({
             routeId,
             directionId,
             stopId,
             startDatetime,
             endDatetime,
-            limit
+            limit,
+            excludedTripObjectIds: excludedTripObjectIds
+                ? Array.isArray(excludedTripObjectIds)
+                    ? excludedTripObjectIds
+                    : [excludedTripObjectIds]
+                : undefined,
         });
         return c.json(data);
     }

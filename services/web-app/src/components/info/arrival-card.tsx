@@ -4,8 +4,9 @@ import { Clock } from "lucide-solid";
 import RealTimeIndicator from "../ui/realtime-indicator";
 import { getArrivalMinutes } from "~/utils/time";
 import { differenceInMinutes, differenceInSeconds } from "date-fns";
+import { recordToSearchParams } from "~/utils/urls";
 
-export interface ArrivalCardProps {
+export interface ArrivalCardKeyProps {
     routeId: string;
     routeShortName: string;
     tripObjectId: string;
@@ -14,6 +15,14 @@ export interface ArrivalCardProps {
     stopName: string;
     scheduledArrivalTime: Date;
     predictedArrivalTime?: Date;
+}
+
+export interface ArrivalCardProps extends ArrivalCardKeyProps {
+    alt?: {
+        routeId: string;
+        tripObjectId?: string;
+        stopId: string;
+    };
 }
 
 export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
@@ -26,12 +35,22 @@ export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
         props.scheduledArrivalTime
     );
 
+    const queryParams = () =>
+        recordToSearchParams({
+            route: props.routeId,
+            stop: props.stopId,
+            trip: props.tripObjectId,
+            ...(props.alt
+                ? {
+                      alt_route: props.alt.routeId,
+                      alt_stop: props.alt.stopId,
+                      ...(props.alt.tripObjectId ? { alt_trip: props.alt.tripObjectId } : {}),
+                  }
+                : {}),
+        });
+
     return (
-        <a
-            href={`${import.meta.env.BASE_URL}next-trips/?route=${props.routeId}&stop=${
-                props.stopId
-            }&trip=${props.tripObjectId}`}
-        >
+        <a href={`${import.meta.env.BASE_URL}next-trips/?${queryParams()}`}>
             <div class="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div class="flex-1">
                     <div class="flex items-center space-x-2 overflow-hidden">

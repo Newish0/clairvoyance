@@ -61,7 +61,7 @@ export const ArrivalBoard: Component = () => {
                 <For each={Object.entries(nearbyTrips() || {})}>
                     {([_, trips]) => (
                         <ArrivalRow
-                            entries={trips.map((trip) => ({
+                            entries={trips.map((trip, i) => ({
                                 routeId: trip.route_id,
                                 stopId: trip.stop_time.stop_id,
                                 routeShortName: trip.route_short_name,
@@ -72,6 +72,15 @@ export const ArrivalBoard: Component = () => {
                                     ? new Date(trip.realtime_stop_updates.predicted_arrival_time)
                                     : undefined,
                                 scheduledArrivalTime: new Date(trip.stop_time.arrival_datetime),
+                                ...(trips.length > 1
+                                    ? {
+                                          alt: {
+                                              routeId: trips.at((i + 1) % trips.length)?.route_id,
+                                              stopId: trips.at((i + 1) % trips.length)?.stop_time
+                                                  .stop_id,
+                                          },
+                                      }
+                                    : {}),
                             }))}
                         />
                     )}

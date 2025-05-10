@@ -31,11 +31,12 @@ export const fetchScheduledTripDetails = async (tripObjectId: string) => {
 
 interface ScheduledTripsParams {
     routeId: string;
-    directionId: string;
+    directionId?: string;
     stopId: string;
     startDatetime?: string;
     endDatetime?: string;
     limit?: number;
+    excludedTripObjectIds?: string[];
 }
 
 export const fetchScheduledTrips = async ({
@@ -45,6 +46,7 @@ export const fetchScheduledTrips = async ({
     startDatetime,
     endDatetime,
     limit = 100,
+    excludedTripObjectIds,
 }: ScheduledTripsParams) => {
     const db = await getDb();
 
@@ -60,13 +62,18 @@ export const fetchScheduledTrips = async ({
                 $match: {
                     "scheduled_stop_times.stop_id": stopId,
                     route_id: routeId,
-                    direction_id: parseInt(directionId),
+                    ...(directionId ? { direction_id: parseInt(directionId) } : {}),
                     ...(startDatetime && {
                         start_datetime: {
                             $gte: new Date(startDatetime),
                             ...(endDatetime && {
                                 $lte: new Date(endDatetime),
                             }),
+                        },
+                    }),
+                    ...(excludedTripObjectIds && {
+                        _id: {
+                            $nin: excludedTripObjectIds.map((id) => new ObjectId(id)),
                         },
                     }),
                 },
