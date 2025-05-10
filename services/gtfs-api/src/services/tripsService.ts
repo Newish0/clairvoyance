@@ -1,4 +1,5 @@
 import { getDb } from "@/services/mongo";
+import { FIVE_MIN_IN_MS, getTwelveHoursInFuture } from "@/utils/datetime";
 import { ObjectId } from "mongodb";
 import { StopNameService } from "./stopNameService";
 
@@ -177,7 +178,7 @@ export const fetchScheduledTrips = async ({
         ])
         .toArray();
 
-    // // Add stop names to each trip
+    // Add stop names to each trip
     // const scheduledTripsWithStopNames = await Promise.all(
     //     scheduledTrips.map(async (trip) => {
     //         const stopNames = await Promise.all(
@@ -193,10 +194,23 @@ export const fetchScheduledTrips = async ({
     return scheduledTrips;
 };
 
-export const fetchNearbyTrips = async (lat: number, lng: number, radius: number) => {
+export const fetchNearbyTrips = async (
+    lat: number,
+    lng: number,
+    radius: number,
+    maxDate = getTwelveHoursInFuture(),
+    realtimeMaxAge = FIVE_MIN_IN_MS
+) => {
+    const realtimeThreshold = new Date(Date.now() - realtimeMaxAge);
+
+    // let stepStartTime;
+
+    // stepStartTime = performance.now();
     const db = await getDb();
+    // console.log(`Get DB connection - ${performance.now() - stepStartTime} ms`);
 
     // --- Step 1: Find nearby stops ---
+    // stepStartTime = performance.now();
     const stopsCollection = db.collection("stops");
     const nearbyStopsCursor = stopsCollection.aggregate([
         {
@@ -221,26 +235,30 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
         },
     ]);
     const nearbyStops = await nearbyStopsCursor.toArray();
+    // console.log(`Step 1: Find nearby stops - ${performance.now() - stepStartTime} ms`);
 
     if (nearbyStops.length === 0) {
         return {};
     }
 
     // --- Step 2: Prepare ---
+    // stepStartTime = performance.now();
     const stopIds = nearbyStops.map((stop) => stop.stop_id);
     const stopInfoMap = new Map<string, { distance: number; name?: string }>(
         nearbyStops.map((s) => [s.stop_id, { distance: s.distance, name: s.stop_name }])
     );
+    // console.log(`Step 2: Prepare - ${performance.now() - stepStartTime} ms`);
 
     // --- Step 3: Find relevant upcoming scheduled stop times ---
+    // stepStartTime = performance.now();
     const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
     const scheduledTripsCollection = db.collection("scheduled_trips");
 
     const relevantStopTimesCursor = scheduledTripsCollection.aggregate([
         {
             $match: {
                 "scheduled_stop_times.stop_id": { $in: stopIds },
+                start_datetime: { $lt: maxDate }, // Limit for performance
             },
         },
         { $unwind: "$scheduled_stop_times" },
@@ -260,7 +278,7 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
                         $and: [
                             // Realtime data exists and is fresh
                             { current_stop_sequence: { $ne: null } },
-                            { last_realtime_update_timestamp: { $gte: fiveMinutesAgo } },
+                            { last_realtime_update_timestamp: { $gte: realtimeThreshold } },
                             // Realtime indicates trip hasn't passed the stop yet OR is currently at the stop
                             // Use $expr for field-to-field comparisons within $match
                             {
@@ -329,8 +347,14 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
     ]);
 
     const relevantStopTimes = await relevantStopTimesCursor.toArray();
+    // console.log(
+    //     `Step 3: Find relevant upcoming scheduled stop times - ${
+    //         // performance.now() - stepStartTime
+    //     } ms`
+    // );
 
     // --- Step 4: Process results ---
+    // stepStartTime = performance.now();
     const bestNextTripMap = new Map();
     for (const item of relevantStopTimes) {
         const stopId = item.stop_time.stop_id;
@@ -360,8 +384,10 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
             bestNextTripMap.set(routeDirKey, nextTripInfo);
         }
     }
+    // console.log(`Step 4: Process results - ${performance.now() - stepStartTime} ms`);
 
     // --- Step 5: Format final output ---
+    // stepStartTime = performance.now();
     const nextTrips = Array.from(bestNextTripMap.values());
     nextTrips.sort((a, b) => {
         if (a.distance !== b.distance) return a.distance - b.distance;
@@ -373,6 +399,7 @@ export const fetchNearbyTrips = async (lat: number, lng: number, radius: number)
         groupedByRoute[key] = groupedByRoute[key] || [];
         groupedByRoute[key].push(trip);
     }
+    // console.log(`Step 5: Format final output - ${performance.now() - stepStartTime} ms`);
 
     return groupedByRoute;
 };
