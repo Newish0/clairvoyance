@@ -20,6 +20,7 @@ interface RouteStopScheduleProps {
     routeId: string;
     stopId: string;
     directionId: string;
+    curViewingTrip?: any;
 }
 
 const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
@@ -105,7 +106,10 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                 </Button>
             </div>
 
-            <SimpleDepartureSchedule scheduleData={groupedDepartures()} />
+            <SimpleDepartureSchedule
+                scheduleData={groupedDepartures()}
+                defaultSelected={{ id: props.curViewingTrip._id }}
+            />
 
             <Show when={groupedDepartures()?.length === 0}>
                 <p class="text-center my-4 text-muted-foreground">No more departures</p>

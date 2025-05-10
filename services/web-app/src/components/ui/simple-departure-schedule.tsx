@@ -1,4 +1,4 @@
-import { createSignal, For, type Component } from "solid-js";
+import { createEffect, createSignal, For, type Component } from "solid-js";
 import { cn } from "~/lib/utils";
 import { Card, CardContent } from "./card";
 import { WifiHighIcon } from "lucide-solid";
@@ -14,10 +14,13 @@ export type DepartureItem = {
 export interface SimpleDepartureScheduleProps {
     scheduleData?: DepartureItem[][];
     onItemSelect?: (item: DepartureItem) => void;
+    defaultSelected?: Pick<DepartureItem, "id"> & { [key: string]: string };
 }
 
 const SimpleDepartureSchedule: Component<SimpleDepartureScheduleProps> = (props) => {
-    const [selectedItem, setSelectedItem] = createSignal<string | null>(null);
+    const [selectedItem, setSelectedItem] = createSignal<Pick<DepartureItem, "id"> | undefined>(
+        props.defaultSelected
+    );
 
     return (
         <div class="space-y-2">
@@ -31,10 +34,10 @@ const SimpleDepartureSchedule: Component<SimpleDepartureScheduleProps> = (props)
                                         <a
                                             class={cn(
                                                 "flex items-center py-1.5 px-3 transition-colors hover:bg-muted/50 cursor-pointer border-b last:border-b-0 border-muted",
-                                                selectedItem() === item.id && "bg-muted"
+                                                selectedItem().id === item.id && "bg-muted"
                                             )}
                                             onClick={() => {
-                                                setSelectedItem(item.id);
+                                                setSelectedItem(item);
                                                 props.onItemSelect?.(item);
                                             }}
                                             href={item.href}

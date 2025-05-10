@@ -7,16 +7,26 @@ import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
 import { getArrivalMinutes } from "~/utils/time";
 
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { RadioIcon, SignalIcon, TriangleAlert, WifiHighIcon } from "lucide-solid";
+import {
+    ArrowLeftRightIcon,
+    RadioIcon,
+    SignalIcon,
+    TriangleAlert,
+    WifiHighIcon,
+} from "lucide-solid";
 import { getStopNextTripsByStopId } from "~/services/stops";
 import { getScheduledTripDetails } from "~/services/trips";
 import StopNextTrips from "./stop-next-trips";
 import { format } from "date-fns";
+import { Button, buttonVariants } from "../ui/button";
+import { recordToSearchParams } from "~/utils/urls";
 
 interface TripDetailsProps {
     tripObjectId: string;
     routeId: string;
     stopId: string;
+    altRouteId?: string;
+    altStopId?: string;
 }
 
 const TripDetails = (props: TripDetailsProps) => {
@@ -29,29 +39,49 @@ const TripDetails = (props: TripDetailsProps) => {
             <div class="flex items-center space-x-2">
                 <Show when={ourTrip()}>
                     {(trip) => (
-                        <Badge variant="secondary" class="text-sm font-bold">
-                            {trip().route_short_name}
-                        </Badge>
+                        <>
+                            <Badge variant="secondary" class="text-sm font-bold">
+                                {trip().route_short_name}
+                            </Badge>
+
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-semibold truncate">
+                                        {trip().trip_headsign}
+                                    </span>
+                                    <Show when={props.altRouteId && props.altStopId}>
+                                        <a
+                                            class={buttonVariants({
+                                                variant: "ghost",
+                                                size: "icon",
+                                                class: "h-8 w-8 p-2 rounded-full",
+                                            })}
+                                            href={`${
+                                                import.meta.env.BASE_URL
+                                            }next-trips/?${recordToSearchParams({
+                                                route: props.altRouteId,
+                                                stop: props.altStopId,
+                                                alt_route: props.routeId,
+                                                alt_stop: props.stopId,
+                                            })}`}
+                                        >
+                                            <ArrowLeftRightIcon size={12} />
+                                        </a>
+                                    </Show>
+                                </div>
+
+                                <p class="text-xs text-muted-foreground truncate">
+                                    At{" "}
+                                    {
+                                        trip().scheduled_stop_times.find(
+                                            (s) => s.stop_id === props.stopId
+                                        )?.stop_name
+                                    }
+                                </p>
+                            </div>
+                        </>
                     )}
                 </Show>
-                <div>
-                    <Show when={ourTrip()}>
-                        {(trip) => <h4 class="font-semibold truncate">{trip().trip_headsign}</h4>}
-                    </Show>
-
-                    <Show when={ourTrip()}>
-                        {(trip) => (
-                            <p class="text-xs text-muted-foreground truncate">
-                                At{" "}
-                                {
-                                    trip().scheduled_stop_times.find(
-                                        (s) => s.stop_id === props.stopId
-                                    )?.stop_name
-                                }
-                            </p>
-                        )}
-                    </Show>
-                </div>
             </div>
 
             <div>
