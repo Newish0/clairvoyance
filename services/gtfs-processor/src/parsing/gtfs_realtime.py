@@ -17,10 +17,9 @@ from models import (
     Position,
     RealtimeStopTimeUpdate,
 )
+from config import setup_logger
 
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)  # Configure basic logging
+logger = setup_logger(__name__)
 
 # --- Type Aliases ---
 DataSource = Union[str, Path]  # URL string or local file Path
@@ -76,7 +75,7 @@ class RealtimeUpdaterService:
             # V2 Additions - map them if they exist in the domain enum
             getattr(
                 gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1
-            ): OccupancyStatus.NO_DATA,
+            ): OccupancyStatus.NO_DATA_AVAILABLE,
             getattr(
                 gtfs_realtime_pb2.VehiclePosition, "NOT_BOARDABLE", -1
             ): OccupancyStatus.NOT_BOARDABLE,
@@ -482,7 +481,7 @@ class RealtimeUpdaterService:
         # This is less common than in TripUpdate, but possible
         if vehicle.trip.HasField("schedule_relationship"):
             new_rel = self._trip_schedule_relationship_map.get(
-                vehicle.trip.schedule_relationship, ScheduleRelationship.SCHEDULED
+                vehicle.trip.schedule_relationship, TripDescriptorScheduleRelationship.SCHEDULED
             )
             if scheduled_trip.realtime_schedule_relationship != new_rel:
                 scheduled_trip.realtime_schedule_relationship = new_rel

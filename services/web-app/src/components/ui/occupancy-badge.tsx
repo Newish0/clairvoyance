@@ -11,7 +11,7 @@ export enum OccupancyStatus {
     CRUSHED_STANDING_ROOM_ONLY = 4,
     FULL = 5,
     NOT_ACCEPTING_PASSENGERS = 6,
-    NO_DATA = 7,
+    NO_DATA_AVAILABLE = 7,
     NOT_BOARDABLE = 8,
 }
 
