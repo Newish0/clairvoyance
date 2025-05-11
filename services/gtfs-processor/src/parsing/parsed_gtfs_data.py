@@ -1,10 +1,7 @@
 import logging
-import datetime
-from typing import Any, Dict, List, Optional, Set
-from collections import defaultdict
+from typing import Any, Dict, Iterator, List, Optional
 
-import pytz
-from domain import ScheduledTrip, StopTimeInfo
+from models import ScheduledTripDocument, StopTimeInfo
 import dataclasses
 from config import setup_logger
 
@@ -57,14 +54,13 @@ class ParsedGTFSData:
         self.logger.info(f"Loaded stop times for {len(stop_times)} trips.")
         self.logger.info(f"Loaded service dates for {len(service_dates)} services.")
 
-    def generate_scheduled_trips(self) -> List[ScheduledTrip]:
+    def generate_scheduled_trips(self) -> Iterator[ScheduledTripDocument]:
         """
-        Generate ScheduledTrip objects for each trip on each of its active service dates.
+        Generate ScheduledTripDocument objects for each trip on each of its active service dates.
 
-        Returns:
-            List of ScheduledTrip objects.
+        Yields:
+            ScheduledTripDocument objects.
         """
-        scheduled_trips = []
         skipped_count = 0
         generated_count = 0
 
@@ -102,7 +98,7 @@ class ParsedGTFSData:
                 )
                 # Don't increment skipped_count here, as the trip itself might be valid but just not running
                 continue
-            
+
             route_short_name = self._find_route_short_name(route_id)
 
             # Find start time from the (already sorted) stop times
@@ -141,7 +137,12 @@ class ParsedGTFSData:
                                 f"Invalid direction_id '{direction_id_str}' for trip {trip_id}. Setting to None."
                             )
 
-                    scheduled_trip = ScheduledTrip(
+                    final_scheduled_stop_times = [
+                        self._derive_full_stop_time_info(stop_time_info, service_date)
+                        for stop_time_info in partial_stop_time_infos
+                    ]
+
+                    scheduled_trip = ScheduledTripDocument(
                         trip_id=trip_id,
                         start_date=service_date,
                         start_time=start_time,
@@ -154,16 +155,9 @@ class ParsedGTFSData:
                         trip_headsign=trip_data.get("trip_headsign"),
                         trip_short_name=trip_data.get("trip_short_name"),
                         block_id=trip_data.get("block_id"),
-                        scheduled_stop_times=list(
-                            map(
-                                lambda stop_time_info: self._derive_full_stop_time_info(
-                                    stop_time_info, service_date
-                                ),
-                                partial_stop_time_infos,
-                            )
-                        ),  # Use pre-converted list
+                        scheduled_stop_times=final_scheduled_stop_times,
                     )
-                    scheduled_trips.append(scheduled_trip)
+                    yield scheduled_trip
                     generated_count += 1
                     service_date_instance_count += 1
                 except Exception as e:
@@ -187,17 +181,15 @@ class ParsedGTFSData:
                 f"Skipped {skipped_count} potential trip instances due to missing data or errors."
             )
 
-        return scheduled_trips
-
     def _derive_full_stop_time_info(
         self, partial_stop_time_info: StopTimeInfo, date_str: str
     ) -> StopTimeInfo:
         """Convert a list of partially completed stop times to StopTimeInfo objects by computing its derived fields."""
         tz_str = self.agency_timezone
-        arrival_datetime = ScheduledTrip.convert_to_datetime(
+        arrival_datetime = ScheduledTripDocument.convert_to_datetime(
             date_str, partial_stop_time_info.arrival_time, tz_str
         )
-        stop_time_dict = dataclasses.asdict(partial_stop_time_info)
+        stop_time_dict = partial_stop_time_info.dict()
         stop_time_dict["arrival_datetime"] = arrival_datetime
         return StopTimeInfo(
             **stop_time_dict,
@@ -205,7 +197,7 @@ class ParsedGTFSData:
 
     def _find_route_short_name(self, route_id: str) -> Optional[str]:
         return self.routes.get(route_id, {}).get("route_short_name")
-    
+
     def _find_first_departure_time(
         self, trip_stop_times_raw: List[Dict[str, Any]]
     ) -> Optional[str]:

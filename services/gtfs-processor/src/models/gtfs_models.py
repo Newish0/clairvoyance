@@ -164,6 +164,7 @@ class ScheduledTripDocument(Document):
         name = "scheduled_trips"
         indexes = [
             # Compound index for unique scheduled trip instance lookup
+            # TODO: Enforce unique trip_id, start_date, start_time
             [
                 ("trip_id", pymongo.ASCENDING),
                 ("start_date", pymongo.ASCENDING),

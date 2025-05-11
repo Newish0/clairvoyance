@@ -1,13 +1,12 @@
 import asyncio
 import logging
 from dataclasses import asdict
-from typing import List, Dict, Any, Type
+from typing import Iterator, List, Dict, Any, Type
 from beanie import Document, init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Assuming these are defined in respective modules
 from parsing.gtfs_reader import GTFSReader, ParsedGTFSData
-from domain import ScheduledTrip
 from models import (
     ContinuousPickupDropOff,
     LineStringGeometry,
@@ -29,7 +28,7 @@ MONGO_CONNECTION_STRING = (
 DATABASE_NAME = "gtfs_data"
 GTFS_ZIP_FILE = "bctransit_gtfs.zip"  # Replace with your GTFS zip file path
 
-INSERT_BATCH_SIZE = 2000  # Batch size for all insert_many operations
+INSERT_BATCH_SIZE = 1000  # Batch size for all insert_many operations
 
 # --- Setup Logger ---
 logger = setup_logger(__name__)
@@ -312,66 +311,83 @@ async def process_and_insert_shapes(parsed_gtfs: ParsedGTFSData):
 
 
 async def process_and_insert_scheduled_trips(
-    domain_trips: List[ScheduledTrip], batch_size: int = INSERT_BATCH_SIZE
-):
+    scheduled_trips_iterator: Iterator[
+        ScheduledTripDocument
+    ],  # Changed from List to Iterator
+    batch_size: int = INSERT_BATCH_SIZE,
+) -> None:
     """
-    Converts domain ScheduledTrip objects to Beanie documents and inserts
-    into MongoDB lazily in batches to conserve memory.
+    Processes ScheduledTripDocument objects from an iterator and inserts them into
+    a database (e.g., MongoDB) in batches.
     """
-    total_trips = len(domain_trips)
-    if not total_trips:
-        logger.info("No Scheduled Trips found to insert.")
-        return
-
     logger.info(
-        f"--- Inserting {total_trips} Scheduled Trips into MongoDB in batches of {batch_size} (lazy conversion) ---"
+        f"--- Starting insertion of Scheduled Trips into MongoDB in batches of {batch_size} (from iterator) ---"
     )
     inserted_count = 0
     batches_processed = 0
-    # Note: Tracking individual skips during lazy conversion within a batch is difficult
-    # without pre-processing, which defeats the purpose. We'll log batch-level errors.
+    items_processed_from_iterator = 0
+    current_batch: List[ScheduledTripDocument] = []
 
-    for i in range(0, total_trips, batch_size):
-        batch_slice = domain_trips[i : i + batch_size]
-        batches_processed += 1
-        if not batch_slice:  # Should not happen with range step, but safe check
-            continue
+    # Iterate through the input iterator
+    for trip_doc in scheduled_trips_iterator:
+        items_processed_from_iterator += 1
+        current_batch.append(trip_doc)
 
+        if len(current_batch) == batch_size:
+            batches_processed += 1
+            logger.debug(
+                f"Processing batch {batches_processed} for Scheduled Trips ({len(current_batch)} items)"
+            )
+            try:
+                # Type ignore can be useful if linter complains about `documents` type
+                # if ScheduledTripDocument.insert_many expects a specific subclass of list etc.
+                result = await ScheduledTripDocument.insert_many(
+                    documents=current_batch
+                )
+                inserted_count += len(result.inserted_ids)
+                logger.debug(
+                    f"Successfully inserted batch {batches_processed} for Scheduled Trips ({len(result.inserted_ids)} items)."
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error inserting batch {batches_processed} for Scheduled Trips: {e}. "
+                    f"This batch of {len(current_batch)} trips may have failed.",
+                    exc_info=logger.isEnabledFor(
+                        logging.DEBUG
+                    ),  # More detailed traceback if DEBUG
+                )
+                # Option: Decide whether to continue to the next batch or raise/stop
+            current_batch = []  # Reset for the next batch
+
+    # After the loop, process any remaining items in the current_batch (the last, possibly smaller, batch)
+    if current_batch:
+        batches_processed += 1  # Even a partial batch is a batch processed
         logger.debug(
-            f"Processing batch {batches_processed} for Scheduled Trips ({len(batch_slice)} items)"
+            f"Processing final batch {batches_processed} for Scheduled Trips ({len(current_batch)} items)"
         )
-
-        # Create an iterator that converts trips to documents JUST AS NEEDED by insert_many
-        # This avoids loading all documents for the batch into memory at once.
-        # The conversion (asdict) happens as the iterator is consumed.
-        docs_iterator = map(
-            lambda trip: ScheduledTripDocument(**asdict(trip)), batch_slice
-        )
-
         try:
-            # Beanie's insert_many can handle an iterator directly
-            result = await ScheduledTripDocument.insert_many(
-                documents=docs_iterator
-            )  # Pass iterator to documents
+            result = await ScheduledTripDocument.insert_many(documents=current_batch)
             inserted_count += len(result.inserted_ids)
             logger.debug(
-                f"Successfully inserted batch {batches_processed} for Scheduled Trips ({len(result.inserted_ids)} items)."
+                f"Successfully inserted final batch {batches_processed} for Scheduled Trips ({len(result.inserted_ids)} items)."
             )
-
         except Exception as e:
-            # If an error occurs here, it could be during the conversion within the map
-            # or during the actual bulk insert operation by the driver.
-            # It's difficult to pinpoint the exact failing trip without trying one-by-one.
             logger.error(
-                f"Error inserting batch {batches_processed} for Scheduled Trips: {e}. "
-                f"This batch of {len(batch_slice)} trips may have failed.",
+                f"Error inserting final batch {batches_processed} for Scheduled Trips: {e}. "
+                f"This batch of {len(current_batch)} trips may have failed.",
                 exc_info=logger.isEnabledFor(logging.DEBUG),
             )
-            # Option: Decide whether to continue to the next batch or raise/stop
-            # continue
+
+    if items_processed_from_iterator == 0:
+        logger.info("No Scheduled Trips found from the iterator to insert.")
+        return
 
     logger.info(
-        f"Finished inserting Scheduled Trips. Processed {batches_processed} batches. Successfully inserted count reported by DB: {inserted_count} (failures might reduce this)."
+        f"Finished inserting Scheduled Trips. "
+        f"Processed {items_processed_from_iterator} items from iterator in {batches_processed} batches. "
+        f"Successfully inserted count reported by DB: {inserted_count} "
+        f"(note: individual trip conversion errors prior to DB call are not explicitly counted here, "
+        f"only batch-level DB insertion successes/failures)."
     )
 
 
@@ -417,13 +433,13 @@ async def main():
         logger.error(f"Failed during GTFS parsing: {e}", exc_info=True)
         return  # Exit if parsing fails
 
-    # --- Generate Domain Objects (Scheduled Trips) ---
-    # This might be memory-intensive depending on the GTFSReader implementation
+    # --- Generate Scheduled Trips ---
     try:
-        logger.info("Generating Scheduled Trips domain objects...")
-        # Assuming this returns a list of domain objects (dataclasses or Pydantic models)
-        domain_trips: List[ScheduledTrip] = parsed_gtfs.generate_scheduled_trips()
-        logger.info(f"Generated {len(domain_trips)} Scheduled Trips.")
+        logger.info("Generating Scheduled Trips objects...")
+        scheduled_trips_iter: List[ScheduledTripDocument] = (
+            parsed_gtfs.generate_scheduled_trips()
+        )
+        logger.info(f"Generated Scheduled Trips.")
     except Exception as e:
         logger.error(f"Failed during Scheduled Trip generation: {e}", exc_info=True)
         return  # Exit if trip generation fails
@@ -436,7 +452,7 @@ async def main():
         routes_task = asyncio.create_task(process_and_insert_routes(parsed_gtfs))
         shapes_task = asyncio.create_task(process_and_insert_shapes(parsed_gtfs))
         trips_task = asyncio.create_task(
-            process_and_insert_scheduled_trips(domain_trips)
+            process_and_insert_scheduled_trips(scheduled_trips_iter)
         )
 
         # Wait for all tasks to complete
