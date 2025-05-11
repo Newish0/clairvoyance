@@ -401,7 +401,7 @@ async def main():
                 Route,
                 Shape,
                 ScheduledTripDocument,
-            ],  # Add all relevant models
+            ],
         )
         logger.info("Beanie initialized.")
 
