@@ -20,6 +20,7 @@ from models import (
     Stop,
     WheelchairBoarding,
 )
+from config import setup_logger
 
 # --- Configuration ---
 MONGO_CONNECTION_STRING = (
@@ -29,15 +30,9 @@ DATABASE_NAME = "gtfs_data"
 GTFS_ZIP_FILE = "bctransit_gtfs.zip"  # Replace with your GTFS zip file path
 
 INSERT_BATCH_SIZE = 2000  # Batch size for all insert_many operations
-LOG_LEVEL = logging.INFO
 
 # --- Setup Logger ---
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 # --- Helper Functions for Processing and Insertion ---
 
@@ -68,7 +63,7 @@ async def _batch_insert(
                 # Log the error but continue with the next batch if possible
                 logger.error(
                     f"Error inserting batch {i//batch_size + 1} for {collection.__name__}: {e}",
-                    exc_info=LOG_LEVEL <= logging.DEBUG,
+                    exc_info=logger.isEnabledFor(logging.DEBUG),
                 )
                 # Optionally, attempt individual inserts within the failed batch for more resilience (adds complexity)
     logger.info(
@@ -145,7 +140,7 @@ async def process_and_insert_stops(parsed_gtfs: ParsedGTFSData):
             stops_skipped += 1
             logger.warning(
                 f"Error processing stop {stop_id}: {e}. Skipping.",
-                exc_info=LOG_LEVEL <= logging.DEBUG,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
             )
 
     logger.info(f"Processed {stops_processed} stops data, skipped {stops_skipped}.")
@@ -232,7 +227,7 @@ async def process_and_insert_routes(parsed_gtfs: ParsedGTFSData):
             routes_skipped += 1
             logger.warning(
                 f"Error processing route {route_id}: {e}. Skipping.",
-                exc_info=LOG_LEVEL <= logging.DEBUG,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
             )
 
     logger.info(f"Processed {routes_processed} routes data, skipped {routes_skipped}.")
@@ -309,7 +304,7 @@ async def process_and_insert_shapes(parsed_gtfs: ParsedGTFSData):
             shapes_skipped += 1
             logger.warning(
                 f"Error creating document for shape {shape_id}: {e}. Skipping.",
-                exc_info=LOG_LEVEL <= logging.DEBUG,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
             )
 
     logger.info(f"Processed {shapes_processed} shapes data, skipped {shapes_skipped}.")
@@ -370,7 +365,7 @@ async def process_and_insert_scheduled_trips(
             logger.error(
                 f"Error inserting batch {batches_processed} for Scheduled Trips: {e}. "
                 f"This batch of {len(batch_slice)} trips may have failed.",
-                exc_info=LOG_LEVEL <= logging.DEBUG,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
             )
             # Option: Decide whether to continue to the next batch or raise/stop
             # continue

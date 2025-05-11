@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Set, Tuple
 import datetime
 from parsing.parsed_gtfs_data import ParsedGTFSData
+from config import setup_logger
 
 class GTFSReader:
     """
@@ -21,10 +22,10 @@ class GTFSReader:
 
         Args:
             default_timezone: Fallback timezone string if agency.txt doesn't specify one.
-            log_level: Logging level (default: INFO).
+            logger: Optional custom logger instance. If not provided, uses the centralized setup_logger.
         """
         self.default_timezone = default_timezone
-        self.logger = logger or self._setup_logger(logging.INFO)
+        self.logger = logger if logger is not None else setup_logger(__name__)
 
         # Validate timezone
         try:
@@ -35,19 +36,6 @@ class GTFSReader:
             )
             self.default_timezone = "UTC"
 
-    def _setup_logger(self, log_level) -> logging.Logger:
-        """Sets up the logger instance."""
-        logger = logging.getLogger(f"{__name__}.GTFSReader")
-        logger.setLevel(log_level)
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        return logger
-    
     def parse(self, zip_file_path: str) -> ParsedGTFSData:
         (
             agency_timezone,

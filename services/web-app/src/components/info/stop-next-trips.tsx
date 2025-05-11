@@ -272,7 +272,7 @@ const TripOptionItem: Component<{
                             <OccupancyBadge
                                 status={
                                     (props.occupancyStatus ??
-                                        OccupancyStatus.NO_DATA) as OccupancyStatus
+                                        OccupancyStatus.NO_DATA_AVAILABLE) as OccupancyStatus
                                 }
                                 size={10}
                             />

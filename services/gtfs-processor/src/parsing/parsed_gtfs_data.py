@@ -6,6 +6,7 @@ from collections import defaultdict
 import pytz
 from domain import ScheduledTrip, StopTimeInfo
 import dataclasses
+from config import setup_logger
 
 
 class ParsedGTFSData:
@@ -36,7 +37,7 @@ class ParsedGTFSData:
             service_dates: Dictionary of service date lists (YYYYMMDD) keyed by service_id.
             stops: Dictionary of stops keyed by stop_id.
             shapes: Dictionary of shape point lists keyed by shape_id.
-            log_level: Logging level.
+            logger: Optional custom logger instance. If not provided, uses the centralized setup_logger.
         """
         self.agency_timezone = agency_timezone
         self.routes = routes
@@ -45,7 +46,7 @@ class ParsedGTFSData:
         self.service_dates = service_dates
         self.stops = stops
         self.shapes = shapes
-        self.logger = logger if logger else self._setup_logger(logging.INFO)
+        self.logger = logger if logger is not None else setup_logger(__name__)
 
         self.logger.info("ParsedGTFSData initialized.")
         self.logger.info(f"Agency timezone: {self.agency_timezone}")
@@ -55,20 +56,6 @@ class ParsedGTFSData:
         self.logger.info(f"Loaded {len(shapes)} shapes (with points).")
         self.logger.info(f"Loaded stop times for {len(stop_times)} trips.")
         self.logger.info(f"Loaded service dates for {len(service_dates)} services.")
-
-    def _setup_logger(self, log_level) -> logging.Logger:
-        """Sets up the logger instance."""
-        logger = logging.getLogger(f"{__name__}.ParsedGTFSData")
-        logger.setLevel(log_level)
-        # Ensure handler is added only once if this class is instantiated multiple times
-        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        return logger
 
     def generate_scheduled_trips(self) -> List[ScheduledTrip]:
         """
