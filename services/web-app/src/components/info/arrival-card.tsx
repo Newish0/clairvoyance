@@ -1,10 +1,9 @@
-import { type Component, Show } from "solid-js";
 import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-solid";
-import RealTimeIndicator from "../ui/realtime-indicator";
-import { getArrivalMinutes } from "~/utils/time";
 import { differenceInMinutes, differenceInSeconds } from "date-fns";
+import { Clock } from "lucide-solid";
+import { type Component, Show } from "solid-js";
 import { recordToSearchParams } from "~/utils/urls";
+import RealTimeIndicator from "../ui/realtime-indicator";
 
 export interface ArrivalCardKeyProps {
     routeId: string;

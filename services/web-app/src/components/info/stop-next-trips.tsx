@@ -8,7 +8,6 @@ import {
     onCleanup,
     onMount,
     Show,
-    Switch,
     type Accessor,
     type Component,
 } from "solid-js";
@@ -22,9 +21,8 @@ import RealTimeIndicator from "../ui/realtime-indicator";
 
 import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { Badge } from "../ui/badge";
-import RouteStopSchedule from "./route-stop-schedule";
 import { Separator } from "../ui/separator";
-import { EllipsisIcon } from "lucide-solid";
+import RouteStopSchedule from "./route-stop-schedule";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
