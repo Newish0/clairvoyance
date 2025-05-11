@@ -1,17 +1,16 @@
 import { createSignal, onCleanup, type Component } from "solid-js";
 
-import MapGL, { Control, Layer, Marker, Source, type Viewport } from "solid-map-gl";
+import MapGL, { Marker, type Viewport } from "solid-map-gl";
 
 import * as maplibre from "maplibre-gl";
-import { type Map as LibreGLMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Protocol } from "pmtiles";
 
 import layers from "protomaps-themes-base";
+import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
 import { $userLocation } from "~/stores/user-location-store";
-import { useTheme } from "~/hooks/use-theme";
 
 const MainMap: Component = () => {
     const [, , isDark] = useTheme();

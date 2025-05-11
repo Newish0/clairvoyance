@@ -1,18 +1,9 @@
 import { addDays, endOfDay, format, startOfDay } from "date-fns";
-import type { e } from "node_modules/@kobalte/core/dist/menu-sub-trigger-a61674f3";
-import {
-    createEffect,
-    createResource,
-    createSignal,
-    For,
-    on,
-    Show,
-    type Component,
-} from "solid-js";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-solid";
+import { createResource, createSignal, Show, type Component } from "solid-js";
 import { getRouteNextTripsAtStop } from "~/services/trips";
-import { DayPicker } from "../ui/day-picker";
-import { ArrowLeftIcon, ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-solid";
 import { Button } from "../ui/button";
+import { DayPicker } from "../ui/day-picker";
 import type { DepartureItem } from "../ui/simple-departure-schedule";
 import SimpleDepartureSchedule from "../ui/simple-departure-schedule";
 

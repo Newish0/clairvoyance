@@ -1,25 +1,14 @@
-import { createEffect, createResource, Show } from "solid-js";
-import { getRouteDetails } from "~/services/gtfs/route";
-import { getTripDetails } from "~/services/gtfs/trip";
-import { Badge } from "../ui/badge";
-import { getTripStops } from "~/services/gtfs/stops";
+import { createResource, Show } from "solid-js";
 import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
-import { getArrivalMinutes } from "~/utils/time";
+import { Badge } from "../ui/badge";
 
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import {
-    ArrowLeftRightIcon,
-    RadioIcon,
-    SignalIcon,
-    TriangleAlert,
-    WifiHighIcon,
-} from "lucide-solid";
-import { getStopNextTripsByStopId } from "~/services/stops";
-import { getScheduledTripDetails } from "~/services/trips";
-import StopNextTrips from "./stop-next-trips";
 import { format } from "date-fns";
-import { Button, buttonVariants } from "../ui/button";
+import { ArrowLeftRightIcon, TriangleAlert, WifiHighIcon } from "lucide-solid";
+import { getScheduledTripDetails } from "~/services/trips";
 import { recordToSearchParams } from "~/utils/urls";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { buttonVariants } from "../ui/button";
+import StopNextTrips from "./stop-next-trips";
 
 interface TripDetailsProps {
     tripObjectId: string;
@@ -113,8 +102,6 @@ const TripDetails = (props: TripDetailsProps) => {
                     <div class="max-h overflow-auto">
                         <TransitRouteTimeline
                             stops={trip().scheduled_stop_times.map((s) => ({
-                                // TODO: Use stop name
-                                // stopName: s.stop_name,
                                 stopName: s.stop_name,
                                 stopTime: trip().realtime_stop_updates[s.stop_sequence] ? (
                                     <div class="flex items-center">
