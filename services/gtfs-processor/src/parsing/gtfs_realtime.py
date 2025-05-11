@@ -9,7 +9,7 @@ from google.transit import gtfs_realtime_pb2
 from google.protobuf.message import Message
 
 from model import ScheduledTripDocument, StopTimeInfo, Position, RealtimeStopTimeUpdate
-from domain import ScheduleRelationship, OccupancyStatus, VehicleStopStatus
+from models import TripDescriptorScheduleRelationship, OccupancyStatus, VehicleStopStatus
 
 
 logger = logging.getLogger(__name__)
@@ -36,20 +36,19 @@ class RealtimeUpdaterService:
 
         # --- Mappings from Protobuf Enum Ints to Domain Enums ---
         # TripDescriptor.ScheduleRelationship
-        self._trip_schedule_relationship_map: Dict[int, ScheduleRelationship] = {
-            gtfs_realtime_pb2.TripDescriptor.SCHEDULED: ScheduleRelationship.SCHEDULED,
-            gtfs_realtime_pb2.TripDescriptor.ADDED: ScheduleRelationship.ADDED,
-            gtfs_realtime_pb2.TripDescriptor.UNSCHEDULED: ScheduleRelationship.UNSCHEDULED,
-            gtfs_realtime_pb2.TripDescriptor.CANCELED: ScheduleRelationship.CANCELED,
+        self._trip_schedule_relationship_map: Dict[
+            int, TripDescriptorScheduleRelationship
+        ] = {
+            gtfs_realtime_pb2.TripDescriptor.SCHEDULED: TripDescriptorScheduleRelationship.SCHEDULED,
+            gtfs_realtime_pb2.TripDescriptor.ADDED: TripDescriptorScheduleRelationship.ADDED,
+            gtfs_realtime_pb2.TripDescriptor.UNSCHEDULED: TripDescriptorScheduleRelationship.UNSCHEDULED,
+            gtfs_realtime_pb2.TripDescriptor.CANCELED: TripDescriptorScheduleRelationship.CANCELED,
             # TODO: Add mapping for V2 enums
             # # Assuming v2 enums map directly if they exist in domain
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'REPLACEMENT', -1): ScheduleRelationship.REPLACEMENT,
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'DUPLICATED', -1): ScheduleRelationship.DUPLICATED,
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'DELETED', -1): ScheduleRelationship.DELETED,
         }
-        
-        
-        
 
         # TODO: Add mappings for stop time updates
         # TripUpdate.StopTimeUpdate.ScheduleRelationship
@@ -68,16 +67,20 @@ class RealtimeUpdaterService:
             gtfs_realtime_pb2.VehiclePosition.FULL: OccupancyStatus.FULL,
             gtfs_realtime_pb2.VehiclePosition.NOT_ACCEPTING_PASSENGERS: OccupancyStatus.NOT_ACCEPTING_PASSENGERS,
             # V2 Additions - map them if they exist in the domain enum
-            getattr(gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1): OccupancyStatus.NO_DATA,
-            getattr(gtfs_realtime_pb2.VehiclePosition, "NOT_BOARDABLE", -1): OccupancyStatus.NOT_BOARDABLE
+            getattr(
+                gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1
+            ): OccupancyStatus.NO_DATA,
+            getattr(
+                gtfs_realtime_pb2.VehiclePosition, "NOT_BOARDABLE", -1
+            ): OccupancyStatus.NOT_BOARDABLE,
         }
-        
+
         self._vehicle_stop_status_map: Dict[int, VehicleStopStatus] = {
             gtfs_realtime_pb2.VehiclePosition.INCOMING_AT: VehicleStopStatus.INCOMING_AT,
             gtfs_realtime_pb2.VehiclePosition.STOPPED_AT: VehicleStopStatus.STOPPED_AT,
-            gtfs_realtime_pb2.VehiclePosition.IN_TRANSIT_TO: VehicleStopStatus.IN_TRANSIT_TO
+            gtfs_realtime_pb2.VehiclePosition.IN_TRANSIT_TO: VehicleStopStatus.IN_TRANSIT_TO,
         }
-        
+
         # Filter out None values from map in case V2 enums don't exist in domain
         self._occupancy_status_map = {
             k: v for k, v in self._occupancy_status_map.items() if v is not None
@@ -276,7 +279,7 @@ class RealtimeUpdaterService:
         if trip_update.trip.HasField("schedule_relationship"):
             new_rel = self._trip_schedule_relationship_map.get(
                 trip_update.trip.schedule_relationship,
-                ScheduleRelationship.SCHEDULED,  # Default if unknown
+                TripDescriptorScheduleRelationship.SCHEDULED,  # Default if unknown
             )
             if scheduled_trip.realtime_schedule_relationship != new_rel:
                 scheduled_trip.realtime_schedule_relationship = new_rel
@@ -424,7 +427,7 @@ class RealtimeUpdaterService:
             if scheduled_trip.vehicle_id != vehicle_id:
                 scheduled_trip.vehicle_id = vehicle_id
                 needs_save = True
-        
+
         # --- Update Status ---
         if vehicle.HasField("current_status"):
             new_status = self._vehicle_stop_status_map.get(vehicle.current_status)

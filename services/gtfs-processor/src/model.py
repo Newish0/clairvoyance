@@ -8,9 +8,15 @@ from pydantic import BaseModel, Field, model_validator, field_validator
 import pymongo
 
 
-from enum import IntEnum
-
-from domain import ScheduleRelationship, OccupancyStatus, VehicleStopStatus
+from models import (
+    ContinuousPickupDropOff,
+    LocationType,
+    RouteType,
+    WheelchairBoarding,
+    TripDescriptorScheduleRelationship,
+    OccupancyStatus,
+    VehicleStopStatus,
+)
 
 
 # --- Helper Pydantic Models (for Beanie/MongoDB compatibility) ---
@@ -44,7 +50,9 @@ class RealtimeStopTimeUpdate(BaseModel):
     predicted_arrival_time: Optional[datetime.datetime] = None  # TZ-aware UTC
     departure_delay: Optional[int] = None  # seconds
     predicted_departure_time: Optional[datetime.datetime] = None  # TZ-aware UTC
-    schedule_relationship: ScheduleRelationship = ScheduleRelationship.SCHEDULED
+    schedule_relationship: TripDescriptorScheduleRelationship = (
+        TripDescriptorScheduleRelationship.SCHEDULED
+    )
 
 
 # --- Main Beanie Document ---
@@ -76,8 +84,8 @@ class ScheduledTripDocument(Document):
     scheduled_stop_times: List[StopTimeInfo] = Field(default_factory=list)
 
     # --- Real-time Data Fields ---
-    realtime_schedule_relationship: ScheduleRelationship = (
-        ScheduleRelationship.SCHEDULED
+    realtime_schedule_relationship: TripDescriptorScheduleRelationship = (
+        TripDescriptorScheduleRelationship.SCHEDULED
     )
     # MongoDB object keys must be strings. If using dict, ensure keys are str.
     # Alternatively, store as List[RealtimeStopTimeUpdate] if dict key isn't critical for queries
@@ -202,7 +210,6 @@ class ScheduledTripDocument(Document):
             # Indexes to speed up next trips queries
             [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
             [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
-            
             # These 2 below does not appear to help.
             # [("scheduled_stop_times.stop_sequence", pymongo.ASCENDING)],
             # [("current_stop_sequence", pymongo.ASCENDING)],
@@ -260,41 +267,6 @@ class LineStringGeometry(BaseModel):
 
 
 # --- Enums based on GTFS Specification (same as before) ---
-
-
-class LocationType(IntEnum):
-    STOP = 0
-    STATION = 1
-    ENTRANCE_EXIT = 2
-    GENERIC_NODE = 3
-    BOARDING_AREA = 4
-
-
-class WheelchairBoarding(IntEnum):
-    NO_INFO = 0
-    ACCESSIBLE = 1
-    NOT_ACCESSIBLE = 2
-
-
-class RouteType(IntEnum):
-    TRAM = 0
-    SUBWAY = 1
-    RAIL = 2
-    BUS = 3
-    FERRY = 4
-    CABLE_TRAM = 5
-    AERIAL_LIFT = 6
-    FUNICULAR = 7
-    TROLLEYBUS = 11
-    MONORAIL = 12
-    # Add more as needed from GTFS spec
-
-
-class ContinuousPickupDropOff(IntEnum):
-    CONTINUOUS = 0
-    NONE = 1
-    PHONE_AGENCY = 2
-    COORDINATE_WITH_DRIVER = 3
 
 
 # --- Revised Beanie Document Models ---
