@@ -4,7 +4,7 @@ import sys
 import time 
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
-from model import ScheduledTripDocument
+from models import ScheduledTripDocument
 from parsing.gtfs_realtime import RealtimeUpdaterService
 
 

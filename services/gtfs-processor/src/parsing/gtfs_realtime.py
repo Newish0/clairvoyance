@@ -8,8 +8,15 @@ import requests
 from google.transit import gtfs_realtime_pb2
 from google.protobuf.message import Message
 
-from model import ScheduledTripDocument, StopTimeInfo, Position, RealtimeStopTimeUpdate
-from models import TripDescriptorScheduleRelationship, OccupancyStatus, VehicleStopStatus
+from models import (
+    TripDescriptorScheduleRelationship,
+    OccupancyStatus,
+    VehicleStopStatus,
+    ScheduledTripDocument,
+    StopTimeInfo,
+    Position,
+    RealtimeStopTimeUpdate,
+)
 
 
 logger = logging.getLogger(__name__)
