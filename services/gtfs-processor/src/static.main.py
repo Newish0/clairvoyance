@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 # Assuming these are defined in respective modules
 from parsing.gtfs_reader import GTFSReader, ParsedGTFSData
 from domain import ScheduledTrip
-from model import (
+from models import (
     ContinuousPickupDropOff,
     LineStringGeometry,
     LocationType,
