@@ -64,7 +64,6 @@ async def _batch_insert(
                     f"Error inserting batch {i//batch_size + 1} for {collection.__name__}: {e}",
                     exc_info=logger.isEnabledFor(logging.DEBUG),
                 )
-                # Optionally, attempt individual inserts within the failed batch for more resilience (adds complexity)
     logger.info(
         f"Successfully inserted {inserted_count} / {len(items)} {collection.__name__} documents."
     )
@@ -356,7 +355,6 @@ async def process_and_insert_scheduled_trips(
                         logging.DEBUG
                     ),  # More detailed traceback if DEBUG
                 )
-                # Option: Decide whether to continue to the next batch or raise/stop
             current_batch = []  # Reset for the next batch
 
     # After the loop, process any remaining items in the current_batch (the last, possibly smaller, batch)
