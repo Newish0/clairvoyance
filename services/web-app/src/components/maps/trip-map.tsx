@@ -1,4 +1,5 @@
 import {
+    createEffect,
     createResource,
     createSignal,
     For,
@@ -25,7 +26,6 @@ import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
 import { getScheduledTripDetails } from "~/services/trips";
 import { $userLocation } from "~/stores/user-location-store";
-import { calculateHaversineDistance } from "~/utils/distance";
 
 import { ProgressCircle } from "~/components/ui/progress-circle";
 import { Badge } from "../ui/badge";
@@ -56,24 +56,25 @@ const TripMap: Component<TripMapProps> = (props) => {
     });
     const vehicles = () => vehiclesMap().values().toArray();
 
-    const ourStopIndex = () =>
-        rawStopsGeoJson()?.features.findIndex((f) => f.properties.stopId === props.stopId);
-
     /** Group stops into before and after our stop */
     const groupedStopsGeoJson = () => {
-        if (!rawStopsGeoJson()) return;
+        if (!rawStopsGeoJson() || !tripDetails()) return;
 
         // Sort by stop sequence
         const stopTimes = tripDetails()?.scheduled_stop_times;
+
         const sortedFeatures = rawStopsGeoJson()?.features.toSorted(
             (a, b) =>
                 stopTimes.find((st) => st.stop_id === a.properties.stopId).stop_sequence -
                 stopTimes.find((st) => st.stop_id === b.properties.stopId).stop_sequence
         );
+        const ourStopIndex: number = sortedFeatures.findIndex(
+            (f) => f.properties.stopId === props.stopId
+        );
 
         // Split into before and after our stop
-        const before = sortedFeatures.slice(0, ourStopIndex());
-        const after = sortedFeatures.slice(ourStopIndex() - 1);
+        const before = sortedFeatures.slice(0, ourStopIndex);
+        const after = sortedFeatures.slice(ourStopIndex);
 
         return {
             before: {
@@ -84,46 +85,36 @@ const TripMap: Component<TripMapProps> = (props) => {
                 type: "FeatureCollection",
                 features: after,
             },
-        };
+            at: {
+                type: "FeatureCollection",
+                features: [sortedFeatures[ourStopIndex]],
+                index: ourStopIndex,
+            },
+        } as const;
     };
 
     /** Group shape line into before and after our stop */
     const groupedShapeLineGeoJson = () => {
-        if (!rawShapeLineGeoJson() || !rawStopsGeoJson()) return;
+        if (!rawShapeLineGeoJson() || !tripDetails()) return;
 
-        const ourStopCoords = () =>
-            rawStopsGeoJson()?.features[ourStopIndex()]?.geometry.coordinates;
+        const stopTimes = tripDetails()?.scheduled_stop_times;
 
-        const nearestShapeIndex = rawShapeLineGeoJson()?.geometry.coordinates.reduce(
-            (minIndex, coord, index) => {
-                const dist = calculateHaversineDistance(
-                    {
-                        lat: coord[1],
-                        lon: coord[0],
-                    },
-                    {
-                        lat: ourStopCoords()?.[1],
-                        lon: ourStopCoords()?.[0],
-                    }
-                );
-                const minDist = calculateHaversineDistance(
-                    {
-                        lat: rawShapeLineGeoJson()?.geometry.coordinates[minIndex][1],
-                        lon: rawShapeLineGeoJson()?.geometry.coordinates[minIndex][0],
-                    },
-                    {
-                        lat: ourStopCoords()?.[1],
-                        lon: ourStopCoords()?.[0],
-                    }
-                );
-                return dist < minDist ? index : minIndex;
-            },
-            0
+        const ourStopTime = stopTimes.find((st) => st.stop_id === props.stopId);
+
+        const ourStopDistTraveled = ourStopTime?.shape_dist_traveled;
+
+        // TODO: If we don't have the shape_dist_traveled, we need to calculate it.
+
+        const coordinates = rawShapeLineGeoJson()?.geometry.coordinates;
+        const distancesTraveled = rawShapeLineGeoJson()?.properties.distances_traveled;
+
+        const nearestShapeIndex = distancesTraveled?.findIndex(
+            (dist) => dist >= ourStopDistTraveled
         );
 
         // Split into before and after our stop
-        const before = rawShapeLineGeoJson()?.geometry.coordinates.slice(0, nearestShapeIndex + 1); // Must duplicate last point to form complete line
-        const after = rawShapeLineGeoJson()?.geometry.coordinates.slice(nearestShapeIndex);
+        const before = coordinates.slice(0, nearestShapeIndex + 1); // Must duplicate last point to form complete line
+        const after = coordinates.slice(nearestShapeIndex);
 
         return {
             before: {
@@ -157,6 +148,10 @@ const TripMap: Component<TripMapProps> = (props) => {
         setViewport(evt);
     };
 
+    createEffect(() => {
+        console.log("userLocationCenter()", userLocationCenter());
+    });
+
     return (
         <MapGL
             mapLib={maplibre}
@@ -180,21 +175,6 @@ const TripMap: Component<TripMapProps> = (props) => {
             onViewportChange={handleViewportChange}
             onLoad={(evt) => {}}
         >
-            <Marker
-                lngLat={userLocationCenter()}
-                options={{
-                    element: (
-                        <div
-                            class={cn(
-                                "rounded-full w-6 h-6 border-4",
-                                "bg-sky-600/95",
-                                "border-white/90"
-                            )}
-                        ></div>
-                    ),
-                }}
-            ></Marker>
-
             <Show when={groupedShapeLineGeoJson()?.before}>
                 {(geoJson) => (
                     <Source
@@ -381,6 +361,36 @@ const TripMap: Component<TripMapProps> = (props) => {
                     );
                 }}
             </For>
+
+            {/* User location marker  */}
+            <Source
+                source={{
+                    type: "geojson",
+                    data: {
+                        type: "Point",
+                        coordinates: userLocationCenter(),
+                    },
+                }}
+            >
+                <Layer
+                    style={{
+                        type: "circle",
+                        paint: {
+                            "circle-color": "#e9e9ea",
+                            "circle-radius": 16,
+                        },
+                    }}
+                />
+                <Layer
+                    style={{
+                        type: "circle",
+                        paint: {
+                            "circle-color": "#047fbf",
+                            "circle-radius": 10,
+                        },
+                    }}
+                />
+            </Source>
         </MapGL>
     );
 };
