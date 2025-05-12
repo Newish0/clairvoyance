@@ -239,9 +239,7 @@ class Stop(Document):
     stop_name: Optional[Indexed(str)] = None  # Index for searching by name
     stop_desc: Optional[str] = None
 
-    location: Optional[Indexed(PointGeometry, index_type=pymongo.GEOSPHERE)] = (
-        None  # Derived from stop_lat, stop_lon
-    )
+    location: Optional[PointGeometry] = None  # Derived from stop_lat, stop_lon
     zone_id: Optional[str] = None
     stop_url: Optional[str] = None
     location_type: Optional[LocationType] = LocationType.STOP
@@ -256,7 +254,14 @@ class Stop(Document):
 
     class Settings:
         name = "stops"
-        indexes = []
+        indexes = [
+            pymongo.IndexModel(
+                [
+                    ("location", pymongo.GEOSPHERE)
+                ],  # Use GEOSPHERE for Point data on sphere
+                name="location_geosphere_idx",
+            ),
+        ]
 
 
 class Route(Document):

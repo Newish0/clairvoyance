@@ -33,9 +33,8 @@ INSERT_BATCH_SIZE = 1000  # Batch size for all insert_many operations
 # --- Setup Logger ---
 logger = setup_logger(__name__)
 
+
 # --- Helper Functions for Processing and Insertion ---
-
-
 async def _batch_insert(
     collection: Type[Document],  # Beanie Document class (e.g., Stop, Route)
     items: List[Document],
