@@ -40,7 +40,7 @@ class RealtimeUpdaterService:
         """
         self.request_timeout = request_timeout
 
-        # --- Mappings from Protobuf Enum Ints to Domain Enums ---
+        # --- Mappings from Protobuf Enum Ints to Model Enums ---
         # TripDescriptor.ScheduleRelationship
         self._trip_schedule_relationship_map: Dict[
             int, TripDescriptorScheduleRelationship
@@ -50,7 +50,7 @@ class RealtimeUpdaterService:
             gtfs_realtime_pb2.TripDescriptor.UNSCHEDULED: TripDescriptorScheduleRelationship.UNSCHEDULED,
             gtfs_realtime_pb2.TripDescriptor.CANCELED: TripDescriptorScheduleRelationship.CANCELED,
             # TODO: Add mapping for V2 enums
-            # # Assuming v2 enums map directly if they exist in domain
+            # # Assuming v2 enums map directly if they exist in Model Enum
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'REPLACEMENT', -1): ScheduleRelationship.REPLACEMENT,
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'DUPLICATED', -1): ScheduleRelationship.DUPLICATED,
             # getattr(gtfs_realtime_pb2.TripDescriptor, 'DELETED', -1): ScheduleRelationship.DELETED,
@@ -72,7 +72,7 @@ class RealtimeUpdaterService:
             gtfs_realtime_pb2.VehiclePosition.CRUSHED_STANDING_ROOM_ONLY: OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY,
             gtfs_realtime_pb2.VehiclePosition.FULL: OccupancyStatus.FULL,
             gtfs_realtime_pb2.VehiclePosition.NOT_ACCEPTING_PASSENGERS: OccupancyStatus.NOT_ACCEPTING_PASSENGERS,
-            # V2 Additions - map them if they exist in the domain enum
+            # V2 Additions - map them if they exist in the model enum
             getattr(
                 gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1
             ): OccupancyStatus.NO_DATA_AVAILABLE,
@@ -87,7 +87,7 @@ class RealtimeUpdaterService:
             gtfs_realtime_pb2.VehiclePosition.IN_TRANSIT_TO: VehicleStopStatus.IN_TRANSIT_TO,
         }
 
-        # Filter out None values from map in case V2 enums don't exist in domain
+        # Filter out None values from map in case V2 enums don't exist in model
         self._occupancy_status_map = {
             k: v for k, v in self._occupancy_status_map.items() if v is not None
         }
