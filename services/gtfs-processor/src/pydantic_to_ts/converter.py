@@ -52,7 +52,7 @@ def _python_type_to_typescript_type(py_type: any, module_members: dict) -> str:
     if py_type is type(None):  # isinstance(py_type, type(None))
         return "null"
     if py_type is datetime or py_type is date or py_type is time:
-        return "string"  # Typically serialized as ISO string
+        return "Date"
     if py_type is typing.Any:
         return "any"
 

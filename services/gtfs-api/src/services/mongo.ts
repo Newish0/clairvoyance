@@ -1,6 +1,17 @@
-import { MongoClient, Db } from "mongodb";
+import { MongoClient, Db, Collection, type Document, ObjectId } from "mongodb";
 
-let db: Db | null = null;
+import type { Shape, Stop, Route, ScheduledTripDocument } from "gtfs-db-types";
+
+type OmitId<T> = Omit<T, "_id">;
+
+interface TypedDb extends Db {
+    collection<T extends Shape>(name: "shapes"): Collection<OmitId<T>>;
+    collection<T extends Stop>(name: "stops"): Collection<OmitId<T>>;
+    collection<T extends Route>(name: "routes"): Collection<OmitId<T>>;
+    collection<T extends ScheduledTripDocument>(name: "scheduled_trips"): Collection<OmitId<T>>;
+}
+
+let db: TypedDb | null = null;
 let client: MongoClient;
 
 export async function connectDB(connStr: string, dbName: string) {
@@ -18,7 +29,7 @@ export async function connectDB(connStr: string, dbName: string) {
     }
 }
 
-export async function getDb(): Promise<Db> {
+export async function getDb(): Promise<TypedDb> {
     if (!db) {
         throw new Error("Database not connected");
     }

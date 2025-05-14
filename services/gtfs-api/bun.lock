@@ -4,8 +4,10 @@
     "": {
       "name": "gtfs-api",
       "dependencies": {
+        "gtfs-db-types": "../gtfs-processor/shared/gtfs-db-types/",
         "@hono/zod-validator": "^0.5.0",
         "cross-env": "^7.0.3",
+        "gtfs-db-types": "../gtfs-processor/shared/gtfs-db-types/",
         "hono": "^4.7.7",
         "lru-cache": "^11.1.0",
         "mongodb": "^6.16.0",
@@ -35,6 +37,10 @@
     "cross-env": ["cross-env@7.0.3", "", { "dependencies": { "cross-spawn": "^7.0.1" }, "bin": { "cross-env": "src/bin/cross-env.js", "cross-env-shell": "src/bin/cross-env-shell.js" } }, "sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw=="],
 
     "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
+
+    "gtfs-db-types": ["gtfs-db-types@file:../gtfs-processor/shared/gtfs-db-types", {}],
+
+    "gtfs-db-types": ["gtfs-db-types@file:../gtfs-processor/shared/gtfs-db-types", {}],
 
     "hono": ["hono@4.7.7", "", {}, "sha512-2PCpQRbN87Crty8/L/7akZN3UyZIAopSoRxCwRbJgUuV1+MHNFHzYFxZTg4v/03cXUm+jce/qa2VSBZpKBm3Qw=="],
 
