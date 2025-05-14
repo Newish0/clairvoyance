@@ -52,19 +52,19 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                 ? trip.realtime_stop_updates[staticStopTime?.stop_sequence]
                 : undefined;
 
-            const arrivalDatetime: string = realtimeStopUpdates
-                ? realtimeStopUpdates.predicted_arrival_time
-                : staticStopTime?.arrival_datetime;
+            const departureDatetime: string = realtimeStopUpdates
+                ? realtimeStopUpdates.predicted_departure_time
+                : staticStopTime?.departure_datetime;
 
             const tripHeadsign = trip.trip_headsign;
 
-            const hours = new Date(arrivalDatetime).getHours();
+            const hours = new Date(departureDatetime).getHours();
 
             groupedByTheHour[hours] = groupedByTheHour[hours] || [];
             groupedByTheHour[hours].push({
                 id: trip._id,
                 headsign: tripHeadsign,
-                time: format(arrivalDatetime, "p"),
+                time: format(departureDatetime, "p"),
                 isRealtime: realtimeStopUpdates !== undefined,
                 href: `${import.meta.env.BASE_URL}next-trips/?route=${trip.route_id}&stop=${
                     props.stopId

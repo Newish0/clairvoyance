@@ -108,7 +108,7 @@ const TripDetails = (props: TripDetailsProps) => {
                                         <span class="w-16 text-center">
                                             {format(
                                                 trip().realtime_stop_updates[s.stop_sequence]
-                                                    .predicted_arrival_time,
+                                                    .predicted_departure_time,
                                                 "p"
                                             )}
                                         </span>
@@ -118,7 +118,7 @@ const TripDetails = (props: TripDetailsProps) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    format(new Date(s.arrival_datetime), "p")
+                                    format(new Date(s.departure_datetime), "p")
                                 ),
                             }))}
                             activeStop={

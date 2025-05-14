@@ -189,8 +189,12 @@ class ParsedGTFSData:
         arrival_datetime = ScheduledTripDocument.convert_to_datetime(
             date_str, partial_stop_time_info.arrival_time, tz_str
         )
+        departure_datetime = ScheduledTripDocument.convert_to_datetime(
+            date_str, partial_stop_time_info.departure_time, tz_str
+        )
         stop_time_dict = partial_stop_time_info.dict()
         stop_time_dict["arrival_datetime"] = arrival_datetime
+        stop_time_dict["departure_datetime"] = departure_datetime
         return StopTimeInfo(
             **stop_time_dict,
         )
@@ -302,6 +306,7 @@ class ParsedGTFSData:
                     drop_off_type=drop_off_type,
                     shape_dist_traveled=shape_dist_traveled,
                     arrival_datetime=None,
+                    departure_datetime=None,
                 )
                 stop_time_infos.append(stop_info)
 

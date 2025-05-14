@@ -68,12 +68,12 @@ export const fetchNextTripsByStop = async (stopId: string) => {
                                     { $eq: ["$$stopTime.stop_id", stopId] },
                                     {
                                         // Use realtime (if it exists) or use static schedule.
-                                        // Include stops with arrival times in the future,
+                                        // Include stops with departure times in the future,
                                         // If the trip past our stop before the scheduled time, we
                                         // still include it as user needs to know the trip arrived early.
                                         $or: [
                                             {
-                                                $gt: ["$$stopTime.arrival_datetime", new Date()],
+                                                $gt: ["$$stopTime.departure_datetime", new Date()],
                                             },
                                             {
                                                 $cond: {

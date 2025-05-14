@@ -69,9 +69,9 @@ export const ArrivalBoard: Component = () => {
                                 stopName: trip.stop_name,
                                 tripHeadsign: trip.trip_headsign,
                                 predictedArrivalTime: trip.realtime_stop_updates
-                                    ? new Date(trip.realtime_stop_updates.predicted_arrival_time)
+                                    ? new Date(trip.realtime_stop_updates.predicted_departure_time)
                                     : undefined,
-                                scheduledArrivalTime: new Date(trip.stop_time.arrival_datetime),
+                                scheduledArrivalTime: new Date(trip.stop_time.departure_datetime),
                                 ...(trips.length > 1
                                     ? {
                                           alt: {

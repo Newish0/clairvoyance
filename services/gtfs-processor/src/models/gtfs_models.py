@@ -34,6 +34,7 @@ class StopTimeInfo(BaseModel):
 
     # --- DERIVED FIELDS ---
     arrival_datetime: Optional[datetime.datetime] = None
+    departure_datetime: Optional[datetime.datetime] = None
 
 
 class Position(BaseModel):
@@ -175,6 +176,7 @@ class ScheduledTripDocument(Document):
             # Indexes to speed up next trips queries
             [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
             [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
+            [("scheduled_stop_times.departure_datetime", pymongo.ASCENDING)],
         ]
 
 
