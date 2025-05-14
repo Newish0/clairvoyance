@@ -1,12 +1,15 @@
-# The following line silences Pylance errors on use of Indexed()
-# pyright: reportInvalidTypeForm=false
+"""
+IMPORTANT: The use of `Indexed()` is forbidden in Beanie in order for
+           `pydantic_to_ts` to work correctly. All indexes must be
+           defined in the Settings class of each model.
+"""
 
 import datetime
 import re
 from typing import Dict, List, Optional, Tuple, Any
 
 import pytz
-from beanie import Document, Indexed
+from beanie import Document
 from pydantic import BaseModel, Field, model_validator, field_validator
 import pymongo
 
@@ -66,11 +69,11 @@ class ScheduledTripDocument(Document):
     Includes precomputed fields for efficient querying.
     """
 
-    trip_id: Indexed(str)
-    start_date: Indexed(str)  # YYYYMMDD
-    start_time: Indexed(str)  # HH:MM:SS (Scheduled start time)
+    trip_id: str
+    start_date: str  # YYYYMMDD
+    start_time: str  # HH:MM:SS (Scheduled start time)
 
-    route_id: Indexed(str)
+    route_id: str
     service_id: str
     route_short_name: Optional[str] = None
     agency_timezone_str: str = "UTC"
@@ -94,11 +97,11 @@ class ScheduledTripDocument(Document):
     # Ignored if current_stop_sequence is missing.
     current_status: Optional[VehicleStopStatus] = None
 
-    vehicle_id: Optional[Indexed(str)] = None
+    vehicle_id: Optional[str] = None
     current_occupancy: Optional[OccupancyStatus] = None
-    last_realtime_update_timestamp: Optional[
-        Indexed(datetime.datetime, pymongo.DESCENDING)
-    ] = None  # TZ-aware UTC, index for recency queries
+    last_realtime_update_timestamp: Optional[datetime.datetime] = (
+        None  # TZ-aware UTC, index for recency queries
+    )
 
     # --- Realtime Position Data ---
     current_position: Optional[Position] = None
@@ -106,9 +109,7 @@ class ScheduledTripDocument(Document):
 
     # --- Derived & Persisted Fields - For query efficiency ---
     # These fields are calculated *before* saving using the validator below.
-    start_datetime: Optional[Indexed(datetime.datetime, pymongo.DESCENDING)] = Field(
-        default=None
-    )
+    start_datetime: Optional[datetime.datetime] = Field(default=None)
 
     # --- Methods ---
     @staticmethod
@@ -128,7 +129,7 @@ class ScheduledTripDocument(Document):
     ) -> datetime.datetime:
         parsed_time = ScheduledTripDocument._parse_hhmmss(time_str)
         if not parsed_time:
-            return None
+            return None  # Should raise error or be handled by validator
         h, m, s = parsed_time
 
         base_date = datetime.datetime.strptime(date_str, "%Y%m%d").date()
@@ -156,9 +157,12 @@ class ScheduledTripDocument(Document):
         start_date_str = values.get("start_date")
         start_time_str = values.get("start_time")
         tz_str = values.get("agency_timezone_str", "UTC")  # Default to UTC if missing
-        values["start_datetime"] = ScheduledTripDocument.convert_to_datetime(
-            start_date_str, start_time_str, tz_str
-        )
+        if start_date_str and start_time_str:
+            values["start_datetime"] = ScheduledTripDocument.convert_to_datetime(
+                start_date_str, start_time_str, tz_str
+            )
+        else:
+            values["start_datetime"] = None
         return values
 
     class Settings:
@@ -177,6 +181,15 @@ class ScheduledTripDocument(Document):
             [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
             [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
             [("scheduled_stop_times.departure_datetime", pymongo.ASCENDING)],
+            pymongo.IndexModel([("trip_id", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("start_date", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("start_time", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("route_id", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("vehicle_id", pymongo.ASCENDING)]),
+            pymongo.IndexModel(
+                [("last_realtime_update_timestamp", pymongo.DESCENDING)]
+            ),
+            pymongo.IndexModel([("start_datetime", pymongo.DESCENDING)]),
         ]
 
 
@@ -236,9 +249,9 @@ class Stop(Document):
     Designed for geospatial queries using MongoDB's features.
     """
 
-    stop_id: Indexed(str, unique=True)
-    stop_code: Optional[Indexed(str)] = None
-    stop_name: Optional[Indexed(str)] = None  # Index for searching by name
+    stop_id: str
+    stop_code: Optional[str] = None
+    stop_name: Optional[str] = None  # Index for searching by name
     stop_desc: Optional[str] = None
 
     location: Optional[PointGeometry] = None  # Derived from stop_lat, stop_lon
@@ -248,7 +261,7 @@ class Stop(Document):
 
     # parent_station can be used to link stations and stops.
     # Using the stop_id string for linking is flexible.
-    parent_station_id: Optional[Indexed(str)] = None  # References stop_id of parent
+    parent_station_id: Optional[str] = None  # References stop_id of parent
     stop_timezone: Optional[str] = None
     wheelchair_boarding: Optional[WheelchairBoarding] = WheelchairBoarding.NO_INFO
     level_id: Optional[str] = None
@@ -263,6 +276,10 @@ class Stop(Document):
                 ],  # Use GEOSPHERE for Point data on sphere
                 name="location_geosphere_idx",
             ),
+            pymongo.IndexModel([("stop_id", pymongo.ASCENDING)], unique=True),
+            pymongo.IndexModel([("stop_code", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("stop_name", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("parent_station_id", pymongo.ASCENDING)]),
         ]
 
 
@@ -273,10 +290,10 @@ class Route(Document):
     handled via linking or embedding within the Trip model (not shown here).
     """
 
-    route_id: Indexed(str, unique=True)
-    agency_id: Optional[Indexed(str)] = None  # Links to an Agency collection
-    route_short_name: Optional[Indexed(str, index_type=pymongo.TEXT)] = None
-    route_long_name: Optional[Indexed(str, index_type=pymongo.TEXT)] = None
+    route_id: str
+    agency_id: Optional[str] = None  # Links to an Agency collection
+    route_short_name: Optional[str] = None
+    route_long_name: Optional[str] = None
     route_desc: Optional[str] = None
     route_type: RouteType
     route_url: Optional[str] = None
@@ -290,7 +307,12 @@ class Route(Document):
 
     class Settings:
         name = "routes"
-        indexes = []
+        indexes = [
+            pymongo.IndexModel([("route_id", pymongo.ASCENDING)], unique=True),
+            pymongo.IndexModel([("agency_id", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("route_short_name", pymongo.TEXT)]),
+            pymongo.IndexModel([("route_long_name", pymongo.TEXT)]),
+        ]
 
 
 class Shape(Document):
@@ -300,7 +322,7 @@ class Shape(Document):
     making it efficient to retrieve a shape's path.
     """
 
-    shape_id: Indexed(str, unique=True)
+    shape_id: str
 
     # Embed the entire geometry as a GeoJSON LineString
     geometry: LineStringGeometry
@@ -320,5 +342,6 @@ class Shape(Document):
                     ("geometry", pymongo.GEOSPHERE)
                 ],  # Use GEOSPHERE for LineString data on sphere
                 name="geometry_geosphere_idx",
-            )
+            ),
+            pymongo.IndexModel([("shape_id", pymongo.ASCENDING)], unique=True),
         ]
