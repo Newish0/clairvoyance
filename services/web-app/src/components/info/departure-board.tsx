@@ -2,7 +2,7 @@ import { useStore } from "@nanostores/solid";
 import { type Component, createResource, For, onCleanup, onMount, Suspense } from "solid-js";
 import { getNearbyTrips } from "~/services/trips";
 import { $userLocation } from "~/stores/user-location-store";
-import { ArrivalRow } from "./arrival-row";
+import { DepartureRow } from "./departure-row";
 
 import { debounce } from "@solid-primitives/scheduled";
 import { Skeleton } from "../ui/skeleton";
@@ -10,7 +10,7 @@ import { Skeleton } from "../ui/skeleton";
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
 
-export const ArrivalBoard: Component = () => {
+export const DepartureBoard: Component = () => {
     const userLocation = useStore($userLocation);
     const [nearbyTrips, { refetch: refetchNearbyTrips, mutate: setNearbyTrips }] = createResource(
         // NOTE: Must explicitly specify each object field to get update to work
@@ -57,10 +57,10 @@ export const ArrivalBoard: Component = () => {
 
     return (
         <div class="w-full mx-auto space-y-2">
-            <Suspense fallback={<ArrivalBoardSkeleton />}>
+            <Suspense fallback={<DepartureBoardSkeleton />}>
                 <For each={Object.entries(nearbyTrips() || {})}>
                     {([_, trips]) => (
-                        <ArrivalRow
+                        <DepartureRow
                             entries={trips.map((trip, i) => ({
                                 routeId: trip.route_id,
                                 stopId: trip.stop_time.stop_id,
@@ -68,10 +68,10 @@ export const ArrivalBoard: Component = () => {
                                 tripObjectId: trip._id, // NOTE: Requires Mongo Object ID b/c this is ScheduledTrip
                                 stopName: trip.stop_name,
                                 tripHeadsign: trip.trip_headsign,
-                                predictedArrivalTime: trip.realtime_stop_updates
+                                predictedDepartureTime: trip.realtime_stop_updates
                                     ? new Date(trip.realtime_stop_updates.predicted_departure_time)
                                     : undefined,
-                                scheduledArrivalTime: new Date(trip.stop_time.departure_datetime),
+                                scheduledDepartureTime: new Date(trip.stop_time.departure_datetime),
                                 ...(trips.length > 1
                                     ? {
                                           alt: {
@@ -90,7 +90,7 @@ export const ArrivalBoard: Component = () => {
     );
 };
 
-const ArrivalBoardSkeleton: Component = () => (
+const DepartureBoardSkeleton: Component = () => (
     <>
         <For each={new Array(5).fill(0)}>
             {() => <Skeleton height={98} radius={5} class="w-full" />}

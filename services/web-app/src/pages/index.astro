@@ -3,7 +3,7 @@ import { Button } from "~/components/ui/button.tsx";
 import Layout from "../layouts/root-layout.astro";
 import CommonHeader from "~/components/headers/common-header.astro";
 import MainMap from "~/components/maps/main-map.tsx";
-import { ArrivalBoard } from "~/components/info/arrival-board.tsx";
+import { DepartureBoard } from "~/components/info/departure-board.tsx";
 import { Card, CardContent } from "~/components/ui/card";
 import YourLocationInput from "~/components/maps/your-location-input";
 import { ModeToggle } from "~/components/dark-mode-toggle";
@@ -32,7 +32,7 @@ import { ModeToggle } from "~/components/dark-mode-toggle";
 
                     <!-- Scrollable ArrivalBoard container -->
                     <div class="flex-1 overflow-y-auto h-full">
-                        <ArrivalBoard client:only="solid-js" />
+                        <DepartureBoard client:only="solid-js" />
                     </div>
                 </CardContent>
             </Card>

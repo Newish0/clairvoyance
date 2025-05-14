@@ -5,18 +5,18 @@ import { type Component, Show } from "solid-js";
 import { recordToSearchParams } from "~/utils/urls";
 import RealTimeIndicator from "../ui/realtime-indicator";
 
-export interface ArrivalCardKeyProps {
+export interface DepartureCardKeyProps {
     routeId: string;
     routeShortName: string;
     tripObjectId: string;
     tripHeadsign: string;
     stopId: string;
     stopName: string;
-    scheduledArrivalTime: Date;
-    predictedArrivalTime?: Date;
+    scheduledDepartureTime: Date;
+    predictedDepartureTime?: Date;
 }
 
-export interface ArrivalCardProps extends ArrivalCardKeyProps {
+export interface DepartureCardProps extends DepartureCardKeyProps {
     alt?: {
         routeId: string;
         tripObjectId?: string;
@@ -24,14 +24,14 @@ export interface ArrivalCardProps extends ArrivalCardKeyProps {
     };
 }
 
-export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
-    const arrivalMinutes = differenceInMinutes(
-        props.predictedArrivalTime ?? props.scheduledArrivalTime,
+export const DepartureCard: Component<DepartureCardProps> = (props) => {
+    const departureMinutes = differenceInMinutes(
+        props.predictedDepartureTime ?? props.scheduledDepartureTime,
         new Date()
     );
     const delayInSeconds = differenceInSeconds(
-        props.predictedArrivalTime,
-        props.scheduledArrivalTime
+        props.predictedDepartureTime,
+        props.scheduledDepartureTime
     );
 
     const queryParams = () =>
@@ -63,7 +63,7 @@ export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
                 <div class="relative overflow-visible p-2 mr-1">
                     <div class="flex items-center space-x-1">
                         <Clock class="h-3 w-3" />
-                        <span class="text-lg font-bold">{arrivalMinutes}</span>
+                        <span class="text-lg font-bold">{departureMinutes}</span>
                         <span class="text-xs">min</span>
                     </div>
 
@@ -71,10 +71,11 @@ export const ArrivalCard: Component<ArrivalCardProps> = (props) => {
                         <RealTimeIndicator delay={delayInSeconds} />
                     </Show>
 
-                    <Show when={import.meta.env.DEV && props.predictedArrivalTime}>
+                    <Show when={import.meta.env.DEV && props.predictedDepartureTime}>
                         <code class="text-muted-foreground text-xs">
-                            ({props.scheduledArrivalTime.toLocaleTimeString()} →{" "}
-                            {props.predictedArrivalTime.toLocaleTimeString()}, Δ {delayInSeconds}s)
+                            ({props.scheduledDepartureTime.toLocaleTimeString()} →{" "}
+                            {props.predictedDepartureTime.toLocaleTimeString()}, Δ {delayInSeconds}
+                            s)
                         </code>
                     </Show>
                 </div>

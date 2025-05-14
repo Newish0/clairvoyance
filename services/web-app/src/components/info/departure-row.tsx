@@ -6,13 +6,13 @@ import {
 } from "@/components/ui/carousel";
 import { createEffect, createSignal, For, type Component } from "solid-js";
 import CarouselDots from "../ui/carousel-dots";
-import { ArrivalCard, type ArrivalCardProps } from "./arrival-card";
+import { DepartureCard, type DepartureCardProps } from "./departure-card";
 
-interface ArrivalRowProps {
-    entries: ArrivalCardProps[];
+interface DepartureRowProps {
+    entries: DepartureCardProps[];
 }
 
-export const ArrivalRow: Component<ArrivalRowProps> = (props) => {
+export const DepartureRow: Component<DepartureRowProps> = (props) => {
     const [api, setApi] = createSignal<ReturnType<CarouselApi>>();
     const [current, setCurrent] = createSignal(0);
     const [count, setCount] = createSignal(0);
@@ -39,7 +39,7 @@ export const ArrivalRow: Component<ArrivalRowProps> = (props) => {
                     <For each={props.entries}>
                         {(cardProps) => (
                             <CarouselItem>
-                                <ArrivalCard {...cardProps} />
+                                <DepartureCard {...cardProps} />
                             </CarouselItem>
                         )}
                     </For>

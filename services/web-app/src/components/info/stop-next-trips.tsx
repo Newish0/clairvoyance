@@ -147,8 +147,10 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                 routeId={props.routeId}
                                                 stopId={props.stopId}
                                                 tripObjectId={trip._id}
-                                                scheduledArrivalDatetime={stop?.departure_datetime}
-                                                predictedArrivalDatetime={
+                                                scheduledDepartureDatetime={
+                                                    stop?.departure_datetime
+                                                }
+                                                predictedDepartureDatetime={
                                                     trip?.realtime_stop_updates[stop.stop_sequence]
                                                         ?.predicted_departure_time
                                                 }
@@ -225,29 +227,32 @@ const TripOptionItem: Component<{
     stopId: string;
     viewingTripObjectId?: string;
     tripObjectId: string;
-    predictedArrivalDatetime?: DateArg<Date>;
-    scheduledArrivalDatetime: DateArg<Date>;
+    predictedDepartureDatetime?: DateArg<Date>;
+    scheduledDepartureDatetime: DateArg<Date>;
     hasLeft?: boolean;
     occupancyStatus?: number;
 }> = (props) => {
-    const arrivalMinutes = () =>
+    const departureMinutes = () =>
         differenceInMinutes(
-            props.predictedArrivalDatetime || props.scheduledArrivalDatetime,
+            props.predictedDepartureDatetime || props.scheduledDepartureDatetime,
             new Date()
         );
 
     const delaySeconds = (): number | null =>
-        props.predictedArrivalDatetime
-            ? differenceInSeconds(props.predictedArrivalDatetime, props.scheduledArrivalDatetime)
+        props.predictedDepartureDatetime
+            ? differenceInSeconds(
+                  props.predictedDepartureDatetime,
+                  props.scheduledDepartureDatetime
+              )
             : null;
 
     const curViewing = () => props.viewingTripObjectId === props.tripObjectId;
 
     const etaMsg = () =>
         props.hasLeft ? (
-            <span class="text-xs">Left {-arrivalMinutes()} min ago</span>
+            <span class="text-xs">Left {-departureMinutes()} min ago</span>
         ) : (
-            <span>{arrivalMinutes()} min</span>
+            <span>{departureMinutes()} min</span>
         );
 
     return (
