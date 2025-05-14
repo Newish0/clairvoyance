@@ -43,7 +43,6 @@ if (altRouteId && altStopId && !altTripObjectId) {
         limit: 1,
         excludedTripObjectIds: [tripObjectId],
     });
-    console.log(JSON.stringify(nextRoutes, null, 2));
     if (nextRoutes.length) altTripObjectId = nextRoutes[0]?._id;
 }
 
