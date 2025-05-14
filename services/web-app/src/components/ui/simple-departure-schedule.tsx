@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, type Component } from "solid-js";
+import { createEffect, createSignal, For, Show, type Component } from "solid-js";
 import { cn } from "~/lib/utils";
 import { Card, CardContent } from "./card";
 import { WifiHighIcon } from "lucide-solid";
@@ -47,7 +47,12 @@ const SimpleDepartureSchedule: Component<SimpleDepartureScheduleProps> = (props)
                                                     {item.time}
                                                 </span>
                                                 <span class="h-6 w-6 rotate-45">
-                                                    <WifiHighIcon size={16} class="animate-pulse" />
+                                                    <Show when={item.isRealtime}>
+                                                        <WifiHighIcon
+                                                            size={16}
+                                                            class="animate-pulse"
+                                                        />
+                                                    </Show>
                                                 </span>
                                             </div>
                                             <div class="text-sm">{item.headsign}</div>

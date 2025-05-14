@@ -48,12 +48,13 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
             const staticStopTime = trip.scheduled_stop_times.find(
                 (s) => s.stop_id === props.stopId
             );
-            const realtimeStopUpdates = staticStopTime
+            const predictedDepartureTime = staticStopTime
                 ? trip.realtime_stop_updates[staticStopTime?.stop_sequence]
+                      ?.predicted_departure_time
                 : undefined;
 
-            const departureDatetime: string = realtimeStopUpdates
-                ? realtimeStopUpdates.predicted_departure_time
+            const departureDatetime: string = predictedDepartureTime
+                ? predictedDepartureTime
                 : staticStopTime?.departure_datetime;
 
             const tripHeadsign = trip.trip_headsign;
@@ -65,7 +66,7 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                 id: trip._id,
                 headsign: tripHeadsign,
                 time: format(departureDatetime, "p"),
-                isRealtime: realtimeStopUpdates !== undefined,
+                isRealtime: predictedDepartureTime,
                 href: `${import.meta.env.BASE_URL}next-trips/?route=${trip.route_id}&stop=${
                     props.stopId
                 }&trip=${trip._id}`,
@@ -77,7 +78,7 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
 
     return (
         <>
-            <div class="top-0 sticky mb-2 bg-background flex justify-center items-center gap-1 w-full">
+            <div class="top-0 sticky z-10 mb-2 bg-background flex justify-center items-center gap-1 w-full">
                 <Button
                     variant="secondary"
                     onClick={() => setCurViewingDate(addDays(curViewingDate(), -1))}
