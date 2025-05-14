@@ -53,7 +53,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                     props
                         .viewingTrip()
                         ?.scheduled_stop_times.find((st) => st.stop_id == props.stopId)
-                        ?.arrival_datetime ?? addHours(new Date(), 4),
+                        ?.departure_datetime ?? addHours(new Date(), 4),
                 limit: 3,
             });
         });
@@ -85,13 +85,13 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
         // If there is a viewing trip and it's not in the list, add it.
         if (viewingTrip() && stopNextTrips()?.every((t) => t._id != viewingTrip()._id)) {
             const sortedTrips = [viewingTrip(), ...stopNextTrips()].toSorted((a, b) => {
-                const aArrivalTime = a.scheduled_stop_times.find(
+                const aDepartureTime = a.scheduled_stop_times.find(
                     (st) => st.stop_id == props.stopId
-                )?.arrival_datetime;
-                const bArrivalTime = b.scheduled_stop_times.find(
+                )?.departure_datetime;
+                const bDepartureTime = b.scheduled_stop_times.find(
                     (st) => st.stop_id == props.stopId
-                )?.arrival_datetime;
-                return aArrivalTime > bArrivalTime ? 1 : -1;
+                )?.departure_datetime;
+                return aDepartureTime > bDepartureTime ? 1 : -1;
             });
             const indexOfViewingTrip = sortedTrips.findIndex((t) => t._id == viewingTrip()._id);
 
@@ -147,10 +147,10 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                 routeId={props.routeId}
                                                 stopId={props.stopId}
                                                 tripObjectId={trip._id}
-                                                scheduledArrivalDatetime={stop?.arrival_datetime}
+                                                scheduledArrivalDatetime={stop?.departure_datetime}
                                                 predictedArrivalDatetime={
                                                     trip?.realtime_stop_updates[stop.stop_sequence]
-                                                        ?.predicted_arrival_time
+                                                        ?.predicted_departure_time
                                                 }
                                                 viewingTripObjectId={viewingTrip()?._id}
                                                 hasLeft={

@@ -433,9 +433,7 @@ async def main():
     # --- Generate Scheduled Trips ---
     try:
         logger.info("Generating Scheduled Trips objects...")
-        scheduled_trips_iter: List[ScheduledTripDocument] = (
-            parsed_gtfs.generate_scheduled_trips()
-        )
+        scheduled_trips_iter = parsed_gtfs.generate_scheduled_trips()
         logger.info(f"Generated Scheduled Trips.")
     except Exception as e:
         logger.error(f"Failed during Scheduled Trip generation: {e}", exc_info=True)

@@ -90,12 +90,12 @@ export const fetchScheduledTrips = async ({
                                     { $eq: ["$$stopTime.stop_id", stopId] },
                                     {
                                         // Use realtime (if it exists) or use static schedule.
-                                        // Include stops with arrival times in the future,
+                                        // Include stops with departure times in the future,
                                         // If the trip past our stop before the scheduled time, we
                                         // still include it as user needs to know the trip arrived early.
                                         $or: [
                                             {
-                                                $gt: ["$$stopTime.arrival_datetime", new Date()],
+                                                $gt: ["$$stopTime.departure_datetime", new Date()],
                                             },
                                             {
                                                 $cond: {
@@ -278,8 +278,8 @@ export const fetchNearbyTrips = async (
         {
             $match: {
                 $or: [
-                    // Static schedule check: arrival time is in the future
-                    { "scheduled_stop_times.arrival_datetime": { $gt: now } },
+                    // Static schedule check: departure time is in the future
+                    { "scheduled_stop_times.departure_datetime": { $gt: now } },
                     // Realtime check:
                     {
                         $and: [
@@ -322,7 +322,7 @@ export const fetchNearbyTrips = async (
         },
         {
             $sort: {
-                "scheduled_stop_times.arrival_datetime": 1,
+                "scheduled_stop_times.departure_datetime": 1,
             },
         },
         {
@@ -380,7 +380,7 @@ export const fetchNearbyTrips = async (
                 isBetter = true;
             } else if (
                 distance === currentBest.distance &&
-                item.stop_time.arrival_datetime < currentBest.stop_time.arrival_datetime
+                item.stop_time.departure_datetime < currentBest.stop_time.departure_datetime
             ) {
                 isBetter = true;
             }
@@ -398,7 +398,7 @@ export const fetchNearbyTrips = async (
     const nextTrips = Array.from(bestNextTripMap.values());
     nextTrips.sort((a, b) => {
         if (a.distance !== b.distance) return a.distance - b.distance;
-        return a.stop_time.arrival_datetime.getTime() - b.stop_time.arrival_datetime.getTime();
+        return a.stop_time.departure_datetime.getTime() - b.stop_time.departure_datetime.getTime();
     });
     const groupedByRoute: Record<string, any[]> = {};
     for (const trip of nextTrips) {
