@@ -20,9 +20,9 @@ export const fetchScheduledTripDetails = async (tripObjectId: string) => {
     // Add stop name to trip.scheduled_stop_times
     if (trip) {
         await Promise.all(
-            trip.scheduled_stop_times.map(async (stopTime: any) => {
+            trip.scheduled_stop_times?.map(async (stopTime: any) => {
                 stopTime.stop_name = await stopNameService.getStopNameByStopId(stopTime.stop_id);
-            })
+            }) ?? []
         );
     }
 
