@@ -114,35 +114,3 @@ export function hhmmssToString(hour: number, min: number, sec: number): string {
         .toString()
         .padStart(2, "0")}`;
 }
-
-/**
- * Calculates the number of minutes until an arrival time, accounting for delays
- * and late night services
- * @param arrivalTime - Time string in format "HH:mm:ss"
- * @param arrivalDelaySec - Delay in seconds (positive for delays, negative for early arrivals)
- * @param clamped - If true, negative values will be clamped to 0
- * @returns Number of minutes until arrival
- * @throws {Error} If the time string is invalid
- */
-export function getArrivalMinutes(
-    arrivalTime: string,
-    arrivalDelaySec: number = 0,
-    clamped = true
-): number {
-    const now = new Date();
-    const normalizedArrivalTime = parse(getNormalizedTime(arrivalTime), "HH:mm:ss", now);
-    const correctedArrivalTime = addSeconds(normalizedArrivalTime, arrivalDelaySec); // Add delay
-
-    if (isLateNightService(arrivalTime) && isPast(correctedArrivalTime)) {
-        const extraDays = getNumberOfExtraDays(arrivalTime);
-        correctedArrivalTime.setDate(correctedArrivalTime.getDate() + extraDays);
-    }
-
-    const diffSeconds = differenceInSeconds(correctedArrivalTime, now);
-
-    if (clamped) {
-        return Math.max(0, Math.floor(diffSeconds / 60));
-    }
-
-    return Math.floor(diffSeconds / 60);
-}
