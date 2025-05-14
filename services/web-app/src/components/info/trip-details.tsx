@@ -1,10 +1,10 @@
-import { createResource, Show } from "solid-js";
+import { createEffect, createResource, mergeProps, onCleanup, onMount, Show } from "solid-js";
 import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
 import { Badge } from "../ui/badge";
 
-import { format } from "date-fns";
+import { addHours, format } from "date-fns";
 import { ArrowLeftRightIcon, TriangleAlert, WifiHighIcon } from "lucide-solid";
-import { getScheduledTripDetails } from "~/services/trips";
+import { getRouteNextTripsAtStop, getScheduledTripDetails } from "~/services/trips";
 import { recordToSearchParams } from "~/utils/urls";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { buttonVariants } from "../ui/button";
@@ -16,11 +16,60 @@ interface TripDetailsProps {
     stopId: string;
     altRouteId?: string;
     altStopId?: string;
+    refetchInterval?: number;
+    clockUpdateInterval?: number;
 }
 
+const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
+const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
+
 const TripDetails = (props: TripDetailsProps) => {
-    const [ourTrip, { refetch: refetchOurTrip }] = createResource(async () => {
-        return await getScheduledTripDetails(props.tripObjectId);
+    const finalProps = mergeProps(
+        {
+            refetchInterval: DEFAULT_REFETCH_INTERVAL,
+            clockUpdateInterval: DEFAULT_CLOCK_UPDATE_INTERVAL,
+        },
+        props
+    );
+
+    const [ourTrip, { refetch: refetchOurTrip, mutate: setOurTrip }] = createResource(async () => {
+        return await getScheduledTripDetails(finalProps.tripObjectId);
+    });
+
+    const [stopNextTrips, { refetch: refetchStopNextTrips, mutate: setStopNextTrips }] =
+        createResource(
+            () => ({
+                directionId: ourTrip()?.direction_id as "0" | "1" | undefined,
+                routeId: finalProps.routeId,
+                stopId: finalProps.stopId,
+                endDatetime:
+                    ourTrip()?.scheduled_stop_times.find((st) => st.stop_id == finalProps.stopId)
+                        ?.departure_datetime ?? addHours(new Date(), 4),
+                limit: 3,
+            }),
+            async (params) => {
+                return await getRouteNextTripsAtStop(params);
+            }
+        );
+
+    let refetchInterval: null | ReturnType<typeof setInterval> = null;
+    let clockInterval: null | ReturnType<typeof setInterval> = null;
+    onMount(() => {
+        refetchInterval = setInterval(() => {
+            refetchStopNextTrips();
+            refetchOurTrip();
+        }, finalProps.refetchInterval);
+
+        // force re-render to update ETA
+        clockInterval = setInterval(() => {
+            setStopNextTrips(stopNextTrips());
+            setOurTrip(ourTrip());
+        }, finalProps.clockUpdateInterval);
+    });
+
+    onCleanup(() => {
+        if (refetchInterval) clearInterval(refetchInterval);
+        if (clockInterval) clearInterval(clockInterval);
     });
 
     return (
@@ -74,15 +123,13 @@ const TripDetails = (props: TripDetailsProps) => {
             </div>
 
             <div>
-                <Show when={ourTrip()}>
-                    {(viewingTrip) => (
-                        // TODO: Refactor - make `StopNextTrips` be a dumb component. Move interval logic outside
+                <Show when={stopNextTrips()}>
+                    {(stopNextTrips) => (
                         <StopNextTrips
                             routeId={props.routeId}
-                            directionId={viewingTrip().direction_id}
                             stopId={props.stopId}
-                            viewingTrip={viewingTrip}
-                            refetchViewingTrip={refetchOurTrip}
+                            viewingTrip={ourTrip()}
+                            stopNextTrips={stopNextTrips()}
                         />
                     )}
                 </Show>

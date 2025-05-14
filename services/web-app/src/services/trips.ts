@@ -32,7 +32,7 @@ interface GetRouteNextTripsAtStopParams extends Record<string, any> {
     excludedTripObjectIds?: string[];
 }
 
-export const getRouteNextTripsAtStop = async (params: GetRouteNextTripsAtStopParams) => {
+export const getRouteNextTripsAtStop = async (params: GetRouteNextTripsAtStopParams): Promise<any[]> => {
     const queryString = recordToSearchParams(params);
     console.log(queryString);
     const res = await fetch(

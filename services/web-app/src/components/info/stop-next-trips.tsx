@@ -24,17 +24,11 @@ import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import RouteStopSchedule from "./route-stop-schedule";
 
-const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
-const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
-
 type StopNextTripsProps = {
-    directionId: string;
     routeId: string;
     stopId: string;
-    viewingTrip?: Accessor<any>;
-    refetchViewingTrip?: () => void;
-    clockUpdateInterval?: number;
-    refetchInterval?: number;
+    stopNextTrips: ScheduledTrip[];
+    viewingTrip?: ScheduledTrip;
 };
 
 type ScheduledTrip = any; // TODO: use real type
@@ -42,44 +36,10 @@ type ScheduledTrip = any; // TODO: use real type
 const StopNextTrips: Component<StopNextTripsProps> = (props) => {
     const [api, setApi] = createSignal<ReturnType<CarouselApi>>();
 
-    const [viewingTrip, setViewingTrip] = createSignal<any>(props.viewingTrip());
-    const [stopNextTrips, { refetch: refetchStopNextTrips, mutate: setStopNextTrips }] =
-        createResource(async () => {
-            return await getRouteNextTripsAtStop({
-                directionId: props.directionId as "0" | "1",
-                routeId: props.routeId,
-                stopId: props.stopId,
-                endDatetime:
-                    props
-                        .viewingTrip()
-                        ?.scheduled_stop_times.find((st) => st.stop_id == props.stopId)
-                        ?.departure_datetime ?? addHours(new Date(), 4),
-                limit: 3,
-            });
-        });
-
-    let refetchInterval: null | ReturnType<typeof setInterval> = null;
-    let clockInterval: null | ReturnType<typeof setInterval> = null;
-    onMount(() => {
-        refetchInterval = setInterval(() => {
-            refetchStopNextTrips();
-            props.refetchViewingTrip?.();
-        }, props.refetchInterval ?? DEFAULT_REFETCH_INTERVAL);
-
-        clockInterval = setInterval(() => {
-            setStopNextTrips(stopNextTrips()); // force re-render
-            setViewingTrip(viewingTrip()); // force re-render
-        }, props.clockUpdateInterval ?? DEFAULT_CLOCK_UPDATE_INTERVAL);
-    });
-
-    onCleanup(() => {
-        if (refetchInterval) clearInterval(refetchInterval);
-        if (clockInterval) clearInterval(clockInterval);
-    });
-
-    createEffect(() => {
-        setViewingTrip(props.viewingTrip());
-    });
+    const viewingTrip = () => props.viewingTrip;
+    const stopNextTrips = () => props.stopNextTrips;
+    const directionId = () =>
+        props.stopNextTrips[0]?.direction_id ?? props.viewingTrip?.direction_id ?? "0";
 
     const nextTrips: Accessor<(ScheduledTrip | "separator")[]> = () => {
         // If there is a viewing trip and it's not in the list, add it.
@@ -206,7 +166,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                 <RouteStopSchedule
                                                     routeId={props.routeId}
                                                     stopId={props.stopId}
-                                                    directionId={props.directionId}
+                                                    directionId={directionId()}
                                                     curViewingTrip={viewingTrip()}
                                                 />
                                             </div>
