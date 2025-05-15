@@ -18,6 +18,7 @@
     "@corvu/resizable": "^0.2.3",
     "@kobalte/core": "^0.13.7",
     "@nanostores/solid": "^0.5.0",
+    "@solid-primitives/geolocation": "^1.5.1",
     "@solid-primitives/scheduled": "^1.4.4",
     "astro": "^5.7.10",
     "class-variance-authority": "^0.7.1",

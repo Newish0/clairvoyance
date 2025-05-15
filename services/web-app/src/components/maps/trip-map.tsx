@@ -3,6 +3,7 @@ import {
     createResource,
     createSignal,
     For,
+    on,
     onCleanup,
     onMount,
     Show,
@@ -25,10 +26,10 @@ import { cn } from "~/lib/utils";
 import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
 import { getScheduledTripDetails } from "~/services/trips";
-import { $userLocation } from "~/stores/user-location-store";
 
 import { ProgressCircle } from "~/components/ui/progress-circle";
 import { Badge } from "../ui/badge";
+import { useUserLocation } from "~/hooks/use-user-location";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -128,12 +129,13 @@ const TripMap: Component<TripMapProps> = (props) => {
         };
     };
 
-    const userLocationCenter = () =>
-        [$userLocation.get().current.lon, $userLocation.get().current.lat] as const;
+    const userLocation = useUserLocation();
 
     const [viewport, setViewport] = createSignal({
         // Format: [lon, lat]. Only get user location once. Do NOT rerender component on atom value change.
-        center: userLocationCenter(),
+        center: userLocation.hasGpsLocation()
+            ? [userLocation.gpsLocation().longitude, userLocation.gpsLocation().latitude]
+            : [userLocation.selectedLocation().longitude, userLocation.selectedLocation().latitude],
         zoom: 11,
     } as Viewport);
 
@@ -148,9 +150,12 @@ const TripMap: Component<TripMapProps> = (props) => {
         setViewport(evt);
     };
 
-    createEffect(() => {
-        console.log("userLocationCenter()", userLocationCenter());
-    });
+    createEffect(
+        on(
+            () => userLocation.gpsLocation(),
+            () => handleViewportChange(viewport())
+        )
+    );
 
     return (
         <MapGL
@@ -362,35 +367,82 @@ const TripMap: Component<TripMapProps> = (props) => {
                 }}
             </For>
 
-            {/* User location marker  */}
-            <Source
-                source={{
-                    type: "geojson",
-                    data: {
-                        type: "Point",
-                        coordinates: userLocationCenter(),
-                    },
-                }}
+            {/* User GPS location marker  */}
+            <Show when={userLocation.gpsLocation()}>
+                {(gpsLocation) => (
+                    <Source
+                        source={{
+                            type: "geojson",
+                            data: {
+                                type: "Point",
+                                coordinates: [gpsLocation().longitude, gpsLocation().latitude],
+                            },
+                        }}
+                    >
+                        <Layer
+                            style={{
+                                type: "circle",
+                                paint: {
+                                    "circle-color": "#e9e9ea",
+                                    "circle-radius": 16,
+                                },
+                            }}
+                        />
+                        <Layer
+                            style={{
+                                type: "circle",
+                                paint: {
+                                    "circle-color": "#047fbf",
+                                    "circle-radius": 10,
+                                },
+                            }}
+                        />
+                    </Source>
+                )}
+            </Show>
+
+            {/* Show selected location if there's no GPS location or selected location is different from GPS location */}
+            <Show
+                when={
+                    userLocation.isDifferentLocation() || !userLocation.hasGpsLocation()
+                        ? userLocation.selectedLocation()
+                        : undefined
+                }
             >
-                <Layer
-                    style={{
-                        type: "circle",
-                        paint: {
-                            "circle-color": "#e9e9ea",
-                            "circle-radius": 16,
-                        },
-                    }}
-                />
-                <Layer
-                    style={{
-                        type: "circle",
-                        paint: {
-                            "circle-color": "#047fbf",
-                            "circle-radius": 10,
-                        },
-                    }}
-                />
-            </Source>
+                {(selectedLocation) => (
+                    <Source
+                        source={{
+                            type: "geojson",
+                            data: {
+                                type: "Point",
+                                coordinates: [
+                                    selectedLocation().longitude,
+                                    selectedLocation().latitude,
+                                ],
+                            },
+                        }}
+                    >
+                        <Layer
+                            style={{
+                                type: "circle",
+                                paint: {
+                                    "circle-color": "#e9e9ea",
+                                    "circle-radius": 16,
+                                },
+                            }}
+                        />
+                        <Layer
+                            style={{
+                                type: "circle",
+                                paint: {
+                                    "circle-color": "#b2047f",
+                                    "circle-radius": 10,
+                                },
+                            }}
+                        />
+                    </Source>
+                )}
+            </Show>
         </MapGL>
     );
 };
