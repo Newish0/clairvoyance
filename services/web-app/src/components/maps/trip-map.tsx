@@ -29,7 +29,10 @@ import { getScheduledTripDetails } from "~/services/trips";
 
 import { ProgressCircle } from "~/components/ui/progress-circle";
 import { Badge } from "../ui/badge";
-import { useUserLocation } from "~/hooks/use-user-location";
+import { createGeolocationWatcher } from "@solid-primitives/geolocation";
+import { $selectedUserLocation } from "~/stores/selected-location-store";
+import { useStore } from "@nanostores/solid";
+import { isFpEqual } from "~/utils/numbers";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -129,13 +132,14 @@ const TripMap: Component<TripMapProps> = (props) => {
         };
     };
 
-    const userLocation = useUserLocation();
+    const geolocationWatcher = createGeolocationWatcher(true, {
+        enableHighAccuracy: true,
+    });
+    const selectedLocation = useStore($selectedUserLocation);
 
     const [viewport, setViewport] = createSignal({
         // Format: [lon, lat]. Only get user location once. Do NOT rerender component on atom value change.
-        center: userLocation.hasGpsLocation()
-            ? [userLocation.gpsLocation().longitude, userLocation.gpsLocation().latitude]
-            : [userLocation.selectedLocation().longitude, userLocation.selectedLocation().latitude],
+        center: [selectedLocation().longitude, selectedLocation().latitude],
         zoom: 11,
     } as Viewport);
 
@@ -149,13 +153,6 @@ const TripMap: Component<TripMapProps> = (props) => {
     const handleViewportChange = (evt: Viewport) => {
         setViewport(evt);
     };
-
-    createEffect(
-        on(
-            () => userLocation.gpsLocation(),
-            () => handleViewportChange(viewport())
-        )
-    );
 
     return (
         <MapGL
@@ -368,7 +365,7 @@ const TripMap: Component<TripMapProps> = (props) => {
             </For>
 
             {/* User GPS location marker  */}
-            <Show when={userLocation.gpsLocation()}>
+            <Show when={geolocationWatcher.location}>
                 {(gpsLocation) => (
                     <Source
                         source={{
@@ -404,9 +401,11 @@ const TripMap: Component<TripMapProps> = (props) => {
             {/* Show selected location if there's no GPS location or selected location is different from GPS location */}
             <Show
                 when={
-                    userLocation.isDifferentLocation() || !userLocation.hasGpsLocation()
-                        ? userLocation.selectedLocation()
-                        : undefined
+                    !geolocationWatcher.location ||
+                    !isFpEqual(geolocationWatcher.location.latitude, selectedLocation().latitude) ||
+                    !isFpEqual(geolocationWatcher.location.longitude, selectedLocation().longitude)
+                        ? selectedLocation()
+                        : null
                 }
             >
                 {(selectedLocation) => (
