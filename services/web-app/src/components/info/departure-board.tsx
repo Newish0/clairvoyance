@@ -1,22 +1,22 @@
-import { useStore } from "@nanostores/solid";
 import { type Component, createResource, For, onCleanup, onMount, Suspense } from "solid-js";
 import { getNearbyTrips } from "~/services/trips";
-import { $userLocation } from "~/stores/user-location-store";
+
 import { DepartureRow } from "./departure-row";
 
 import { debounce } from "@solid-primitives/scheduled";
 import { Skeleton } from "../ui/skeleton";
+import { useUserLocation } from "~/hooks/use-user-location";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
 
 export const DepartureBoard: Component = () => {
-    const userLocation = useStore($userLocation);
+    const userLocation = useUserLocation();
     const [nearbyTrips, { refetch: refetchNearbyTrips, mutate: setNearbyTrips }] = createResource(
         // NOTE: Must explicitly specify each object field to get update to work
         () => ({
-            lat: userLocation().current.lat,
-            lon: userLocation().current.lon,
+            lat: userLocation.selectedLocation().latitude,
+            lon: userLocation.selectedLocation().longitude,
         }),
         (currentLoc) => {
             return new Promise<Awaited<ReturnType<typeof getNearbyTrips>>>((resolve, reject) => {
