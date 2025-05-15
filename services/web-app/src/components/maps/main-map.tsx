@@ -14,6 +14,7 @@ import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
 import { $selectedUserLocation } from "~/stores/selected-location-store";
 import { isFpEqual } from "~/utils/numbers";
+import { calculateHaversineDistance } from "~/utils/distance";
 
 const MainMap: Component = () => {
     const [, , isDark] = useTheme();
@@ -41,10 +42,33 @@ const MainMap: Component = () => {
     });
 
     const handleViewportChange = (evt: Viewport) => {
-        setViewport(evt);
+        // If the new map center is very close to the user location,
+        // snap to the user location.
+        let center = evt.center;
+        if (geolocationWatcher.location) {
+            const distFromGps = calculateHaversineDistance(
+                {
+                    lat: evt.center[1],
+                    lon: evt.center[0],
+                },
+                {
+                    lat: geolocationWatcher.location.latitude,
+                    lon: geolocationWatcher.location.longitude,
+                }
+            );
+
+            if (distFromGps < 2 / evt.zoom) {
+                center = [
+                    geolocationWatcher.location.longitude,
+                    geolocationWatcher.location.latitude,
+                ] as const;
+            }
+        }
+
+        setViewport({ ...evt, center }); // Spread to ensure update
         $selectedUserLocation.set({
-            latitude: evt.center[1],
-            longitude: evt.center[0],
+            latitude: center[1],
+            longitude: center[0],
         });
     };
 
