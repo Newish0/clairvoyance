@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import RouteStopSchedule from "./route-stop-schedule";
+import { MapPin } from "lucide-solid";
 
 type StopNextTripsProps = {
     routeId: string;
@@ -139,10 +140,16 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                         >
                                             Show more
                                         </SheetTrigger>
-                                        <SheetContent position="right" class="flex flex-col w-5/6">
-                                            <div class="text-left">
+                                        <SheetContent
+                                            position="right"
+                                            class="flex flex-col gap-2 w-5/6 p-0"
+                                        >
+                                            <div class="bg-primary p-4 text-primary-foreground text-left">
                                                 <div class="flex gap-2 items-stretch">
-                                                    <Badge class="text-4xl font-bold">
+                                                    <Badge
+                                                        class="text-4xl font-bold"
+                                                        variant="secondary"
+                                                    >
                                                         {viewingTrip()?.route_short_name}
                                                     </Badge>
 
@@ -150,7 +157,8 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                         <h3 class="text-xl font-semibold">
                                                             {viewingTrip()?.trip_headsign}
                                                         </h3>
-                                                        <p class="text-sm font-light">
+                                                        <p class="text-sm font-light flex items-center gap-1 mt-1 ">
+                                                            <MapPin class="h-4 w-4" />
                                                             {
                                                                 viewingTrip()?.scheduled_stop_times.find(
                                                                     (s) =>
@@ -162,7 +170,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                 </div>
                                             </div>
 
-                                            <div class="my-2 overflow-y-auto">
+                                            <div class="px-4 overflow-y-auto">
                                                 <RouteStopSchedule
                                                     routeId={props.routeId}
                                                     stopId={props.stopId}
