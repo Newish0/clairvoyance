@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { differenceInMinutes, differenceInSeconds } from "date-fns";
-import { Clock } from "lucide-solid";
+import { ArrowRightCircleIcon, ArrowRightIcon, Clock, MapPin, MapPinIcon } from "lucide-solid";
 import { type Component, Show } from "solid-js";
 import { recordToSearchParams } from "~/utils/urls";
 import RealTimeIndicator from "../ui/realtime-indicator";
@@ -52,13 +52,28 @@ export const DepartureCard: Component<DepartureCardProps> = (props) => {
         <a href={`${import.meta.env.BASE_URL}next-trips/?${queryParams()}`}>
             <div class="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div class="flex-1">
-                    <div class="flex items-center space-x-2 overflow-hidden">
-                        <Badge variant="secondary" class="text-sm font-bold">
-                            {props.routeShortName}
-                        </Badge>
-                        <h4 class="text-sm font-semibold text-wrap">{props.tripHeadsign}</h4>
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <div class="w-12 flex-shrink-0 flex justify-center">
+                            <Badge variant="secondary" class="text-sm font-bold">
+                                {props.routeShortName}
+                            </Badge>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-1">
+                                {/* <ArrowRightIcon class="h-3 w-3" /> */}
+                                <h4 class="text-sm font-semibold text-wrap">
+                                    {props.tripHeadsign}
+                                </h4>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                {/* <MapPinIcon class="h-3 w-3" /> */}
+                                <p class="text-xs text-muted-foreground truncate">
+                                    At {props.stopName}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <p class="text-xs text-muted-foreground mt-1 truncate">At {props.stopName}</p>
                 </div>
                 <div class="relative overflow-visible p-2 mr-1">
                     <div class="flex items-center space-x-1">
@@ -71,13 +86,13 @@ export const DepartureCard: Component<DepartureCardProps> = (props) => {
                         <RealTimeIndicator delay={delayInSeconds} />
                     </Show>
 
-                    <Show when={import.meta.env.DEV && props.predictedDepartureTime}>
+                    {/* <Show when={import.meta.env.DEV && props.predictedDepartureTime}>
                         <code class="text-muted-foreground text-xs">
                             ({props.scheduledDepartureTime.toLocaleTimeString()} →{" "}
                             {props.predictedDepartureTime.toLocaleTimeString()}, Δ {delayInSeconds}
                             s)
                         </code>
-                    </Show>
+                    </Show> */}
                 </div>
             </div>
         </a>
