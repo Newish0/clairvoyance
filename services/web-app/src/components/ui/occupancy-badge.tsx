@@ -61,7 +61,7 @@ const OccupancyBadge: Component<OccupancyBadgeProps> = (props) => {
                                         ? "text-primary-foreground"
                                         : ""
                                 )}
-                                strokeWidth={props.size / 2}
+                                // strokeWidth={props.size / 3}
                             />
                         )}
                     </For>
