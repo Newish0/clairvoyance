@@ -10,7 +10,7 @@ import {
     type Component,
 } from "solid-js";
 
-import MapGL, { Layer, Marker, Source, type Viewport } from "solid-map-gl";
+import MapGL, { Layer, Marker, Source, type Viewport, Image } from "solid-map-gl";
 
 import * as maplibre from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -34,13 +34,27 @@ import { $selectedUserLocation } from "~/stores/selected-location-store";
 import { useStore } from "@nanostores/solid";
 import { isFpEqual } from "~/utils/numbers";
 
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "~/components/ui/sheet";
+import TripVehicleInfo from "../ui/trip-vehicle-info";
+
 type TripMapProps = {
     tripObjectId: string;
     stopId: string;
 };
 
+type ScheduledTrip = any;
+
 const TripMap: Component<TripMapProps> = (props) => {
     const [, , isDark] = useTheme();
+
+    const [selectedTripVehicle, setSelectedTripVehicle] = createSignal<ScheduledTrip | null>(null);
 
     const [tripDetails] = createResource(() => getScheduledTripDetails(props.tripObjectId));
     const [rawShapeLineGeoJson] = createResource(
@@ -155,294 +169,335 @@ const TripMap: Component<TripMapProps> = (props) => {
     };
 
     return (
-        <MapGL
-            mapLib={maplibre}
-            options={{
-                style: {
-                    version: 8,
-                    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-                    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-                    sources: {
-                        protomaps: {
-                            type: "vector",
-                            url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
-                            attribution:
-                                '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+        <>
+            <MapGL
+                mapLib={maplibre}
+                options={{
+                    style: {
+                        version: 8,
+                        glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+                        sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
+                        sources: {
+                            protomaps: {
+                                type: "vector",
+                                url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
+                                attribution:
+                                    '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+                            },
                         },
+                        layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
                     },
-                    layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
-                },
-            }}
-            viewport={viewport()}
-            onViewportChange={handleViewportChange}
-            onLoad={(evt) => {}}
-        >
-            <Show when={groupedShapeLineGeoJson()?.before}>
-                {(geoJson) => (
-                    <Source
-                        source={{
-                            type: "geojson",
-                            data: geoJson(),
-                        }}
-                    >
-                        <Layer
-                            style={{
-                                type: "line",
-                                layout: {
-                                    "line-join": "round",
-                                    "line-cap": "round",
-                                },
-                                paint: {
-                                    "line-color": "#999c",
-                                    "line-width": 8,
-                                },
-                            }}
-                        />
-                    </Source>
-                )}
-            </Show>
-            <Show when={groupedShapeLineGeoJson()?.after}>
-                {(geoJson) => (
-                    <Source
-                        source={{
-                            type: "geojson",
-                            data: geoJson(),
-                        }}
-                    >
-                        <Layer
-                            style={{
-                                type: "line",
-                                layout: {
-                                    "line-join": "round",
-                                    "line-cap": "round",
-                                },
-                                paint: {
-                                    "line-color": "#333e",
-                                    "line-width": 8,
-                                },
-                            }}
-                        />
-                    </Source>
-                )}
-            </Show>
-
-            <Show when={groupedStopsGeoJson()?.before}>
-                {(geoJson) => (
-                    <Source
-                        source={{
-                            type: "geojson",
-                            data: geoJson(),
-                        }}
-                    >
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#eeee",
-                                    "circle-radius": 12,
-                                },
-                            }}
-                        />
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#999c",
-                                    "circle-radius": 8,
-                                },
-                            }}
-                        />
-                    </Source>
-                )}
-            </Show>
-            <Show when={groupedStopsGeoJson()?.after}>
-                {(geoJson) => (
-                    <Source
-                        source={{
-                            type: "geojson",
-                            data: geoJson(),
-                        }}
-                    >
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#fffe",
-                                    "circle-radius": 12,
-                                },
-                            }}
-                        />
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#333e",
-                                    "circle-radius": 8,
-                                },
-                            }}
-                        />
-                    </Source>
-                )}
-            </Show>
-
-            <For each={vehicles()}>
-                {(trip) => {
-                    if (
-                        !trip.current_position ||
-                        typeof trip.current_position.longitude !== "number" ||
-                        typeof trip.current_position.latitude !== "number"
-                    ) {
-                        return null;
-                    }
-
-                    const calSecondsAgo = () =>
-                        differenceInSeconds(new Date(), trip.last_realtime_update_timestamp);
-
-                    const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
-
-                    const isNotAccepting = () => trip.current_occupancy === 0;
-
-                    const percentageFromOccupancyStatus = () => {
-                        if (!trip.current_occupancy) {
-                            return -1; // No data
-                        } else if (trip.current_occupancy === 0) {
-                            return -2; // Not accepting
-                        } else if (trip.current_occupancy === 1) {
-                            return 33;
-                        } else if (trip.current_occupancy === 2) {
-                            return 66;
-                        } else {
-                            return 100;
-                        }
-                    };
-
-                    let interval: ReturnType<typeof setInterval> | null = null;
-
-                    onMount(() => {
-                        interval = setInterval(() => {
-                            setSecondsAgo(calSecondsAgo());
-                        }, 1000);
-                    });
-
-                    onCleanup(() => {
-                        if (interval) {
-                            clearInterval(interval);
-                        }
-                    });
-
-                    return (
-                        <Marker
-                            lngLat={[
-                                trip.current_position.longitude,
-                                trip.current_position.latitude,
-                            ]}
-                            options={{
-                                element: (
-                                    <div class="relative flex flex-col items-center justify-center">
-                                        <div
-                                            class={cn(
-                                                "rounded-full bg-background p-[2px]",
-                                                isNotAccepting() ? "invert" : ""
-                                            )}
-                                        >
-                                            <ProgressCircle
-                                                value={percentageFromOccupancyStatus()}
-                                                class="w-10 h-10"
-                                            >
-                                                <BusFrontIcon size={20} />
-                                            </ProgressCircle>
-                                        </div>
-
-                                        <Badge variant={"default"} class="text-xs w-min p-0 px-1">
-                                            {secondsAgo()}s
-                                        </Badge>
-                                    </div>
-                                ),
-                            }}
-                        ></Marker>
-                    );
                 }}
-            </For>
-
-            {/* User GPS location marker  */}
-            <Show when={geolocationWatcher.location}>
-                {(gpsLocation) => (
-                    <Source
-                        source={{
-                            type: "geojson",
-                            data: {
-                                type: "Point",
-                                coordinates: [gpsLocation().longitude, gpsLocation().latitude],
-                            },
-                        }}
-                    >
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#e9e9ea",
-                                    "circle-radius": 16,
-                                },
-                            }}
-                        />
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#047fbf",
-                                    "circle-radius": 10,
-                                },
-                            }}
-                        />
-                    </Source>
-                )}
-            </Show>
-
-            {/* Show selected location if there's no GPS location or selected location is different from GPS location */}
-            <Show
-                when={
-                    !geolocationWatcher.location ||
-                    !isFpEqual(geolocationWatcher.location.latitude, selectedLocation().latitude) ||
-                    !isFpEqual(geolocationWatcher.location.longitude, selectedLocation().longitude)
-                        ? selectedLocation()
-                        : null
-                }
+                viewport={viewport()}
+                onViewportChange={handleViewportChange}
+                onLoad={(evt) => {}}
             >
-                {(selectedLocation) => (
-                    <Source
-                        source={{
-                            type: "geojson",
-                            data: {
-                                type: "Point",
-                                coordinates: [
-                                    selectedLocation().longitude,
-                                    selectedLocation().latitude,
-                                ],
-                            },
-                        }}
-                    >
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#e9e9ea",
-                                    "circle-radius": 16,
+                <Show when={groupedShapeLineGeoJson()?.before}>
+                    {(geoJson) => (
+                        <Source
+                            source={{
+                                type: "geojson",
+                                data: geoJson(),
+                            }}
+                        >
+                            <Layer
+                                style={{
+                                    type: "line",
+                                    layout: {
+                                        "line-join": "round",
+                                        "line-cap": "round",
+                                    },
+                                    paint: {
+                                        "line-color": "#999c",
+                                        "line-width": 8,
+                                    },
+                                }}
+                            />
+                        </Source>
+                    )}
+                </Show>
+                <Show when={groupedShapeLineGeoJson()?.after}>
+                    {(geoJson) => (
+                        <Source
+                            source={{
+                                type: "geojson",
+                                data: geoJson(),
+                            }}
+                        >
+                            <Layer
+                                style={{
+                                    type: "line",
+                                    layout: {
+                                        "line-join": "round",
+                                        "line-cap": "round",
+                                    },
+                                    paint: {
+                                        "line-color": "#333e",
+                                        "line-width": 8,
+                                    },
+                                }}
+                            />
+                        </Source>
+                    )}
+                </Show>
+
+                <Show when={groupedStopsGeoJson()?.before}>
+                    {(geoJson) => (
+                        <Source
+                            source={{
+                                type: "geojson",
+                                data: geoJson(),
+                            }}
+                        >
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#eeee",
+                                        "circle-radius": 12,
+                                    },
+                                }}
+                            />
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#999c",
+                                        "circle-radius": 8,
+                                    },
+                                }}
+                            />
+                        </Source>
+                    )}
+                </Show>
+                <Show when={groupedStopsGeoJson()?.after}>
+                    {(geoJson) => (
+                        <Source
+                            source={{
+                                type: "geojson",
+                                data: geoJson(),
+                            }}
+                        >
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#fffe",
+                                        "circle-radius": 12,
+                                    },
+                                }}
+                            />
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#333e",
+                                        "circle-radius": 8,
+                                    },
+                                }}
+                            />
+                        </Source>
+                    )}
+                </Show>
+
+                <For each={vehicles()}>
+                    {(trip) => {
+                        if (
+                            !trip.current_position ||
+                            typeof trip.current_position.longitude !== "number" ||
+                            typeof trip.current_position.latitude !== "number"
+                        ) {
+                            return null;
+                        }
+
+                        const calSecondsAgo = () =>
+                            differenceInSeconds(new Date(), trip.last_realtime_update_timestamp);
+
+                        const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
+
+                        const isNotAccepting = () => trip.current_occupancy === 0;
+
+                        const percentageFromOccupancyStatus = () => {
+                            if (!trip.current_occupancy) {
+                                return -1; // No data
+                            } else if (trip.current_occupancy === 0) {
+                                return -2; // Not accepting
+                            } else if (trip.current_occupancy === 1) {
+                                return 33;
+                            } else if (trip.current_occupancy === 2) {
+                                return 66;
+                            } else {
+                                return 100;
+                            }
+                        };
+
+                        let interval: ReturnType<typeof setInterval> | null = null;
+
+                        onMount(() => {
+                            interval = setInterval(() => {
+                                setSecondsAgo(calSecondsAgo());
+                            }, 1000);
+                        });
+
+                        onCleanup(() => {
+                            if (interval) {
+                                clearInterval(interval);
+                            }
+                        });
+
+                        return (
+                            <Marker
+                                lngLat={[
+                                    trip.current_position.longitude,
+                                    trip.current_position.latitude,
+                                ]}
+                                options={{
+                                    element: (
+                                        <div class="relative flex flex-col items-center justify-center">
+                                            <div
+                                                class={cn(
+                                                    "rounded-full bg-background p-[2px]",
+                                                    isNotAccepting() ? "invert" : ""
+                                                )}
+                                            >
+                                                <ProgressCircle
+                                                    value={percentageFromOccupancyStatus()}
+                                                    class="w-10 h-10"
+                                                >
+                                                    <BusFrontIcon size={20} />
+                                                </ProgressCircle>
+                                            </div>
+
+                                            <Badge
+                                                variant={"default"}
+                                                class="text-xs w-min p-0 px-1"
+                                            >
+                                                {secondsAgo()}s
+                                            </Badge>
+                                        </div>
+                                    ),
+                                }}
+                                showPopup={false}
+                                onOpen={() => {
+                                    // Prevent opening the same trip
+                                    if (trip._id === selectedTripVehicle()?._id) return;
+
+                                    console.log("open", trip);
+                                    setSelectedTripVehicle(trip);
+                                }}
+                                onClose={() => {
+                                    // Close is handled by the sheet component
+                                    console.log("close");
+                                }}
+                            ></Marker>
+                        );
+                    }}
+                </For>
+
+                {/* User GPS location marker  */}
+                <Show when={geolocationWatcher.location}>
+                    {(gpsLocation) => (
+                        <Source
+                            source={{
+                                type: "geojson",
+                                data: {
+                                    type: "Point",
+                                    coordinates: [gpsLocation().longitude, gpsLocation().latitude],
                                 },
                             }}
-                        />
-                        <Layer
-                            style={{
-                                type: "circle",
-                                paint: {
-                                    "circle-color": "#b2047f",
-                                    "circle-radius": 10,
+                        >
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#e9e9ea",
+                                        "circle-radius": 16,
+                                    },
+                                }}
+                            />
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#047fbf",
+                                        "circle-radius": 10,
+                                    },
+                                }}
+                            />
+                        </Source>
+                    )}
+                </Show>
+
+                {/* Show selected location if there's no GPS location or selected location is different from GPS location */}
+                <Show
+                    when={
+                        !geolocationWatcher.location ||
+                        !isFpEqual(
+                            geolocationWatcher.location.latitude,
+                            selectedLocation().latitude
+                        ) ||
+                        !isFpEqual(
+                            geolocationWatcher.location.longitude,
+                            selectedLocation().longitude
+                        )
+                            ? selectedLocation()
+                            : null
+                    }
+                >
+                    {(selectedLocation) => (
+                        <Source
+                            source={{
+                                type: "geojson",
+                                data: {
+                                    type: "Point",
+                                    coordinates: [
+                                        selectedLocation().longitude,
+                                        selectedLocation().latitude,
+                                    ],
                                 },
                             }}
-                        />
-                    </Source>
-                )}
-            </Show>
-        </MapGL>
+                        >
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#e9e9ea",
+                                        "circle-radius": 16,
+                                    },
+                                }}
+                            />
+                            <Layer
+                                style={{
+                                    type: "circle",
+                                    paint: {
+                                        "circle-color": "#b2047f",
+                                        "circle-radius": 10,
+                                    },
+                                }}
+                            />
+                        </Source>
+                    )}
+                </Show>
+            </MapGL>
+
+            {/* Vehicle marker popup  */}
+            <Sheet
+                open={!!selectedTripVehicle()}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedTripVehicle(null);
+                    }
+                }}
+            >
+                <Show when={selectedTripVehicle()}>
+                    {(trip) => (
+                        <SheetContent position="right" class="p-0">
+                            <TripVehicleInfo trip={trip()} stopId={props.stopId} />
+                        </SheetContent>
+                    )}
+                </Show>
+            </Sheet>
+        </>
     );
 };
 
