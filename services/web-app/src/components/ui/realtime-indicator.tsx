@@ -34,7 +34,7 @@ const RealTimeIndicator: Component<RealTimeIndicatorProps> = (props) => {
                     <Switch>
                         <Match when={props.delay > 30}>
                             <div class="text-xs text-muted-foreground">
-                                {(props.delay / 60).toFixed(1)} min delay
+                                {(props.delay / 60).toFixed(1)} min late
                             </div>
                         </Match>
                         <Match when={props.delay <= 30 && props.delay >= -30}>

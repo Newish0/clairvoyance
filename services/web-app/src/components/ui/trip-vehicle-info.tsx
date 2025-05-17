@@ -338,7 +338,7 @@ const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
                                 <Bus class="h-4 w-4 text-muted-foreground" />
                                 <span>Bus {props.trip.vehicle_id || "Unknown"}</span>
                             </div>
-                            <p class="italic text-muted-foreground">
+                            <p class="italic text-muted-foreground text-right">
                                 Updated{" "}
                                 {formatDistanceToNow(
                                     new Date(props.trip.last_realtime_update_timestamp),

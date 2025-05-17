@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, Show, type Component } from "solid-js"
 import { cn } from "~/lib/utils";
 import { Card, CardContent } from "./card";
 import { WifiHighIcon } from "lucide-solid";
+import { Skeleton } from "./skeleton";
 
 export type DepartureItem = {
     id: string;
@@ -64,6 +65,20 @@ const SimpleDepartureSchedule: Component<SimpleDepartureScheduleProps> = (props)
                     </Card>
                 )}
             </For>
+        </div>
+    );
+};
+
+export const SimpleDepartureScheduleSkeleton: Component = () => {
+    return (
+        <div class="space-y-2">
+            <Skeleton height={36} class="" radius={5} />
+            <Skeleton height={36 * 3} class="" radius={5} />
+            <Skeleton height={36 * 2} class="" radius={5} />
+            <Skeleton height={36} class="" radius={5} />
+            <Skeleton height={36 * 4} class="" radius={5} />
+            <Skeleton height={36 * 2} class="" radius={5} />
+            <Skeleton height={36} class="" radius={5} />
         </div>
     );
 };
