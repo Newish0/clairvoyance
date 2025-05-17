@@ -43,6 +43,7 @@ import {
     SheetTrigger,
 } from "~/components/ui/sheet";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
+import { OccupancyStatus } from "../ui/occupancy-badge";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -315,17 +316,41 @@ const TripMap: Component<TripMapProps> = (props) => {
 
                         const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
 
-                        const isNotAccepting = () => trip.current_occupancy === 0;
+                        const isNotAccepting = () =>
+                            trip.current_occupancy === OccupancyStatus.NOT_ACCEPTING_PASSENGERS ||
+                            trip.current_occupancy === OccupancyStatus.NOT_BOARDABLE;
 
                         const percentageFromOccupancyStatus = () => {
-                            if (!trip.current_occupancy) {
-                                return -1; // No data
-                            } else if (trip.current_occupancy === 0) {
-                                return -2; // Not accepting
-                            } else if (trip.current_occupancy === 1) {
-                                return 33;
-                            } else if (trip.current_occupancy === 2) {
-                                return 66;
+                            if (
+                                !trip.current_occupancy ||
+                                trip.current_occupancy === OccupancyStatus.NO_DATA_AVAILABLE
+                            ) {
+                                return -1;
+                            } else if (
+                                trip.current_occupancy ===
+                                    OccupancyStatus.NOT_ACCEPTING_PASSENGERS ||
+                                trip.current_occupancy === OccupancyStatus.NOT_BOARDABLE
+                            ) {
+                                return -2;
+                            } else if (trip.current_occupancy === OccupancyStatus.EMPTY) {
+                                return 10;
+                            } else if (
+                                trip.current_occupancy === OccupancyStatus.MANY_SEATS_AVAILABLE
+                            ) {
+                                return 25;
+                            } else if (
+                                trip.current_occupancy === OccupancyStatus.FEW_SEATS_AVAILABLE
+                            ) {
+                                return 50;
+                            } else if (
+                                trip.current_occupancy === OccupancyStatus.STANDING_ROOM_ONLY
+                            ) {
+                                return 75;
+                            } else if (
+                                trip.current_occupancy ===
+                                OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY
+                            ) {
+                                return 95;
                             } else {
                                 return 100;
                             }
