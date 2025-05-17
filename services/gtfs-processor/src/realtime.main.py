@@ -7,13 +7,14 @@ from beanie import init_beanie
 from models import ScheduledTripDocument
 from parsing.gtfs_realtime import RealtimeUpdaterService
 from config import setup_logger
+import os
 
 
 # --- Configuration ---
 MONGO_CONNECTION_STRING = (
-    "mongodb://localhost:27017"  
+    os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"  
 )
-DATABASE_NAME = "gtfs_data"
+DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 
 TRIP_UPDATES_URL = "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48"
 VEHICLE_POSITIONS_URL = "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48"

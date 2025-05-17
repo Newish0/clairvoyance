@@ -1,0 +1,141 @@
+services:
+  gtfs-static-processor:
+    container_name: gtfs-static-processor
+    build:
+      context: ./services/gtfs-processor
+      dockerfile: Dockerfile.static
+    environment:
+      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
+      - MONGO_DB_NAME=gtfs_data
+    networks:
+      - gtfs-internal
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  gtfs-realtime-processor:
+    container_name: gtfs-realtime-processor
+    build:
+      context: ./services/gtfs-processor
+      dockerfile: Dockerfile.realtime
+    environment:
+      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
+      - MONGO_DB_NAME=gtfs_data
+    networks:
+      - gtfs-internal
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      gtfs-static-processor:
+        condition: service_started
+
+  gtfs-api:
+    container_name: gtfs-api
+    build:
+      context: ./services # Need entire service directory to use packages from gtfs-processor
+      dockerfile: /gtfs-api/Dockerfile
+    environment:
+      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
+      - MONGO_DB_NAME=gtfs_data
+      - PORT=5888
+    ports:
+      - "5888:5888" # For debugging only
+    networks:
+      - gtfs-internal
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  web-app:
+    container_name: web-app
+    build:
+      context: .
+      dockerfile: /services/web-app/Dockerfile
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+      - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
+    networks:
+      - gtfs-internal
+    depends_on:
+      - gtfs-api
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017" # For debugging only
+    networks:
+      - gtfs-internal
+    healthcheck:
+      test: |
+        mongosh \
+          --eval 'db.runCommand("ping").ok' \
+          --quiet
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
+
+  gateway:
+    container_name: gateway
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - gtfs-internal
+    depends_on:
+      - gtfs-api
+      - web-app
+
+networks:
+  gtfs-internal:
+    driver: bridge
+  # bitwarden:
+  #   image: bitwarden/self-host:2024.8.0-beta
+  #   container_name: bitwarden_unified
+  #   restart: always
+  #   depends_on:
+  #     - db
+  #   env_file:
+  #     - settings.env
+  #   ports:
+  #     - "8888:8080"
+  #   expose:
+  #     - 8080
+  #   volumes:
+  #     - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/bitwarden-unified/data:/etc/bitwarden
+  #     - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/bitwarden-unified/data/logs:/var/log/bitwarden
+  #   #networks:
+  #   #  - proxy
+  #   #labels:
+  #   #  - traefik.enable=true
+  #   #  - traefik.docker.network=proxy
+  #   #  - traefik.http.routers.bitwarden.rule=Host(`bitwarden.example.com`)
+  #   #  - traefik.http.services.bitwarden.loadbalancer.server.port=8080
+  #   #  # Optional part for file upload max sizes
+  #   #  - traefik.http.middlewares.limit.buffering.maxRequestBodyBytes=50000000
+  #   #  - traefik.http.middlewares.limit.buffering.maxResponseBodyBytes=50000000
+  #   #  - traefik.http.middlewares.limit.buffering.memRequestBodyBytes=50000000
+  #   #  - traefik.http.middlewares.limit.buffering.memResponseBodyBytes=50000000
+  #   #  # Optional part for traefik middlewares
+  #   #  - traefik.http.routers.bitwarden.middlewares=local-ipwhitelist@file
+
+  # db:
+  #   image: postgres:alpine3.18
+  #   container_name: bitwarden_unified_db
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: "bitwarden"
+  #     POSTGRES_PASSWORD: "super_strong_password"
+  #     POSTGRES_DB: "bitwarden_vault"
+  #   volumes:
+  #     - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/bitwarden-unified/psql:/var/lib/postgresql/data
+  #   #networks:
+  #   #  - proxy
+
+  #   #networks:
+  #   #  proxy:
+  #   #    external: true
