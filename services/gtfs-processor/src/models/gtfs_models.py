@@ -176,20 +176,39 @@ class ScheduledTripDocument(Document):
                     ("start_time", pymongo.ASCENDING),
                 ],
                 unique=True,
+                name="unique_trip_instance_idx",
             ),
             # Indexes to speed up next trips queries
-            [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
-            [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
-            [("scheduled_stop_times.departure_datetime", pymongo.ASCENDING)],
-            pymongo.IndexModel([("trip_id", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("start_date", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("start_time", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("route_id", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("vehicle_id", pymongo.ASCENDING)]),
             pymongo.IndexModel(
-                [("last_realtime_update_timestamp", pymongo.DESCENDING)]
+                [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
+                name="scheduled_stop_times_stop_id_idx",
             ),
-            pymongo.IndexModel([("start_datetime", pymongo.DESCENDING)]),
+            pymongo.IndexModel(
+                [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
+                name="scheduled_stop_times_arrival_datetime_idx",
+            ),
+            pymongo.IndexModel(
+                [("scheduled_stop_times.departure_datetime", pymongo.ASCENDING)],
+                name="scheduled_stop_times_departure_datetime_idx",
+            ),
+            pymongo.IndexModel([("trip_id", pymongo.ASCENDING)], name="trip_id_idx"),
+            pymongo.IndexModel(
+                [("start_date", pymongo.ASCENDING)], name="start_date_idx"
+            ),
+            pymongo.IndexModel(
+                [("start_time", pymongo.ASCENDING)], name="start_time_idx"
+            ),
+            pymongo.IndexModel([("route_id", pymongo.ASCENDING)], name="route_id_idx"),
+            pymongo.IndexModel(
+                [("vehicle_id", pymongo.ASCENDING)], name="vehicle_id_idx"
+            ),
+            pymongo.IndexModel(
+                [("last_realtime_update_timestamp", pymongo.DESCENDING)],
+                name="last_realtime_update_timestamp_idx",
+            ),
+            pymongo.IndexModel(
+                [("start_datetime", pymongo.DESCENDING)], name="start_datetime_idx"
+            ),
         ]
 
 
@@ -276,10 +295,21 @@ class Stop(Document):
                 ],  # Use GEOSPHERE for Point data on sphere
                 name="location_geosphere_idx",
             ),
-            pymongo.IndexModel([("stop_id", pymongo.ASCENDING)], unique=True),
-            pymongo.IndexModel([("stop_code", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("stop_name", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("parent_station_id", pymongo.ASCENDING)]),
+            pymongo.IndexModel(
+                [("stop_id", pymongo.ASCENDING)],
+                unique=True,
+                name="stop_id_unique_idx",
+            ),
+            pymongo.IndexModel(
+                [("stop_code", pymongo.ASCENDING)], name="stop_code_idx"
+            ),
+            pymongo.IndexModel(
+                [("stop_name", pymongo.ASCENDING)], name="stop_name_idx"
+            ),
+            pymongo.IndexModel(
+                [("parent_station_id", pymongo.ASCENDING)],
+                name="parent_station_id_idx",
+            ),
         ]
 
 
@@ -308,10 +338,22 @@ class Route(Document):
     class Settings:
         name = "routes"
         indexes = [
-            pymongo.IndexModel([("route_id", pymongo.ASCENDING)], unique=True),
-            pymongo.IndexModel([("agency_id", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("route_short_name", pymongo.TEXT)]),
-            pymongo.IndexModel([("route_long_name", pymongo.TEXT)]),
+            pymongo.IndexModel(
+                [("route_id", pymongo.ASCENDING)],
+                unique=True,
+                name="route_id_unique_idx",
+            ),
+            pymongo.IndexModel(
+                [("agency_id", pymongo.ASCENDING)], name="agency_id_idx"
+            ),
+            # NOTE: Index on route_short_name and route_long_name is not needed until we allow route searching based on these fields.
+            # pymongo.IndexModel(
+            #     [
+            #         ("route_short_name", pymongo.TEXT),
+            #         ("route_long_name", pymongo.TEXT),
+            #     ],
+            #     name="route_search_text_idx",  # A single name for the text index
+            # ),
         ]
 
 
@@ -343,5 +385,9 @@ class Shape(Document):
                 ],  # Use GEOSPHERE for LineString data on sphere
                 name="geometry_geosphere_idx",
             ),
-            pymongo.IndexModel([("shape_id", pymongo.ASCENDING)], unique=True),
+            pymongo.IndexModel(
+                [("shape_id", pymongo.ASCENDING)],
+                unique=True,
+                name="shape_id_unique_idx",
+            ),
         ]

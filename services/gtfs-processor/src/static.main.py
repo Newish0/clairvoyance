@@ -21,12 +21,14 @@ from models import (
 )
 from config import setup_logger
 
+import os
+
 # --- Configuration ---
 MONGO_CONNECTION_STRING = (
-    "mongodb://localhost:27017"  # Replace with your MongoDB connection string
+    os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
 )
-DATABASE_NAME = "gtfs_data"
-GTFS_ZIP_FILE = "bctransit_gtfs.zip"  # Replace with your GTFS zip file path
+DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
+GTFS_ZIP_FILE = "bctransit_gtfs.zip"
 
 INSERT_BATCH_SIZE = 1000  # Batch size for all insert_many operations
 
