@@ -1,11 +1,13 @@
 import { addDays, endOfDay, format, startOfDay } from "date-fns";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-solid";
-import { createResource, createSignal, Show, type Component } from "solid-js";
+import { createResource, createSignal, Show, Suspense, type Component } from "solid-js";
 import { getRouteNextTripsAtStop } from "~/services/trips";
 import { Button } from "../ui/button";
 import { DayPicker } from "../ui/day-picker";
 import type { DepartureItem } from "../ui/simple-departure-schedule";
-import SimpleDepartureSchedule from "../ui/simple-departure-schedule";
+import SimpleDepartureSchedule, {
+    SimpleDepartureScheduleSkeleton,
+} from "../ui/simple-departure-schedule";
 
 interface RouteStopScheduleProps {
     routeId: string;
@@ -98,10 +100,13 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                 </Button>
             </div>
 
-            <SimpleDepartureSchedule
-                scheduleData={groupedDepartures()}
-                defaultSelected={{ id: props.curViewingTrip._id }}
-            />
+
+            <Suspense fallback={<SimpleDepartureScheduleSkeleton />}>
+                <SimpleDepartureSchedule
+                    scheduleData={groupedDepartures()}
+                    defaultSelected={{ id: props.curViewingTrip._id }}
+                />
+            </Suspense>
 
             <Show when={groupedDepartures()?.length === 0}>
                 <p class="text-center my-4 text-muted-foreground">No more departures</p>
