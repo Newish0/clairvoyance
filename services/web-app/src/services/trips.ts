@@ -1,3 +1,4 @@
+import EndpointEnv from "~/constants/endpoint-env";
 import { recordToSearchParams } from "~/utils/urls";
 
 type GetNearbyTripsParams = {
@@ -8,16 +9,14 @@ type GetNearbyTripsParams = {
 
 export const getNearbyTrips = async (params: GetNearbyTripsParams) => {
     const res = await fetch(
-        `${import.meta.env.PUBLIC_GTFS_API_ENDPOINT}/trips/nearby?lat=${params.latitude}&lng=${
-            params.longitude
-        }&radius=${params.radius}`
+        `${EndpointEnv.GTFS_API_ENDPOINT}/trips/nearby?lat=${params.latitude}&lng=${params.longitude}&radius=${params.radius}`
     );
     const json = await res.json();
     return json as Record<string, any[]>;
 };
 
 export const getScheduledTripDetails = async (tripObjectId: string) => {
-    const res = await fetch(`${import.meta.env.PUBLIC_GTFS_API_ENDPOINT}/trips/${tripObjectId}`);
+    const res = await fetch(`${EndpointEnv.GTFS_API_ENDPOINT}/trips/${tripObjectId}`);
     const json = await res.json();
     return json;
 };
@@ -36,9 +35,7 @@ export const getRouteNextTripsAtStop = async (
     params: GetRouteNextTripsAtStopParams
 ): Promise<any[]> => {
     const queryString = recordToSearchParams(params);
-    const res = await fetch(
-        `${import.meta.env.PUBLIC_GTFS_API_ENDPOINT}/trips/next?${queryString}`
-    );
+    const res = await fetch(`${EndpointEnv.GTFS_API_ENDPOINT}/trips/next?${queryString}`);
     const json = await res.json();
     return json;
 };

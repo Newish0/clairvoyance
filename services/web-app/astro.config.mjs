@@ -19,8 +19,8 @@ export default defineConfig({
   // Use deployment site address and base path in production.
   // Otherwise, use the default settings in development.
   ...(import.meta.env.PROD ? {
-    // site: 'https://bp.botnewish.xyz',
-    // base: '/clairvoyance2/',
+    site: import.meta.env.SITE,
+    base: import.meta.env.BASE,
   } : {}),
 
   adapter: node({
