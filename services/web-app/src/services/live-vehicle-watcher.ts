@@ -1,3 +1,5 @@
+import EndpointEnv from "~/constants/endpoint-env";
+
 export type DirectionId = 0 | 1 | undefined;
 export type Vehicle = any; // Lazy type as requested
 
@@ -110,7 +112,7 @@ export class LiveVehicleWatcher {
 
     private buildUrl(): string {
         // Ensure the environment variable is accessed correctly
-        const apiBase = import.meta.env.PUBLIC_GTFS_API_ENDPOINT;
+        const apiBase = EndpointEnv.GTFS_API_ENDPOINT;
         if (!apiBase) {
             console.error("PUBLIC_GTFS_API_ENDPOINT environment variable is not set!");
             // Fallback or throw error - let's throw for clarity

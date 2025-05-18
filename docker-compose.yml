@@ -54,7 +54,10 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=4321
+      - SITE=http://localhost:8080
+      - BASE=/
       - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
+      - GTFS_API_ENDPOINT=http://gtfs-api:5888
     networks:
       - gtfs-internal
     depends_on:
