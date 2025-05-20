@@ -9,7 +9,7 @@ import re
 from typing import Dict, List, Optional, Tuple, Any
 
 import pytz
-from beanie import Document
+from beanie import Document, Update, ValidateOnSave, before_event
 from pydantic import BaseModel, Field, model_validator, field_validator
 import pymongo
 
@@ -22,6 +22,7 @@ from models import (
     OccupancyStatus,
     VehicleStopStatus,
 )
+from models.gtfs_enums import AlertCause, AlertEffect, AlertSeverityLevel
 
 
 # --- Sub-models ---
@@ -346,14 +347,6 @@ class Route(Document):
             pymongo.IndexModel(
                 [("agency_id", pymongo.ASCENDING)], name="agency_id_idx"
             ),
-            # NOTE: Index on route_short_name and route_long_name is not needed until we allow route searching based on these fields.
-            # pymongo.IndexModel(
-            #     [
-            #         ("route_short_name", pymongo.TEXT),
-            #         ("route_long_name", pymongo.TEXT),
-            #     ],
-            #     name="route_search_text_idx",  # A single name for the text index
-            # ),
         ]
 
 
@@ -390,4 +383,144 @@ class Shape(Document):
                 unique=True,
                 name="shape_id_unique_idx",
             ),
+        ]
+
+
+class TimeRangeModel(BaseModel):
+    """Represents a period of time."""
+
+    start: Optional[datetime.datetime] = None  # POSIX time, seconds since 1/1/1970
+    end: Optional[datetime.datetime] = None  # POSIX time, seconds since 1/1/1970
+
+
+class TranslationModel(BaseModel):
+    """A single translation of a string into a specific language."""
+
+    text: str
+    language: str  # BCP-47 language code
+
+
+class TranslatedStringModel(BaseModel):
+    """A string with multiple translations."""
+
+    translation: List[TranslationModel] = Field(default_factory=list)
+
+
+class TripDescriptorModel(BaseModel):
+    """Describes a specific trip."""
+
+    trip_id: Optional[str] = None
+    route_id: Optional[str] = None
+    direction_id: Optional[int] = None  # 0 or 1
+    start_time: Optional[str] = None  # HH:MM:SS, can be >24:00:00
+    start_date: Optional[str] = None  # YYYYMMDD
+    # schedule_relationship: Optional[str] = None # Not typically used in alerts directly, but part of TripDescriptor
+
+
+class EntitySelectorModel(BaseModel):
+    """Selects a GTFS entity."""
+
+    agency_id: Optional[str] = None
+    route_id: Optional[str] = None
+    route_type: Optional[int] = None  # See GTFS route_type documentation
+    trip: Optional[TripDescriptorModel] = None
+    stop_id: Optional[str] = None  # GTFS stop_id
+    # direction_id from GTFS-RT extension:
+    # Specifies the direction for the given route_id.
+    # This is different from trip.direction_id as trip is more specific.
+    direction_id: Optional[int] = None
+
+
+# TODO: ********* START HERE ON MONDAY! *********
+# TODO:
+# TODO: - Finish alerts
+#          - explicit index name -- DONE
+#          - other crap...
+#       - Refactor Scheduled trips
+#         - Make stop time updates & trip update reasonable
+#         - new format MUST allow for gen ScheduledTrip that is actually not scheduled based on RT data...
+#       - Try to include not freq based trips
+#         - i.e. trip that is not on schedule... but according to doc...
+#            - need to generate a ScheduledTrip that is actually not scheduled based on RT data...
+#
+class AlertModel(Document):
+    """
+    A Beanie model for storing GTFS Alerts.
+    Based on GTFS Realtime feed Message -> FeedEntity -> Alert
+    """
+
+    # The entity id of the alert.
+    # Useful for tracking alert over time.
+    producer_alert_id: Optional[str] = Field(default=None, index=True)
+
+    active_period: List[TimeRangeModel] = Field(default_factory=list)
+    informed_entity: List[EntitySelectorModel] = Field(default_factory=list)
+
+    cause: AlertCause = Field(default=AlertCause.UNKNOWN_CAUSE)
+    effect: AlertEffect = Field(default=AlertEffect.UNKNOWN_EFFECT)
+
+    url: Optional[TranslatedStringModel] = None
+    header_text: Optional[TranslatedStringModel] = None
+    description_text: Optional[TranslatedStringModel] = None
+
+    # GTFS Realtime v2.0 extensions
+    severity_level: Optional[AlertSeverityLevel] = Field(
+        default=AlertSeverityLevel.UNKNOWN_SEVERITY
+    )
+
+    # GTFS Realtime v2.1 extensions (added image, cause_detail, effect_detail)
+    # TODO: Maybe include these experimental fields in the future.
+    # image: Optional[TranslatedStringModel] = None
+    # image_alternative_text: Optional[TranslatedStringModel] = (
+    #     None  # Alt text for the image
+    # )
+    # cause_detail: Optional[TranslatedStringModel] = None
+    # effect_detail: Optional[TranslatedStringModel] = None
+
+    # Timestamps for managing the document itself
+    created_at: datetime.datetime = Field(default_factory=datetime.now.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.now.now)
+
+    @before_event(ValidateOnSave, Update)
+    def update_timestamp(self):
+        """Update the updated_at timestamp on document change."""
+        self.updated_at = datetime.datetime.now()
+
+    class Settings:
+        name = "gtfs_alerts"
+        indexes = [
+            pymongo.IndexModel(
+                [("producer_alert_id", pymongo.ASCENDING)], name="idx_producer_alert_id"
+            ),
+            pymongo.IndexModel(
+                [
+                    ("active_period.start", pymongo.ASCENDING),
+                    ("active_period.end", pymongo.ASCENDING),
+                ],
+                name="idx_active_period_start_active_period_end",
+            ),  # For finding active alerts
+            pymongo.IndexModel(
+                [("informed_entity.agency_id", pymongo.ASCENDING)],
+                name="idx_informed_entity_agency_id",
+            ),
+            pymongo.IndexModel(
+                [("informed_entity.route_id", pymongo.ASCENDING)],
+                name="idx_informed_entity_route_id",
+            ),
+            pymongo.IndexModel(
+                [("informed_entity.stop_id", pymongo.ASCENDING)],
+                name="idx_informed_entity_stop_id",
+            ),
+            pymongo.IndexModel(
+                [("informed_entity.trip.trip_id", pymongo.ASCENDING)],
+                name="idx_informed_entity_trip_trip_id",
+            ),
+            pymongo.IndexModel([("cause", pymongo.ASCENDING)], name="idx_cause"),
+            pymongo.IndexModel([("effect", pymongo.ASCENDING)], name="idx_effect"),
+            pymongo.IndexModel(
+                [("severity_level", pymongo.ASCENDING)], name="idx_severity_level"
+            ),
+            pymongo.IndexModel(
+                [("updated_at", pymongo.DESCENDING)], name="idx_updated_at_desc"
+            ),  # For fetching latest updates
         ]
