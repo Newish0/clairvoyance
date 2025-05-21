@@ -30,7 +30,15 @@ MONGO_CONNECTION_STRING = (
 DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 GTFS_ZIP_FILE = "bctransit_gtfs.zip"
 
+DROP_COLLECTIONS = True
 INSERT_BATCH_SIZE = 1000  # Batch size for all insert_many operations
+
+DOCUMENT_MODELS: List[Type[Document]] = [
+    Stop,
+    Route,
+    Shape,
+    ScheduledTripDocument,
+]
 
 # --- Setup Logger ---
 logger = setup_logger(__name__)
@@ -403,15 +411,16 @@ async def main():
         await client.admin.command("ping")  # Verify connection
         logger.info("MongoDB connection successful.")
 
+        if DROP_COLLECTIONS:
+            logger.info("Dropping existing collections...")
+            for collection in DOCUMENT_MODELS:
+                await client[DATABASE_NAME][collection.get_collection_name()].drop()
+            logger.info("Existing collections dropped.")
+
         logger.info(f"Initializing Beanie with database '{DATABASE_NAME}'...")
         await init_beanie(
             database=client[DATABASE_NAME],
-            document_models=[
-                Stop,
-                Route,
-                Shape,
-                ScheduledTripDocument,
-            ],
+            document_models=DOCUMENT_MODELS,
         )
         logger.info("Beanie initialized.")
 

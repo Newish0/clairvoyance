@@ -22,23 +22,43 @@ from models import (
     OccupancyStatus,
     VehicleStopStatus,
 )
-from models.gtfs_enums import AlertCause, AlertEffect, AlertSeverityLevel
+from models.gtfs_enums import (
+    AlertCause,
+    AlertEffect,
+    AlertSeverityLevel,
+    CongestionLevel,
+    StopTimeUpdateScheduleRelationship,
+    VehicleWheelchairAccessible,
+)
 
 
 # --- Sub-models ---
 class StopTimeInfo(BaseModel):
     stop_id: str
     stop_sequence: int
-    arrival_time: Optional[str] = None  # HH:MM:SS format
-    departure_time: Optional[str] = None  # HH:MM:SS format
     stop_headsign: Optional[str] = None
     pickup_type: Optional[int] = None
     drop_off_type: Optional[int] = None
+    # TODO: Add other fields per GTFS StopTime specs...
     shape_dist_traveled: Optional[float] = None
 
-    # --- DERIVED FIELDS ---
-    arrival_datetime: Optional[datetime.datetime] = None
-    departure_datetime: Optional[datetime.datetime] = None
+    # Derived fields from static GTFS arrival_time and departure_time 
+    arrival_datetime: datetime.datetime
+    departure_datetime: datetime.datetime
+    
+    # If no realtime data is available, set the schedule relationship to SCHEDULED
+    schedule_relationship: Optional[StopTimeUpdateScheduleRelationship] = None
+
+    # --- REALTIME FIELDS ---
+    predicted_arrival_datetime: Optional[datetime.datetime] = None
+    predicted_departure_datetime: Optional[datetime.datetime] = None
+
+    predicted_arrival_uncertainty: Optional[int] = None  # seconds
+    predicted_departure_uncertainty: Optional[int] = None  # seconds
+
+    # --- REALTIME DERIVED FIELDS ---
+    arrival_delay: Optional[int] = None  # seconds
+    departure_delay: Optional[int] = None  # seconds
 
 
 class Position(BaseModel):
@@ -49,16 +69,18 @@ class Position(BaseModel):
     speed: Optional[float] = None  # meters per second
 
 
-class RealtimeStopTimeUpdate(BaseModel):
-    stop_sequence: int
-    stop_id: str  # From scheduled data, for reference
-    arrival_delay: Optional[int] = None  # seconds
-    predicted_arrival_time: Optional[datetime.datetime] = None  # TZ-aware UTC
-    departure_delay: Optional[int] = None  # seconds
-    predicted_departure_time: Optional[datetime.datetime] = None  # TZ-aware UTC
-    schedule_relationship: TripDescriptorScheduleRelationship = (
-        TripDescriptorScheduleRelationship.SCHEDULED
-    )
+class Vehicle(BaseModel):
+    vehicle_id: Optional[str] = None
+    label: Optional[str] = None
+    license_plate: Optional[str] = None
+    wheelchair_accessible: Optional[VehicleWheelchairAccessible] = None
+
+
+class TripVehicleHistory(BaseModel):
+    timestamp: datetime.datetime
+    position: Position
+    congestion_level: Optional[CongestionLevel]
+    occupancy_status: Optional[OccupancyStatus]
 
 
 # --- Main Beanie Document ---
@@ -83,30 +105,29 @@ class ScheduledTripDocument(Document):
     trip_headsign: Optional[str] = None
     trip_short_name: Optional[str] = None
     block_id: Optional[str] = None
-    scheduled_stop_times: List[StopTimeInfo] = Field(default_factory=list)
 
-    # --- Real-time Data Fields ---
-    realtime_schedule_relationship: TripDescriptorScheduleRelationship = (
-        TripDescriptorScheduleRelationship.SCHEDULED
-    )
-    realtime_stop_updates: Dict[str, RealtimeStopTimeUpdate] = Field(
-        default_factory=dict
-    )  # Key: str(stop_sequence)
+    stop_times: List[StopTimeInfo] = Field(default_factory=list)
     current_stop_sequence: Optional[int] = None
 
     # The exact status of the vehicle with respect to the current stop.
     # Ignored if current_stop_sequence is missing.
     current_status: Optional[VehicleStopStatus] = None
 
-    vehicle_id: Optional[str] = None
-    current_occupancy: Optional[OccupancyStatus] = None
-    last_realtime_update_timestamp: Optional[datetime.datetime] = (
-        None  # TZ-aware UTC, index for recency queries
+    schedule_relationship: TripDescriptorScheduleRelationship = (
+        TripDescriptorScheduleRelationship.SCHEDULED
     )
 
-    # --- Realtime Position Data ---
+    vehicle: Optional[Vehicle] = None
+
+    current_occupancy: Optional[OccupancyStatus] = None
+    congestion_level: Optional[CongestionLevel] = None
+
     current_position: Optional[Position] = None
-    position_history: List[Position] = Field(default_factory=list)
+    history: List[TripVehicleHistory] = Field(default_factory=list)
+
+    realtime_updated_at: Optional[datetime.datetime] = (
+        None  # TZ-aware UTC, index for recency queries
+    )
 
     # --- Derived & Persisted Fields - For query efficiency ---
     # These fields are calculated *before* saving using the validator below.
@@ -181,31 +202,26 @@ class ScheduledTripDocument(Document):
             ),
             # Indexes to speed up next trips queries
             pymongo.IndexModel(
-                [("scheduled_stop_times.stop_id", pymongo.ASCENDING)],
-                name="scheduled_stop_times_stop_id_idx",
+                [("stop_times.stop_id", pymongo.ASCENDING)],
+                name="stop_times_stop_id_idx",
             ),
             pymongo.IndexModel(
-                [("scheduled_stop_times.arrival_datetime", pymongo.ASCENDING)],
-                name="scheduled_stop_times_arrival_datetime_idx",
+                [("stop_times.arrival_datetime", pymongo.ASCENDING)],
+                name="stop_times_arrival_datetime_idx",
             ),
             pymongo.IndexModel(
-                [("scheduled_stop_times.departure_datetime", pymongo.ASCENDING)],
-                name="scheduled_stop_times_departure_datetime_idx",
+                [("stop_times.departure_datetime", pymongo.ASCENDING)],
+                name="stop_times_departure_datetime_idx",
             ),
             pymongo.IndexModel([("trip_id", pymongo.ASCENDING)], name="trip_id_idx"),
-            pymongo.IndexModel(
-                [("start_date", pymongo.ASCENDING)], name="start_date_idx"
-            ),
-            pymongo.IndexModel(
-                [("start_time", pymongo.ASCENDING)], name="start_time_idx"
-            ),
             pymongo.IndexModel([("route_id", pymongo.ASCENDING)], name="route_id_idx"),
+            pymongo.IndexModel([("direction_id", pymongo.ASCENDING)], name="direction_id_idx"),
             pymongo.IndexModel(
-                [("vehicle_id", pymongo.ASCENDING)], name="vehicle_id_idx"
+                [("vehicle.vehicle_id", pymongo.ASCENDING)], name="vehicle_id_idx"
             ),
             pymongo.IndexModel(
-                [("last_realtime_update_timestamp", pymongo.DESCENDING)],
-                name="last_realtime_update_timestamp_idx",
+                [("realtime_updated_at", pymongo.DESCENDING)],
+                name="realtime_updated_at_idx",
             ),
             pymongo.IndexModel(
                 [("start_datetime", pymongo.DESCENDING)], name="start_datetime_idx"
@@ -478,8 +494,8 @@ class AlertModel(Document):
     # effect_detail: Optional[TranslatedStringModel] = None
 
     # Timestamps for managing the document itself
-    created_at: datetime.datetime = Field(default_factory=datetime.now.now)
-    updated_at: datetime.datetime = Field(default_factory=datetime.now.now)
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
 
     @before_event(ValidateOnSave, Update)
     def update_timestamp(self):

@@ -1,9 +1,23 @@
 import logging
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from models import ScheduledTripDocument, StopTimeInfo
-import dataclasses
+from dataclasses import dataclass
 from config import setup_logger
+from models.gtfs_enums import StopTimeUpdateScheduleRelationship
+
+
+@dataclass(frozen=True)
+class PartialStopTimeInfo:
+    stop_id: str
+    arrival_time: str
+    departure_time: str
+    stop_sequence: int
+    stop_headsign: Optional[str] = None
+    pickup_type: Optional[int] = None
+    drop_off_type: Optional[int] = None
+    # TODO: Add other fields per GTFS StopTime specs...
+    shape_dist_traveled: Optional[float] = None
 
 
 class ParsedGTFSData:
@@ -111,11 +125,12 @@ class ParsedGTFSData:
                 continue
 
             # Convert stop times to StopTimeInfo objects once per trip
-            # Current state does not include derived fields (which are added later)
-            partial_stop_time_infos = self._convert_stop_times_to_info(
+            # Current state does not include derived fields which are added later
+            # and create new instance of the stop time specific to that scheduled trip.
+            partial_stop_times = self._derive_partial_stop_times(
                 trip_stop_times_raw, trip_id
             )
-            if not partial_stop_time_infos:
+            if not partial_stop_times:
                 self.logger.warning(
                     f"Could not convert any stop times for trip {trip_id}, skipping."
                 )
@@ -137,9 +152,9 @@ class ParsedGTFSData:
                                 f"Invalid direction_id '{direction_id_str}' for trip {trip_id}. Setting to None."
                             )
 
-                    final_scheduled_stop_times = [
+                    final_stop_times = [
                         self._derive_full_stop_time_info(stop_time_info, service_date)
-                        for stop_time_info in partial_stop_time_infos
+                        for stop_time_info in partial_stop_times
                     ]
 
                     scheduled_trip = ScheduledTripDocument(
@@ -155,7 +170,7 @@ class ParsedGTFSData:
                         trip_headsign=trip_data.get("trip_headsign"),
                         trip_short_name=trip_data.get("trip_short_name"),
                         block_id=trip_data.get("block_id"),
-                        scheduled_stop_times=final_scheduled_stop_times,
+                        stop_times=final_stop_times,
                     )
                     yield scheduled_trip
                     generated_count += 1
@@ -182,7 +197,7 @@ class ParsedGTFSData:
             )
 
     def _derive_full_stop_time_info(
-        self, partial_stop_time_info: StopTimeInfo, date_str: str
+        self, partial_stop_time_info: PartialStopTimeInfo, date_str: str
     ) -> StopTimeInfo:
         """Convert a list of partially completed stop times to StopTimeInfo objects by computing its derived fields."""
         tz_str = self.agency_timezone
@@ -192,11 +207,23 @@ class ParsedGTFSData:
         departure_datetime = ScheduledTripDocument.convert_to_datetime(
             date_str, partial_stop_time_info.departure_time, tz_str
         )
-        stop_time_dict = partial_stop_time_info.dict()
-        stop_time_dict["arrival_datetime"] = arrival_datetime
-        stop_time_dict["departure_datetime"] = departure_datetime
         return StopTimeInfo(
-            **stop_time_dict,
+            stop_id=partial_stop_time_info.stop_id,
+            stop_sequence=partial_stop_time_info.stop_sequence,
+            stop_headsign=partial_stop_time_info.stop_headsign,
+            pickup_type=partial_stop_time_info.pickup_type,
+            drop_off_type=partial_stop_time_info.drop_off_type,
+            # TODO: Add other fields...
+            shape_dist_traveled=partial_stop_time_info.shape_dist_traveled,
+            arrival_datetime=arrival_datetime,
+            departure_datetime=departure_datetime,
+            predicted_arrival_datetime=None,
+            predicted_departure_datetime=None,
+            predicted_arrival_uncertainty=None,
+            predicted_departure_uncertainty=None,
+            schedule_relationship=StopTimeUpdateScheduleRelationship.SCHEDULED,
+            arrival_delay=None,
+            departure_delay=None,
         )
 
     def _find_route_short_name(self, route_id: str) -> Optional[str]:
@@ -239,11 +266,11 @@ class ParsedGTFSData:
             )
             return None
 
-    def _convert_stop_times_to_info(
+    def _derive_partial_stop_times(
         self, stop_times_raw: List[Dict[str, Any]], trip_id_for_logging: str
-    ) -> List[StopTimeInfo]:
-        """Convert raw stop time dictionaries to StopTimeInfo objects."""
-        stop_time_infos = []
+    ) -> List[PartialStopTimeInfo]:
+        """Convert raw stop time dictionaries to PartialStopTimeInfo objects."""
+        stop_time_infos: List[PartialStopTimeInfo] = []
         conversion_errors = 0
 
         for st_raw in stop_times_raw:
@@ -260,7 +287,6 @@ class ParsedGTFSData:
                     )
                 stop_sequence = int(stop_sequence_str)
 
-                # Optional fields: Check existence before conversion
                 pickup_type = None
                 if (
                     st_raw.get("pickup_type") is not None
@@ -295,30 +321,24 @@ class ParsedGTFSData:
                             f"Invalid shape_dist_traveled '{shape_dist_str}' for stop {stop_id}, seq {stop_sequence}. Using None."
                         )
 
-                # Create the object
-                stop_info = StopTimeInfo(
+                partial_stop_info = PartialStopTimeInfo(
                     stop_id=stop_id,
                     stop_sequence=stop_sequence,
-                    arrival_time=st_raw.get("arrival_time"),  # Keep as string for now
-                    departure_time=st_raw.get("departure_time"),  # Keep as string
+                    arrival_time=st_raw.get("arrival_time"),
+                    departure_time=st_raw.get("departure_time"),
                     stop_headsign=st_raw.get("stop_headsign"),
                     pickup_type=pickup_type,
                     drop_off_type=drop_off_type,
+                    # TODO: Add other fields...
                     shape_dist_traveled=shape_dist_traveled,
-                    arrival_datetime=None,
-                    departure_datetime=None,
                 )
-                stop_time_infos.append(stop_info)
+                stop_time_infos.append(partial_stop_info)
 
             except (ValueError, TypeError) as e:
                 self.logger.warning(
                     f"Could not convert stop time for trip {trip_id_for_logging}: {e}. Raw data: {st_raw}"
                 )
                 conversion_errors += 1
-
-        # The list should already be sorted by stop_sequence from the reader
-        # If sorting failed earlier, this won't fix it, but we assume it worked.
-        # stop_time_infos.sort(key=lambda x: x.stop_sequence) # Redundant if reader sort worked
 
         if conversion_errors > 0:
             self.logger.warning(
