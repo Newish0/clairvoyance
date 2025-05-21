@@ -307,9 +307,8 @@ class TripDescriptorScheduleRelationship(IntEnum):
     ADDED = 1  # An extra trip added to the schedule.
     UNSCHEDULED = 2  # A trip running without a GTFS schedule (e.g., frequency-based exact_times=0).
     CANCELED = 3  # A trip that existed in the schedule but was removed.
-    # REPLACEMENT = 4 # Deprecated in proto, not in reference.md; prefer DUPLICATED.
-    DUPLICATED = 5  # A new trip that is a copy of an existing trip but with a new service date/time.
-    DELETED = 6  # A trip that existed but was removed and should not be shown to users.
+    DUPLICATED = 4  # A new trip that is a copy of an existing trip but with a new service date/time.
+    DELETED = 5  # A trip that existed but was removed and should not be shown to users.
 
 
 class StopTimeUpdateScheduleRelationship(IntEnum):

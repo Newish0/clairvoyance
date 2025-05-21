@@ -120,12 +120,15 @@ class ScheduledTripDocument(Document):
     vehicle: Optional[Vehicle] = None
 
     current_occupancy: Optional[OccupancyStatus] = None
-    congestion_level: Optional[CongestionLevel] = None
+    current_congestion: Optional[CongestionLevel] = None
 
     current_position: Optional[Position] = None
     history: List[TripVehicleHistory] = Field(default_factory=list)
 
-    realtime_updated_at: Optional[datetime.datetime] = (
+    stop_times_updated_at: Optional[datetime.datetime] = (
+        None  # TZ-aware UTC, index for recency queries
+    )
+    position_updated_at: Optional[datetime.datetime] = (
         None  # TZ-aware UTC, index for recency queries
     )
 
@@ -220,8 +223,12 @@ class ScheduledTripDocument(Document):
                 [("vehicle.vehicle_id", pymongo.ASCENDING)], name="vehicle_id_idx"
             ),
             pymongo.IndexModel(
-                [("realtime_updated_at", pymongo.DESCENDING)],
-                name="realtime_updated_at_idx",
+                [("stop_times_updated_at", pymongo.DESCENDING)],
+                name="stop_times_updated_at_idx",
+            ),
+            pymongo.IndexModel(
+                [("position_updated_at_at", pymongo.DESCENDING)],
+                name="position_updated_at_at_idx",
             ),
             pymongo.IndexModel(
                 [("start_datetime", pymongo.DESCENDING)], name="start_datetime_idx"

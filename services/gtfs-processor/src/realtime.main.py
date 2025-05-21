@@ -1,7 +1,7 @@
 import asyncio
 import argparse
 import sys
-import time 
+import time
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from models import ScheduledTripDocument
@@ -12,19 +12,23 @@ import os
 
 # --- Configuration ---
 MONGO_CONNECTION_STRING = (
-    os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"  
+    os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
 )
 DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 
 TRIP_UPDATES_URL = "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48"
-VEHICLE_POSITIONS_URL = "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48"
+VEHICLE_UPDATES_URL = (
+    "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48"
+)
+ALERTS_URL = "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48"
 
 # Setup logger
 logger = setup_logger(__name__)
 
+
 async def run_updates():
     """Performs one cycle of fetching and processing both feed types."""
-    updater = RealtimeUpdaterService() 
+    updater = RealtimeUpdaterService()
     start_time = time.monotonic()
     logger.info("-" * 30)
     logger.info(f"Starting update cycle at {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -37,11 +41,18 @@ async def run_updates():
         logger.error(f"Error processing Trip Updates: {e}", exc_info=True)
 
     try:
-        logger.info(f"Processing Vehicle Positions from {VEHICLE_POSITIONS_URL}...")
-        await updater.process_realtime_feed(VEHICLE_POSITIONS_URL)
-        logger.info("Vehicle Positions processed.")
+        logger.info(f"Processing Vehicle Updates from {VEHICLE_UPDATES_URL}...")
+        await updater.process_realtime_feed(VEHICLE_UPDATES_URL)
+        logger.info("Vehicle Updates processed.")
     except Exception as e:
-        logger.error(f"Error processing Vehicle Positions: {e}", exc_info=True)
+        logger.error(f"Error processing Vehicle Updates: {e}", exc_info=True)
+
+    try:
+        logger.info(f"Processing Alerts from {ALERTS_URL}...")
+        await updater.process_realtime_feed(ALERTS_URL)
+        logger.info("Alerts processed.")
+    except Exception as e:
+        logger.error(f"Error processing Alerts: {e}", exc_info=True)
 
     end_time = time.monotonic()
     logger.info(f"Update cycle finished in {end_time - start_time:.2f} seconds.")
@@ -71,14 +82,20 @@ async def main(interval_seconds: int | None):
         while True:
             try:
                 await run_updates()
-                logger.info(f"Waiting {interval_seconds} seconds for the next update cycle...")
+                logger.info(
+                    f"Waiting {interval_seconds} seconds for the next update cycle..."
+                )
                 await asyncio.sleep(interval_seconds)
             except asyncio.CancelledError:
                 logger.info("Shutdown signal received, stopping periodic updates.")
                 break
             except Exception as e:
-                logger.error(f"An unexpected error occurred in the main loop: {e}", exc_info=True)
-                logger.info(f"Will attempt to recover and continue after {interval_seconds} seconds...")
+                logger.error(
+                    f"An unexpected error occurred in the main loop: {e}", exc_info=True
+                )
+                logger.info(
+                    f"Will attempt to recover and continue after {interval_seconds} seconds..."
+                )
                 try:
                     await asyncio.sleep(interval_seconds)
                 except asyncio.CancelledError:
@@ -90,7 +107,9 @@ async def main(interval_seconds: int | None):
         try:
             await run_updates()
         except Exception as e:
-            logger.error(f"An error occurred during the single update run: {e}", exc_info=True)
+            logger.error(
+                f"An error occurred during the single update run: {e}", exc_info=True
+            )
         logger.info("Single update run finished.")
 
     logger.info("Realtime Feed Processing Finished")
@@ -100,14 +119,15 @@ def parse_arguments():
     """Parses command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Fetch and process GTFS-realtime data into MongoDB using Beanie.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "-i", "--interval",
+        "-i",
+        "--interval",
         type=int,
-        metavar='SECONDS',
+        metavar="SECONDS",
         default=None,
-        help="Interval in seconds for periodic updates. If not specified, runs only once."
+        help="Interval in seconds for periodic updates. If not specified, runs only once.",
     )
 
     args = parser.parse_args()
