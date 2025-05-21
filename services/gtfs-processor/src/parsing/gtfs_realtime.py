@@ -5,19 +5,22 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 from pathlib import Path
 import pytz
 import requests
-from google.transit import gtfs_realtime_pb2
+from lib import gtfs_realtime_pb2 as pb
 from google.protobuf.message import Message
 
 from models import (
     TripDescriptorScheduleRelationship,
     OccupancyStatus,
     VehicleStopStatus,
-    ScheduledTripDocument,
-    StopTimeInfo,
-    Position,
-    RealtimeStopTimeUpdate,
 )
 from config import setup_logger
+from models.gtfs_enums import CongestionLevel, StopTimeUpdateScheduleRelationship
+from models.gtfs_models import (
+    Position,
+    ScheduledTripDocument,
+    TripVehicleHistory,
+    Vehicle,
+)
 
 logger = setup_logger(__name__)
 
@@ -41,55 +44,51 @@ class RealtimeUpdaterService:
         self.request_timeout = request_timeout
 
         # --- Mappings from Protobuf Enum Ints to Model Enums ---
-        # TripDescriptor.ScheduleRelationship
         self._trip_schedule_relationship_map: Dict[
             int, TripDescriptorScheduleRelationship
         ] = {
-            gtfs_realtime_pb2.TripDescriptor.SCHEDULED: TripDescriptorScheduleRelationship.SCHEDULED,
-            gtfs_realtime_pb2.TripDescriptor.ADDED: TripDescriptorScheduleRelationship.ADDED,
-            gtfs_realtime_pb2.TripDescriptor.UNSCHEDULED: TripDescriptorScheduleRelationship.UNSCHEDULED,
-            gtfs_realtime_pb2.TripDescriptor.CANCELED: TripDescriptorScheduleRelationship.CANCELED,
-            # TODO: Add mapping for V2 enums
-            # # Assuming v2 enums map directly if they exist in Model Enum
-            # getattr(gtfs_realtime_pb2.TripDescriptor, 'REPLACEMENT', -1): ScheduleRelationship.REPLACEMENT,
-            # getattr(gtfs_realtime_pb2.TripDescriptor, 'DUPLICATED', -1): ScheduleRelationship.DUPLICATED,
-            # getattr(gtfs_realtime_pb2.TripDescriptor, 'DELETED', -1): ScheduleRelationship.DELETED,
+            pb.TripDescriptor.SCHEDULED: TripDescriptorScheduleRelationship.SCHEDULED,
+            pb.TripDescriptor.ADDED: TripDescriptorScheduleRelationship.ADDED,
+            pb.TripDescriptor.UNSCHEDULED: TripDescriptorScheduleRelationship.UNSCHEDULED,
+            pb.TripDescriptor.CANCELED: TripDescriptorScheduleRelationship.CANCELED,
+            pb.TripDescriptor.DUPLICATED: TripDescriptorScheduleRelationship.DUPLICATED,
+            pb.TripDescriptor.DELETED: TripDescriptorScheduleRelationship.DELETED,
         }
 
-        # TODO: Add mappings for stop time updates
-        # TripUpdate.StopTimeUpdate.ScheduleRelationship
-        # self._stoptime_schedule_relationship_map: Dict[int, ScheduleRelationship] = {
-        #     gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SCHEDULED: ScheduleRelationship.SCHEDULED,
-        #     gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED: ScheduleRelationship.SKIPPED,
-        #     gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.NO_DATA: ScheduleRelationship.NO_DATA,
-        # }
-        # VehiclePosition.OccupancyStatus
+        self._stop_time_schedule_relationship_map: Dict[
+            int,
+            StopTimeUpdateScheduleRelationship,
+        ] = {
+            pb.TripUpdate.StopTimeUpdate.SCHEDULED: StopTimeUpdateScheduleRelationship.SCHEDULED,
+            pb.TripUpdate.StopTimeUpdate.SKIPPED: StopTimeUpdateScheduleRelationship.SKIPPED,
+            pb.TripUpdate.StopTimeUpdate.NO_DATA: StopTimeUpdateScheduleRelationship.NO_DATA,
+            pb.TripUpdate.StopTimeUpdate.UNSCHEDULED: StopTimeUpdateScheduleRelationship.UNSCHEDULED,
+        }
+
         self._occupancy_status_map: Dict[int, OccupancyStatus] = {
-            gtfs_realtime_pb2.VehiclePosition.EMPTY: OccupancyStatus.EMPTY,
-            gtfs_realtime_pb2.VehiclePosition.MANY_SEATS_AVAILABLE: OccupancyStatus.MANY_SEATS_AVAILABLE,
-            gtfs_realtime_pb2.VehiclePosition.FEW_SEATS_AVAILABLE: OccupancyStatus.FEW_SEATS_AVAILABLE,
-            gtfs_realtime_pb2.VehiclePosition.STANDING_ROOM_ONLY: OccupancyStatus.STANDING_ROOM_ONLY,
-            gtfs_realtime_pb2.VehiclePosition.CRUSHED_STANDING_ROOM_ONLY: OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY,
-            gtfs_realtime_pb2.VehiclePosition.FULL: OccupancyStatus.FULL,
-            gtfs_realtime_pb2.VehiclePosition.NOT_ACCEPTING_PASSENGERS: OccupancyStatus.NOT_ACCEPTING_PASSENGERS,
-            # V2 Additions - map them if they exist in the model enum
-            getattr(
-                gtfs_realtime_pb2.VehiclePosition, "NO_DATA", -1
-            ): OccupancyStatus.NO_DATA_AVAILABLE,
-            getattr(
-                gtfs_realtime_pb2.VehiclePosition, "NOT_BOARDABLE", -1
-            ): OccupancyStatus.NOT_BOARDABLE,
+            pb.VehiclePosition.EMPTY: OccupancyStatus.EMPTY,
+            pb.VehiclePosition.MANY_SEATS_AVAILABLE: OccupancyStatus.MANY_SEATS_AVAILABLE,
+            pb.VehiclePosition.FEW_SEATS_AVAILABLE: OccupancyStatus.FEW_SEATS_AVAILABLE,
+            pb.VehiclePosition.STANDING_ROOM_ONLY: OccupancyStatus.STANDING_ROOM_ONLY,
+            pb.VehiclePosition.CRUSHED_STANDING_ROOM_ONLY: OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY,
+            pb.VehiclePosition.FULL: OccupancyStatus.FULL,
+            pb.VehiclePosition.NOT_ACCEPTING_PASSENGERS: OccupancyStatus.NOT_ACCEPTING_PASSENGERS,
+            pb.VehiclePosition.NO_DATA_AVAILABLE: OccupancyStatus.NO_DATA_AVAILABLE,
+            pb.VehiclePosition.NOT_BOARDABLE: OccupancyStatus.NOT_BOARDABLE,
         }
 
         self._vehicle_stop_status_map: Dict[int, VehicleStopStatus] = {
-            gtfs_realtime_pb2.VehiclePosition.INCOMING_AT: VehicleStopStatus.INCOMING_AT,
-            gtfs_realtime_pb2.VehiclePosition.STOPPED_AT: VehicleStopStatus.STOPPED_AT,
-            gtfs_realtime_pb2.VehiclePosition.IN_TRANSIT_TO: VehicleStopStatus.IN_TRANSIT_TO,
+            pb.VehiclePosition.INCOMING_AT: VehicleStopStatus.INCOMING_AT,
+            pb.VehiclePosition.STOPPED_AT: VehicleStopStatus.STOPPED_AT,
+            pb.VehiclePosition.IN_TRANSIT_TO: VehicleStopStatus.IN_TRANSIT_TO,
         }
 
-        # Filter out None values from map in case V2 enums don't exist in model
-        self._occupancy_status_map = {
-            k: v for k, v in self._occupancy_status_map.items() if v is not None
+        self._congestion_level_map: Dict[int, int] = {
+            pb.VehiclePosition.UNKNOWN_CONGESTION_LEVEL: CongestionLevel.UNKNOWN_CONGESTION_LEVEL,
+            pb.VehiclePosition.RUNNING_SMOOTHLY: CongestionLevel.RUNNING_SMOOTHLY,
+            pb.VehiclePosition.STOP_AND_GO: CongestionLevel.STOP_AND_GO,
+            pb.VehiclePosition.CONGESTION: CongestionLevel.CONGESTION,
+            pb.VehiclePosition.SEVERE_CONGESTION: CongestionLevel.SEVERE_CONGESTION,
         }
 
     async def process_realtime_feed(
@@ -107,7 +106,7 @@ class RealtimeUpdaterService:
             (processed_trip_updates, processed_vehicle_positions, total_entities_processed)
         """
         processed_trip_updates = 0
-        processed_vehicle_positions = 0
+        processed_vehicle_updates = 0
         total_entities = 0
 
         try:
@@ -123,6 +122,12 @@ class RealtimeUpdaterService:
             total_entities = len(feed.entity)
 
             for entity in feed.entity:
+
+                # print("-" * 20)
+                # print("entity", entity)
+                # return
+                # print("-" * 20)
+
                 if entity.HasField("trip_update"):
                     if await self._process_trip_update(
                         entity.trip_update, feed_timestamp_utc
@@ -133,13 +138,13 @@ class RealtimeUpdaterService:
                     if await self._process_vehicle_position(
                         entity.vehicle, feed_timestamp_utc
                     ):
-                        processed_vehicle_positions += 1
+                        processed_vehicle_updates += 1
                 # elif entity.HasField("alert"):
                 # pass # Placeholder for future alert processing
 
             logger.info(
                 f"Processed {processed_trip_updates} trip updates, "
-                f"{processed_vehicle_positions} vehicle positions out of "
+                f"{processed_vehicle_updates} vehicle updates out of "
                 f"{total_entities} entities from {data_source}"
             )
 
@@ -148,7 +153,7 @@ class RealtimeUpdaterService:
                 f"Failed to process feed from {data_source}: {e}", exc_info=True
             )
 
-        return processed_trip_updates, processed_vehicle_positions, total_entities
+        return processed_trip_updates, processed_vehicle_updates, total_entities
 
     def _fetch_feed_content(self, data_source: DataSource) -> Optional[bytes]:
         """Fetches GTFS Realtime data from URL or reads from file."""
@@ -181,12 +186,10 @@ class RealtimeUpdaterService:
             logger.error(f"Unexpected error fetching/reading {data_source}: {e}")
             return None
 
-    def _parse_feed_message(
-        self, content: bytes
-    ) -> Optional[gtfs_realtime_pb2.FeedMessage]:
+    def _parse_feed_message(self, content: bytes) -> Optional[pb.FeedMessage]:
         """Parses protobuf content into a FeedMessage object."""
         try:
-            feed = gtfs_realtime_pb2.FeedMessage()
+            feed = pb.FeedMessage()
             feed.ParseFromString(content)
             logger.debug("Successfully parsed GTFS Realtime feed.")
             return feed
@@ -194,9 +197,7 @@ class RealtimeUpdaterService:
             logger.error(f"Failed to parse protobuf feed: {e}")
             return None
 
-    def _get_feed_timestamp(
-        self, feed: gtfs_realtime_pb2.FeedMessage
-    ) -> datetime.datetime:
+    def _get_feed_timestamp(self, feed: pb.FeedMessage) -> datetime.datetime:
         """Gets the timestamp from the feed header or current time, ensuring UTC."""
         if feed.header.HasField("timestamp"):
             ts = feed.header.timestamp
@@ -214,7 +215,7 @@ class RealtimeUpdaterService:
         return gtfs_rt_trip_id.split("#")[0]
 
     async def _find_scheduled_trip(
-        self, trip_descriptor: gtfs_realtime_pb2.TripDescriptor
+        self, trip_descriptor: pb.TripDescriptor
     ) -> Optional[ScheduledTripDocument]:
         """
         Finds the corresponding ScheduledTripDocument in MongoDB.
@@ -241,15 +242,13 @@ class RealtimeUpdaterService:
             # Option 1: Log a warning and skip.
             # Option 2: Try to infer based on current time (less reliable).
             # Option 3: If the DB stores *only* currently active trips, maybe query only by trip_id.
-            # Let's go with Option 1 for now as it's safer.
+            # For now, we use Option 1 as it's safer.
             logger.warning(
                 f"TripUpdate/VehiclePosition for trip_id '{core_trip_id}' missing start_date. Skipping."
             )
             return None
 
-        # Use Beanie's find_one to query MongoDB
         try:
-            # Query using the indexed fields for performance
             trip = await ScheduledTripDocument.find_one(
                 ScheduledTripDocument.trip_id == core_trip_id,
                 ScheduledTripDocument.start_date == start_date_str,
@@ -268,45 +267,60 @@ class RealtimeUpdaterService:
 
     async def _process_trip_update(
         self,
-        trip_update: gtfs_realtime_pb2.TripUpdate,
+        trip_update: pb.TripUpdate,
         feed_timestamp_utc: datetime.datetime,
     ) -> bool:
         """Processes a TripUpdate entity and updates the corresponding scheduled trip."""
         scheduled_trip = await self._find_scheduled_trip(trip_update.trip)
         if not scheduled_trip:
-            return False  # Logged in _find_scheduled_trip
+            return False
 
         update_timestamp_utc = self._get_entity_timestamp(
             trip_update, feed_timestamp_utc
         )
-        needs_save = False
+        last_updated_at_utc = (
+            pytz.utc.localize(scheduled_trip.stop_times_updated_at)
+            if scheduled_trip.stop_times_updated_at
+            else None
+        )
+
+        # Skip if already up to date
+        if last_updated_at_utc and update_timestamp_utc <= last_updated_at_utc:
+
+            return False
 
         # --- Update Trip-Level Information ---
         if trip_update.trip.HasField("schedule_relationship"):
-            new_rel = self._trip_schedule_relationship_map.get(
+            new_trip_schedule_rel = self._trip_schedule_relationship_map.get(
                 trip_update.trip.schedule_relationship,
                 TripDescriptorScheduleRelationship.SCHEDULED,  # Default if unknown
             )
-            if scheduled_trip.realtime_schedule_relationship != new_rel:
-                scheduled_trip.realtime_schedule_relationship = new_rel
-                needs_save = True
+            if scheduled_trip.schedule_relationship != new_trip_schedule_rel:
+                scheduled_trip.schedule_relationship = new_trip_schedule_rel
 
         if trip_update.HasField("vehicle") and trip_update.vehicle.HasField("id"):
             vehicle_id = trip_update.vehicle.id
-            if scheduled_trip.vehicle_id != vehicle_id:
-                scheduled_trip.vehicle_id = vehicle_id
-                needs_save = True
+            if (
+                not scheduled_trip.vehicle
+                or scheduled_trip.vehicle.vehicle_id != vehicle_id
+            ):
+                scheduled_trip.vehicle = Vehicle(
+                    vehicle_id=vehicle_id,
+                    label=trip_update.vehicle.label,
+                    license_plate=trip_update.vehicle.license_plate,
+                    wheelchair_accessible=trip_update.vehicle.wheelchair_accessible,
+                )
 
         # --- Process Stop Time Updates ---
         for stu in trip_update.stop_time_update:
             stop_sequence = stu.stop_sequence  # Required field
-            stop_id = stu.stop_id  # Optional, but useful for verification
+            stop_id = stu.stop_id
 
             # Find the scheduled stop time info (for reference and delay calculation)
             scheduled_stop = next(
                 (
                     s
-                    for s in scheduled_trip.scheduled_stop_times
+                    for s in scheduled_trip.stop_times
                     if s.stop_sequence == stop_sequence
                 ),
                 None,
@@ -315,76 +329,58 @@ class RealtimeUpdaterService:
                 logger.warning(
                     f"StopTimeUpdate for trip {scheduled_trip.trip_id} has unknown stop_sequence {stop_sequence}. Skipping update."
                 )
+                # TODO: Consider stop times schedule relationship due to alternate routing
                 continue  # Skip this specific stop time update
 
-            # Use provided stop_id if available, otherwise use the one from scheduled data
-            effective_stop_id = stop_id if stop_id else scheduled_stop.stop_id
-
-            # Get existing or create new realtime update object
-            rt_update = scheduled_trip.realtime_stop_updates.get(str(stop_sequence))
-            if not rt_update:
-                rt_update = RealtimeStopTimeUpdate(
-                    stop_sequence=stop_sequence,
-                    stop_id=effective_stop_id,  # Store for reference
+            if scheduled_stop.stop_id != stop_id:
+                # TODO: Consider stop times schedule relationship due to alternate routing
+                logger.warning(
+                    f"StopTimeUpdate for trip {scheduled_trip.trip_id} has mismatched stop_id {stop_id} at stop_sequence {stop_sequence}. Skipping update."
                 )
-                scheduled_trip.realtime_stop_updates[str(stop_sequence)] = rt_update
-                needs_save = True  # Adding a new entry requires saving
+                continue
 
             # Update fields within the RealtimeStopTimeUpdate
+            predicted_arrival_datetime = None
+            predicted_departure_datetime = None
+            arrival_delay = None
+            departure_delay = None
+            predicted_arrival_uncertainty = None
+            predicted_departure_uncertainty = None
+            schedule_relationship = scheduled_stop.schedule_relationship
             if stu.HasField("arrival"):
                 arrival_delay = stu.arrival.delay
-                predicted_arrival = self._calculate_predicted_time_utc(
-                    scheduled_trip.start_datetime,
-                    scheduled_trip.start_time,
-                    scheduled_stop.arrival_time,
-                    arrival_delay,
+                predicted_arrival_datetime = datetime.datetime.fromtimestamp(
+                    stu.arrival.time
                 )
-                if (
-                    rt_update.arrival_delay != arrival_delay
-                    or rt_update.predicted_arrival_time != predicted_arrival
-                ):
-                    rt_update.arrival_delay = arrival_delay
-                    rt_update.predicted_arrival_time = predicted_arrival
-                    needs_save = True
-
+                if stu.arrival.HasField("uncertainty"):
+                    predicted_arrival_uncertainty = stu.arrival.uncertainty
             if stu.HasField("departure"):
                 departure_delay = stu.departure.delay
-                predicted_departure = self._calculate_predicted_time_utc(
-                    scheduled_trip.start_datetime,
-                    scheduled_trip.start_time,
-                    scheduled_stop.departure_time,
-                    departure_delay,
+                predicted_departure_datetime = datetime.datetime.fromtimestamp(
+                    stu.departure.time
                 )
-                if (
-                    rt_update.departure_delay != departure_delay
-                    or rt_update.predicted_departure_time != predicted_departure
-                ):
-                    rt_update.departure_delay = departure_delay
-                    rt_update.predicted_departure_time = predicted_departure
-                    needs_save = True
+                if stu.departure.HasField("uncertainty"):
+                    predicted_departure_uncertainty = stu.departure.uncertainty
 
-            # TODO: Update to include schedule_relationship
-            # if stu.HasField("schedule_relationship"):
-            #      new_rel = self._stoptime_schedule_relationship_map.get(
-            #          stu.schedule_relationship, ScheduleRelationship.SCHEDULED # Default if unknown
-            #      )
-            #      if rt_update.schedule_relationship != new_rel:
-            #          rt_update.schedule_relationship = new_rel
-            #          needs_save = True
+            if stu.HasField("schedule_relationship"):
+                schedule_relationship = self._stop_time_schedule_relationship_map.get(
+                    stu.schedule_relationship,
+                    scheduled_stop.schedule_relationship,  # Use existing if unknown
+                )
 
-            # TODO: Add logic for clearing arrival/departure if skipped
-            # # Clear arrival/departure if skipped
-            # if rt_update.schedule_relationship == ScheduleRelationship.SKIPPED:
-            #     if rt_update.arrival_delay is not None or rt_update.departure_delay is not None:
-            #         rt_update.arrival_delay = None
-            #         rt_update.departure_delay = None
-            #         rt_update.predicted_arrival_time = None
-            #         rt_update.predicted_departure_time = None
-            #         needs_save = True
+            # Update the stop time info
+            scheduled_stop.predicted_arrival_datetime = predicted_arrival_datetime
+            scheduled_stop.predicted_departure_datetime = predicted_departure_datetime
+            scheduled_stop.arrival_delay = arrival_delay
+            scheduled_stop.departure_delay = departure_delay
+            scheduled_stop.predicted_arrival_uncertainty = predicted_arrival_uncertainty
+            scheduled_stop.predicted_departure_uncertainty = (
+                predicted_departure_uncertainty
+            )
+            scheduled_stop.schedule_relationship = schedule_relationship
 
-        # --- Update Timestamp and Save ---
-        if needs_save:
-            scheduled_trip.last_realtime_update_timestamp = update_timestamp_utc
+            # --- Update Timestamp and Save ---
+            scheduled_trip.stop_times_updated_at = update_timestamp_utc
             try:
                 await scheduled_trip.save()
                 logger.debug(
@@ -405,10 +401,11 @@ class RealtimeUpdaterService:
 
     async def _process_vehicle_position(
         self,
-        vehicle: gtfs_realtime_pb2.VehiclePosition,
+        vehicle: pb.VehiclePosition,
         feed_timestamp_utc: datetime.datetime,
     ) -> bool:
         """Processes a VehiclePosition entity and updates the corresponding scheduled trip."""
+
         # Only process if the vehicle is associated with a trip
         if not vehicle.HasField("trip"):
             logger.debug(
@@ -425,28 +422,43 @@ class RealtimeUpdaterService:
             return False
 
         update_timestamp_utc = self._get_entity_timestamp(vehicle, feed_timestamp_utc)
-        needs_save = False
+
+        last_updated_at_utc = (
+            pytz.utc.localize(scheduled_trip.position_updated_at)
+            if scheduled_trip.position_updated_at
+            else None
+        )
+
+        # Skip if already up to date
+        if last_updated_at_utc and last_updated_at_utc >= update_timestamp_utc:
+            print(
+                "SKIP",
+                last_updated_at_utc,
+                update_timestamp_utc,
+                last_updated_at_utc >= update_timestamp_utc,
+            )
+            logger.debug(
+                f"Skipping VehiclePosition for vehicle {vehicle.vehicle.id} as it's already up to date."
+            )
+            return False
 
         # --- Update Vehicle ID ---
         if vehicle.HasField("vehicle") and vehicle.vehicle.HasField("id"):
-            vehicle_id = vehicle.vehicle.id
-            if scheduled_trip.vehicle_id != vehicle_id:
-                scheduled_trip.vehicle_id = vehicle_id
-                needs_save = True
+            scheduled_trip.vehicle = Vehicle(
+                vehicle_id=vehicle.vehicle.id,
+                label=vehicle.vehicle.label,
+                license_plate=vehicle.vehicle.license_plate,
+                wheelchair_accessible=vehicle.vehicle.wheelchair_accessible,
+            )
 
         # --- Update Status ---
         if vehicle.HasField("current_status"):
-            new_status = self._vehicle_stop_status_map.get(vehicle.current_status)
-            if new_status is not None and scheduled_trip.current_status != new_status:
-                scheduled_trip.current_status = new_status
-                needs_save = True
+            scheduled_trip.current_status = self._vehicle_stop_status_map.get(
+                vehicle.current_status
+            )
 
-        # --- Update Current Stop Sequence ---
         if vehicle.HasField("current_stop_sequence"):
-            new_seq = int(vehicle.current_stop_sequence)
-            if scheduled_trip.current_stop_sequence != new_seq:
-                scheduled_trip.current_stop_sequence = new_seq
-                needs_save = True
+            scheduled_trip.current_stop_sequence = int(vehicle.current_stop_sequence)
 
         # --- Update Position ---
         if vehicle.HasField("position"):
@@ -458,56 +470,55 @@ class RealtimeUpdaterService:
                 bearing=pos.bearing if pos.HasField("bearing") else None,
                 speed=pos.speed if pos.HasField("speed") else None,
             )
-            # Simple update: always replace current position if new one exists
-            # TODO: More complex logic could check if timestamp is newer too
+
             if scheduled_trip.current_position != new_position:
+                old_position = scheduled_trip.current_position
                 scheduled_trip.current_position = new_position
-                # Add to history
-                if scheduled_trip.position_history is None:
-                    scheduled_trip.position_history = []
 
-                scheduled_trip.position_history.append(new_position)
+                # To simplify update, history is only updated when where is a new position
+                # even when other tracked fields may have changed.
+                if old_position:
+                    history = TripVehicleHistory(
+                        congestion_level=scheduled_trip.current_congestion,
+                        occupancy_status=scheduled_trip.current_occupancy,
+                        position=old_position,
+                        timestamp=last_updated_at_utc or update_timestamp_utc,
+                    )
+                    scheduled_trip.history.append(history)
 
-                needs_save = True
-
-        # --- Update Occupancy ---
+        # MUST come AFTER position update since make a snapshot of occupancy status
         if vehicle.HasField("occupancy_status"):
-            new_occ = self._occupancy_status_map.get(vehicle.occupancy_status)
-            if new_occ is not None and scheduled_trip.current_occupancy != new_occ:
-                scheduled_trip.current_occupancy = new_occ
-                needs_save = True
+            scheduled_trip.current_occupancy = self._occupancy_status_map.get(
+                vehicle.occupancy_status
+            )
 
-        # --- Update Trip Schedule Relationship (if provided in Vehicle message) ---
-        # This is less common than in TripUpdate, but possible
+        # MUST come AFTER position update since make a snapshot of congestion level
+        if vehicle.HasField("congestion_level"):
+            scheduled_trip.current_congestion = self._congestion_level_map.get(
+                vehicle.congestion_level
+            )
+
         if vehicle.trip.HasField("schedule_relationship"):
-            new_rel = self._trip_schedule_relationship_map.get(
-                vehicle.trip.schedule_relationship, TripDescriptorScheduleRelationship.SCHEDULED
+            scheduled_trip.schedule_relationship = (
+                self._trip_schedule_relationship_map.get(
+                    vehicle.trip.schedule_relationship,
+                    scheduled_trip.schedule_relationship,
+                )
             )
-            if scheduled_trip.realtime_schedule_relationship != new_rel:
-                scheduled_trip.realtime_schedule_relationship = new_rel
-                needs_save = True
 
-        # --- Update Timestamp and Save ---
-        if needs_save:
-            # Always update the timestamp if we save any changes from this entity
-            scheduled_trip.last_realtime_update_timestamp = update_timestamp_utc
-            try:
-                await scheduled_trip.save()
-                logger.debug(
-                    f"Successfully updated trip {scheduled_trip.trip_id} from VehiclePosition (Vehicle ID: {scheduled_trip.vehicle_id})."
-                )
-                return True
-            except Exception as e:
-                logger.error(
-                    f"Failed to save updated trip {scheduled_trip.trip_id} from VehiclePosition: {e}",
-                    exc_info=True,
-                )
-                return False
-        else:
+        scheduled_trip.position_updated_at = update_timestamp_utc
+        try:
+            await scheduled_trip.save()
             logger.debug(
-                f"No relevant changes detected for trip {scheduled_trip.trip_id} from VehiclePosition."
+                f"Successfully updated trip {scheduled_trip.trip_id} from VehiclePosition (Vehicle ID: {scheduled_trip.vehicle.vehicle_id})."
             )
-            return True  # No error, just no changes needed
+            return True
+        except Exception as e:
+            logger.error(
+                f"Failed to save updated trip {scheduled_trip.trip_id} from VehiclePosition: {e}",
+                exc_info=True,
+            )
+            return False
 
     def _get_entity_timestamp(
         self, entity: Message, feed_timestamp_utc: datetime.datetime
@@ -515,7 +526,7 @@ class RealtimeUpdaterService:
         """Gets timestamp from entity or defaults to feed timestamp, ensuring UTC."""
         if entity.HasField("timestamp"):
             ts = entity.timestamp
-            dt_naive = datetime.datetime.utcfromtimestamp(ts)
+            dt_naive = datetime.datetime.fromtimestamp(ts)
             return pytz.utc.localize(dt_naive)
         else:
             # Fallback to the feed's timestamp if entity lacks one
@@ -532,51 +543,3 @@ class RealtimeUpdaterService:
             return datetime.timedelta(hours=h, minutes=m, seconds=s)
         logger.warning(f"Could not parse HH:MM:SS string: '{time_str}'")
         return None
-
-    def _calculate_predicted_time_utc(
-        self,
-        trip_start_datetime_utc: Optional[datetime.datetime],
-        trip_start_time_str: str,  # HH:MM:SS
-        stop_time_str: Optional[str],  # HH:MM:SS
-        delay_seconds: Optional[int],
-    ) -> Optional[datetime.datetime]:
-        """
-        Calculates the predicted UTC time for a stop event.
-
-        Args:
-            trip_start_datetime_utc: The precomputed start datetime of the trip in UTC.
-            trip_start_time_str: The scheduled start time string (HH:MM:SS).
-            stop_time_str: The scheduled arrival/departure time string for the stop (HH:MM:SS).
-            delay_seconds: The realtime delay in seconds.
-
-        Returns:
-            The predicted time in UTC, or None if calculation is not possible.
-        """
-        if (
-            trip_start_datetime_utc is None
-            or stop_time_str is None
-            or delay_seconds is None
-        ):  # Delay 0 is valid, None is not
-            return None
-
-        start_delta = self._parse_hhmmss_to_delta(trip_start_time_str)
-        stop_delta = self._parse_hhmmss_to_delta(stop_time_str)
-
-        if start_delta is None or stop_delta is None:
-            logger.warning(
-                f"Could not parse start time '{trip_start_time_str}' or stop time '{stop_time_str}' to calculate predicted time."
-            )
-            return None
-
-        # Calculate the time difference from trip start to this stop's scheduled event time
-        time_diff_from_start = stop_delta - start_delta
-
-        # Scheduled time for the stop event in UTC
-        scheduled_stop_datetime_utc = trip_start_datetime_utc + time_diff_from_start
-
-        # Predicted time in UTC
-        predicted_stop_datetime_utc = scheduled_stop_datetime_utc + datetime.timedelta(
-            seconds=delay_seconds
-        )
-
-        return predicted_stop_datetime_utc
