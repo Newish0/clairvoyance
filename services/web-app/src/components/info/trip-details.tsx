@@ -1,4 +1,4 @@
-import { createEffect, createResource, mergeProps, onCleanup, onMount, Show } from "solid-js";
+import { createResource, mergeProps, onCleanup, onMount, Show } from "solid-js";
 import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
 import { Badge } from "../ui/badge";
 
@@ -43,7 +43,7 @@ const TripDetails = (props: TripDetailsProps) => {
                 routeId: finalProps.routeId,
                 stopId: finalProps.stopId,
                 endDatetime:
-                    ourTrip()?.scheduled_stop_times.find((st) => st.stop_id == finalProps.stopId)
+                    ourTrip()?.stop_times.find((st) => st.stop_id == finalProps.stopId)
                         ?.departure_datetime ?? addHours(new Date(), 4),
                 limit: 3,
             }),
@@ -111,9 +111,8 @@ const TripDetails = (props: TripDetailsProps) => {
                                 <p class="text-xs text-muted-foreground truncate">
                                     At{" "}
                                     {
-                                        trip().scheduled_stop_times.find(
-                                            (s) => s.stop_id === props.stopId
-                                        )?.stop_name
+                                        trip().stop_times.find((s) => s.stop_id === props.stopId)
+                                            ?.stop_name
                                     }
                                 </p>
                             </div>
@@ -148,16 +147,12 @@ const TripDetails = (props: TripDetailsProps) => {
                 {(trip) => (
                     <div class="max-h overflow-auto">
                         <TransitRouteTimeline
-                            stops={trip().scheduled_stop_times.map((s) => ({
+                            stops={trip().stop_times.map((s) => ({
                                 stopName: s.stop_name,
-                                stopTime: trip().realtime_stop_updates[s.stop_sequence] ? (
+                                stopTime: s.predicted_arrival_datetime ? (
                                     <div class="flex items-center">
                                         <span class="w-16 text-center">
-                                            {format(
-                                                trip().realtime_stop_updates[s.stop_sequence]
-                                                    .predicted_arrival_time,
-                                                "p"
-                                            )}
+                                            {format(s.predicted_arrival_datetime, "p")}
                                         </span>
 
                                         <div class="h-6 rotate-45">
@@ -165,13 +160,11 @@ const TripDetails = (props: TripDetailsProps) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    format(new Date(s.arrival_datetime), "p")
+                                    format(s.arrival_datetime, "p")
                                 ),
                             }))}
                             activeStop={
-                                trip().scheduled_stop_times.findIndex(
-                                    (s) => s.stop_id === props.stopId
-                                ) ?? -1
+                                trip().stop_times.findIndex((s) => s.stop_id === props.stopId) ?? -1
                             }
                         />
                         <div class="h-5/6">{/* Empty space */}</div>

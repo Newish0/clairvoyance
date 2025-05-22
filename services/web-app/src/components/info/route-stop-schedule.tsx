@@ -47,17 +47,11 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
         const groupedByTheHour: Record<string, DepartureItem[]> = {};
 
         for (const trip of curDayTrips()) {
-            const staticStopTime = trip.scheduled_stop_times.find(
-                (s) => s.stop_id === props.stopId
-            );
-            const predictedDepartureTime = staticStopTime
-                ? trip.realtime_stop_updates[staticStopTime?.stop_sequence]
-                      ?.predicted_departure_time
-                : undefined;
+            const stopTime = trip.stop_times.find((s) => s.stop_id === props.stopId);
+            const predictedDepartureTime = stopTime.predicted_departure_datetime;
 
-            const departureDatetime: string = predictedDepartureTime
-                ? predictedDepartureTime
-                : staticStopTime?.departure_datetime;
+            const departureDatetime: string =
+                stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
 
             const tripHeadsign = trip.trip_headsign;
 
@@ -99,7 +93,6 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                     <ChevronRightIcon />
                 </Button>
             </div>
-
 
             <Suspense fallback={<SimpleDepartureScheduleSkeleton />}>
                 <SimpleDepartureSchedule

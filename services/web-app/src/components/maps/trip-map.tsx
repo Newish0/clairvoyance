@@ -1,16 +1,14 @@
 import {
-    createEffect,
     createResource,
     createSignal,
     For,
-    on,
     onCleanup,
     onMount,
     Show,
     type Component,
 } from "solid-js";
 
-import MapGL, { Layer, Marker, Source, type Viewport, Image } from "solid-map-gl";
+import MapGL, { Layer, Marker, Source, type Viewport } from "solid-map-gl";
 
 import * as maplibre from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -27,23 +25,16 @@ import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
 import { getScheduledTripDetails } from "~/services/trips";
 
-import { ProgressCircle } from "~/components/ui/progress-circle";
-import { Badge } from "../ui/badge";
-import { createGeolocationWatcher } from "@solid-primitives/geolocation";
-import { $selectedUserLocation } from "~/stores/selected-location-store";
 import { useStore } from "@nanostores/solid";
+import { createGeolocationWatcher } from "@solid-primitives/geolocation";
+import { ProgressCircle } from "~/components/ui/progress-circle";
+import { $selectedUserLocation } from "~/stores/selected-location-store";
 import { isFpEqual } from "~/utils/numbers";
+import { Badge } from "../ui/badge";
 
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from "~/components/ui/sheet";
-import TripVehicleInfo from "../ui/trip-vehicle-info";
+import { Sheet, SheetContent } from "~/components/ui/sheet";
 import { OccupancyStatus } from "../ui/occupancy-badge";
+import TripVehicleInfo from "../ui/trip-vehicle-info";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -64,7 +55,7 @@ const TripMap: Component<TripMapProps> = (props) => {
     );
     const [rawStopsGeoJson] = createResource(
         () => ({
-            stopIds: tripDetails()?.scheduled_stop_times.map((st) => st.stop_id),
+            stopIds: tripDetails()?.stop_times.map((st) => st.stop_id),
         }),
         ({ stopIds }) => stopIds && getStopsGeoJson(stopIds)
     );
@@ -80,7 +71,7 @@ const TripMap: Component<TripMapProps> = (props) => {
         if (!rawStopsGeoJson() || !tripDetails()) return;
 
         // Sort by stop sequence
-        const stopTimes = tripDetails()?.scheduled_stop_times;
+        const stopTimes = tripDetails()?.stop_times;
 
         const sortedFeatures = rawStopsGeoJson()?.features.toSorted(
             (a, b) =>
@@ -116,7 +107,7 @@ const TripMap: Component<TripMapProps> = (props) => {
     const groupedShapeLineGeoJson = () => {
         if (!rawShapeLineGeoJson() || !tripDetails()) return;
 
-        const stopTimes = tripDetails()?.scheduled_stop_times;
+        const stopTimes = tripDetails()?.stop_times;
 
         const ourStopTime = stopTimes.find((st) => st.stop_id === props.stopId);
 
@@ -312,7 +303,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                         }
 
                         const calSecondsAgo = () =>
-                            differenceInSeconds(new Date(), trip.last_realtime_update_timestamp);
+                            differenceInSeconds(new Date(), trip.position_updated_at);
 
                         const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
 
