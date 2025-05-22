@@ -14,7 +14,7 @@ export const fetchRouteLiveVehicles = async (
         .find({
             route_id: routeId,
             ...(directionId === undefined ? {} : { direction_id: directionId }),
-            last_realtime_update_timestamp: { $gte: dateFiveMinAgo },
+            position_updated_at: { $gte: dateFiveMinAgo },
         })
         .toArray();
 
