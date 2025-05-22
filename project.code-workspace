@@ -2,25 +2,26 @@
     "folders": [
         {
             "name": "Root",
-            "path": "../"
+            "path": "./"
         },
         {
             "name": "GTFS API Serivce",
-            "path": "../services/gtfs-api"
+            "path": "./services/gtfs-api"
         },
         {
             "name": "GTFS Processor",
-            "path": "../services/gtfs-processor"
+            "path": "./services/gtfs-processor"
         },
         {
             "name": "Web App",
-            "path": "../services/web-app"
+            "path": "./services/web-app"
         },
-    
     ],
     "settings": {
         "files.exclude": {
-            
+            "**/node_modules": true,
+            "**/dist": true,
+            "**/.venv": true
         },
     }
 }
