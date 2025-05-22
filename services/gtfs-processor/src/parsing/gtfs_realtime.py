@@ -204,8 +204,7 @@ class RealtimeUpdaterService:
         if feed.header.HasField("timestamp"):
             ts = feed.header.timestamp
             # Assume timestamp is Unix epoch
-            dt_naive = datetime.datetime.utcfromtimestamp(ts)
-            return pytz.utc.localize(dt_naive)
+            return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
         else:
             # Fallback to current time if header timestamp is missing
             logger.warning("Feed header missing timestamp, using current time.")
@@ -312,12 +311,11 @@ class RealtimeUpdaterService:
                     license_plate=trip_update.vehicle.license_plate,
                     wheelchair_accessible=trip_update.vehicle.wheelchair_accessible,
                 )
-                
+
         # --- Process Stop Time Updates ---
         for stu in trip_update.stop_time_update:
             stop_sequence = stu.stop_sequence  # Required field
             stop_id = stu.stop_id
-            
 
             # Find the scheduled stop time info (for reference and delay calculation)
             scheduled_stop = next(
@@ -328,7 +326,7 @@ class RealtimeUpdaterService:
                 ),
                 None,
             )
-            
+
             if not scheduled_stop:
                 logger.warning(
                     f"StopTimeUpdate for trip {scheduled_trip.trip_id} has unknown stop_sequence {stop_sequence}. Skipping update."
@@ -405,7 +403,7 @@ class RealtimeUpdaterService:
                 f"No relevant changes detected for trip {scheduled_trip.trip_id} from TripUpdate."
             )
             return True  # No error, just no changes needed saving
-        
+
         return True
 
     async def _process_vehicle_position(
@@ -530,8 +528,7 @@ class RealtimeUpdaterService:
         """Gets timestamp from entity or defaults to feed timestamp, ensuring UTC."""
         if entity.HasField("timestamp"):
             ts = entity.timestamp
-            dt_naive = datetime.datetime.fromtimestamp(ts)
-            return pytz.utc.localize(dt_naive)
+            return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
         else:
             # Fallback to the feed's timestamp if entity lacks one
             return feed_timestamp_utc
