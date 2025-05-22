@@ -312,11 +312,12 @@ class RealtimeUpdaterService:
                     license_plate=trip_update.vehicle.license_plate,
                     wheelchair_accessible=trip_update.vehicle.wheelchair_accessible,
                 )
-
+                
         # --- Process Stop Time Updates ---
         for stu in trip_update.stop_time_update:
             stop_sequence = stu.stop_sequence  # Required field
             stop_id = stu.stop_id
+            
 
             # Find the scheduled stop time info (for reference and delay calculation)
             scheduled_stop = next(
@@ -327,6 +328,7 @@ class RealtimeUpdaterService:
                 ),
                 None,
             )
+            
             if not scheduled_stop:
                 logger.warning(
                     f"StopTimeUpdate for trip {scheduled_trip.trip_id} has unknown stop_sequence {stop_sequence}. Skipping update."
@@ -352,14 +354,15 @@ class RealtimeUpdaterService:
             if stu.HasField("arrival"):
                 arrival_delay = stu.arrival.delay
                 predicted_arrival_datetime = datetime.datetime.fromtimestamp(
-                    stu.arrival.time
+                    stu.arrival.time, tz=datetime.timezone.utc
                 )
                 if stu.arrival.HasField("uncertainty"):
                     predicted_arrival_uncertainty = stu.arrival.uncertainty
             if stu.HasField("departure"):
                 departure_delay = stu.departure.delay
                 predicted_departure_datetime = datetime.datetime.fromtimestamp(
-                    stu.departure.time
+                    stu.departure.time,
+                    tz=datetime.timezone.utc,
                 )
                 if stu.departure.HasField("uncertainty"):
                     predicted_departure_uncertainty = stu.departure.uncertainty
@@ -381,14 +384,16 @@ class RealtimeUpdaterService:
             )
             scheduled_stop.schedule_relationship = schedule_relationship
 
+            scheduled_stop_index = scheduled_trip.stop_times.index(scheduled_stop)
+            scheduled_trip.stop_times[scheduled_stop_index] = scheduled_stop
+
             # --- Update Timestamp and Save ---
             scheduled_trip.stop_times_updated_at = update_timestamp_utc
             try:
-                await scheduled_trip.save()
+                await scheduled_trip.save()  # TODO: Perf optimization
                 logger.debug(
                     f"Successfully updated trip {scheduled_trip.trip_id} from TripUpdate."
                 )
-                return True
             except Exception as e:
                 logger.error(
                     f"Failed to save updated trip {scheduled_trip.trip_id}: {e}",
@@ -400,6 +405,8 @@ class RealtimeUpdaterService:
                 f"No relevant changes detected for trip {scheduled_trip.trip_id} from TripUpdate."
             )
             return True  # No error, just no changes needed saving
+        
+        return True
 
     async def _process_vehicle_position(
         self,
@@ -433,12 +440,7 @@ class RealtimeUpdaterService:
 
         # Skip if already up to date
         if last_updated_at_utc and last_updated_at_utc >= update_timestamp_utc:
-            print(
-                "SKIP",
-                last_updated_at_utc,
-                update_timestamp_utc,
-                last_updated_at_utc >= update_timestamp_utc,
-            )
+
             logger.debug(
                 f"Skipping VehiclePosition for vehicle {vehicle.vehicle.id} as it's already up to date."
             )
@@ -533,15 +535,3 @@ class RealtimeUpdaterService:
         else:
             # Fallback to the feed's timestamp if entity lacks one
             return feed_timestamp_utc
-
-    @staticmethod
-    def _parse_hhmmss_to_delta(time_str: Optional[str]) -> Optional[datetime.timedelta]:
-        """Parses HH:MM:SS string (can be >24h) into a timedelta."""
-        if not time_str:
-            return None
-        match = re.match(r"\s*(\d+):([0-5]\d):([0-5]\d)\s*", time_str)
-        if match:
-            h, m, s = map(int, match.groups())
-            return datetime.timedelta(hours=h, minutes=m, seconds=s)
-        logger.warning(f"Could not parse HH:MM:SS string: '{time_str}'")
-        return None

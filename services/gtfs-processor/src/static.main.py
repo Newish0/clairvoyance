@@ -414,7 +414,7 @@ async def main():
         if DROP_COLLECTIONS:
             logger.info("Dropping existing collections...")
             for collection in DOCUMENT_MODELS:
-                await client[DATABASE_NAME][collection.get_collection_name()].drop()
+                await client[DATABASE_NAME][collection.Settings.name].drop()
             logger.info("Existing collections dropped.")
 
         logger.info(f"Initializing Beanie with database '{DATABASE_NAME}'...")
