@@ -107,6 +107,7 @@ class RealtimeUpdaterService:
         """
         processed_trip_updates = 0
         processed_vehicle_updates = 0
+        processed_alerts = 0
         total_entities = 0
 
         try:
@@ -144,7 +145,8 @@ class RealtimeUpdaterService:
 
             logger.info(
                 f"Processed {processed_trip_updates} trip updates, "
-                f"{processed_vehicle_updates} vehicle updates out of "
+                f"{processed_vehicle_updates} vehicle updates, "
+                f"{processed_alerts} alerts, out of "
                 f"{total_entities} entities from {data_source}"
             )
 

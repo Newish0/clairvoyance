@@ -20,7 +20,7 @@ export const fetchScheduledTripDetails = async (tripObjectId: string) => {
     // Add stop name to trip.scheduled_stop_times
     if (trip) {
         await Promise.all(
-            trip.scheduled_stop_times?.map(async (stopTime: any) => {
+            trip.stop_times?.map(async (stopTime: any) => {
                 stopTime.stop_name = await stopNameService.getStopNameByStopId(stopTime.stop_id);
             }) ?? []
         );
@@ -60,7 +60,7 @@ export const fetchScheduledTrips = async ({
                 // and match the route and direction
                 // and match the start and end datetimes search range if provided
                 $match: {
-                    "scheduled_stop_times.stop_id": stopId,
+                    "stop_times.stop_id": stopId,
                     route_id: routeId,
                     ...(directionId ? { direction_id: parseInt(directionId) } : {}),
                     ...(startDatetime && {
@@ -82,7 +82,7 @@ export const fetchScheduledTrips = async ({
                 $addFields: {
                     relevantStopTimes: {
                         $filter: {
-                            input: "$scheduled_stop_times",
+                            input: "$stop_times",
                             as: "stopTime",
                             cond: {
                                 $and: [
@@ -123,7 +123,7 @@ export const fetchScheduledTrips = async ({
                                                             // Ensure realtime data is NOT stale (AKA last realtime update was within x minutes)
                                                             {
                                                                 $gte: [
-                                                                    "$last_realtime_update_timestamp",
+                                                                    "$stop_times_updated_at",
                                                                     dateFiveMinAgo,
                                                                 ],
                                                             },
@@ -264,14 +264,14 @@ export const fetchNearbyTrips = async (
     const relevantStopTimesCursor = scheduledTripsCollection.aggregate([
         {
             $match: {
-                "scheduled_stop_times.stop_id": { $in: stopIds },
+                "stop_times.stop_id": { $in: stopIds },
                 start_datetime: { $lt: maxDate }, // Limit for performance
             },
         },
-        { $unwind: "$scheduled_stop_times" },
+        { $unwind: "$stop_times" },
         {
             $match: {
-                "scheduled_stop_times.stop_id": { $in: stopIds },
+                "stop_times.stop_id": { $in: stopIds },
             },
         },
         // --- $match stage ---
@@ -279,13 +279,13 @@ export const fetchNearbyTrips = async (
             $match: {
                 $or: [
                     // Static schedule check: departure time is in the future
-                    { "scheduled_stop_times.departure_datetime": { $gt: now } },
+                    { "stop_times.departure_datetime": { $gt: now } },
                     // Realtime check:
                     {
                         $and: [
                             // Realtime data exists and is fresh
                             { current_stop_sequence: { $ne: null } },
-                            { last_realtime_update_timestamp: { $gte: realtimeThreshold } },
+                            { stop_times_updated_at: { $gte: realtimeThreshold } },
                             // Realtime indicates trip hasn't passed the stop yet OR is currently at the stop
                             // Use $expr for field-to-field comparisons within $match
                             {
@@ -295,7 +295,7 @@ export const fetchNearbyTrips = async (
                                         // Stop sequence is greater than current sequence
                                         {
                                             $gt: [
-                                                "$scheduled_stop_times.stop_sequence",
+                                                "$stop_times.stop_sequence",
                                                 "$current_stop_sequence",
                                             ],
                                         },
@@ -304,7 +304,7 @@ export const fetchNearbyTrips = async (
                                             $and: [
                                                 {
                                                     $eq: [
-                                                        "$scheduled_stop_times.stop_sequence",
+                                                        "$stop_times.stop_sequence",
                                                         "$current_stop_sequence",
                                                     ],
                                                 },
@@ -322,7 +322,7 @@ export const fetchNearbyTrips = async (
         },
         {
             $sort: {
-                "scheduled_stop_times.departure_datetime": 1,
+                "stop_times.departure_datetime": 1,
             },
         },
         {
@@ -334,21 +334,11 @@ export const fetchNearbyTrips = async (
                 start_datetime: 1,
                 route_short_name: 1,
                 trip_headsign: 1,
-                stop_time: "$scheduled_stop_times",
-                realtime_stop_updates: {
-                    // Renamed for clarity
-                    $getField: {
-                        // Important: Ensure the type matches the object keys. If keys are strings, convert:
-                        field: { $toString: "$scheduled_stop_times.stop_sequence" },
-                        // If keys are numbers (less common for object keys), just use:
-                        // field: "$scheduled_stop_times.stop_sequence",
-                        input: "$realtime_stop_updates", // The object to look inside
-                    },
-                },
+                stop_time: "$stop_times",
                 current_status: 1,
                 current_stop_sequence: 1,
                 vehicle: 1,
-                last_realtime_update_timestamp: 1,
+                stop_times_updated_at: 1,
             },
         },
     ]);

@@ -1,26 +1,5 @@
 import { getDb } from "./mongo";
 
-// export const fetchNearbyStops = async (lat: number, lng: number, radius: number) => {
-//     const db = await getDb();
-
-//     const stops = await db
-//         .collection("stops")
-//         .find({
-//             location: {
-//                 $near: {
-//                     $geometry: {
-//                         type: "Point",
-//                         coordinates: [lng, lat],
-//                     },
-//                     $maxDistance: radius,
-//                 },
-//             },
-//         })
-//         .toArray();
-
-//     return { stops: stops, nextTrips: [] };
-// };
-
 export const fetchStopsGeoJSON = async (stopIds: string[]) => {
     const db = await getDb();
 
@@ -53,14 +32,14 @@ export const fetchNextTripsByStop = async (stopId: string) => {
             {
                 // First filter to only include trips that have our stop of interest
                 $match: {
-                    "scheduled_stop_times.stop_id": stopId,
+                    "stop_times.stop_id": stopId,
                 },
             },
             {
                 $addFields: {
                     relevantStopTimes: {
                         $filter: {
-                            input: "$scheduled_stop_times",
+                            input: "$stop_times",
                             as: "stopTime",
                             cond: {
                                 $and: [
@@ -101,7 +80,7 @@ export const fetchNextTripsByStop = async (stopId: string) => {
                                                             // Ensure realtime data is NOT stale (AKA last realtime update was within 5 minutes)
                                                             {
                                                                 $gte: [
-                                                                    "$last_realtime_update_timestamp",
+                                                                    "$stop_times_updated_at",
                                                                     (() => {
                                                                         const dt = new Date();
                                                                         dt.setMinutes(
