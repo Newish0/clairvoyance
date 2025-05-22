@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
-import { differenceInMinutes, differenceInSeconds } from "date-fns";
-import { ArrowRightCircleIcon, ArrowRightIcon, Clock, MapPin, MapPinIcon } from "lucide-solid";
-import { type Component, Show } from "solid-js";
+import { differenceInMinutes, differenceInSeconds, type DateArg } from "date-fns";
+import { Clock } from "lucide-solid";
+import { Show, type Component } from "solid-js";
 import { recordToSearchParams } from "~/utils/urls";
 import RealTimeIndicator from "../ui/realtime-indicator";
 
@@ -12,8 +12,8 @@ export interface DepartureCardKeyProps {
     tripHeadsign: string;
     stopId: string;
     stopName: string;
-    scheduledDepartureTime: Date;
-    predictedDepartureTime?: Date;
+    scheduledDepartureTime: DateArg<Date>;
+    predictedDepartureTime?: DateArg<Date> | null;
 }
 
 export interface DepartureCardProps extends DepartureCardKeyProps {
@@ -25,14 +25,15 @@ export interface DepartureCardProps extends DepartureCardKeyProps {
 }
 
 export const DepartureCard: Component<DepartureCardProps> = (props) => {
-    const departureMinutes = differenceInMinutes(
-        props.predictedDepartureTime ?? props.scheduledDepartureTime,
-        new Date()
-    );
-    const delayInSeconds = differenceInSeconds(
-        props.predictedDepartureTime,
-        props.scheduledDepartureTime
-    );
+    const departureMinutes = () =>
+        differenceInMinutes(
+            props.predictedDepartureTime ?? props.scheduledDepartureTime,
+            new Date()
+        );
+    const delayInSeconds = () =>
+        props.predictedDepartureTime
+            ? differenceInSeconds(props.predictedDepartureTime, props.scheduledDepartureTime)
+            : null;
 
     const queryParams = () =>
         recordToSearchParams({
@@ -78,12 +79,12 @@ export const DepartureCard: Component<DepartureCardProps> = (props) => {
                 <div class="relative overflow-visible p-2 mr-1">
                     <div class="flex items-center space-x-1">
                         <Clock class="h-3 w-3" />
-                        <span class="text-lg font-bold">{departureMinutes}</span>
+                        <span class="text-lg font-bold">{departureMinutes()}</span>
                         <span class="text-xs">min</span>
                     </div>
 
-                    <Show when={delayInSeconds !== 0}>
-                        <RealTimeIndicator delay={delayInSeconds} />
+                    <Show when={typeof delayInSeconds() === "number"}>
+                        <RealTimeIndicator delay={delayInSeconds()} />
                     </Show>
 
                     {/* <Show when={import.meta.env.DEV && props.predictedDepartureTime}>

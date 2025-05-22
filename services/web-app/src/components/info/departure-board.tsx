@@ -69,10 +69,8 @@ export const DepartureBoard: Component = () => {
                                 tripObjectId: trip._id, // NOTE: Requires Mongo Object ID b/c this is ScheduledTrip
                                 stopName: trip.stop_name,
                                 tripHeadsign: trip.trip_headsign,
-                                predictedDepartureTime: trip.realtime_stop_updates
-                                    ? new Date(trip.realtime_stop_updates.predicted_departure_time)
-                                    : undefined,
-                                scheduledDepartureTime: new Date(trip.stop_time.departure_datetime),
+                                predictedDepartureTime: trip.stop_time.predicted_departure_datetime,
+                                scheduledDepartureTime: trip.stop_time.departure_datetime,
                                 ...(trips.length > 1
                                     ? {
                                           alt: {

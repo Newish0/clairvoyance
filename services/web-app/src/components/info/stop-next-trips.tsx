@@ -1,29 +1,18 @@
-import { addHours, differenceInMinutes, differenceInSeconds, type DateArg } from "date-fns";
+import { differenceInMinutes, differenceInSeconds, type DateArg } from "date-fns";
 import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
-import {
-    createEffect,
-    createResource,
-    createSignal,
-    For,
-    onCleanup,
-    onMount,
-    Show,
-    type Accessor,
-    type Component,
-} from "solid-js";
+import { createEffect, createSignal, For, Show, type Accessor, type Component } from "solid-js";
 import { cn } from "~/lib/utils";
-import { getRouteNextTripsAtStop } from "~/services/trips";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "../ui/carousel";
 import OccupancyBadge, { OccupancyStatus } from "../ui/occupancy-badge";
 import RealTimeIndicator from "../ui/realtime-indicator";
 
+import { MapPin } from "lucide-solid";
 import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import RouteStopSchedule from "./route-stop-schedule";
-import { MapPin } from "lucide-solid";
 
 type StopNextTripsProps = {
     routeId: string;
@@ -46,10 +35,10 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
         // If there is a viewing trip and it's not in the list, add it.
         if (viewingTrip() && stopNextTrips()?.every((t) => t._id != viewingTrip()._id)) {
             const sortedTrips = [viewingTrip(), ...stopNextTrips()].toSorted((a, b) => {
-                const aDepartureTime = a.scheduled_stop_times.find(
+                const aDepartureTime = a.stop_times.find(
                     (st) => st.stop_id == props.stopId
                 )?.departure_datetime;
-                const bDepartureTime = b.scheduled_stop_times.find(
+                const bDepartureTime = b.stop_times.find(
                     (st) => st.stop_id == props.stopId
                 )?.departure_datetime;
                 return aDepartureTime > bDepartureTime ? 1 : -1;
@@ -98,7 +87,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                 }
                             >
                                 {(_) => {
-                                    const stop = trip.scheduled_stop_times.find(
+                                    const stop = trip.stop_times.find(
                                         (st) => st.stop_id == props.stopId
                                     );
 
@@ -108,12 +97,9 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                 routeId={props.routeId}
                                                 stopId={props.stopId}
                                                 tripObjectId={trip._id}
-                                                scheduledDepartureDatetime={
-                                                    stop?.departure_datetime
-                                                }
+                                                scheduledDepartureDatetime={stop.departure_datetime}
                                                 predictedDepartureDatetime={
-                                                    trip?.realtime_stop_updates[stop.stop_sequence]
-                                                        ?.predicted_departure_time
+                                                    stop.predicted_departure_datetime
                                                 }
                                                 viewingTripObjectId={viewingTrip()?._id}
                                                 hasLeft={
@@ -160,7 +146,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                         <p class="text-sm font-light flex items-center gap-1 mt-1 ">
                                                             <MapPin class="h-4 w-4" />
                                                             {
-                                                                viewingTrip()?.scheduled_stop_times.find(
+                                                                viewingTrip()?.stop_times.find(
                                                                     (s) =>
                                                                         s.stop_id === props.stopId
                                                                 ).stop_name

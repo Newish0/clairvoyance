@@ -77,8 +77,8 @@ router.get(
                         } else {
                             // Vehicle Exists: Check if updated
                             if (
-                                existingVehicle.last_realtime_update_timestamp <
-                                latestVehicle.last_realtime_update_timestamp
+                                existingVehicle.position_updated_at <
+                                latestVehicle.position_updated_at
                             ) {
                                 // Vehicle is updated
                                 await stream.writeSSE({

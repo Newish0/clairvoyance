@@ -198,7 +198,7 @@ interface TripVehicleInfoProps {
 const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
     // Find our stop in the sequence
     const ourStop = createMemo(() => {
-        return props.trip.scheduled_stop_times.find((st: any) => st.stop_id === props.stopId);
+        return props.trip.stop_times.find((st: any) => st.stop_id === props.stopId);
     });
 
     const ourStopSequence = createMemo(() => ourStop()?.stop_sequence);
@@ -215,8 +215,7 @@ const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
     });
 
     const predictedDepartureDatetime = createMemo(() => {
-        if (ourStopSequence() === undefined) return null;
-        return props.trip.realtime_stop_updates[ourStopSequence()]?.predicted_departure_time;
+        return ourStop()?.predicted_departure_datetime ?? null;
     });
 
     const scheduledDepartureDatetime = createMemo(() => {
@@ -341,7 +340,7 @@ const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
                             <p class="italic text-muted-foreground text-right">
                                 Updated{" "}
                                 {formatDistanceToNow(
-                                    new Date(props.trip.last_realtime_update_timestamp),
+                                    new Date(props.trip.position_updated_at),
                                     {
                                         addSuffix: true,
                                         includeSeconds: true,
