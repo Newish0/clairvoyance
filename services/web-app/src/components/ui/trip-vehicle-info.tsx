@@ -225,15 +225,12 @@ const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
     const departureMinutes = createMemo(() => {
         const departureTime = predictedDepartureDatetime() || scheduledDepartureDatetime();
         if (!departureTime) return null;
-        return differenceInMinutes(new Date(departureTime), new Date());
+        return differenceInMinutes(departureTime, new Date());
     });
 
     const delaySeconds = createMemo(() => {
         if (!predictedDepartureDatetime() || !scheduledDepartureDatetime()) return null;
-        return differenceInSeconds(
-            new Date(predictedDepartureDatetime()),
-            new Date(scheduledDepartureDatetime())
-        );
+        return differenceInSeconds(predictedDepartureDatetime(), scheduledDepartureDatetime());
     });
 
     const etaMsg = createMemo(() => {
@@ -335,17 +332,14 @@ const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
                         <div class="flex items-center justify-between text-sm">
                             <div class="flex items-center gap-2">
                                 <Bus class="h-4 w-4 text-muted-foreground" />
-                                <span>Bus {props.trip.vehicle_id || "Unknown"}</span>
+                                <span>Bus {props.trip.vehicle.vehicle_id || "Unknown"}</span>
                             </div>
                             <p class="italic text-muted-foreground text-right">
                                 Updated{" "}
-                                {formatDistanceToNow(
-                                    new Date(props.trip.position_updated_at),
-                                    {
-                                        addSuffix: true,
-                                        includeSeconds: true,
-                                    }
-                                )}
+                                {formatDistanceToNow(new Date(props.trip.position_updated_at), {
+                                    addSuffix: true,
+                                    includeSeconds: true,
+                                })}
                             </p>
                         </div>
                     </div>
