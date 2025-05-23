@@ -1,7 +1,5 @@
 import datetime
-import re
-import logging
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, Optional, Tuple, Union
 from pathlib import Path
 import pytz
 import requests
@@ -276,6 +274,8 @@ class RealtimeUpdaterService:
         if not scheduled_trip:
             return False
 
+        original_scheduled_trip = scheduled_trip.copy(deep=True)
+
         update_timestamp_utc = self._get_entity_timestamp(
             trip_update, feed_timestamp_utc
         )
@@ -382,16 +382,18 @@ class RealtimeUpdaterService:
             )
             scheduled_stop.schedule_relationship = schedule_relationship
 
-            scheduled_stop_index = scheduled_trip.stop_times.index(scheduled_stop)
-            scheduled_trip.stop_times[scheduled_stop_index] = scheduled_stop
+            # scheduled_stop_index = scheduled_trip.stop_times.index(scheduled_stop)
+            # scheduled_trip.stop_times[scheduled_stop_index] = scheduled_stop
 
+        if not original_scheduled_trip == scheduled_trip:
             # --- Update Timestamp and Save ---
             scheduled_trip.stop_times_updated_at = update_timestamp_utc
             try:
-                await scheduled_trip.save()  # TODO: Perf optimization
+                await scheduled_trip.save()
                 logger.debug(
                     f"Successfully updated trip {scheduled_trip.trip_id} from TripUpdate."
                 )
+                return True
             except Exception as e:
                 logger.error(
                     f"Failed to save updated trip {scheduled_trip.trip_id}: {e}",
@@ -403,8 +405,6 @@ class RealtimeUpdaterService:
                 f"No relevant changes detected for trip {scheduled_trip.trip_id} from TripUpdate."
             )
             return True  # No error, just no changes needed saving
-
-        return True
 
     async def _process_vehicle_position(
         self,
@@ -427,6 +427,8 @@ class RealtimeUpdaterService:
                 f"No scheduled trip found for VehiclePosition (vehicle: {vehicle.vehicle.id}, trip: {vehicle.trip.trip_id}). Skipping update."
             )
             return False
+
+        original_scheduled_trip = scheduled_trip.copy(deep=True)
 
         update_timestamp_utc = self._get_entity_timestamp(vehicle, feed_timestamp_utc)
 
@@ -507,6 +509,12 @@ class RealtimeUpdaterService:
                     scheduled_trip.schedule_relationship,
                 )
             )
+
+        if original_scheduled_trip == scheduled_trip:
+            logger.debug(
+                f"No relevant changes detected for trip {scheduled_trip.trip_id} from VehiclePosition (Vehicle ID: {scheduled_trip.vehicle.vehicle_id})."
+            )
+            return False
 
         scheduled_trip.position_updated_at = update_timestamp_utc
         try:
