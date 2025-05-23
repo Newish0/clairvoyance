@@ -1,14 +1,22 @@
-import { createResource, mergeProps, onCleanup, onMount, Show } from "solid-js";
+import { createResource, mergeProps, onCleanup, onMount, Show, type Component } from "solid-js";
 import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
 import { Badge } from "../ui/badge";
 
 import { addHours, format } from "date-fns";
-import { ArrowLeftRightIcon, TriangleAlert, WifiHighIcon } from "lucide-solid";
+import {
+    ArrowLeftRightIcon,
+    CircleIcon,
+    CircleMinusIcon,
+    TriangleAlert,
+    WifiHighIcon,
+} from "lucide-solid";
 import { getRouteNextTripsAtStop, getScheduledTripDetails } from "~/services/trips";
 import { recordToSearchParams } from "~/utils/urls";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { buttonVariants } from "../ui/button";
 import StopNextTrips from "./stop-next-trips";
+
+import { StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
 
 interface TripDetailsProps {
     tripObjectId: string;
@@ -147,22 +155,43 @@ const TripDetails = (props: TripDetailsProps) => {
                 {(trip) => (
                     <div class="max-h overflow-auto">
                         <TransitRouteTimeline
-                            stops={trip().stop_times.map((s) => ({
-                                stopName: s.stop_name,
-                                stopTime: s.predicted_arrival_datetime ? (
-                                    <div class="flex items-center">
-                                        <span class="w-16 text-center">
-                                            {format(s.predicted_arrival_datetime, "p")}
-                                        </span>
+                            stops={trip().stop_times.map((s) => {
+                                const stopSkipped =
+                                    s.schedule_relationship ===
+                                    StopTimeUpdateScheduleRelationship.SKIPPED;
 
-                                        <div class="h-6 rotate-45">
-                                            <WifiHighIcon size={16} class="animate-pulse" />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    format(s.arrival_datetime, "p")
-                                ),
-                            }))}
+                                const stopName = () =>
+                                    stopSkipped ? <s>{s.stop_name}</s> : s.stop_name;
+
+                                const stopTime = () => {
+                                    if (stopSkipped) {
+                                        return (
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-16 text-right">Closed</span>
+                                                <CircleMinusIcon size={16} />
+                                            </div>
+                                        );
+                                    } else if (s.predicted_arrival_datetime) {
+                                        return (
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-16 text-right">
+                                                    {format(s.predicted_arrival_datetime, "p")}
+                                                </span>
+
+                                                <div class="h-6 rotate-45">
+                                                    <WifiHighIcon size={16} class="animate-pulse" />
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return format(s.arrival_datetime, "p");
+                                };
+
+                                return {
+                                    stopName: stopName(),
+                                    stopTime: stopTime(),
+                                };
+                            })}
                             activeStop={
                                 trip().stop_times.findIndex((s) => s.stop_id === props.stopId) ?? -1
                             }

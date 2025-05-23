@@ -14,6 +14,8 @@ import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import RouteStopSchedule from "./route-stop-schedule";
 
+import { TripDescriptorScheduleRelationship } from "gtfs-db-types";
+
 type StopNextTripsProps = {
     routeId: string;
     stopId: string;
@@ -106,6 +108,10 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                     trip.current_stop_sequence > stop.stop_sequence
                                                 }
                                                 occupancyStatus={trip.current_occupancy}
+                                                isCancelled={
+                                                    trip.schedule_relationship ===
+                                                    TripDescriptorScheduleRelationship.CANCELED
+                                                }
                                             />
                                         </CarouselItem>
                                     );
@@ -185,6 +191,7 @@ const TripOptionItem: Component<{
     scheduledDepartureDatetime: DateArg<Date>;
     hasLeft?: boolean;
     occupancyStatus?: number;
+    isCancelled?: boolean;
 }> = (props) => {
     const departureMinutes = () =>
         differenceInMinutes(
@@ -223,7 +230,12 @@ const TripOptionItem: Component<{
                             !curViewing() && "opacity-75"
                         )}
                     >
-                        <div class={cn(curViewing() ? "font-medium" : "font-light")}>
+                        <div
+                            class={cn(
+                                curViewing() ? "font-medium" : "font-light",
+                                props.isCancelled ? "line-through text-muted-foreground" : ""
+                            )}
+                        >
                             {etaMsg()}
                         </div>
 

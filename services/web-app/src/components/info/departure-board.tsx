@@ -7,6 +7,7 @@ import { debounce } from "@solid-primitives/scheduled";
 import { Skeleton } from "../ui/skeleton";
 import { useStore } from "@nanostores/solid";
 import { $selectedUserLocation } from "~/stores/selected-location-store";
+import { TripDescriptorScheduleRelationship } from "gtfs-db-types";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
@@ -71,6 +72,7 @@ export const DepartureBoard: Component = () => {
                                 tripHeadsign: trip.trip_headsign,
                                 predictedDepartureTime: trip.stop_time.predicted_departure_datetime,
                                 scheduledDepartureTime: trip.stop_time.departure_datetime,
+                                isCancelled: trip.schedule_relationship === TripDescriptorScheduleRelationship.CANCELED
                                 ...(trips.length > 1
                                     ? {
                                           alt: {
@@ -80,6 +82,7 @@ export const DepartureBoard: Component = () => {
                                           },
                                       }
                                     : {}),
+                                
                             }))}
                         />
                     )}

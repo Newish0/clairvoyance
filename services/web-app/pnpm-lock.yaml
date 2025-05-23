@@ -62,6 +62,9 @@ importers:
       embla-carousel-wheel-gestures:
         specifier: ^8.0.1
         version: 8.0.1(embla-carousel@8.5.1)
+      gtfs-db-types:
+        specifier: link:..\gtfs-processor\shared\gtfs-db-types
+        version: link:../gtfs-processor/shared/gtfs-db-types
       lucide-solid:
         specifier: ^0.469.0
         version: 0.469.0(solid-js@1.9.3)
