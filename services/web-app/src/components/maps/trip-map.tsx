@@ -8,18 +8,11 @@ import {
     type Component,
 } from "solid-js";
 
-import MapGL, { Layer, Marker, Source, type Viewport } from "solid-map-gl";
-
-import * as maplibre from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-
-import { Protocol } from "pmtiles";
+import { Layer, Marker, Source, type Viewport } from "solid-map-gl";
 
 import { differenceInSeconds } from "date-fns";
 import { BusFrontIcon } from "lucide-solid";
-import layers from "protomaps-themes-base";
 import { useRouteLiveVehicles } from "~/hooks/use-route-live-vehicles";
-import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
 import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
@@ -33,6 +26,7 @@ import { isFpEqual } from "~/utils/numbers";
 import { Badge } from "../ui/badge";
 
 import { Sheet, SheetContent } from "~/components/ui/sheet";
+import BaseMap from "../ui/base-map";
 import { OccupancyStatus } from "../ui/occupancy-badge";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
 
@@ -44,8 +38,6 @@ type TripMapProps = {
 type ScheduledTrip = any;
 
 const TripMap: Component<TripMapProps> = (props) => {
-    const [, , isDark] = useTheme();
-
     const [selectedTripVehicle, setSelectedTripVehicle] = createSignal<ScheduledTrip | null>(null);
 
     const [tripDetails] = createResource(() => getScheduledTripDetails(props.tripObjectId));
@@ -149,41 +141,13 @@ const TripMap: Component<TripMapProps> = (props) => {
         zoom: 11,
     } as Viewport);
 
-    let protocol = new Protocol();
-    maplibre.addProtocol("pmtiles", protocol.tile);
-
-    onCleanup(() => {
-        maplibre.removeProtocol("pmtiles");
-    });
-
     const handleViewportChange = (evt: Viewport) => {
         setViewport(evt);
     };
 
     return (
         <>
-            <MapGL
-                mapLib={maplibre}
-                options={{
-                    style: {
-                        version: 8,
-                        glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-                        sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-                        sources: {
-                            protomaps: {
-                                type: "vector",
-                                url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
-                                attribution:
-                                    '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
-                            },
-                        },
-                        layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
-                    },
-                }}
-                viewport={viewport()}
-                onViewportChange={handleViewportChange}
-                onLoad={(evt) => {}}
-            >
+            <BaseMap viewport={viewport()} onViewportChange={handleViewportChange}>
                 <Show when={groupedShapeLineGeoJson()?.before}>
                     {(geoJson) => (
                         <Source
@@ -494,7 +458,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                         </Source>
                     )}
                 </Show>
-            </MapGL>
+            </BaseMap>
 
             {/* Vehicle marker popup  */}
             <Sheet

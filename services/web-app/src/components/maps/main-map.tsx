@@ -1,24 +1,16 @@
-import { createEffect, createSignal, on, onCleanup, Show, type Component } from "solid-js";
+import { createEffect, createSignal, on, Show, type Component } from "solid-js";
 
-import MapGL, { Marker, type Viewport } from "solid-map-gl";
-
-import * as maplibre from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-
-import { Protocol } from "pmtiles";
+import { Marker, type Viewport } from "solid-map-gl";
 
 import { useStore } from "@nanostores/solid";
 import { createGeolocationWatcher } from "@solid-primitives/geolocation";
-import layers from "protomaps-themes-base";
-import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
 import { $selectedUserLocation } from "~/stores/selected-location-store";
-import { isFpEqual } from "~/utils/numbers";
 import { calculateHaversineDistance } from "~/utils/distance";
+import { isFpEqual } from "~/utils/numbers";
+import BaseMap from "../ui/base-map";
 
 const MainMap: Component = () => {
-    const [, , isDark] = useTheme();
-
     const geolocationWatcher = createGeolocationWatcher(true, {
         enableHighAccuracy: true,
     });
@@ -33,13 +25,6 @@ const MainMap: Component = () => {
         center: mapCenter(),
         zoom: 11,
     } as Viewport);
-
-    let protocol = new Protocol();
-    maplibre.addProtocol("pmtiles", protocol.tile);
-
-    onCleanup(() => {
-        maplibre.removeProtocol("pmtiles");
-    });
 
     const handleViewportChange = (evt: Viewport) => {
         // If the new map center is very close to the user location,
@@ -91,28 +76,7 @@ const MainMap: Component = () => {
     );
 
     return (
-        <MapGL
-            mapLib={maplibre}
-            options={{
-                style: {
-                    version: 8,
-                    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-                    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-                    sources: {
-                        protomaps: {
-                            type: "vector",
-                            url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
-                            attribution:
-                                '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
-                        },
-                    },
-                    layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
-                },
-            }}
-            viewport={viewport()}
-            onViewportChange={handleViewportChange}
-            onLoad={(evt) => {}}
-        >
+        <BaseMap viewport={viewport()} onViewportChange={handleViewportChange}>
             {/* User GPS location marker  */}
             <Show when={geolocationWatcher.location}>
                 {(gpsLocation) => (
@@ -160,7 +124,7 @@ const MainMap: Component = () => {
                     ></Marker>
                 )}
             </Show>
-        </MapGL>
+        </BaseMap>
     );
 };
 
