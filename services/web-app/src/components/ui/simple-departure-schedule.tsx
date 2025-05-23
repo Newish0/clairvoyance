@@ -9,6 +9,7 @@ export type DepartureItem = {
     time: string;
     headsign: string;
     isRealtime?: boolean;
+    isCancelled?: boolean;
     href?: string;
 };
 
@@ -35,7 +36,10 @@ const SimpleDepartureSchedule: Component<SimpleDepartureScheduleProps> = (props)
                                         <a
                                             class={cn(
                                                 "flex items-center py-1.5 px-3 transition-colors hover:bg-muted/50 cursor-pointer border-b last:border-b-0 border-muted",
-                                                selectedItem().id === item.id && "bg-muted"
+                                                selectedItem().id === item.id && "bg-muted",
+                                                item.isCancelled
+                                                    ? "line-through text-muted-foreground"
+                                                    : ""
                                             )}
                                             onClick={() => {
                                                 setSelectedItem(item);

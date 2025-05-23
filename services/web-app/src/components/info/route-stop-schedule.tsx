@@ -8,6 +8,7 @@ import type { DepartureItem } from "../ui/simple-departure-schedule";
 import SimpleDepartureSchedule, {
     SimpleDepartureScheduleSkeleton,
 } from "../ui/simple-departure-schedule";
+import { TripDescriptorScheduleRelationship } from "gtfs-db-types";
 
 interface RouteStopScheduleProps {
     routeId: string;
@@ -63,6 +64,8 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                 headsign: tripHeadsign,
                 time: format(departureDatetime, "p"),
                 isRealtime: predictedDepartureTime,
+                isCancelled:
+                    trip.schedule_relationship === TripDescriptorScheduleRelationship.CANCELED,
                 href: `${import.meta.env.BASE_URL}next-trips/?route=${trip.route_id}&stop=${
                     props.stopId
                 }&trip=${trip._id}`,

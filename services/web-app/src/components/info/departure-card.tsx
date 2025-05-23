@@ -4,6 +4,7 @@ import { Clock } from "lucide-solid";
 import { Show, type Component } from "solid-js";
 import { recordToSearchParams } from "~/utils/urls";
 import RealTimeIndicator from "../ui/realtime-indicator";
+import { cn } from "~/lib/utils";
 
 export interface DepartureCardKeyProps {
     routeId: string;
@@ -14,6 +15,7 @@ export interface DepartureCardKeyProps {
     stopName: string;
     scheduledDepartureTime: DateArg<Date>;
     predictedDepartureTime?: DateArg<Date> | null;
+    isCancelled?: boolean;
 }
 
 export interface DepartureCardProps extends DepartureCardKeyProps {
@@ -77,7 +79,12 @@ export const DepartureCard: Component<DepartureCardProps> = (props) => {
                     </div>
                 </div>
                 <div class="relative overflow-visible p-2 mr-1">
-                    <div class="flex items-center space-x-1">
+                    <div
+                        class={cn(
+                            "flex items-center space-x-1",
+                            props.isCancelled ? "line-through text-muted-foreground" : ""
+                        )}
+                    >
                         <Clock class="h-3 w-3" />
                         <span class="text-lg font-bold">{departureMinutes()}</span>
                         <span class="text-xs">min</span>

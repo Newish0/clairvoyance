@@ -29,6 +29,7 @@ import { Sheet, SheetContent } from "~/components/ui/sheet";
 import BaseMap from "../ui/base-map";
 import { OccupancyStatus } from "../ui/occupancy-badge";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
+import { StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -93,6 +94,24 @@ const TripMap: Component<TripMapProps> = (props) => {
                 index: ourStopIndex,
             },
         } as const;
+    };
+
+    const skippedStopsGeoJson = () => {
+        if (!rawStopsGeoJson() || !tripDetails()) return;
+
+        const stopTimes = tripDetails()?.stop_times;
+        const skippedStops = stopTimes.filter(
+            (st) => st.schedule_relationship === StopTimeUpdateScheduleRelationship.SKIPPED
+        );
+
+        const affectedFeatures = rawStopsGeoJson()?.features.filter((f) =>
+            skippedStops.some((st) => st.stop_id === f.properties.stopId)
+        );
+
+        return {
+            type: "FeatureCollection",
+            features: affectedFeatures,
+        };
     };
 
     /** Group shape line into before and after our stop */
@@ -197,6 +216,29 @@ const TripMap: Component<TripMapProps> = (props) => {
                     )}
                 </Show>
 
+                <Show when={skippedStopsGeoJson()}>
+                    {(geoJson) => {
+                        return (
+                            <Source
+                                source={{
+                                    type: "geojson",
+                                    data: geoJson(),
+                                }}
+                            >
+                                <Layer
+                                    style={{
+                                        type: "circle",
+                                        paint: {
+                                            "circle-color": "#d339",
+                                            "circle-radius": 20,
+                                        },
+                                    }}
+                                />
+                            </Source>
+                        );
+                    }}
+                </Show>
+
                 <Show when={groupedStopsGeoJson()?.before}>
                     {(geoJson) => (
                         <Source
@@ -210,7 +252,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                     type: "circle",
                                     paint: {
                                         "circle-color": "#eeee",
-                                        "circle-radius": 12,
+                                        "circle-radius": 10,
                                     },
                                 }}
                             />
@@ -219,7 +261,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                     type: "circle",
                                     paint: {
                                         "circle-color": "#999c",
-                                        "circle-radius": 8,
+                                        "circle-radius": 6,
                                     },
                                 }}
                             />
@@ -239,7 +281,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                     type: "circle",
                                     paint: {
                                         "circle-color": "#fffe",
-                                        "circle-radius": 12,
+                                        "circle-radius": 10,
                                     },
                                 }}
                             />
@@ -248,7 +290,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                     type: "circle",
                                     paint: {
                                         "circle-color": "#333e",
-                                        "circle-radius": 8,
+                                        "circle-radius": 6,
                                     },
                                 }}
                             />
