@@ -1,10 +1,11 @@
 import asyncio
 import argparse
+import logging
 import sys
 import time
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
-from models import ScheduledTripDocument
+from models import ScheduledTripDocument, Alert
 from parsing.gtfs_realtime import RealtimeUpdaterService
 from config import setup_logger
 import os
@@ -16,19 +17,20 @@ MONGO_CONNECTION_STRING = (
 )
 DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 
+AGENCY_ID = "BCT-48"
 TRIP_UPDATES_URL = "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48"
 VEHICLE_UPDATES_URL = (
     "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48"
 )
 ALERTS_URL = "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48"
 
-# Setup logger
-logger = setup_logger(__name__)
+
+logger = None
 
 
 async def run_updates():
     """Performs one cycle of fetching and processing both feed types."""
-    updater = RealtimeUpdaterService()
+    updater = RealtimeUpdaterService(agency_id=AGENCY_ID, logger=logger)
     start_time = time.monotonic()
     logger.info("-" * 30)
     logger.info(f"Starting update cycle at {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -59,10 +61,9 @@ async def run_updates():
     logger.info("-" * 30)
 
 
-# --- Main Execution ---
-async def main(interval_seconds: int | None):
+async def init(interval_seconds: int | None):
     """
-    Main function to initialize DB connection, Beanie, and run updates
+    Initialize DB connection, Beanie, and run updates
     either once or periodically based on interval_seconds.
     """
     logger.info(f"Connecting to MongoDB ({MONGO_CONNECTION_STRING})")
@@ -70,7 +71,7 @@ async def main(interval_seconds: int | None):
     db = client[DATABASE_NAME]
 
     logger.info(f"Initializing Beanie for database '{DATABASE_NAME}'")
-    await init_beanie(database=db, document_models=[ScheduledTripDocument])
+    await init_beanie(database=db, document_models=[ScheduledTripDocument, Alert])
     logger.info("Beanie initialized.")
 
     logger.info("Starting Realtime Feed Processing")
@@ -129,6 +130,12 @@ def parse_arguments():
         default=None,
         help="Interval in seconds for periodic updates. If not specified, runs only once.",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging.",
+    )
 
     args = parser.parse_args()
 
@@ -138,11 +145,15 @@ def parse_arguments():
     return args
 
 
-if __name__ == "__main__":
+def main():
     args = parse_arguments()
 
+    global logger
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logger = setup_logger("realtime.main", log_level)
+
     try:
-        asyncio.run(main(interval_seconds=args.interval))
+        asyncio.run(init(interval_seconds=args.interval))
     except KeyboardInterrupt:
         logger.info("Ctrl+C detected. Exiting program.")
     except Exception as e:
@@ -150,3 +161,7 @@ if __name__ == "__main__":
         sys.exit(1)
     finally:
         logger.info("Program shutdown complete.")
+
+
+if __name__ == "__main__":
+    main()
