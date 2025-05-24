@@ -6,6 +6,7 @@ RUN corepack enable
 
 WORKDIR /app
 COPY /services/web-app/ .
+COPY /services/gtfs-processor/shared/gtfs-db-types ../gtfs-processor/shared/gtfs-db-types
 RUN pnpm install --prod --frozen-lockfile --force
 RUN pnpm build
 
