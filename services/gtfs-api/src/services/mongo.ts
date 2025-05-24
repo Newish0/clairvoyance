@@ -1,6 +1,6 @@
-import { MongoClient, Db, Collection, type Document, ObjectId } from "mongodb";
+import { MongoClient, Db, Collection, type Document } from "mongodb";
 
-import type { Shape, Stop, Route, ScheduledTripDocument } from "gtfs-db-types";
+import type { Shape, Stop, Route, ScheduledTripDocument, Alert } from "gtfs-db-types";
 
 type OmitId<T> = Omit<T, "_id">;
 
@@ -9,6 +9,7 @@ interface TypedDb extends Db {
     collection<T extends Stop>(name: "stops"): Collection<OmitId<T>>;
     collection<T extends Route>(name: "routes"): Collection<OmitId<T>>;
     collection<T extends ScheduledTripDocument>(name: "scheduled_trips"): Collection<OmitId<T>>;
+    collection<T extends Alert>(name: "alerts"): Collection<OmitId<T>>;
 }
 
 let db: TypedDb | null = null;
