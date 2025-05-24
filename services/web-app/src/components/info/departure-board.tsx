@@ -72,7 +72,9 @@ export const DepartureBoard: Component = () => {
                                 tripHeadsign: trip.trip_headsign,
                                 predictedDepartureTime: trip.stop_time.predicted_departure_datetime,
                                 scheduledDepartureTime: trip.stop_time.departure_datetime,
-                                isCancelled: trip.schedule_relationship === TripDescriptorScheduleRelationship.CANCELED
+                                isCancelled:
+                                    trip.schedule_relationship ===
+                                    TripDescriptorScheduleRelationship.CANCELED,
                                 ...(trips.length > 1
                                     ? {
                                           alt: {
@@ -82,7 +84,6 @@ export const DepartureBoard: Component = () => {
                                           },
                                       }
                                     : {}),
-                                
                             }))}
                         />
                     )}

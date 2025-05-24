@@ -7,14 +7,19 @@
  * @param record
  * @returns
  */
-export const recordToSearchParams = (record: Record<string, any | any[]>) => {
+export const recordToSearchParams = (
+    record: Record<string, any | any[]>,
+    omitUndefinedAndNull = false
+) => {
     const queries: string[] = [];
     for (const [key, value] of Object.entries(record)) {
         if (Array.isArray(value)) {
             for (const val of value) {
+                if (omitUndefinedAndNull && (val === undefined || val === null)) continue;
                 queries.push(`${key}=${val}`);
             }
         } else {
+            if (omitUndefinedAndNull && (value === undefined || value === null)) continue;
             queries.push(`${key}=${value}`);
         }
     }
