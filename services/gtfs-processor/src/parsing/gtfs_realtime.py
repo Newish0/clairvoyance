@@ -599,7 +599,7 @@ class RealtimeUpdaterService:
     ) -> bool:
         """Processes a TripUpdate entity and updates the corresponding scheduled trip."""
 
-        active_period = []
+        active_periods = []
         informed_entities = []
         cause = AlertCause.UNKNOWN_CAUSE
         effect = AlertEffect.UNKNOWN_EFFECT
@@ -636,7 +636,7 @@ class RealtimeUpdaterService:
                 severity_level,
             )
         if len(alert.active_period) > 0:
-            active_period = [
+            active_periods = [
                 TimeRange(
                     start=(
                         datetime.datetime.fromtimestamp(
@@ -696,7 +696,7 @@ class RealtimeUpdaterService:
                 existing_alert.header_text = header_text
                 existing_alert.description_text = description_text
                 existing_alert.severity_level = severity_level
-                existing_alert.active_period = active_period
+                existing_alert.active_periods = active_periods
                 existing_alert.informed_entities = informed_entities
                 existing_alert.updated_at = feed_timestamp_utc
                 await existing_alert.save()
@@ -715,7 +715,7 @@ class RealtimeUpdaterService:
             header_text=header_text,
             description_text=description_text,
             severity_level=severity_level,
-            active_period=active_period,
+            active_periods=active_periods,
             informed_entities=informed_entities,
             updated_at=feed_timestamp_utc,
         )
@@ -757,7 +757,7 @@ class RealtimeUpdaterService:
                     "producer_alert_id": {"$nin": alert_ids_to_exclude},
                 }
             ).update_many(
-                {"$set": {"active_period.$[].end": timestamp}},
+                {"$set": {"active_periods.$[].end": timestamp}},
                 # array_filters=[{"elem.end": {"$eq": None}}],  #  Only update periods that don't have an end
             )
             self.logger.debug(f"Successfully ended any missing alerts")

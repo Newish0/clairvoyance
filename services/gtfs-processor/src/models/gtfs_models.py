@@ -449,7 +449,7 @@ class Alert(Document):
     # based on whether that agency is still sending this alert.
     agency_id: str
 
-    active_period: List[TimeRange] = Field(default_factory=list)
+    active_periods: List[TimeRange] = Field(default_factory=list)
     informed_entities: List[EntitySelector] = Field(default_factory=list)
 
     cause: AlertCause = Field(default=AlertCause.UNKNOWN_CAUSE)
@@ -477,7 +477,7 @@ class Alert(Document):
     updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
 
     class Settings:
-        name = "gtfs_alerts"
+        name = "alerts"
         indexes = [
             pymongo.IndexModel(
                 [("producer_alert_id", pymongo.ASCENDING)],
@@ -486,8 +486,8 @@ class Alert(Document):
             ),
             pymongo.IndexModel(
                 [
-                    ("active_period.start", pymongo.ASCENDING),
-                    ("active_period.end", pymongo.ASCENDING),
+                    ("active_periods.start", pymongo.ASCENDING),
+                    ("active_periods.end", pymongo.ASCENDING),
                 ],
                 name="idx_active_period_start_active_period_end",
             ),

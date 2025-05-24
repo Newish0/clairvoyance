@@ -9,6 +9,7 @@ import stopsRouter from "@/routes/stops";
 import shapesRouter from "@/routes/shapes";
 import tripsRouter from "@/routes/trips";
 import routesRouter from "@/routes/routes";
+import alertsRouter from "@/routes/alerts";
 
 const port = Bun.env.PORT || 5888;
 const MONGO_CONNECTION_STRING = Bun.env.MONGO_CONNECTION_STRING || "mongodb://localhost:27017";
@@ -27,6 +28,7 @@ app.route("/stops", stopsRouter);
 app.route("/shapes", shapesRouter);
 app.route("/trips", tripsRouter);
 app.route("/routes", routesRouter);
+app.route("/alerts", alertsRouter);
 
 if (Bun.env.ENV === "development") {
     console.log("Running in development mode with configurations:");
