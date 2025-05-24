@@ -171,6 +171,11 @@ class ParsedGTFSData:
                         trip_short_name=trip_data.get("trip_short_name"),
                         block_id=trip_data.get("block_id"),
                         stop_times=final_stop_times,
+                        start_datetime=ScheduledTripDocument.convert_to_datetime(
+                            date_str=service_date,
+                            time_str=start_time,
+                            tz_str=self.agency_timezone,
+                        ),
                     )
                     yield scheduled_trip
                     generated_count += 1
