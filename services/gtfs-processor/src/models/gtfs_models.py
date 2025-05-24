@@ -42,10 +42,10 @@ class StopTimeInfo(BaseModel):
     # TODO: Add other fields per GTFS StopTime specs...
     shape_dist_traveled: Optional[float] = None
 
-    # Derived fields from static GTFS arrival_time and departure_time 
+    # Derived fields from static GTFS arrival_time and departure_time
     arrival_datetime: datetime.datetime
     departure_datetime: datetime.datetime
-    
+
     # If no realtime data is available, set the schedule relationship to SCHEDULED
     schedule_relationship: Optional[StopTimeUpdateScheduleRelationship] = None
 
@@ -193,7 +193,7 @@ class ScheduledTripDocument(Document):
     class Settings:
         name = "scheduled_trips"
         indexes = [
-            # Compound index for unique scheduled trip instance lookup
+            # Compound index for unique scheduled trip instance lookup using trip_id
             pymongo.IndexModel(
                 [
                     ("trip_id", pymongo.ASCENDING),
@@ -203,6 +203,9 @@ class ScheduledTripDocument(Document):
                 unique=True,
                 name="unique_trip_instance_idx",
             ),
+            # TODO: Compound index for unique scheduled trip instance lookup using
+            #       route_id + direction_id + start_date + start_time
+            #
             # Indexes to speed up next trips queries
             pymongo.IndexModel(
                 [("stop_times.stop_id", pymongo.ASCENDING)],
@@ -218,7 +221,9 @@ class ScheduledTripDocument(Document):
             ),
             pymongo.IndexModel([("trip_id", pymongo.ASCENDING)], name="trip_id_idx"),
             pymongo.IndexModel([("route_id", pymongo.ASCENDING)], name="route_id_idx"),
-            pymongo.IndexModel([("direction_id", pymongo.ASCENDING)], name="direction_id_idx"),
+            pymongo.IndexModel(
+                [("direction_id", pymongo.ASCENDING)], name="direction_id_idx"
+            ),
             pymongo.IndexModel(
                 [("vehicle.vehicle_id", pymongo.ASCENDING)], name="vehicle_id_idx"
             ),
@@ -409,44 +414,44 @@ class Shape(Document):
         ]
 
 
-class TimeRangeModel(BaseModel):
+class TimeRange(BaseModel):
     """Represents a period of time."""
 
     start: Optional[datetime.datetime] = None  # POSIX time, seconds since 1/1/1970
     end: Optional[datetime.datetime] = None  # POSIX time, seconds since 1/1/1970
 
 
-class TranslationModel(BaseModel):
+class Translation(BaseModel):
     """A single translation of a string into a specific language."""
 
     text: str
     language: str  # BCP-47 language code
 
 
-class TranslatedStringModel(BaseModel):
+class TranslatedString(BaseModel):
     """A string with multiple translations."""
 
-    translation: List[TranslationModel] = Field(default_factory=list)
+    translation: List[Translation] = Field(default_factory=list)
 
 
-class TripDescriptorModel(BaseModel):
+class TripDescriptor(BaseModel):
     """Describes a specific trip."""
 
     trip_id: Optional[str] = None
-    route_id: Optional[str] = None
-    direction_id: Optional[int] = None  # 0 or 1
     start_time: Optional[str] = None  # HH:MM:SS, can be >24:00:00
     start_date: Optional[str] = None  # YYYYMMDD
-    # schedule_relationship: Optional[str] = None # Not typically used in alerts directly, but part of TripDescriptor
+
+    route_id: Optional[str] = None
+    direction_id: Optional[int] = None  # 0 or 1
 
 
-class EntitySelectorModel(BaseModel):
+class EntitySelector(BaseModel):
     """Selects a GTFS entity."""
 
     agency_id: Optional[str] = None
     route_id: Optional[str] = None
     route_type: Optional[int] = None  # See GTFS route_type documentation
-    trip: Optional[TripDescriptorModel] = None
+    trip: Optional[TripDescriptor] = None
     stop_id: Optional[str] = None  # GTFS stop_id
     # direction_id from GTFS-RT extension:
     # Specifies the direction for the given route_id.
@@ -454,19 +459,7 @@ class EntitySelectorModel(BaseModel):
     direction_id: Optional[int] = None
 
 
-# TODO: ********* START HERE ON MONDAY! *********
-# TODO:
-# TODO: - Finish alerts
-#          - explicit index name -- DONE
-#          - other crap...
-#       - Refactor Scheduled trips
-#         - Make stop time updates & trip update reasonable
-#         - new format MUST allow for gen ScheduledTrip that is actually not scheduled based on RT data...
-#       - Try to include not freq based trips
-#         - i.e. trip that is not on schedule... but according to doc...
-#            - need to generate a ScheduledTrip that is actually not scheduled based on RT data...
-#
-class AlertModel(Document):
+class Alert(Document):
     """
     A Beanie model for storing GTFS Alerts.
     Based on GTFS Realtime feed Message -> FeedEntity -> Alert
@@ -476,17 +469,16 @@ class AlertModel(Document):
     # Useful for tracking alert over time.
     producer_alert_id: Optional[str] = Field(default=None, index=True)
 
-    active_period: List[TimeRangeModel] = Field(default_factory=list)
-    informed_entity: List[EntitySelectorModel] = Field(default_factory=list)
+    active_period: List[TimeRange] = Field(default_factory=list)
+    informed_entities: List[EntitySelector] = Field(default_factory=list)
 
     cause: AlertCause = Field(default=AlertCause.UNKNOWN_CAUSE)
     effect: AlertEffect = Field(default=AlertEffect.UNKNOWN_EFFECT)
 
-    url: Optional[TranslatedStringModel] = None
-    header_text: Optional[TranslatedStringModel] = None
-    description_text: Optional[TranslatedStringModel] = None
+    url: Optional[TranslatedString] = None
+    header_text: Optional[TranslatedString] = None
+    description_text: Optional[TranslatedString] = None
 
-    # GTFS Realtime v2.0 extensions
     severity_level: Optional[AlertSeverityLevel] = Field(
         default=AlertSeverityLevel.UNKNOWN_SEVERITY
     )
@@ -513,7 +505,9 @@ class AlertModel(Document):
         name = "gtfs_alerts"
         indexes = [
             pymongo.IndexModel(
-                [("producer_alert_id", pymongo.ASCENDING)], name="idx_producer_alert_id"
+                [("producer_alert_id", pymongo.ASCENDING)],
+                name="idx_producer_alert_id",
+                unique=True,
             ),
             pymongo.IndexModel(
                 [
@@ -521,7 +515,7 @@ class AlertModel(Document):
                     ("active_period.end", pymongo.ASCENDING),
                 ],
                 name="idx_active_period_start_active_period_end",
-            ),  # For finding active alerts
+            ),
             pymongo.IndexModel(
                 [("informed_entity.agency_id", pymongo.ASCENDING)],
                 name="idx_informed_entity_agency_id",
