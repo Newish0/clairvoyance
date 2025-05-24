@@ -410,12 +410,6 @@ class Translation(BaseModel):
     language: str  # BCP-47 language code
 
 
-class TranslatedString(BaseModel):
-    """A string with multiple translations."""
-
-    translation: List[Translation] = Field(default_factory=list)
-
-
 class TripDescriptor(BaseModel):
     """Describes a specific trip."""
 
@@ -451,15 +445,19 @@ class Alert(Document):
     # Useful for tracking alert over time.
     producer_alert_id: Optional[str] = Field(default=None, index=True)
 
+    # This is required to identify if alert is still in effect
+    # based on whether that agency is still sending this alert.
+    agency_id: str
+
     active_period: List[TimeRange] = Field(default_factory=list)
     informed_entities: List[EntitySelector] = Field(default_factory=list)
 
     cause: AlertCause = Field(default=AlertCause.UNKNOWN_CAUSE)
     effect: AlertEffect = Field(default=AlertEffect.UNKNOWN_EFFECT)
 
-    url: Optional[TranslatedString] = None
-    header_text: Optional[TranslatedString] = None
-    description_text: Optional[TranslatedString] = None
+    url: Optional[List[Translation]] = None
+    header_text: Optional[List[Translation]] = None
+    description_text: Optional[List[Translation]] = None
 
     severity_level: Optional[AlertSeverityLevel] = Field(
         default=AlertSeverityLevel.UNKNOWN_SEVERITY
@@ -477,11 +475,6 @@ class Alert(Document):
     # Timestamps for managing the document itself
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-
-    @before_event(ValidateOnSave, Update)
-    def update_timestamp(self):
-        """Update the updated_at timestamp on document change."""
-        self.updated_at = datetime.datetime.now()
 
     class Settings:
         name = "gtfs_alerts"
