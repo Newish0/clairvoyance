@@ -134,7 +134,7 @@ class ScheduledTripDocument(Document):
 
     # --- Derived & Persisted Fields - For query efficiency ---
     # These fields are calculated *before* saving using the validator below.
-    start_datetime: Optional[datetime.datetime] = Field(default=None)
+    start_datetime: datetime.datetime
 
     # --- Methods ---
     @staticmethod
@@ -171,24 +171,6 @@ class ScheduledTripDocument(Document):
         local_dt = tz.localize(naive_dt, is_dst=None)
 
         return local_dt
-
-    @model_validator(mode="before")
-    @classmethod
-    def precompute_start_datetime(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Precompute the start_datetime based on start_date, start_time,
-        and agency_timezone_str before validation/saving.
-        """
-        start_date_str = values.get("start_date")
-        start_time_str = values.get("start_time")
-        tz_str = values.get("agency_timezone_str", "UTC")  # Default to UTC if missing
-        if start_date_str and start_time_str:
-            values["start_datetime"] = ScheduledTripDocument.convert_to_datetime(
-                start_date_str, start_time_str, tz_str
-            )
-        else:
-            values["start_datetime"] = None
-        return values
 
     class Settings:
         name = "scheduled_trips"
