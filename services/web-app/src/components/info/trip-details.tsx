@@ -1,4 +1,13 @@
-import { createResource, mergeProps, onCleanup, onMount, Show, type Component } from "solid-js";
+import {
+    createEffect,
+    createResource,
+    For,
+    mergeProps,
+    onCleanup,
+    onMount,
+    Show,
+    type Component,
+} from "solid-js";
 import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
 import { Badge } from "../ui/badge";
 
@@ -16,7 +25,9 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { buttonVariants } from "../ui/button";
 import StopNextTrips from "./stop-next-trips";
 
-import { StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
+import { AlertCause, AlertEffect, StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
+import { getAnyMatchingActiveAlerts } from "~/services/alerts";
+import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 
 interface TripDetailsProps {
     tripObjectId: string;
@@ -59,6 +70,20 @@ const TripDetails = (props: TripDetailsProps) => {
                 return await getRouteNextTripsAtStop(params);
             }
         );
+
+    const [activeAlerts] = createResource(
+        () => ({
+            directionId: ourTrip()?.direction_id as "0" | "1" | undefined,
+            routeId: finalProps.routeId,
+
+            // TODO: Figure out a way to properly matches even if no trip id
+            // tripId: ourTrip()?.trip_id,
+            // startDate: ourTrip()?.start_date,
+            // startTime: ourTrip()?.start_time,
+            stopIds: ourTrip()?.stop_times.map((st) => st.stop_id),
+        }),
+        async (params) => getAnyMatchingActiveAlerts(params)
+    );
 
     let refetchInterval: null | ReturnType<typeof setInterval> = null;
     let clockInterval: null | ReturnType<typeof setInterval> = null;
@@ -143,12 +168,32 @@ const TripDetails = (props: TripDetailsProps) => {
             </div>
 
             <div>
-                {/* PLACEHOLDERS */}
-                <Alert>
-                    <TriangleAlert />
-                    <AlertTitle>Alert Placeholder</AlertTitle>
-                    <AlertDescription>Some alert on this route.</AlertDescription>
-                </Alert>
+                <Carousel>
+                    <CarouselContent>
+                        <For each={activeAlerts()}>
+                            {(alert) => (
+                                <CarouselItem class="basis-5/6">
+                                    <Alert class="h-full">
+                                        <TriangleAlert />
+                                        {/* TODO: Use user language */}
+                                        <AlertTitle>
+                                            {alert.header_text?.[0]?.text ??
+                                                AlertEffect[alert.effect]}
+                                        </AlertTitle>
+                                        <AlertDescription>
+                                            {alert.description_text?.[0]?.text ??
+                                                `Due to ${AlertCause[alert.cause]} there is ${
+                                                    AlertEffect[alert.effect]
+                                                } at ${alert.informed_entities?.map(
+                                                    (e) => `${e.stop_id}`
+                                                )}`}
+                                        </AlertDescription>
+                                    </Alert>
+                                </CarouselItem>
+                            )}
+                        </For>
+                    </CarouselContent>
+                </Carousel>
             </div>
 
             <Show when={ourTrip()}>
