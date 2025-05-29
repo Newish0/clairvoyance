@@ -17,18 +17,15 @@ const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "gtfs_data";
 
 await connectDB(MONGO_CONNECTION_STRING, MONGO_DB_NAME);
 
-const app = new Hono();
-
-app.use(cors());
-app.use(logger());
-
-app.get("/", (c) => c.text("Hello Bun!"));
-
-app.route("/stops", stopsRouter);
-app.route("/shapes", shapesRouter);
-app.route("/trips", tripsRouter);
-app.route("/routes", routesRouter);
-app.route("/alerts", alertsRouter);
+const app = new Hono()
+    .use(cors())
+    .use(logger())
+    .get("/", (c) => c.text("Hello from GTFS API!"))
+    .route("/stops", stopsRouter)
+    .route("/shapes", shapesRouter)
+    .route("/trips", tripsRouter)
+    .route("/routes", routesRouter)
+    .route("/alerts", alertsRouter);
 
 if (Bun.env.ENV === "development") {
     console.log("Running in development mode with configurations:");
@@ -42,3 +39,5 @@ export default {
     fetch: app.fetch,
     idleTimeout: 30,
 };
+
+export type AppType = typeof app;

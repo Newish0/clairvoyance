@@ -2,7 +2,7 @@
   "name": "gtfs-api",
   "scripts": {
     "dev": "cross-env ENV=development bun run --hot src/index.ts",
-    "start": "cross-env ENV=production bun run src/index.ts"
+    "start": "cross-env ENV=production bun run src/index.ts",
   },
   "dependencies": {
     "@hono/zod-validator": "^0.5.0",
@@ -10,7 +10,8 @@
     "gtfs-db-types": "../gtfs-processor/shared/gtfs-db-types/",
     "hono": "^4.7.7",
     "lru-cache": "^11.1.0",
-    "mongodb": "^6.16.0"
+    "mongodb": "^6.16.0",
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
     "@types/bun": "latest"
