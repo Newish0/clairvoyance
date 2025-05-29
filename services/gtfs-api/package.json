@@ -3,7 +3,10 @@
   "scripts": {
     "dev": "cross-env ENV=development bun run --hot src/index.ts",
     "start": "cross-env ENV=production bun run src/index.ts",
+    "build-rpc": "tsc --project rpc.tsconfig.json"
   },
+  "type": "module",
+  "main": "./dist/index.d.ts",
   "dependencies": {
     "@hono/zod-validator": "^0.5.0",
     "cross-env": "^7.0.3",
