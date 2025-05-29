@@ -3,8 +3,6 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { getAnyActiveMatchingAlerts } from "@/services/alertsService";
 
-const router = new Hono();
-
 const GetAnyActiveMatchingAlertsParamsSchema = z.intersection(
     z.object({
         routeId: z.string().optional(),
@@ -27,11 +25,12 @@ const GetAnyActiveMatchingAlertsParamsSchema = z.intersection(
     ])
 );
 
-// GET /alerts/active
-router.get("/active", zValidator("query", GetAnyActiveMatchingAlertsParamsSchema), async (c) => {
-    const query = c.req.valid("query");
-    const alerts = await getAnyActiveMatchingAlerts(query);
-    return c.json(alerts);
-});
+const router = new Hono()
+    // GET /alerts/active
+    .get("/active", zValidator("query", GetAnyActiveMatchingAlertsParamsSchema), async (c) => {
+        const query = c.req.valid("query");
+        const alerts = await getAnyActiveMatchingAlerts(query);
+        return c.json(alerts);
+    });
 
 export default router;
