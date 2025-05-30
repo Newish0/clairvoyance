@@ -1,26 +1,23 @@
 import EndpointEnv from "~/constants/endpoint-env";
 import { recordToSearchParams } from "~/utils/urls";
 
-type GetAnyActiveMatchingAlertsParams = {
+export interface GetAnyActiveAlertsByEntitySelector {
+    agencyId?: string;
+    routeType?: number;
     routeId?: string;
-    directionId?: string;
+    directionId?: number | string;
     stopIds?: string[];
-} & (
-    | {}
-    | {
-          tripId: string;
-          startDate: string;
-          startTime: string;
-      }
-    | {
-          routeId: string;
-          directionId: string;
-          startDate: string;
-          startTime: string;
-      }
-);
+    stopId?: string;
+    tripId?: string;
+    tripStartDate?: string;
+    tripStartTime?: string;
+    tripRouteId?: string;
+    tripDirectionId?: number;
+}
 
-export const getAnyMatchingActiveAlerts = async (query: GetAnyActiveMatchingAlertsParams) => {
+export const getAnyActiveAlertsByEntitySelector = async (
+    query: GetAnyActiveAlertsByEntitySelector
+) => {
     const queryString = recordToSearchParams(query, true);
 
     const res = await fetch(`${EndpointEnv.GTFS_API_ENDPOINT}/alerts/active?${queryString}`);

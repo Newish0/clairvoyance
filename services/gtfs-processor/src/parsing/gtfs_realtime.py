@@ -658,22 +658,48 @@ class RealtimeUpdaterService:
         if len(alert.informed_entity) > 0:
             informed_entities = [
                 EntitySelector(
-                    agency_id=entity.agency_id,
-                    route_id=entity.route_id,
-                    route_type=entity.route_type,
+                    agency_id=(
+                        entity.agency_id if entity.HasField("agency_id") else None
+                    ),
+                    route_id=entity.route_id if entity.HasField("route_id") else None,
+                    route_type=(
+                        entity.route_type if entity.HasField("route_type") else None
+                    ),
                     trip=(
                         TripDescriptor(
-                            direction_id=entity.trip.direction_id,
-                            trip_id=entity.trip.trip_id,
-                            start_date=entity.trip.start_date,
-                            start_time=entity.trip.start_time,
-                            route_id=entity.trip.route_id,
+                            direction_id=(
+                                entity.trip.direction_id
+                                if entity.trip.HasField("direction_id")
+                                else None
+                            ),
+                            trip_id=(
+                                entity.trip.trip_id
+                                if entity.trip.HasField("trip_id")
+                                else None
+                            ),
+                            start_date=(
+                                entity.trip.start_date
+                                if entity.trip.HasField("start_date")
+                                else None
+                            ),
+                            start_time=(
+                                entity.trip.start_time
+                                if entity.trip.HasField("start_time")
+                                else None
+                            ),
+                            route_id=(
+                                entity.trip.route_id
+                                if entity.trip.HasField("route_id")
+                                else None
+                            ),
                         )
                         if entity.HasField("trip")
                         else None
                     ),
-                    stop_id=entity.stop_id,
-                    direction_id=entity.direction_id,
+                    stop_id=entity.stop_id if entity.HasField("stop_id") else None,
+                    direction_id=(
+                        entity.direction_id if entity.HasField("direction_id") else None
+                    ),
                 )
                 for entity in alert.informed_entity
             ]
