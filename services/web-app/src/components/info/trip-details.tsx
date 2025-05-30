@@ -26,7 +26,7 @@ import { buttonVariants } from "../ui/button";
 import StopNextTrips from "./stop-next-trips";
 
 import { AlertCause, AlertEffect, StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
-import { getAnyMatchingActiveAlerts } from "~/services/alerts";
+import { getAnyActiveAlertsByEntitySelector } from "~/services/alerts";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 
 interface TripDetailsProps {
@@ -76,13 +76,13 @@ const TripDetails = (props: TripDetailsProps) => {
             directionId: ourTrip()?.direction_id as "0" | "1" | undefined,
             routeId: finalProps.routeId,
 
-            // TODO: Figure out a way to properly matches even if no trip id
-            // tripId: ourTrip()?.trip_id,
-            // startDate: ourTrip()?.start_date,
-            // startTime: ourTrip()?.start_time,
+            tripId: ourTrip()?.trip_id,
+            startDate: ourTrip()?.start_date,
+            startTime: ourTrip()?.start_time,
+
             stopIds: ourTrip()?.stop_times.map((st) => st.stop_id),
         }),
-        async (params) => getAnyMatchingActiveAlerts(params)
+        async (params) => getAnyActiveAlertsByEntitySelector(params)
     );
 
     let refetchInterval: null | ReturnType<typeof setInterval> = null;
@@ -206,7 +206,26 @@ const TripDetails = (props: TripDetailsProps) => {
                                     StopTimeUpdateScheduleRelationship.SKIPPED;
 
                                 const stopName = () =>
-                                    stopSkipped ? <s>{s.stop_name}</s> : s.stop_name;
+                                    stopSkipped ? (
+                                        <>
+                                            {" "}
+                                            <s>{s.stop_name}</s>
+                                            <Show when={import.meta.env.DEV}>
+                                                <div class="text-xs text-muted-foreground font-mono">
+                                                    StopID: {s.stop_id}
+                                                </div>
+                                            </Show>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {s.stop_name}
+                                            <Show when={import.meta.env.DEV}>
+                                                <div class="text-xs text-muted-foreground font-mono">
+                                                    StopID: {s.stop_id}
+                                                </div>
+                                            </Show>
+                                        </>
+                                    );
 
                                 const stopTime = () => {
                                     if (stopSkipped) {
