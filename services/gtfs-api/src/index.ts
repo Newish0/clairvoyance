@@ -1,8 +1,6 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
-import { showRoutes } from "hono/dev";
-
+import { Elysia } from "elysia";
+import { Logestic } from "logestic";
+import { cors } from "@elysiajs/cors";
 import { connectDB } from "@/services/mongo";
 
 import stopsRouter from "@/routes/stops";
@@ -10,6 +8,7 @@ import shapesRouter from "@/routes/shapes";
 import tripsRouter from "@/routes/trips";
 import routesRouter from "@/routes/routes";
 import alertsRouter from "@/routes/alerts";
+import swagger from "@elysiajs/swagger";
 
 const port = Bun.env.PORT || 5888;
 const MONGO_CONNECTION_STRING = Bun.env.MONGO_CONNECTION_STRING || "mongodb://localhost:27017";
@@ -17,27 +16,42 @@ const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "gtfs_data";
 
 await connectDB(MONGO_CONNECTION_STRING, MONGO_DB_NAME);
 
-const app = new Hono()
+new Elysia()
     .use(cors())
-    .use(logger())
-    .get("/", (c) => c.text("Hello from GTFS API!"))
-    .route("/stops", stopsRouter)
-    .route("/shapes", shapesRouter)
-    .route("/trips", tripsRouter)
-    .route("/routes", routesRouter)
-    .route("/alerts", alertsRouter);
-
-if (Bun.env.ENV === "development") {
-    console.log("Running in development mode with configurations:");
-    showRoutes(app, {
-        verbose: true,
+    .use(Logestic.preset("fancy"))
+    .use(swagger())
+    .get("/", () => "Hello from GTFS API!")
+    .use(stopsRouter)
+    .use(shapesRouter)
+    .use(tripsRouter)
+    .use(routesRouter)
+    .use(alertsRouter)
+    .listen({
+        port,
+        idleTimeout: 60,
     });
-}
 
-export default {
-    port,
-    fetch: app.fetch,
-    idleTimeout: 30,
-};
+// const app = new Hono()
+//     .use(cors())
+//     .use(logger())
+//     .get("/", (c) => c.text("Hello from GTFS API!"))
+//     .route("/stops", stopsRouter)
+//     .route("/shapes", shapesRouter)
+//     .route("/trips", tripsRouter)
+//     .route("/routes", routesRouter)
+//     .route("/alerts", alertsRouter);
 
-export type AppType = typeof app;
+// if (Bun.env.ENV === "development") {
+//     console.log("Running in development mode with configurations:");
+//     showRoutes(app, {
+//         verbose: true,
+//     });
+// }
+
+// export default {
+//     port,
+//     fetch: app.fetch,
+//     idleTimeout: 30,
+// };
+
+// export type AppType = typeof app;
