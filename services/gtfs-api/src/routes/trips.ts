@@ -1,31 +1,18 @@
-import { Hono } from "hono";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
 import {
     fetchNearbyTrips,
     fetchScheduledTrips,
     fetchScheduledTripDetails,
 } from "@/services/tripsService";
 
-const router = new Hono()
+import { Elysia, t } from "elysia";
+
+const router = new Elysia()
 
     // GET /trips/next?routeId=&directionId=&stopId=&startDatetime?=&endDatetime?
     .get(
-        "/next",
-        zValidator(
-            "query",
-            z.object({
-                routeId: z.string(),
-                directionId: z.string().optional(),
-                stopId: z.string(),
-                startDatetime: z.string().optional(),
-                endDatetime: z.string().optional(),
-                limit: z.string().transform(Number).optional(),
-                excludedTripObjectIds: z.union([z.string(), z.array(z.string())]).optional(),
-            })
-        ),
-        async (c) => {
-            const {
+        "/trips/next",
+        async ({
+            query: {
                 routeId,
                 directionId,
                 stopId,
@@ -33,7 +20,8 @@ const router = new Hono()
                 endDatetime,
                 limit,
                 excludedTripObjectIds,
-            } = c.req.valid("query");
+            },
+        }) => {
             const data = await fetchScheduledTrips({
                 routeId,
                 directionId,
@@ -47,36 +35,49 @@ const router = new Hono()
                         : [excludedTripObjectIds]
                     : undefined,
             });
-            return c.json(data);
+            return data;
+        },
+        {
+            query: t.Object({
+                routeId: t.String(),
+                directionId: t.Optional(t.String()),
+                stopId: t.String(),
+                startDatetime: t.Optional(t.String()),
+                endDatetime: t.Optional(t.String()),
+                limit: t.Optional(t.Number()),
+                excludedTripObjectIds: t.Optional(t.Union([t.String(), t.Array(t.String())])),
+            }),
         }
     )
 
     // GET /trips/nearby?lat=&lng=&radius=
     .get(
-        "/nearby",
-        zValidator(
-            "query",
-            z.object({
-                lat: z.string().transform(Number),
-                lng: z.string().transform(Number),
-                radius: z.string().transform(Number),
-            })
-        ),
-        async (c) => {
-            const { lat, lng, radius } = c.req.valid("query");
+        "/trips/nearby",
+
+        async ({ query: { lat, lng, radius } }) => {
             const data = await fetchNearbyTrips(lat, lng, radius);
-            return c.json(data);
+            return data;
+        },
+        {
+            query: t.Object({
+                lat: t.Number(),
+                lng: t.Number(),
+                radius: t.Number(),
+            }),
         }
     )
 
     // GET /trips/:tripObjectId
     .get(
-        "/:tripObjectId",
-        zValidator("param", z.object({ tripObjectId: z.string() })),
-        async (c) => {
-            const { tripObjectId } = c.req.valid("param");
+        "/trips/:tripObjectId",
+        async ({ params: { tripObjectId } }) => {
             const data = await fetchScheduledTripDetails(tripObjectId);
-            return c.json(data);
+            return data;
+        },
+        {
+            params: t.Object({
+                tripObjectId: t.String(),
+            }),
         }
     );
 

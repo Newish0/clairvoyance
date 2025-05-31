@@ -1,14 +1,19 @@
-import { Hono } from "hono";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
 import { fetchShapeGeoJSON } from "@/services/shapesService";
+import { Elysia, t } from "elysia";
 
-const router = new Hono()
+const router = new Elysia()
     // GET /shapes/:shapeId/geojson
-    .get("/:shapeId/geojson", zValidator("param", z.object({ shapeId: z.string() })), async (c) => {
-        const { shapeId } = c.req.valid("param");
-        const data = await fetchShapeGeoJSON(shapeId);
-        return c.json(data);
-    });
+    .get(
+        "/shapes/:shapeId/geojson",
+        async ({ params: { shapeId } }) => {
+            const data = await fetchShapeGeoJSON(shapeId);
+            return data;
+        },
+        {
+            params: t.Object({
+                shapeId: t.String(),
+            }),
+        }
+    );
 
 export default router;

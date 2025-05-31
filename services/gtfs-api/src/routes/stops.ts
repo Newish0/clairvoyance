@@ -1,53 +1,52 @@
-import { Hono } from "hono";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
 import { fetchStopsGeoJSON, fetchNextTripsByStop } from "@/services/stopsService";
+import { Elysia, t } from "elysia";
 
-const router = new Hono()
+const router = new Elysia()
 
-    // // GET /stops/nearby?lat=&lng=&radius=
+    // GET /stops/nearby?lat=&lng=&radius=
     // .get(
-    //     "/nearby",
-    //     zValidator(
-    //         "query",
-    //         z.object({
-    //             lat: z.string().transform(Number),
-    //             lng: z.string().transform(Number),
-    //             radius: z.string().transform(Number),
-    //         })
-    //     ),
-    //     async (c) => {
-    //         const { lat, lng, radius } = c.req.valid("query");
+    //     "/stops/nearby",
+    //     async ({
+    //         query: { lat, lng, radius },
+    //     }) => {
     //         const data = await fetchNearbyStops(lat, lng, radius);
-    //         return c.json(data);
+    //         return data
+    //     },
+    //     {
+    //         query: t.Object({
+    //             lat: t.Number(),
+    //             lng: t.Number(),
+    //             radius: t.Number(),
+    //         }),
     //     }
-    // );
+    // )
 
     // GET /stops/geojson
     .get(
-        "/geojson",
-        zValidator(
-            "query",
-            z.object({
-                stopIds: z.union([z.string(), z.array(z.string())]),
-            })
-        ),
-        async (c) => {
-            const { stopIds } = c.req.valid("query");
-            const ids = Array.isArray(stopIds) ? stopIds : [stopIds];
-            const data = await fetchStopsGeoJSON(ids);
-            return c.json(data);
+        "/stops/geojson",
+
+        async ({ query: { stopIds } }) => {
+            const data = await fetchStopsGeoJSON(stopIds);
+            return data;
+        },
+        {
+            query: t.Object({
+                stopIds: t.Array(t.String()),
+            }),
         }
     )
 
     // GET /stops/:stopId/next-trips
     .get(
-        "/:stopId/next-trips",
-        zValidator("param", z.object({ stopId: z.string() })),
-        async (c) => {
-            const { stopId } = c.req.valid("param");
+        "/stops/:stopId/next-trips",
+        async ({ params: { stopId } }) => {
             const data = await fetchNextTripsByStop(stopId);
-            return c.json(data);
+            return data;
+        },
+        {
+            params: t.Object({
+                stopId: t.String(),
+            }),
         }
     );
 
