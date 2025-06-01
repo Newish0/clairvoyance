@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { findAnyActiveAlertsByEntitySelector } from "@/services/alertsService";
+import { AlertSchema } from "@/schemas/common-body";
 
 const router = new Elysia()
     // GET /alerts/active
@@ -51,6 +52,7 @@ const router = new Elysia()
                 tripRouteId: t.Optional(t.String()),
                 tripDirectionId: t.Optional(t.Number()),
             }),
+            response: t.Array(AlertSchema),
         }
     );
 
