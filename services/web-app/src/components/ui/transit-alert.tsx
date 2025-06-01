@@ -22,6 +22,7 @@ import {
 } from "lucide-solid";
 import { cn } from "~/lib/utils";
 import { AlertEffect, AlertSeverityLevel, AlertCause } from "gtfs-db-types";
+import { Separator } from "./separator";
 
 // Type definitions
 interface Translation {
@@ -65,36 +66,36 @@ interface CauseIconProps {
 
 const CauseIcon: Component<CauseIconProps> = (props) => {
     return (
-        <Switch fallback={<Info class="h-4 w-4" />}>
+        <Switch fallback={<Info class="h-4 w-4 flex-shrink-0" />}>
             <Match when={props.cause === AlertCause.TECHNICAL_PROBLEM}>
-                <Zap class="h-4 w-4" />
+                <Zap class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.STRIKE}>
-                <Users class="h-4 w-4" />
+                <Users class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.DEMONSTRATION}>
-                <Megaphone class="h-4 w-4" />
+                <Megaphone class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.ACCIDENT}>
-                <Car class="h-4 w-4" />
+                <Car class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.HOLIDAY}>
-                <Calendar class="h-4 w-4" />
+                <Calendar class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.WEATHER}>
-                <Cloud class="h-4 w-4" />
+                <Cloud class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.MAINTENANCE}>
-                <Wrench class="h-4 w-4" />
+                <Wrench class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.CONSTRUCTION}>
-                <Construction class="h-4 w-4" />
+                <Construction class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.POLICE_ACTIVITY}>
-                <Shield class="h-4 w-4" />
+                <Shield class="h-4 w-4 flex-shrink-0" />
             </Match>
             <Match when={props.cause === AlertCause.MEDICAL_EMERGENCY}>
-                <Heart class="h-4 w-4" />
+                <Heart class="h-4 w-4 flex-shrink-0" />
             </Match>
         </Switch>
     );
@@ -182,10 +183,10 @@ const formatAffectedStops = (
     if (stops.length === 0) return "Multiple locations";
     if (stops.length === 1) return stops[0];
     if (stops.length === 2) return `${stops[0]} and ${stops[1]}`;
-    if (stops.length <= 3)
-        return `${stops.slice(0, -1).join(", ")}, and ${stops[stops.length - 1]}`;
+    // if (stops.length <= 3)
+    return `${stops.slice(0, -1).join(", ")}, and ${stops[stops.length - 1]}`;
 
-    return `${stops.slice(0, 2).join(", ")} and ${stops.length - 2} other stops`;
+    // return `${stops.slice(0, 2).join(", ")} and ${stops.length - 2} other stops`;
 };
 
 interface TransitAlertProps {
@@ -248,7 +249,7 @@ const TransitAlert: Component<TransitAlertProps> = (props) => {
                                 {descriptionText()}
                             </AlertDescription>
 
-                            <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-2">
                                 <Show when={props.alert.cause}>
                                     <div class="flex items-center gap-1">
                                         <CauseIcon cause={props.alert.cause} />
@@ -263,14 +264,14 @@ const TransitAlert: Component<TransitAlertProps> = (props) => {
                                     }
                                 >
                                     <div class="flex items-center gap-1">
-                                        <MapPin class="h-3 w-3" />
+                                        <MapPin class="h-4 w-4 flex-shrink-0" />
                                         <span>{affectedStops()}</span>
                                     </div>
                                 </Show>
 
                                 <Show when={props.alert.updated_at}>
                                     <div class="flex items-center gap-1">
-                                        <Clock class="h-3 w-3" />
+                                        <Clock class="h-4 w-4 flex-shrink-0" />
                                         <span>
                                             Updated{" "}
                                             {new Date(props.alert.updated_at!).toLocaleTimeString()}

@@ -104,6 +104,9 @@ export function getQueryForAlertsByEntitySelector(targetSelector: Partial<GTFSEn
             elemMatchConditions["trip.direction_id"] = tripConditions.directionId;
             hasConditions = true;
         }
+    } else if (targetSelector.trip === null) {
+        elemMatchConditions["trip"] = null;
+        hasConditions = true;
     }
 
     if (!hasConditions) {
@@ -122,7 +125,7 @@ export function getQueryForAlertsByEntitySelector(targetSelector: Partial<GTFSEn
 }
 
 const nullIfFieldPresent = <T>(obj: T, field: keyof T, asField?: keyof T) =>
-    obj[field] ? { [asField || field]: null } : {};
+    obj[field] !== undefined ? { [asField || field]: null } : {};
 
 export const findAnyActiveAlertsByEntitySelector = async (
     selector: Partial<Omit<GTFSEntitySelector, "stopId">>
@@ -224,6 +227,8 @@ export const findAnyActiveAlertsByEntitySelector = async (
         ].filter((q) => q !== null),
     };
 
+    console.log("findAnyActiveAlertsByEntitySelector", query);
+
     const alerts = await alertCollection.find(query).toArray();
 
     return alerts;
@@ -233,7 +238,9 @@ type LookupResult = {
     stop_names?: Record<string, string | null>;
 };
 
-export const createLookupForAlerts = async (alerts: WithId<OmitId<Alert>>[]): Promise<LookupResult> => {
+export const createLookupForAlerts = async (
+    alerts: WithId<OmitId<Alert>>[]
+): Promise<LookupResult> => {
     const db = await getDb();
     const stopNameSvc = StopNameService.getInstance(db);
     const lookup: LookupResult = {
