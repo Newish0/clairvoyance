@@ -1,5 +1,8 @@
 import type { Prettify } from "@/types/utils";
-import { getDb } from "./mongo";
+import { getDb, type OmitId } from "./mongo";
+import type { Alert } from "gtfs-db-types";
+import type { WithId } from "mongodb";
+import { StopNameService } from "./stopNameService";
 
 const getActiveAlertSubQuery = (now: Date = new Date()) =>
     ({
@@ -12,144 +15,6 @@ const getActiveAlertSubQuery = (now: Date = new Date()) =>
             },
         },
     } as const);
-
-// // type GetRouteAlertsParams = {
-// //     routeId: string;
-// //     directionId?: string;
-// // };
-
-// // export const getRouteAlerts = async ({ routeId, directionId }: GetRouteAlertsParams) => {
-// //     return [];
-// // };
-// type GetAnyActiveMatchingAlertsParams = Prettify<
-//     {
-//         routeId?: string;
-//         directionId?: number;
-//         stopIds?: string[];
-//     } & (
-//         | {}
-//         | {
-//               tripId: string;
-//               startDate: string;
-//               startTime: string;
-//           }
-//         | {
-//               routeId: string;
-//               directionId: string;
-//               startDate: string;
-//               startTime: string;
-//           }
-//     )
-// >;
-
-// export const getAnyActiveMatchingAlerts = async (params: GetAnyActiveMatchingAlertsParams) => {
-//     const db = await getDb();
-
-//     // Type guards to check if we have the required properties for each union case
-//     const hasTripInfo = "tripId" in params && "startDate" in params && "startTime" in params;
-//     const hasRouteDirectionInfo =
-//         "routeId" in params &&
-//         "directionId" in params &&
-//         "startDate" in params &&
-//         "startTime" in params;
-
-//     const query = {
-//         // The "active_periods" conditions
-//         ...getActiveAlertSubQuery(),
-
-//         // The "informed_entities" conditions
-//         ...(params.routeId ? { "informed_entities.route_id": params.routeId } : {}),
-//         ...(params.directionId ? { "informed_entities.direction_id": params.directionId } : {}),
-//         ...(params.stopIds && params.stopIds.length
-//             ? { "informed_entities.stop_id": { $in: params.stopIds } }
-//             : {}),
-//         ...(hasTripInfo
-//             ? {
-//                   $and: [
-//                       { "informed_entities.trip_id": params.tripId },
-//                       { "informed_entities.start_date": params.startDate },
-//                       { "informed_entities.start_time": params.startTime },
-//                   ],
-//               }
-//             : {}),
-//         ...(hasRouteDirectionInfo && !hasTripInfo // Avoid duplicate conditions
-//             ? {
-//                   $and: [
-//                       { "informed_entities.route_id": params.routeId },
-//                       { "informed_entities.direction_id": params.directionId },
-//                       { "informed_entities.start_date": params.startDate },
-//                       { "informed_entities.start_time": params.startTime },
-//                   ],
-//               }
-//             : {}),
-//     };
-
-//     const alerts = await db.collection("alerts").find(query).toArray();
-
-//     return alerts;
-// };
-
-// type GetTripAlertParams =
-//     | {
-//           tripId: string;
-//           startDate: string;
-//           startTime: string;
-//       }
-//     | {
-//           routeId: string;
-//           directionId: string;
-//           startDate: string;
-//           startTime: string;
-//       };
-
-// export const getTripAlert = async (params: GetTripAlertParams) => {
-//     const db = await getDb();
-
-//     const hasTripInfo = "tripId" in params && "startDate" in params && "startTime" in params;
-
-//     const queryByTripId = hasTripInfo
-//         ? {
-//               "informed_entities.trip_id": params.tripId,
-//               "informed_entities.start_date": params.startDate,
-//               "informed_entities.start_time": params.startTime,
-//           }
-//         : {
-//               "informed_entities.route_id": params.routeId,
-//               "informed_entities.direction_id": params.directionId,
-//               "informed_entities.start_date": params.startDate,
-//               "informed_entities.start_time": params.startTime,
-//           };
-
-//     const alerts = await db
-//         .collection("alerts")
-//         .find({
-//             ...getActiveAlertSubQuery(),
-//             ...queryByTripId,
-//         })
-//         .toArray();
-//     return alerts;
-// };
-
-// type GetRouteAlertsParams = {
-//     routeId: string;
-//     directionId?: string;
-// };
-
-// export const getRouteAlerts = async ({ routeId, directionId }: GetRouteAlertsParams) => {
-//     const db = await getDb();
-//     const alerts = await db
-//         .collection("alerts")
-//         .find({
-//             ...getActiveAlertSubQuery(),
-
-//             "informed_entities.direction_id": {
-
-//             }
-//             "informed_entities.route_id": routeId,
-//         })
-//         .toArray();
-//     return alerts;
-// };
 
 interface TripDescriptor {
     tripId?: string;
@@ -359,7 +224,32 @@ export const findAnyActiveAlertsByEntitySelector = async (
         ].filter((q) => q !== null),
     };
 
-    console.log("MongoDB query:", JSON.stringify(query, null, 2));
+    const alerts = await alertCollection.find(query).toArray();
 
-    return await alertCollection.find(query).toArray();
+    return alerts;
+};
+
+type LookupResult = {
+    stop_names?: Record<string, string | null>;
+};
+
+export const createLookupForAlerts = async (alerts: WithId<OmitId<Alert>>[]): Promise<LookupResult> => {
+    const db = await getDb();
+    const stopNameSvc = StopNameService.getInstance(db);
+    const lookup: LookupResult = {
+        stop_names: {},
+    };
+
+    for (const alert of alerts) {
+        if (alert.informed_entities?.length) {
+            for (const entity of alert.informed_entities) {
+                if (entity.stop_id) {
+                    const stopName = await stopNameSvc.getStopNameByStopId(entity.stop_id);
+                    lookup.stop_names![entity.stop_id] = stopName;
+                }
+            }
+        }
+    }
+
+    return lookup;
 };

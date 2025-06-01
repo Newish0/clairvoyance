@@ -28,6 +28,8 @@ import StopNextTrips from "./stop-next-trips";
 import { AlertCause, AlertEffect, StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
 import { getAnyActiveAlertsByEntitySelector } from "~/services/alerts";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
+import TransitAlert from "../ui/transit-alert";
+import { cn } from "~/lib/utils";
 
 interface TripDetailsProps {
     tripObjectId: string;
@@ -71,7 +73,7 @@ const TripDetails = (props: TripDetailsProps) => {
             }
         );
 
-    const [activeAlerts] = createResource(
+    const [activeAlertData] = createResource(
         () => ({
             directionId: ourTrip()?.direction_id as "0" | "1" | undefined,
             routeId: finalProps.routeId,
@@ -170,25 +172,19 @@ const TripDetails = (props: TripDetailsProps) => {
             <div>
                 <Carousel>
                     <CarouselContent>
-                        <For each={activeAlerts()}>
+                        <For each={activeAlertData()?.alerts}>
                             {(alert) => (
-                                <CarouselItem class="basis-5/6">
-                                    <Alert class="h-full">
-                                        <TriangleAlert />
-                                        {/* TODO: Use user language */}
-                                        <AlertTitle>
-                                            {alert.header_text?.[0]?.text ??
-                                                AlertEffect[alert.effect]}
-                                        </AlertTitle>
-                                        <AlertDescription>
-                                            {alert.description_text?.[0]?.text ??
-                                                `Due to ${AlertCause[alert.cause]} there is ${
-                                                    AlertEffect[alert.effect]
-                                                } at ${alert.informed_entities?.map(
-                                                    (e) => `${e.stop_id}`
-                                                )}`}
-                                        </AlertDescription>
-                                    </Alert>
+                                <CarouselItem
+                                    class={cn(
+                                        activeAlertData()?.alerts.length > 1
+                                            ? "basis-5/6"
+                                            : "basis-full"
+                                    )}
+                                >
+                                    <TransitAlert
+                                        alert={alert}
+                                        stopNames={activeAlertData()?.lookup.stop_names}
+                                    />
                                 </CarouselItem>
                             )}
                         </For>

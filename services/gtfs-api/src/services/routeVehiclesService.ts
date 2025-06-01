@@ -1,4 +1,5 @@
 import { getDb } from "./mongo";
+import { addStopNameToScheduledTrips } from "./tripsService";
 
 export const fetchRouteLiveVehicles = async (
     routeId: string,
@@ -18,5 +19,9 @@ export const fetchRouteLiveVehicles = async (
         })
         .toArray();
 
-    return routeVehicles;
+    const routeVehiclesWithStopName = await Promise.all(
+        routeVehicles.map(addStopNameToScheduledTrips)
+    );
+
+    return routeVehiclesWithStopName;
 };

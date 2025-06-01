@@ -31,5 +31,7 @@ const app = new Elysia()
     })
     .listen({
         port,
-        idleTimeout: 5,
+        idleTimeout: 30,
     });
+
+export type App = typeof app;

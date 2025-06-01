@@ -54,7 +54,7 @@ const router = new Elysia()
                 limit: t.Optional(t.Number()),
                 excludedTripObjectIds: t.Optional(t.Union([t.String(), t.Array(t.String())])),
             }),
-            response: t.Array(ScheduledTripDocumentSchema),
+            response: t.Array(ScheduledTripDocumentWithStopNamesSchema),
         }
     )
 
@@ -84,6 +84,7 @@ const router = new Elysia()
                         route_short_name: t.Optional(t.Nullable(t.String())),
                         trip_headsign: t.Optional(t.Nullable(t.String())),
                         stop_time: StopTimeInfoSchema,
+                        stop_name: t.Optional(t.Nullable(t.String())),
                         current_status: t.Optional(t.Nullable(VehicleStopStatusSchema)),
                         current_stop_sequence: t.Optional(t.Nullable(t.Integer())),
                         vehicle: t.Optional(t.Nullable(VehicleSchema)),

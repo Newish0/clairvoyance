@@ -3,107 +3,19 @@
  */
 
 import { t } from "elysia";
-
-// --- Enum Definitions ---
-
-export enum AlertCause {
-    UNKNOWN_CAUSE = 1,
-    OTHER_CAUSE = 2,
-    TECHNICAL_PROBLEM = 3,
-    STRIKE = 4,
-    DEMONSTRATION = 5,
-    ACCIDENT = 6,
-    HOLIDAY = 7,
-    WEATHER = 8,
-    MAINTENANCE = 9,
-    CONSTRUCTION = 10,
-    POLICE_ACTIVITY = 11,
-    MEDICAL_EMERGENCY = 12,
-}
-
-export enum AlertEffect {
-    NO_SERVICE = 1,
-    REDUCED_SERVICE = 2,
-    SIGNIFICANT_DELAYS = 3,
-    DETOUR = 4,
-    ADDITIONAL_SERVICE = 5,
-    MODIFIED_SERVICE = 6,
-    OTHER_EFFECT = 7,
-    UNKNOWN_EFFECT = 8,
-    STOP_MOVED = 9,
-    NO_EFFECT = 10,
-    ACCESSIBILITY_ISSUE = 11,
-}
-
-export enum AlertSeverityLevel {
-    UNKNOWN_SEVERITY = 1,
-    INFO = 2,
-    WARNING = 3,
-    SEVERE = 4,
-}
-
-export enum CongestionLevel {
-    UNKNOWN_CONGESTION_LEVEL = 0,
-    RUNNING_SMOOTHLY = 1,
-    STOP_AND_GO = 2,
-    CONGESTION = 3,
-    SEVERE_CONGESTION = 4,
-}
-
-export enum DirectionId {
-    DIRECTION_0 = 0,
-    DIRECTION_1 = 1,
-}
-
-export enum OccupancyStatus {
-    EMPTY = 0,
-    MANY_SEATS_AVAILABLE = 1,
-    FEW_SEATS_AVAILABLE = 2,
-    STANDING_ROOM_ONLY = 3,
-    CRUSHED_STANDING_ROOM_ONLY = 4,
-    FULL = 5,
-    NOT_ACCEPTING_PASSENGERS = 6,
-    NO_DATA_AVAILABLE = 7,
-    NOT_BOARDABLE = 8,
-}
-
-// Although PickupDropOffType is typed as `number` in StopTimeInfo,
-// we define the enum and its schema as requested.
-export enum PickupDropOffType {
-    REGULARLY_SCHEDULED = 0,
-    NO_SERVICE_AVAILABLE = 1,
-    PHONE_AGENCY = 2,
-    COORDINATE_WITH_DRIVER = 3,
-}
-
-export enum StopTimeUpdateScheduleRelationship {
-    SCHEDULED = 0,
-    SKIPPED = 1,
-    NO_DATA = 2,
-    UNSCHEDULED = 3,
-}
-
-export enum TripDescriptorScheduleRelationship {
-    SCHEDULED = 0,
-    ADDED = 1,
-    UNSCHEDULED = 2,
-    CANCELED = 3,
-    DUPLICATED = 4,
-    DELETED = 5,
-}
-
-export enum VehicleStopStatus {
-    INCOMING_AT = 0,
-    STOPPED_AT = 1,
-    IN_TRANSIT_TO = 2,
-}
-
-export enum VehicleWheelchairAccessible {
-    NO_VALUE = 0,
-    UNKNOWN = 1,
-    WHEELCHAIR_ACCESSIBLE = 2,
-    WHEELCHAIR_INACCESSIBLE = 3,
-}
+import {
+    AlertCause,
+    AlertEffect,
+    AlertSeverityLevel,
+    CongestionLevel,
+    DirectionId,
+    OccupancyStatus,
+    PickupDropOffType,
+    StopTimeUpdateScheduleRelationship,
+    TripDescriptorScheduleRelationship,
+    VehicleStopStatus,
+    VehicleWheelchairAccessible,
+} from "gtfs-db-types";
 
 // --- Enum Schemas ---
 
@@ -184,7 +96,7 @@ export const StopTimeInfoSchema = t.Object({
 export const StopTimeInfoWithStopNameSchema = t.Intersect([
     StopTimeInfoSchema,
     t.Object({
-        stop_name: t.Nullable(t.String()),
+        stop_name: t.Optional(t.Nullable(t.String())),
     }),
 ]);
 
