@@ -33,6 +33,23 @@ const router = new Elysia()
             query: t.Object({
                 stopIds: t.Array(t.String()),
             }),
+            response: t.Object({
+                type: t.String(),
+                features: t.Array(
+                    t.Object({
+                        type: t.String(),
+                        properties: t.Object({ stopId: t.String() }),
+                        geometry: t.Optional(
+                            t.Nullable(
+                                t.Object({
+                                    type: t.Optional(t.String()),
+                                    coordinates: t.Array(t.Number()),
+                                })
+                            )
+                        ),
+                    })
+                ),
+            }),
         }
     )
 

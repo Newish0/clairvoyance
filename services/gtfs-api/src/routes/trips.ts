@@ -1,4 +1,11 @@
 import {
+    ScheduledTripDocumentSchema,
+    ScheduledTripDocumentWithStopNamesSchema,
+    StopTimeInfoSchema,
+    VehicleSchema,
+    VehicleStopStatusSchema,
+} from "@/schemas/common-body";
+import {
     fetchNearbyTrips,
     fetchScheduledTrips,
     fetchScheduledTripDetails,
@@ -47,6 +54,7 @@ const router = new Elysia()
                 limit: t.Optional(t.Number()),
                 excludedTripObjectIds: t.Optional(t.Union([t.String(), t.Array(t.String())])),
             }),
+            response: t.Array(ScheduledTripDocumentSchema),
         }
     )
 
@@ -64,6 +72,25 @@ const router = new Elysia()
                 lng: t.Number(),
                 radius: t.Number(),
             }),
+            response: t.Record(
+                t.String(),
+                t.Array(
+                    t.Object({
+                        _id: t.Any(),
+                        trip_id: t.String(),
+                        route_id: t.String(),
+                        direction_id: t.Integer(),
+                        start_datetime: t.Date(),
+                        route_short_name: t.Optional(t.Nullable(t.String())),
+                        trip_headsign: t.Optional(t.Nullable(t.String())),
+                        stop_time: StopTimeInfoSchema,
+                        current_status: t.Optional(t.Nullable(VehicleStopStatusSchema)),
+                        current_stop_sequence: t.Optional(t.Nullable(t.Integer())),
+                        vehicle: t.Optional(t.Nullable(VehicleSchema)),
+                        stop_times_updated_at: t.Optional(t.Nullable(t.Date())),
+                    })
+                )
+            ),
         }
     )
 
@@ -78,6 +105,7 @@ const router = new Elysia()
             params: t.Object({
                 tripObjectId: t.String(),
             }),
+            response: t.Union([ScheduledTripDocumentWithStopNamesSchema, t.Null()]),
         }
     );
 
