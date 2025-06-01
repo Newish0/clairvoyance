@@ -16,7 +16,7 @@ const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "gtfs_data";
 
 await connectDB(MONGO_CONNECTION_STRING, MONGO_DB_NAME);
 
-new Elysia()
+const app = new Elysia()
     .use(cors())
     .use(Logestic.preset("fancy"))
     .use(swagger())
@@ -26,32 +26,10 @@ new Elysia()
     .use(tripsRouter)
     .use(routesRouter)
     .use(alertsRouter)
+    .on("start", () => {
+        console.log(`Listening on port ${port}`);
+    })
     .listen({
         port,
-        idleTimeout: 60,
+        idleTimeout: 5,
     });
-
-// const app = new Hono()
-//     .use(cors())
-//     .use(logger())
-//     .get("/", (c) => c.text("Hello from GTFS API!"))
-//     .route("/stops", stopsRouter)
-//     .route("/shapes", shapesRouter)
-//     .route("/trips", tripsRouter)
-//     .route("/routes", routesRouter)
-//     .route("/alerts", alertsRouter);
-
-// if (Bun.env.ENV === "development") {
-//     console.log("Running in development mode with configurations:");
-//     showRoutes(app, {
-//         verbose: true,
-//     });
-// }
-
-// export default {
-//     port,
-//     fetch: app.fetch,
-//     idleTimeout: 30,
-// };
-
-// export type AppType = typeof app;
