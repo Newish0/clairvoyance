@@ -1,6 +1,6 @@
-import { getDb } from "@/services/mongo";
+import { getDb, type OmitId } from "@/services/mongo";
 import { FIVE_MIN_IN_MS, getTwelveHoursInFuture } from "@/utils/datetime";
-import { ObjectId } from "mongodb";
+import { ObjectId, type WithId } from "mongodb";
 import { StopNameService } from "./stopNameService";
 import type {
     ScheduledTripDocument,
@@ -9,9 +9,34 @@ import type {
     VehicleStopStatus,
 } from "gtfs-db-types";
 
+export const addStopNameToStopTimeInfo = async (stopTimeInfo: StopTimeInfo) => {
+    const stopNameService = StopNameService.getInstance(await getDb());
+    const stopName = await stopNameService.getStopNameByStopId(stopTimeInfo.stop_id);
+    return {
+        ...stopTimeInfo,
+        stop_name: stopName,
+    };
+};
+
+type ScheduledTripWithStopNames = WithId<
+    OmitId<
+        ScheduledTripDocument & {
+            stop_times: (StopTimeInfo & { stop_name?: string | null })[];
+        }
+    >
+>;
+
+export const addStopNameToScheduledTrips = async (
+    trip: WithId<OmitId<ScheduledTripDocument>>
+): Promise<ScheduledTripWithStopNames> => {
+    return {
+        ...trip,
+        stop_times: await Promise.all(trip.stop_times?.map(addStopNameToStopTimeInfo) ?? []),
+    };
+};
+
 export const fetchScheduledTripDetails = async (tripObjectId: string) => {
     const db = await getDb();
-    const stopNameService = StopNameService.getInstance(db);
 
     const objId = (() => {
         try {
@@ -28,21 +53,7 @@ export const fetchScheduledTripDetails = async (tripObjectId: string) => {
         return null;
     }
 
-    const stopNames = await Promise.all(
-        trip.stop_times?.map(async (stopTime) =>
-            stopNameService.getStopNameByStopId(stopTime.stop_id)
-        ) ?? []
-    );
-
-    const tripWithStopNames = {
-        ...trip,
-        stop_times: trip.stop_times?.map((st, i) => ({
-            ...st,
-            stop_name: stopNames[i],
-        })),
-    };
-
-    return tripWithStopNames;
+    return await addStopNameToScheduledTrips(trip);
 };
 
 interface ScheduledTripsParams {
@@ -68,7 +79,7 @@ export const fetchScheduledTrips = async ({
 
     const dateFiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    const scheduledTrips = await db
+    const results = await db
         .collection("scheduled_trips")
         .aggregate([
             {
@@ -214,7 +225,9 @@ export const fetchScheduledTrips = async ({
     //     })
     // )
 
-    return scheduledTrips as ScheduledTripDocument[];
+    const scheduledTrips = results as WithId<OmitId<ScheduledTripDocument>>[];
+
+    return await Promise.all(scheduledTrips.map(addStopNameToScheduledTrips));
 };
 
 export const fetchNearbyTrips = async (
@@ -393,6 +406,7 @@ export const fetchNearbyTrips = async (
         if (!stopInfo) continue;
 
         const { distance, name: stopName } = stopInfo;
+
         const routeDirKey = `${item.route_id}_${item.direction_id}`;
         const currentBest = bestNextTripMap.get(routeDirKey);
 

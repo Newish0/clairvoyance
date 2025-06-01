@@ -1,5 +1,8 @@
 import { Elysia, t } from "elysia";
-import { findAnyActiveAlertsByEntitySelector } from "@/services/alertsService";
+import {
+    createLookupForAlerts,
+    findAnyActiveAlertsByEntitySelector,
+} from "@/services/alertsService";
 import { AlertSchema } from "@/schemas/common-body";
 
 const router = new Elysia()
@@ -35,7 +38,11 @@ const router = new Elysia()
                             : undefined,
                 };
                 const alerts = await findAnyActiveAlertsByEntitySelector(selector);
-                return alerts;
+                const lookup = await createLookupForAlerts(alerts);
+                return {
+                    lookup,
+                    alerts,
+                };
             }
         },
         {
@@ -52,7 +59,12 @@ const router = new Elysia()
                 tripRouteId: t.Optional(t.String()),
                 tripDirectionId: t.Optional(t.Number()),
             }),
-            response: t.Array(AlertSchema),
+            response: t.Object({
+                lookup: t.Object({
+                    stop_names: t.Optional(t.Record(t.String(), t.Nullable(t.String()))),
+                }),
+                alerts: t.Array(AlertSchema),
+            }),
         }
     );
 

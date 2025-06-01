@@ -2,7 +2,7 @@ import { MongoClient, Db, Collection, type Document } from "mongodb";
 
 import type { Shape, Stop, Route, ScheduledTripDocument, Alert } from "gtfs-db-types";
 
-type OmitId<T> = Omit<T, "_id">;
+export type OmitId<T> = Omit<T, "_id">;
 
 interface TypedDb extends Db {
     collection<T extends Shape>(name: "shapes"): Collection<OmitId<T>>;

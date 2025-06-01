@@ -101,7 +101,7 @@ if (redirectUrl.toString() !== Astro.url.toString()) {
         </div>
 
         <Show when={import.meta.env.DEV}>
-            <div class="fixed bottom-0 text-xs text-muted-foreground p-2 flex gap-4">
+            <div class="fixed top-0 right-0 text-xs text-muted-foreground p-1 flex gap-4 z-100">
                 <code>DEV MODE</code>
                 <code>{routeId}</code>
                 <code>{tripObjectId}</code>
