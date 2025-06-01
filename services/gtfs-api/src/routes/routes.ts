@@ -2,6 +2,7 @@ import { fetchRouteLiveVehicles } from "@/services/routeVehiclesService";
 import { SSEEvent } from "@/utils/sse";
 import { Elysia, t } from "elysia";
 
+// TODO: Fix SSE not closing?
 const router = new Elysia().get(
     "routes/:routeId/vehicles/live",
     async function* ({ params: { routeId }, query: { directionId }, set, status }) {
@@ -128,10 +129,9 @@ const router = new Elysia().get(
         }),
         query: t.Object({
             directionId: t.Optional(
-                t.Number({
+                t.Integer({
                     minimum: 0,
                     maximum: 1,
-                    multipleOf: 1,
                 })
             ),
         }),

@@ -2,6 +2,12 @@ import { getDb } from "@/services/mongo";
 import { FIVE_MIN_IN_MS, getTwelveHoursInFuture } from "@/utils/datetime";
 import { ObjectId } from "mongodb";
 import { StopNameService } from "./stopNameService";
+import type {
+    ScheduledTripDocument,
+    StopTimeInfo,
+    Vehicle,
+    VehicleStopStatus,
+} from "gtfs-db-types";
 
 export const fetchScheduledTripDetails = async (tripObjectId: string) => {
     const db = await getDb();
@@ -18,15 +24,25 @@ export const fetchScheduledTripDetails = async (tripObjectId: string) => {
     const trip = await db.collection("scheduled_trips").findOne({ _id: objId });
 
     // Add stop name to trip.scheduled_stop_times
-    if (trip) {
-        await Promise.all(
-            trip.stop_times?.map(async (stopTime: any) => {
-                stopTime.stop_name = await stopNameService.getStopNameByStopId(stopTime.stop_id);
-            }) ?? []
-        );
+    if (!trip) {
+        return null;
     }
 
-    return trip;
+    const stopNames = await Promise.all(
+        trip.stop_times?.map(async (stopTime) =>
+            stopNameService.getStopNameByStopId(stopTime.stop_id)
+        ) ?? []
+    );
+
+    const tripWithStopNames = {
+        ...trip,
+        stop_times: trip.stop_times?.map((st, i) => ({
+            ...st,
+            stop_name: stopNames[i],
+        })),
+    };
+
+    return tripWithStopNames;
 };
 
 interface ScheduledTripsParams {
@@ -198,7 +214,7 @@ export const fetchScheduledTrips = async ({
     //     })
     // )
 
-    return scheduledTrips;
+    return scheduledTrips as ScheduledTripDocument[];
 };
 
 export const fetchNearbyTrips = async (
@@ -343,7 +359,22 @@ export const fetchNearbyTrips = async (
         },
     ]);
 
-    const relevantStopTimes = await relevantStopTimesCursor.toArray();
+    type RelevantStopTime = {
+        _id: ObjectId;
+        trip_id: string;
+        route_id: string;
+        direction_id: number;
+        start_datetime: Date;
+        route_short_name?: string | null;
+        trip_headsign?: string | null;
+        stop_time: StopTimeInfo;
+        current_status?: VehicleStopStatus | null;
+        current_stop_sequence?: number | null;
+        vehicle?: Vehicle | null;
+        stop_times_updated_at?: Date | null;
+    };
+
+    const relevantStopTimes: RelevantStopTime[] = (await relevantStopTimesCursor.toArray()) as any;
     // console.log(
     //     `Step 3: Find relevant upcoming scheduled stop times - ${
     //         // performance.now() - stepStartTime
@@ -352,7 +383,10 @@ export const fetchNearbyTrips = async (
 
     // --- Step 4: Process results ---
     // stepStartTime = performance.now();
-    const bestNextTripMap = new Map();
+    const bestNextTripMap = new Map<
+        string,
+        RelevantStopTime & { distance: number; stop_name?: string }
+    >();
     for (const item of relevantStopTimes) {
         const stopId = item.stop_time.stop_id;
         const stopInfo = stopInfoMap.get(stopId);
@@ -390,7 +424,7 @@ export const fetchNearbyTrips = async (
         if (a.distance !== b.distance) return a.distance - b.distance;
         return a.stop_time.departure_datetime.getTime() - b.stop_time.departure_datetime.getTime();
     });
-    const groupedByRoute: Record<string, any[]> = {};
+    const groupedByRoute: Record<string, typeof nextTrips> = {};
     for (const trip of nextTrips) {
         const key = trip.route_id;
         groupedByRoute[key] = groupedByRoute[key] || [];
