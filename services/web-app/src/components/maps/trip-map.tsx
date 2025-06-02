@@ -29,7 +29,7 @@ import { Sheet, SheetContent } from "~/components/ui/sheet";
 import BaseMap from "../ui/base-map";
 import { OccupancyStatus } from "../ui/occupancy-badge";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
-import { StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
+import { DirectionId, StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -55,7 +55,7 @@ const TripMap: Component<TripMapProps> = (props) => {
 
     const { vehicles: vehiclesMap, error } = useRouteLiveVehicles({
         routeId: () => tripDetails()?.route_id,
-        directionId: () => tripDetails()?.direction_id,
+        directionId: () => tripDetails()?.direction_id as DirectionId,
     });
     const vehicles = () => vehiclesMap().values().toArray();
 

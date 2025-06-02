@@ -62,9 +62,6 @@ importers:
       embla-carousel-wheel-gestures:
         specifier: ^8.0.1
         version: 8.0.1(embla-carousel@8.5.1)
-      gtfs-db-types:
-        specifier: link:..\gtfs-processor\shared\gtfs-db-types
-        version: link:../gtfs-processor/shared/gtfs-db-types
       lucide-solid:
         specifier: ^0.469.0
         version: 0.469.0(solid-js@1.9.3)
@@ -104,6 +101,13 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
+    devDependencies:
+      gtfs-api:
+        specifier: link:..\gtfs-api
+        version: link:../gtfs-api
+      gtfs-db-types:
+        specifier: link:..\gtfs-processor\shared\gtfs-db-types
+        version: link:../gtfs-processor/shared/gtfs-db-types
 
 packages:
 
