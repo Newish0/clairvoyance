@@ -1,7 +1,8 @@
 import EndpointEnv from "~/constants/endpoint-env";
-import { recordToSearchParams } from "~/utils/urls";
+import { recordToSearchParams, stringifyRecord } from "~/utils/urls";
+import { client } from "./client";
 
-export interface GetAnyActiveAlertsByEntitySelector {
+export interface GetAnyActiveAlertsByEntitySelector extends Record<string, unknown> {
     agencyId?: string;
     routeType?: number;
     routeId?: string;
@@ -18,9 +19,16 @@ export interface GetAnyActiveAlertsByEntitySelector {
 export const getAnyActiveAlertsByEntitySelector = async (
     query: GetAnyActiveAlertsByEntitySelector
 ) => {
-    const queryString = recordToSearchParams(query, true);
+    // const queryString = recordToSearchParams(query, true);
 
-    const res = await fetch(`${EndpointEnv.GTFS_API_ENDPOINT}/alerts/active?${queryString}`);
-    const json = await res.json();
-    return json;
+    // const res = await fetch(`${EndpointEnv.GTFS_API_ENDPOINT}/alerts/active?${queryString}`);
+    // const json = await res.json();
+    // return json;
+
+    // TODO: Error handling
+    const res = await client.alerts.active.get({
+        query: stringifyRecord(query),
+    });
+
+    return res.data;
 };

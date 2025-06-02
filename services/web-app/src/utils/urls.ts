@@ -25,3 +25,13 @@ export const recordToSearchParams = (
     }
     return queries.join("&");
 };
+
+/**
+ * A helper function to stringify the values of a record.
+ * Very useful for passing in query parameters to Elysia Eden clients.
+ * @param record
+ * @returns
+ */
+export const stringifyRecord = (record: Record<string, unknown>): Record<string, string> => {
+    return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, `${value}`]));
+};

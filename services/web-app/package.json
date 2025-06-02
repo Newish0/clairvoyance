@@ -27,7 +27,6 @@
     "date-fns": "^4.1.0",
     "embla-carousel-solid": "^8.5.1",
     "embla-carousel-wheel-gestures": "^8.0.1",
-    "gtfs-db-types": "link:..\\gtfs-processor\\shared\\gtfs-db-types",
     "lucide-solid": "^0.469.0",
     "mapbox-gl": "npm:empty-npm-package@1.0.0",
     "maplibre-gl": "^4.7.1",
@@ -41,5 +40,9 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "gtfs-api": "link:..\\gtfs-api",
+    "gtfs-db-types": "link:..\\gtfs-processor\\shared\\gtfs-db-types"
   }
 }

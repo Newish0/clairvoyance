@@ -60,7 +60,7 @@ const TripDetails = (props: TripDetailsProps) => {
     const [stopNextTrips, { refetch: refetchStopNextTrips, mutate: setStopNextTrips }] =
         createResource(
             () => ({
-                directionId: ourTrip()?.direction_id as "0" | "1" | undefined,
+                directionId: ourTrip()?.direction_id as 0 | 1 | undefined,
                 routeId: finalProps.routeId,
                 stopId: finalProps.stopId,
                 endDatetime:
@@ -75,7 +75,7 @@ const TripDetails = (props: TripDetailsProps) => {
 
     const [activeAlertData] = createResource(
         () => ({
-            directionId: ourTrip()?.direction_id as "0" | "1" | undefined,
+            directionId: ourTrip()?.direction_id as 0 | 1 | undefined,
             routeId: finalProps.routeId,
 
             tripId: ourTrip()?.trip_id,

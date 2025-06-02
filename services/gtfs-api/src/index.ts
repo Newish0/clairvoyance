@@ -18,7 +18,6 @@ await connectDB(MONGO_CONNECTION_STRING, MONGO_DB_NAME);
 
 const app = new Elysia()
     .use(cors())
-    .use(Logestic.preset("fancy"))
     .use(swagger())
     .get("/", () => "Hello from GTFS API!")
     .use(stopsRouter)
@@ -33,5 +32,9 @@ const app = new Elysia()
         port,
         idleTimeout: 30,
     });
+
+// The logger MUST be initialized after the Elysia app method
+// chaining is complete to avoid messing up App types used by treaty.
+app.use(Logestic.preset("fancy"));
 
 export type App = typeof app;

@@ -1,63 +1,32 @@
-import { type Component, For, Show, createMemo, Switch, Match } from "solid-js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-    AlertTriangle,
-    Info,
+    AlertCause,
+    AlertEffect,
+    AlertSeverityLevel,
+    type EntitySelector,
+    type Alert as GtfsAlert,
+} from "gtfs-db-types";
+import {
     AlertCircle,
-    XCircle,
-    Clock,
-    MapPin,
-    Wrench,
-    Car,
-    Users,
-    Zap,
-    Shield,
-    Heart,
+    AlertTriangle,
     Calendar,
+    Car,
+    Clock,
     Cloud,
     Construction,
+    Heart,
+    Info,
+    MapPin,
     Megaphone,
+    Shield,
+    Users,
+    Wrench,
+    XCircle,
+    Zap,
 } from "lucide-solid";
-import { cn } from "~/lib/utils";
-import { AlertEffect, AlertSeverityLevel, AlertCause } from "gtfs-db-types";
-import { Separator } from "./separator";
-
-// Type definitions
-interface Translation {
-    text: string;
-    language: string;
-}
-
-interface EntitySelector {
-    agency_id?: string | null;
-    route_id?: string | null;
-    route_type?: number | null;
-    stop_id?: string | null;
-    direction_id?: number | null;
-}
-
-interface TransitAlert {
-    _id?: any;
-    producer_alert_id?: string | null;
-    agency_id: string;
-    informed_entities?: EntitySelector[];
-    cause?: AlertCause;
-    effect?: AlertEffect;
-    header_text?: Translation[] | null;
-    description_text?: Translation[] | null;
-    severity_level?: AlertSeverityLevel | null;
-    created_at?: Date;
-    updated_at?: Date;
-}
-
-interface AlertData {
-    lookup: {
-        stop_names?: Record<string, string | null>;
-    };
-    alerts: TransitAlert[];
-}
+import { type Component, createMemo, Match, Show, Switch } from "solid-js";
 
 // Helper components
 interface CauseIconProps {
@@ -190,7 +159,7 @@ const formatAffectedStops = (
 };
 
 interface TransitAlertProps {
-    alert: TransitAlert;
+    alert: GtfsAlert;
     stopNames?: Record<string, string | null>;
 }
 
