@@ -12,7 +12,8 @@
         "paths": {
             "@/*": [
                 "src/*"
-            ]
+            ],
+            "gtfs-db-types": ["../gtfs-processor/shared/gtfs-db-types/dist/index.d.ts"]
         }
     },
     "include": [
