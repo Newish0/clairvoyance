@@ -51,12 +51,14 @@ services:
     build:
       context: .
       dockerfile: /services/web-app/Dockerfile
+      args:
+        - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
+        - GTFS_API_ENDPOINT=http://gtfs-api:5888
     environment:
       - HOST=0.0.0.0
       - PORT=4321
       - SITE=http://localhost:8080
       - BASE=/
-      - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
       - GTFS_API_ENDPOINT=http://gtfs-api:5888
     networks:
       - gtfs-internal
@@ -96,49 +98,3 @@ services:
 networks:
   gtfs-internal:
     driver: bridge
-  # bitwarden:
-  #   image: bitwarden/self-host:2024.8.0-beta
-  #   container_name: bitwarden_unified
-  #   restart: always
-  #   depends_on:
-  #     - db
-  #   env_file:
-  #     - settings.env
-  #   ports:
-  #     - "8888:8080"
-  #   expose:
-  #     - 8080
-  #   volumes:
-  #     - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/bitwarden-unified/data:/etc/bitwarden
-  #     - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/bitwarden-unified/data/logs:/var/log/bitwarden
-  #   #networks:
-  #   #  - proxy
-  #   #labels:
-  #   #  - traefik.enable=true
-  #   #  - traefik.docker.network=proxy
-  #   #  - traefik.http.routers.bitwarden.rule=Host(`bitwarden.example.com`)
-  #   #  - traefik.http.services.bitwarden.loadbalancer.server.port=8080
-  #   #  # Optional part for file upload max sizes
-  #   #  - traefik.http.middlewares.limit.buffering.maxRequestBodyBytes=50000000
-  #   #  - traefik.http.middlewares.limit.buffering.maxResponseBodyBytes=50000000
-  #   #  - traefik.http.middlewares.limit.buffering.memRequestBodyBytes=50000000
-  #   #  - traefik.http.middlewares.limit.buffering.memResponseBodyBytes=50000000
-  #   #  # Optional part for traefik middlewares
-  #   #  - traefik.http.routers.bitwarden.middlewares=local-ipwhitelist@file
-
-  # db:
-  #   image: postgres:alpine3.18
-  #   container_name: bitwarden_unified_db
-  #   restart: always
-  #   environment:
-  #     POSTGRES_USER: "bitwarden"
-  #     POSTGRES_PASSWORD: "super_strong_password"
-  #     POSTGRES_DB: "bitwarden_vault"
-  #   volumes:
-  #     - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/bitwarden-unified/psql:/var/lib/postgresql/data
-  #   #networks:
-  #   #  - proxy
-
-  #   #networks:
-  #   #  proxy:
-  #   #    external: true
