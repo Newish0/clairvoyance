@@ -31,7 +31,7 @@ DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 GTFS_ZIP_FILE = "bctransit_gtfs.zip"
 
 DROP_COLLECTIONS = True
-INSERT_BATCH_SIZE = 750  # Batch size for all insert_many operations
+INSERT_BATCH_SIZE = 1000  # Batch size for all insert_many operations
 
 DOCUMENT_MODELS: List[Type[Document]] = [
     Stop,
@@ -318,9 +318,6 @@ async def process_and_insert_shapes(parsed_gtfs: ParsedGTFSData):
     await _batch_insert(Shape, shapes_to_insert)
 
 
-d
-
-
 async def process_and_insert_scheduled_trips(
     scheduled_trips_iterator: Iterator[
         ScheduledTripDocument
@@ -339,31 +336,22 @@ async def process_and_insert_scheduled_trips(
     items_processed_from_iterator = 0
     current_batch: List[ScheduledTripDocument] = []
 
-    # async def producer(queue: asyncio.Queue, num_items: int):
-    #     """Producers generate random numbers and put them in the queue."""
-    #     print("Producer: Starting")
-    #     for i in range(num_items):
-    #         item = random.randint(1, 100)
-    #         print(f"Producer: Producing item {i+1}: {item}")
-    #         await queue.put(item)
-    #         await asyncio.sleep(random.uniform(0.1, 0.5)) # Simulate work
+    # Iterate through the input iterator
+    for trip_doc in scheduled_trips_iterator:
+        items_processed_from_iterator += 1
+        current_batch.append(trip_doc)
 
-    #     print("Producer: Finished producing")
-    #     # Signal the end of production (optional but useful)
-    #     await queue.put(None)
-
-    queue = asyncio.Queue()
-
-    async def consumer(queue: asyncio.Queue):
-        """Consumers get items from the queue and process them."""
-        while True:
-            batch = await queue.get()
-            if batch is None:
-                await queue.put(None)
-                break
-
+        if len(current_batch) == batch_size:
+            batches_processed += 1
+            logger.debug(
+                f"Processing batch {batches_processed} for Scheduled Trips ({len(current_batch)} items)"
+            )
             try:
-                await ScheduledTripDocument.insert_many(documents=batch)
+                # Type ignore can be useful if linter complains about `documents` type
+                # if ScheduledTripDocument.insert_many expects a specific subclass of list etc.
+                result = await ScheduledTripDocument.insert_many(
+                    documents=current_batch
+                )
                 inserted_count += len(result.inserted_ids)
                 logger.debug(
                     f"Successfully inserted batch {batches_processed} for Scheduled Trips ({len(result.inserted_ids)} items)."
@@ -376,22 +364,6 @@ async def process_and_insert_scheduled_trips(
                         logging.DEBUG
                     ),  # More detailed traceback if DEBUG
                 )
-            queue.task_done()  # Indicate that the item has been processed
-
-    consumer_task = asyncio.create_task(consumer(queue))
-
-    # Iterate through the input iterator
-    for trip_doc in scheduled_trips_iterator:
-        items_processed_from_iterator += 1
-        current_batch.append(trip_doc)
-
-        if len(current_batch) == batch_size:
-            batches_processed += 1
-            logger.debug(
-                f"Processing batch {batches_processed} for Scheduled Trips ({len(current_batch)} items)"
-            )
-
-            await queue.put(current_batch)
             current_batch = []  # Reset for the next batch
 
     # After the loop, process any remaining items in the current_batch (the last, possibly smaller, batch)
@@ -400,14 +372,18 @@ async def process_and_insert_scheduled_trips(
         logger.debug(
             f"Processing final batch {batches_processed} for Scheduled Trips ({len(current_batch)} items)"
         )
-        await queue.put(current_batch)
-        
-    # Signal the end of production
-    await queue.put(None)
-        
-    # Wait for all items to be processed
-    await queue.join()
-    await consumer_task
+        try:
+            result = await ScheduledTripDocument.insert_many(documents=current_batch)
+            inserted_count += len(result.inserted_ids)
+            logger.debug(
+                f"Successfully inserted final batch {batches_processed} for Scheduled Trips ({len(result.inserted_ids)} items)."
+            )
+        except Exception as e:
+            logger.error(
+                f"Error inserting final batch {batches_processed} for Scheduled Trips: {e}. "
+                f"This batch of {len(current_batch)} trips may have failed.",
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
 
     if items_processed_from_iterator == 0:
         logger.info("No Scheduled Trips found from the iterator to insert.")
