@@ -60,11 +60,11 @@ ARG SITE
 ARG BASE
 
 WORKDIR /app
-COPY /services/web-app/ .
+COPY services/web-app/ .
 
-COPY /services/gtfs-processor/shared/gtfs-db-types ../gtfs-processor/shared/gtfs-db-types
+COPY services/gtfs-processor/shared/gtfs-db-types ../gtfs-processor/shared/gtfs-db-types
 
-COPY /services/gtfs-api/ ../gtfs-api/
+COPY services/gtfs-api/ ../gtfs-api/
 
 
 # COPY --from=gtfs-processor-builder /usr/src/gtfs-processor/shared/gtfs-db-types ../gtfs-processor/shared/gtfs-db-types
