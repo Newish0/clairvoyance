@@ -32,8 +32,8 @@ services:
   gtfs-api:
     container_name: gtfs-api
     build:
-      context: ./services # Need entire service directory to use packages from gtfs-processor
-      dockerfile: /gtfs-api/Dockerfile
+      context: .
+      dockerfile: /services/gtfs-api/Dockerfile
     environment:
       - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
       - MONGO_DB_NAME=gtfs_data
@@ -54,10 +54,12 @@ services:
       args:
         - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
         - GTFS_API_ENDPOINT=http://gtfs-api:5888
+        - SITE=http://localhost:8080
+        - BASE=/
     environment:
       - HOST=0.0.0.0
       - PORT=4321
-      - SITE=http://localhost:8080
+      - SITE=http://bp.botnewish.xyz:8080
       - BASE=/
       - GTFS_API_ENDPOINT=http://gtfs-api:5888
     networks:
@@ -77,10 +79,10 @@ services:
         mongosh \
           --eval 'db.runCommand("ping").ok' \
           --quiet
-      interval: 60s
-      timeout: 30s
+      interval: 10s
+      timeout: 10s
       retries: 5
-      start_period: 10s
+      start_period: 5s
 
   gateway:
     container_name: gateway

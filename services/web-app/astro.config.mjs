@@ -10,18 +10,18 @@ import tailwind from '@astrojs/tailwind';
 import node from '@astrojs/node';
 
 
+
+const site = Bun.env.SITE || undefined;
+const base = Bun.env.BASE || "/";
+
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [solidJs(), sitemap(), tailwind({
     applyBaseStyles: false
   })],
 
-  // Use deployment site address and base path in production.
-  // Otherwise, use the default settings in development.
-  ...(import.meta.env.PROD ? {
-    site: import.meta.env.SITE,
-    base: import.meta.env.BASE,
-  } : {}),
+  site, base,
 
   adapter: node({
     mode: 'standalone'
