@@ -56,6 +56,8 @@ FROM oven/bun:latest AS base
 
 ARG PUBLIC_GTFS_API_ENDPOINT
 ARG GTFS_API_ENDPOINT=http://gtfs-api:5888
+ARG SITE
+ARG BASE
 
 WORKDIR /app
 COPY /services/web-app/ .
