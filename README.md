@@ -10,7 +10,7 @@
 
 Realtime transit webapp using GTFS data in a microservice architecture.
 
-Visit the [demo site](https://bp.botnewish.xyz/clairvoyance2/).
+Visit the [demo site](http://newishdev.space).
 
 </div>
 
