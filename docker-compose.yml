@@ -33,7 +33,7 @@ services:
     container_name: gtfs-api
     build:
       context: .
-      dockerfile: /services/gtfs-api/Dockerfile
+      dockerfile: ./services/gtfs-api/Dockerfile
     environment:
       - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
       - MONGO_DB_NAME=gtfs_data
@@ -50,7 +50,7 @@ services:
     container_name: web-app
     build:
       context: .
-      dockerfile: /services/web-app/Dockerfile
+      dockerfile: ./services/web-app/Dockerfile
       args:
         - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
         - GTFS_API_ENDPOINT=http://gtfs-api:5888

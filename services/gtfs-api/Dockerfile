@@ -3,8 +3,8 @@ FROM oven/bun:latest AS base
 WORKDIR /usr/src/app
 
 
-COPY /services/gtfs-processor ../gtfs-processor
-COPY /services/gtfs-api .
+COPY services/gtfs-processor ../gtfs-processor
+COPY services/gtfs-api .
 
 RUN bun install
 
