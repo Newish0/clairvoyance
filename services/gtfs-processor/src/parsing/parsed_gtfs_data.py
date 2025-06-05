@@ -4,7 +4,14 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 from models import ScheduledTripDocument, StopTimeInfo
 from dataclasses import dataclass
 from config import setup_logger
-from models.gtfs_enums import StopTimeUpdateScheduleRelationship
+from models.gtfs_enums import (
+    ContinuousPickupDropOff,
+    LocationType,
+    RouteType,
+    StopTimeUpdateScheduleRelationship,
+    WheelchairBoarding,
+)
+from models.gtfs_models import LineStringGeometry, PointGeometry, Route, Shape, Stop
 
 
 @dataclass(frozen=True)
@@ -68,15 +75,13 @@ class ParsedGTFSData:
         self.logger.info(f"Loaded stop times for {len(stop_times)} trips.")
         self.logger.info(f"Loaded service dates for {len(service_dates)} services.")
 
-    def generate_scheduled_trips(self) -> Iterator[ScheduledTripDocument]:
+    def generate_scheduled_trips(self) -> Iterator[ScheduledTripDocument | None]:
         """
         Generate ScheduledTripDocument objects for each trip on each of its active service dates.
 
         Yields:
-            ScheduledTripDocument objects.
+            Iterator[ScheduledTripDocument | None]: An iterator of ScheduledTripDocument objects or None if an error occurs.
         """
-        skipped_count = 0
-        generated_count = 0
 
         self.logger.info("Generating scheduled trips from parsed GTFS data...")
 
@@ -88,21 +93,21 @@ class ParsedGTFSData:
             # Basic validation
             if not service_id:
                 self.logger.debug(f"Trip {trip_id} missing service_id, skipping.")
-                skipped_count += 1
+                yield None
                 continue
             if not route_id:
                 self.logger.debug(f"Trip {trip_id} missing route_id, skipping.")
-                skipped_count += 1
+                yield None
                 continue
             if route_id not in self.routes:
                 self.logger.warning(
                     f"Trip {trip_id} references unknown route_id {route_id}, skipping."
                 )
-                skipped_count += 1
+                yield None
                 continue
             if not trip_stop_times_raw:
                 self.logger.debug(f"Trip {trip_id} has no stop times, skipping.")
-                skipped_count += 1
+                yield None
                 continue
 
             active_dates = self.service_dates.get(service_id)
@@ -110,7 +115,7 @@ class ParsedGTFSData:
                 self.logger.debug(
                     f"Trip {trip_id} service_id {service_id} has no active dates, skipping."
                 )
-                # Don't increment skipped_count here, as the trip itself might be valid but just not running
+                # Don't yield None here, as the trip itself might be valid but just not running
                 continue
 
             route_short_name = self._find_route_short_name(route_id)
@@ -121,7 +126,7 @@ class ParsedGTFSData:
                 self.logger.warning(
                     f"Trip {trip_id} has no valid departure time in its stop times, skipping."
                 )
-                skipped_count += 1
+                yield None
                 continue
 
             # Convert stop times to StopTimeInfo objects once per trip
@@ -134,7 +139,7 @@ class ParsedGTFSData:
                 self.logger.warning(
                     f"Could not convert any stop times for trip {trip_id}, skipping."
                 )
-                skipped_count += 1
+                yield None
                 continue
 
             # Create a ScheduledTrip for each active date
@@ -178,28 +183,18 @@ class ParsedGTFSData:
                         ),
                     )
                     yield scheduled_trip
-                    generated_count += 1
                     service_date_instance_count += 1
                 except Exception as e:
                     self.logger.error(
                         f"Error creating scheduled trip instance for {trip_id} on {service_date}: {e}",
                         exc_info=True,
                     )
-                    # Count this as skipped for this specific date instance
-                    skipped_count += 1
+                    yield None
 
             if service_date_instance_count > 0:
                 self.logger.debug(
                     f"Created {service_date_instance_count} scheduled trip instances for trip_id {trip_id}"
                 )
-
-        self.logger.info(
-            f"Successfully generated {generated_count} scheduled trip instances."
-        )
-        if skipped_count > 0:
-            self.logger.warning(
-                f"Skipped {skipped_count} potential trip instances due to missing data or errors."
-            )
 
     def _derive_full_stop_time_info(
         self, partial_stop_time_info: PartialStopTimeInfo, date_str: str
@@ -351,3 +346,224 @@ class ParsedGTFSData:
             )
 
         return stop_time_infos
+
+    def generate_stops(self) -> Iterator[Stop | None]:
+        """
+        Create Stop documents from the parsed GTFS data.
+
+        Yields:
+            Iterator[Stop | None]: An iterator of Stop documents or None if an error occurs.
+        """
+
+        for stop_id, stop_data in self.stops.items():
+            try:
+                # --- Location Geometry ---
+                location_geom = None
+                lat_str = stop_data.get("stop_lat")
+                lon_str = stop_data.get("stop_lon")
+                if lat_str and lon_str:  # Check for non-empty strings
+                    try:
+                        lat = float(lat_str)
+                        lon = float(lon_str)
+                        location_geom = PointGeometry(coordinates=[lon, lat])
+                    except (ValueError, TypeError) as coord_err:
+                        self.logger.debug(
+                            f"Invalid coordinates for stop {stop_id}: lat='{lat_str}', lon='{lon_str}'. Skipping location. Error: {coord_err}"
+                        )
+
+                # --- Enums with Defaults ---
+                loc_type_val = stop_data.get("location_type")
+                location_type = LocationType.STOP  # Default
+                if loc_type_val:
+                    try:
+                        location_type = LocationType(int(loc_type_val))
+                    except (ValueError, TypeError):
+                        self.logger.debug(
+                            f"Invalid location_type '{loc_type_val}' for stop {stop_id}. Using default {location_type.name}."
+                        )
+
+                wc_val = stop_data.get("wheelchair_boarding")
+                wheelchair_boarding = WheelchairBoarding.NO_INFO  # Default
+                if wc_val:
+                    try:
+                        wheelchair_boarding = WheelchairBoarding(int(wc_val))
+                    except (ValueError, TypeError):
+                        self.logger.debug(
+                            f"Invalid wheelchair_boarding '{wc_val}' for stop {stop_id}. Using default {wheelchair_boarding.name}."
+                        )
+
+                yield Stop(
+                    stop_id=stop_id,
+                    stop_code=stop_data.get("stop_code"),
+                    stop_name=stop_data.get("stop_name"),
+                    stop_desc=stop_data.get("stop_desc"),
+                    location=location_geom,
+                    zone_id=stop_data.get("zone_id"),
+                    stop_url=stop_data.get("stop_url"),
+                    location_type=location_type,
+                    parent_station_id=stop_data.get("parent_station"),
+                    stop_timezone=stop_data.get("stop_timezone"),
+                    wheelchair_boarding=wheelchair_boarding,
+                    level_id=stop_data.get("level_id"),
+                    platform_code=stop_data.get("platform_code"),
+                )
+
+            except Exception as e:
+                self.logger.warning(
+                    f"Error processing stop {stop_id}: {e}. Skipping.",
+                    exc_info=self.logger.isEnabledFor(logging.DEBUG),
+                )
+                yield None
+
+    def generate_routes(self) -> Iterator[Route | None]:
+        """
+        Create Route documents from the parsed GTFS data.
+
+        Yields:
+            Iterator[Route | None]: None if skipped due to error, otherwise a Route document.
+        """
+        for route_id, route_data in self.routes.items():
+            try:
+                # Mandatory Route Type
+                route_type_val = route_data.get("route_type")
+                if not route_type_val:  # Check for None or empty string
+                    self.logger.warning(
+                        f"Route {route_id} has missing or empty route_type. Skipping."
+                    )
+                    yield None
+                    continue
+                try:
+                    route_type_enum = RouteType(int(route_type_val))
+                except (ValueError, TypeError) as enum_err:
+                    self.logger.warning(
+                        f"Invalid route_type '{route_type_val}' for route {route_id}: {enum_err}. Skipping."
+                    )
+                    yield None
+                    continue
+
+                # --- Optional Enums with Defaults ---
+                pickup_val = route_data.get("continuous_pickup")
+                continuous_pickup = ContinuousPickupDropOff.NONE
+                if pickup_val:
+                    try:
+                        continuous_pickup = ContinuousPickupDropOff(int(pickup_val))
+                    except (ValueError, TypeError):
+                        self.logger.debug(
+                            f"Invalid continuous_pickup '{pickup_val}' for route {route_id}. Using default {continuous_pickup.name}."
+                        )
+
+                dropoff_val = route_data.get("continuous_drop_off")
+                continuous_drop_off = ContinuousPickupDropOff.NONE
+                if dropoff_val:
+                    try:
+                        continuous_drop_off = ContinuousPickupDropOff(int(dropoff_val))
+                    except (ValueError, TypeError):
+                        self.logger.debug(
+                            f"Invalid continuous_drop_off '{dropoff_val}' for route {route_id}. Using default {continuous_drop_off.name}."
+                        )
+
+                route_sort_order = None
+                sort_order_str = route_data.get("route_sort_order")
+                if sort_order_str:
+                    try:
+                        route_sort_order = int(sort_order_str)
+                    except (ValueError, TypeError):
+                        self.logger.debug(
+                            f"Invalid route_sort_order '{sort_order_str}' for route {route_id}. Setting to None."
+                        )
+
+                # --- Create Route Document ---
+                yield Route(
+                    route_id=route_id,
+                    agency_id=route_data.get("agency_id"),
+                    route_short_name=route_data.get("route_short_name"),
+                    route_long_name=route_data.get("route_long_name"),
+                    route_desc=route_data.get("route_desc"),
+                    route_type=route_type_enum,
+                    route_url=route_data.get("route_url"),
+                    route_color=route_data.get("route_color"),
+                    route_text_color=route_data.get("route_text_color"),
+                    route_sort_order=route_sort_order,
+                    continuous_pickup=continuous_pickup,
+                    continuous_drop_off=continuous_drop_off,
+                )
+
+            except Exception as e:
+                self.logger.warning(
+                    f"Error processing route {route_id}: {e}. Skipping.",
+                    exc_info=self.logger.isEnabledFor(logging.DEBUG),
+                )
+                yield None
+
+    def generate_shapes(self) -> Iterator[Shape | None]:
+        """
+        Create Shape documents from the parsed GTFS data.
+
+        Yields:
+            Iterator[Shape | None]: None if skipped due to error, otherwise a Shape document.
+        """
+        for shape_id, shape_points_raw in self.shapes.items():
+            coordinates = []
+            distances = []
+            point_parse_errors = 0
+            has_valid_distance = False  # Track if any distance is valid
+
+            try:
+                # Points should already be sorted by sequence by the reader
+                for point_row in shape_points_raw:
+                    try:
+                        lat = float(point_row["shape_pt_lat"])
+                        lon = float(point_row["shape_pt_lon"])
+                        coordinates.append([lon, lat])  # GeoJSON order
+
+                        # Handle distance
+                        dist_str = point_row.get("shape_dist_traveled")
+                        dist = None
+                        if dist_str:  # Check for non-empty string
+                            try:
+                                dist = float(dist_str)
+                                has_valid_distance = (
+                                    True  # Mark that we found at least one
+                                )
+                            except (ValueError, TypeError):
+                                self.logger.debug(
+                                    f"Invalid shape_dist_traveled '{dist_str}' for point in shape {shape_id}. Appending None."
+                                )
+                        distances.append(dist)  # Append None if invalid or missing
+
+                    except (ValueError, TypeError, KeyError) as point_err:
+                        point_parse_errors += 1
+                        self.logger.debug(
+                            f"Error parsing point for shape {shape_id}: {point_err} - Row: {point_row}. Skipping point."
+                        )
+                        # Continue processing other points for this shape
+
+                # If no valid points were parsed at all
+                if not coordinates:
+                    self.logger.warning(
+                        f"Shape {shape_id} has no valid coordinate points after parsing. Skipping shape."
+                    )
+                    yield None
+                    continue  # Skip this shape entirely
+
+                if point_parse_errors > 0:
+                    self.logger.warning(
+                        f"Shape {shape_id} was processed with {point_parse_errors} point errors."
+                    )
+
+                # --- Create Shape Document ---
+                geometry = LineStringGeometry(coordinates=coordinates)
+                yield Shape(
+                    shape_id=shape_id,
+                    geometry=geometry,
+                    # Only include distances if at least one valid distance was found
+                    distances_traveled=distances if has_valid_distance else None,
+                )
+
+            except Exception as e:
+                # Catch errors during shape document creation itself
+                self.logger.warning(
+                    f"Error creating document for shape {shape_id}: {e}. Skipping.",
+                    exc_info=self.logger.isEnabledFor(logging.DEBUG),
+                )
+                yield None
