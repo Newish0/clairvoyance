@@ -3,7 +3,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from models import ScheduledTripDocument, StopTimeInfo
 from dataclasses import dataclass
-from config import setup_logger
+from logger_config import setup_logger
 from models.gtfs_enums import (
     ContinuousPickupDropOff,
     LocationType,

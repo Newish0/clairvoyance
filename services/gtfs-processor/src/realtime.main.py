@@ -7,8 +7,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from models import ScheduledTripDocument, Alert
 from parsing.gtfs_realtime import RealtimeUpdaterService
-from config import setup_logger
+from logger_config import setup_logger
 import os
+import parsing.gtfs_config as gtfs_config_svc
 
 
 # --- Configuration ---
@@ -17,31 +18,32 @@ MONGO_CONNECTION_STRING = (
 )
 DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 
-AGENCY_ID = "BCT-48"
-TRIP_UPDATES_URL = "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48"
-VEHICLE_UPDATES_URL = (
-    "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48"
-)
-ALERTS_URL = "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48"
-
-
-SOURCES = [
-    {"url": TRIP_UPDATES_URL, "name": "Trip Updates"},
-    {"url": VEHICLE_UPDATES_URL, "name": "Vehicle Updates"},
-    {"url": ALERTS_URL, "name": "Alerts"},
-]
 
 logger = None
 
 
-async def run_updates():
-    """Performs one cycle of fetching and processing both feed types."""
-    updater = RealtimeUpdaterService(agency_id=AGENCY_ID, logger=logger)
+async def run_updates(gtfs_config: dict):
+    for agency in gtfs_config["agencies"]:
+        await run_agency_updates(
+            agency_id=agency["id"],
+            agency_name=agency["name"] if "name" in agency else "",
+            rt_sources=agency["realtime"],
+        )
+
+
+async def run_agency_updates(agency_id: str, rt_sources: list, agency_name: str = ""):
+    """Performs one cycle of fetching and processing all feeds on an agency."""
+
+    display_name = f"{agency_name} ({agency_id})" if agency_name else agency_id
+
+    updater = RealtimeUpdaterService(agency_id=agency_id, logger=logger)
     start_time = time.monotonic()
     logger.info("-" * 30)
-    logger.info(f"Starting update cycle at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(
+        f"Starting update cycle at {time.strftime('%Y-%m-%d %H:%M:%S')} for {display_name}"
+    )
 
-    for source in SOURCES:
+    for source in rt_sources:
         try:
             logger.info(f"Processing {source['name']} from {source['url']}...")
             result = await updater.process_realtime_feed(source["url"])
@@ -61,11 +63,12 @@ async def run_updates():
     logger.info("-" * 30)
 
 
-async def init(interval_seconds: int | None):
+async def init(gtfs_config, interval_seconds: int | None):
     """
     Initialize DB connection, Beanie, and run updates
     either once or periodically based on interval_seconds.
     """
+
     logger.info(f"Connecting to MongoDB ({MONGO_CONNECTION_STRING})")
     client = AsyncIOMotorClient(MONGO_CONNECTION_STRING)
     db = client[DATABASE_NAME]
@@ -82,7 +85,7 @@ async def init(interval_seconds: int | None):
         logger.info("Press Ctrl+C to stop.")
         while True:
             try:
-                await run_updates()
+                await run_updates(gtfs_config)
                 logger.info(
                     f"Waiting {interval_seconds} seconds for the next update cycle..."
                 )
@@ -106,7 +109,7 @@ async def init(interval_seconds: int | None):
         # --- Single Run ---
         logger.info("Running a single update.")
         try:
-            await run_updates()
+            await run_updates(gtfs_config)
         except Exception as e:
             logger.error(
                 f"An error occurred during the single update run: {e}", exc_info=True
@@ -121,6 +124,14 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Fetch and process GTFS-realtime data into MongoDB using Beanie.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        metavar="PATH",
+        default=None,
+        help="Path to configuration JSON file. If not specified, looks for 'gtfs_config.json' in current directory.",
     )
     parser.add_argument(
         "-i",
@@ -148,12 +159,25 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
+    # Set up logging
     global logger
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logger = setup_logger("realtime.main", log_level)
 
     try:
-        asyncio.run(init(interval_seconds=args.interval))
+        # Load and validate configuration
+        try:
+            gtfs_config = gtfs_config_svc.load_config(args.config)
+            logger.info(
+                f"Configuration loaded successfully from: {args.config or 'gtfs_config.json'}"
+            )
+        except gtfs_config_svc.ConfigurationError as e:
+            logger.error(f"Configuration error: {e}")
+            sys.exit(1)
+
+        # Initialize with configuration
+        asyncio.run(init(gtfs_config=gtfs_config, interval_seconds=args.interval))
+
     except KeyboardInterrupt:
         logger.info("Ctrl+C detected. Exiting program.")
     except Exception as e:
