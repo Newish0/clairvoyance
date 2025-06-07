@@ -25,6 +25,12 @@ VEHICLE_UPDATES_URL = (
 ALERTS_URL = "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48"
 
 
+SOURCES = [
+    {"url": TRIP_UPDATES_URL, "name": "Trip Updates"},
+    {"url": VEHICLE_UPDATES_URL, "name": "Vehicle Updates"},
+    {"url": ALERTS_URL, "name": "Alerts"},
+]
+
 logger = None
 
 
@@ -35,26 +41,20 @@ async def run_updates():
     logger.info("-" * 30)
     logger.info(f"Starting update cycle at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
-    try:
-        logger.info(f"Processing Trip Updates from {TRIP_UPDATES_URL}...")
-        await updater.process_realtime_feed(TRIP_UPDATES_URL)
-        logger.info("Trip Updates processed.")
-    except Exception as e:
-        logger.error(f"Error processing Trip Updates: {e}", exc_info=True)
+    for source in SOURCES:
+        try:
+            logger.info(f"Processing {source['name']} from {source['url']}...")
+            result = await updater.process_realtime_feed(source["url"])
+            logger.info(f"{source['name']} processed.")
+            logger.info(str(result))
+        except Exception as e:
+            logger.error(f"Error processing {source['name']}: {e}", exc_info=True)
 
-    try:
-        logger.info(f"Processing Vehicle Updates from {VEHICLE_UPDATES_URL}...")
-        await updater.process_realtime_feed(VEHICLE_UPDATES_URL)
-        logger.info("Vehicle Updates processed.")
-    except Exception as e:
-        logger.error(f"Error processing Vehicle Updates: {e}", exc_info=True)
-
-    try:
-        logger.info(f"Processing Alerts from {ALERTS_URL}...")
-        await updater.process_realtime_feed(ALERTS_URL)
-        logger.info("Alerts processed.")
-    except Exception as e:
-        logger.error(f"Error processing Alerts: {e}", exc_info=True)
+    logger.info("Marking timed out alerts as ended...")
+    num_marked = await updater.mark_timed_out_alerts()
+    logger.info(
+        f"{num_marked} alerts has not been seen for {updater.alert_end_timeout} seconds--marked as ended."
+    )
 
     end_time = time.monotonic()
     logger.info(f"Update cycle finished in {end_time - start_time:.2f} seconds.")

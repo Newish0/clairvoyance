@@ -174,6 +174,7 @@ class ScheduledTripDocument(Document):
 
     class Settings:
         name = "scheduled_trips"
+        use_revision = True
         indexes = [
             # Compound index for unique scheduled trip instance lookup using trip_id
             pymongo.IndexModel(
@@ -299,6 +300,7 @@ class Stop(Document):
 
     class Settings:
         name = "stops"
+        use_revision = True
         indexes = [
             pymongo.IndexModel(
                 [
@@ -348,6 +350,7 @@ class Route(Document):
 
     class Settings:
         name = "routes"
+        use_revision = True
         indexes = [
             pymongo.IndexModel(
                 [("route_id", pymongo.ASCENDING)],
@@ -380,6 +383,7 @@ class Shape(Document):
 
     class Settings:
         name = "shapes"
+        use_revision = True
         indexes = [
             # NOTE: Must index geometry here since it's of LineStringGeometry
             pymongo.IndexModel(
@@ -478,6 +482,7 @@ class Alert(Document):
 
     class Settings:
         name = "alerts"
+        use_revision = True
         indexes = [
             pymongo.IndexModel(
                 [("producer_alert_id", pymongo.ASCENDING)],

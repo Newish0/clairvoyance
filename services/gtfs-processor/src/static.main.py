@@ -23,7 +23,7 @@ MONGO_CONNECTION_STRING = (
 DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
 GTFS_ZIP_FILE = "bctransit_gtfs.zip"
 
-INSERT_BATCH_SIZE = 500  # Batch size for all insert_many operations
+INSERT_BATCH_SIZE = 10000  # Batch size for all insert_many operations
 
 DOCUMENT_MODELS: List[Type[Document]] = [
     Stop,
