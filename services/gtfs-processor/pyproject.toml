@@ -7,7 +7,9 @@ requires-python = ">=3.10"
 dependencies = [
     "beanie>=1.29.0",
     "motor>=3.7.0",
+    "mypy>=1.16.0",
     "protobuf>=6.31.0",
     "pytz>=2025.2",
     "requests>=2.32.3",
+    "types-pytz>=2025.2.0.20250516",
 ]
