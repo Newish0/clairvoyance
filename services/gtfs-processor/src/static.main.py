@@ -13,7 +13,7 @@ from models import (
     Shape,
     Stop
 )
-from config import setup_logger
+from logger_config import setup_logger
 
 
 # --- Configuration ---

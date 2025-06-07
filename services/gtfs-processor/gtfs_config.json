@@ -1,0 +1,28 @@
+{
+    "agencies": [
+        {
+            "id": "BCT-48",
+            "name": "BC Transit Victoria Region",
+            "static": {
+                "url": "https://bct.tmix.se/gtfs/gtfs.zip"
+            },
+            "realtime": [
+                {
+                    "name": "Trip Updates",
+                    "url": "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48",
+                    "enabled": true
+                },
+                {
+                    "name": "Vehicle Updates",
+                    "url": "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48",
+                    "enabled": true
+                },
+                {
+                    "name": "Alerts",
+                    "url": "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48",
+                    "enabled": true
+                }
+            ]
+        }
+    ]
+}

@@ -8,7 +8,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Set, Tuple
 import datetime
 from parsing.parsed_gtfs_data import ParsedGTFSData
-from config import setup_logger
+from logger_config import setup_logger
 
 class GTFSReader:
     """
