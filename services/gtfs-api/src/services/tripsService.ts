@@ -7,6 +7,7 @@ import type {
     StopTimeInfo,
     Vehicle,
     VehicleStopStatus,
+    TripDescriptorScheduleRelationship,
 } from "gtfs-db-types";
 import { isFpEqual } from "@/utils/distance";
 
@@ -384,6 +385,7 @@ export const fetchNearbyTrips = async (
                 current_stop_sequence: 1,
                 vehicle: 1,
                 stop_times_updated_at: 1,
+                schedule_relationship: 1,
             },
         },
     ]);
@@ -401,6 +403,7 @@ export const fetchNearbyTrips = async (
         current_stop_sequence?: number | null;
         vehicle?: Vehicle | null;
         stop_times_updated_at?: Date | null;
+        schedule_relationship?: TripDescriptorScheduleRelationship | null;
     };
 
     const relevantStopTimes: RelevantStopTime[] = (await relevantStopTimesCursor.toArray()) as any;

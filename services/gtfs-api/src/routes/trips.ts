@@ -2,6 +2,7 @@ import {
     ScheduledTripDocumentSchema,
     ScheduledTripDocumentWithStopNamesSchema,
     StopTimeInfoSchema,
+    TripDescriptorScheduleRelationshipSchema,
     VehicleSchema,
     VehicleStopStatusSchema,
 } from "@/schemas/common-body";
@@ -89,6 +90,9 @@ const router = new Elysia()
                         current_stop_sequence: t.Optional(t.Nullable(t.Integer())),
                         vehicle: t.Optional(t.Nullable(VehicleSchema)),
                         stop_times_updated_at: t.Optional(t.Nullable(t.Date())),
+                        schedule_relationship: t.Optional(
+                            t.Nullable(TripDescriptorScheduleRelationshipSchema)
+                        ),
                     })
                 )
             ),
