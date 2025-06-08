@@ -58,7 +58,7 @@ class GTFSReader:
             _,  # services set not directly needed by ParsedGTFSData constructor
             stops,
             shapes,
-        ) = self._read_gtfs_zip(zip_data_buf)
+        ) = self.__read_gtfs_zip(zip_data_buf)
 
         parsed_data = ParsedGTFSData(
             agency_timezone=agency_timezone,
@@ -73,7 +73,7 @@ class GTFSReader:
 
         return parsed_data
 
-    def _read_gtfs_zip(self, zip_file_buffer: io.BytesIO) -> Tuple[Dict[str, Any], ...]:
+    def __read_gtfs_zip(self, zip_file_buffer: io.BytesIO) -> Tuple[Dict[str, Any], ...]:
         """
         Reads a GTFS zip file and returns the raw parsed data.
 
@@ -108,15 +108,15 @@ class GTFSReader:
                 agency_timezone = self._parse_agency(zip_ref, filenames_in_zip)
 
                 # Parse other files
-                routes = self._parse_routes(zip_ref, filenames_in_zip)
-                trips, services = self._parse_trips(zip_ref, filenames_in_zip)
-                service_dates = self._parse_calendar(zip_ref, filenames_in_zip)
-                service_dates = self._parse_calendar_dates(
+                routes = self.__parse_routes(zip_ref, filenames_in_zip)
+                trips, services = self.__parse_trips(zip_ref, filenames_in_zip)
+                service_dates = self.__parse_calendar(zip_ref, filenames_in_zip)
+                service_dates = self.__parse_calendar_dates(
                     zip_ref, filenames_in_zip, service_dates
                 )
-                stop_times = self._parse_stop_times(zip_ref, filenames_in_zip)
-                stops = self._parse_stops(zip_ref, filenames_in_zip)
-                shapes = self._parse_shapes(zip_ref, filenames_in_zip)
+                stop_times = self.__parse_stop_times(zip_ref, filenames_in_zip)
+                stops = self.__parse_stops(zip_ref, filenames_in_zip)
+                shapes = self.__parse_shapes(zip_ref, filenames_in_zip)
 
                 return (
                     agency_timezone,
@@ -192,7 +192,7 @@ class GTFSReader:
 
         return agency_timezone
 
-    def _parse_routes(
+    def __parse_routes(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
     ) -> Dict[str, Dict[str, Any]]:
         """Parse routes.txt to build route dictionary."""
@@ -222,7 +222,7 @@ class GTFSReader:
             self.logger.warning(f"{filename} not found in GTFS zip file.")
         return routes
 
-    def _parse_trips(
+    def __parse_trips(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
     ) -> Tuple[Dict[str, Dict[str, Any]], Set[str]]:
         """Parse trips.txt to build trip dictionary and collect service IDs."""
@@ -261,7 +261,7 @@ class GTFSReader:
             self.logger.warning(f"{filename} not found in GTFS zip file.")
         return trips, services
 
-    def _parse_calendar(
+    def __parse_calendar(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
     ) -> Dict[str, List[str]]:
         """Parse calendar.txt to get initial service dates."""
@@ -343,7 +343,7 @@ class GTFSReader:
             )
         return service_dates
 
-    def _parse_calendar_dates(
+    def __parse_calendar_dates(
         self,
         zip_ref: zipfile.ZipFile,
         filenames: Set[str],
@@ -424,7 +424,7 @@ class GTFSReader:
             self.logger.info(f"{filename} not found in GTFS zip file")
         return service_dates
 
-    def _parse_stop_times(
+    def __parse_stop_times(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
     ) -> Dict[str, List[Dict[str, Any]]]:
         """Parse stop_times.txt to build stop times dictionary, grouped by trip_id."""
@@ -500,7 +500,7 @@ class GTFSReader:
             self.logger.warning(f"{filename} not found in GTFS zip file")
         return stop_times_by_trip
 
-    def _parse_stops(
+    def __parse_stops(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
     ) -> Dict[str, Dict[str, Any]]:
         """Parse stops.txt to build stop dictionary."""
@@ -536,7 +536,7 @@ class GTFSReader:
             self.logger.warning(f"{filename} not found in GTFS zip file.")
         return stops
 
-    def _parse_shapes(
+    def __parse_shapes(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
