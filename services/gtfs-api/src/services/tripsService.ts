@@ -8,6 +8,7 @@ import type {
     Vehicle,
     VehicleStopStatus,
 } from "gtfs-db-types";
+import { isFpEqual } from "@/utils/distance";
 
 export const addStopNameToStopTimeInfo = async (stopTimeInfo: StopTimeInfo) => {
     const stopNameService = StopNameService.getInstance(await getDb());
@@ -231,9 +232,9 @@ export const fetchScheduledTrips = async ({
 };
 /**
  * Fetches a list of scheduled trips that depart from nearby stops.
- * 
- * WARNING: For performance reasons, this function by default only looks for scheduled 
- *          trips that depart within the next 12 hours and trips that have departed within 
+ *
+ * WARNING: For performance reasons, this function by default only looks for scheduled
+ *          trips that depart within the next 12 hours and trips that have departed within
  *          the last 48 hours. It may not find all trips that depart from nearby stops by default.
  *
  * @param lat The latitude of the user's location.
@@ -449,9 +450,30 @@ export const fetchNearbyTrips = async (
     // --- Step 5: Format final output ---
     // stepStartTime = performance.now();
     const nextTrips = Array.from(bestNextTripMap.values());
+
+    // Trip at the closest stop and departs the earliest comes first.
+    // Distance & departure time takes 50/50 of the weight
     nextTrips.sort((a, b) => {
-        if (a.distance !== b.distance) return a.distance - b.distance;
-        return a.stop_time.departure_datetime.getTime() - b.stop_time.departure_datetime.getTime();
+        let score = 0;
+        if (isFpEqual(a.distance, b.distance, 0.001)) {
+            /* do nothing */
+        } else if (a.distance < b.distance) {
+            score = -1;
+        } else if (a.distance > b.distance) {
+            score = 1;
+        }
+
+        const aTime = a.stop_time.departure_datetime.getTime();
+        const bTime = b.stop_time.departure_datetime.getTime();
+        if (isFpEqual(aTime, bTime, 1000)) {
+            /* do nothing */
+        } else if (aTime < bTime) {
+            score = -1;
+        } else if (aTime > bTime) {
+            score = 1;
+        }
+
+        return score;
     });
     const groupedByRoute: Record<string, typeof nextTrips> = {};
     for (const trip of nextTrips) {
