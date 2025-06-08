@@ -1,5 +1,5 @@
 import { getDb, type OmitId } from "@/services/mongo";
-import { FIVE_MIN_IN_MS, getTwelveHoursInFuture } from "@/utils/datetime";
+import { FIVE_MIN_IN_MS, getHoursInFuture } from "@/utils/datetime";
 import { ObjectId, type WithId } from "mongodb";
 import { StopNameService } from "./stopNameService";
 import type {
@@ -229,12 +229,27 @@ export const fetchScheduledTrips = async ({
 
     return await Promise.all(scheduledTrips.map(addStopNameToScheduledTrips));
 };
-
+/**
+ * Fetches a list of scheduled trips that depart from nearby stops.
+ * 
+ * WARNING: For performance reasons, this function by default only looks for scheduled 
+ *          trips that depart within the next 12 hours and trips that have departed within 
+ *          the last 48 hours. It may not find all trips that depart from nearby stops by default.
+ *
+ * @param lat The latitude of the user's location.
+ * @param lng The longitude of the user's location.
+ * @param radius The radius of the area to search for nearby stops.
+ * @param maxDate The maximum start datetime to include in the results. Defaults to 12 hours from the current time.
+ * @param minDate The minimum start datetime to include in the results. Defaults to 48 hours ago. For performance at cost of accuracy.
+ * @param realtimeMaxAge The maximum age of the position updates to include in the results. Defaults to 5 minutes.
+ * @returns A list of scheduled trips with stop names.
+ */
 export const fetchNearbyTrips = async (
     lat: number,
     lng: number,
     radius: number,
-    maxDate = getTwelveHoursInFuture(),
+    maxDate = getHoursInFuture(12),
+    minDate = getHoursInFuture(-48),
     realtimeMaxAge = FIVE_MIN_IN_MS
 ) => {
     const realtimeThreshold = new Date(Date.now() - realtimeMaxAge);
@@ -294,7 +309,7 @@ export const fetchNearbyTrips = async (
         {
             $match: {
                 "stop_times.stop_id": { $in: stopIds },
-                start_datetime: { $lt: maxDate }, // Limit for performance
+                start_datetime: { $lt: maxDate, $gte: minDate }, // Limit for performance
             },
         },
         { $unwind: "$stop_times" },
