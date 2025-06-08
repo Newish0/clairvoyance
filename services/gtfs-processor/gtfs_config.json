@@ -2,9 +2,9 @@
     "agencies": [
         {
             "id": "BCT-48",
-            "name": "BC Transit Victoria Region",
+            "name": "BC Transit Victoria",
             "static": {
-                "url": "https://bct.tmix.se/gtfs/gtfs.zip"
+                "url": "https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48"
             },
             "realtime": [
                 {
