@@ -131,7 +131,7 @@ def parse_arguments():
         type=str,
         metavar="PATH",
         default=None,
-        help="Path to configuration JSON file. If not specified, looks for 'gtfs_config.json' in current directory.",
+        help="Path to GTFS configuration JSON file. If not specified, looks for 'gtfs_config.json' in current directory.",
     )
     parser.add_argument(
         "-i",
@@ -164,20 +164,18 @@ def main():
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logger = setup_logger("realtime.main", log_level)
 
+    # Load and validate configuration
     try:
-        # Load and validate configuration
-        try:
-            gtfs_config = gtfs_config_svc.load_config(args.config)
-            logger.info(
-                f"Configuration loaded successfully from: {args.config or 'gtfs_config.json'}"
-            )
-        except gtfs_config_svc.ConfigurationError as e:
-            logger.error(f"Configuration error: {e}")
-            sys.exit(1)
+        gtfs_config = gtfs_config_svc.load_config(args.config)
+        logger.info(
+            f"Configuration loaded successfully from: {args.config or 'gtfs_config.json'}"
+        )
+    except gtfs_config_svc.ConfigurationError as e:
+        logger.error(f"Configuration error: {e}")
+        sys.exit(1)
 
-        # Initialize with configuration
+    try:
         asyncio.run(init(gtfs_config=gtfs_config, interval_seconds=args.interval))
-
     except KeyboardInterrupt:
         logger.info("Ctrl+C detected. Exiting program.")
     except Exception as e:
