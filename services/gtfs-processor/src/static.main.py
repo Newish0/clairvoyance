@@ -7,13 +7,9 @@ from typing import Iterable, Iterator, List, Type
 from beanie import Document, init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 from parsing.gtfs_reader import GTFSReader, ParsedGTFSData
-from models import (
-    Route,
-    ScheduledTripDocument,
-    Shape,
-    Stop
-)
+from models import Route, ScheduledTripDocument, Shape, Stop
 from logger_config import setup_logger
+import parsing.gtfs_config as gtfs_config_svc
 
 
 # --- Configuration ---
@@ -21,7 +17,6 @@ MONGO_CONNECTION_STRING = (
     os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
 )
 DATABASE_NAME = os.getenv("MONGO_DB_NAME") or "gtfs_data"
-GTFS_ZIP_FILE = "bctransit_gtfs.zip"
 
 INSERT_BATCH_SIZE = 10000  # Batch size for all insert_many operations
 
@@ -155,7 +150,7 @@ async def process_and_insert_scheduled_trips(
     )
 
 
-async def start_import(drop_collections: bool = False):
+async def start_import(gtfs_config, drop_collections: bool = False):
     """Main async function to run the GTFS import process."""
     logger.info("=== Starting GTFS Data Import ===")
 
@@ -190,43 +185,62 @@ async def start_import(drop_collections: bool = False):
         )
         return  # Exit if DB setup fails
 
-    # --- Parse GTFS Data ---
-    try:
-        reader = GTFSReader()
-        logger.info(f"Parsing GTFS data from '{GTFS_ZIP_FILE}'...")
-        # Assuming parse returns an object holding dicts like parsed_gtfs.stops, parsed_gtfs.routes etc.
-        parsed_gtfs: ParsedGTFSData = reader.parse(GTFS_ZIP_FILE)
-        logger.info("GTFS parsing completed.")
-    except Exception as e:
-        logger.error(f"Failed during GTFS parsing: {e}", exc_info=True)
-        return  # Exit if parsing fails
-
-    # --- Process and Insert Data Concurrently ---
-    logger.info("Starting concurrent processing and insertion of GTFS data...")
-    try:
-        tasks = [
-            (process_and_insert_stops(parsed_gtfs)),
-            (process_and_insert_routes(parsed_gtfs)),
-            (process_and_insert_shapes(parsed_gtfs)),
-            (process_and_insert_scheduled_trips(parsed_gtfs)),
-        ]
-
-        await asyncio.gather(
-            *tasks,
-            return_exceptions=False,
+    # Parse static GTFS data from each agency
+    for agency in gtfs_config["agencies"]:
+        agency_display_name = (
+            f"{agency['name']} ({agency['id']})" if agency["name"] else agency["id"]
         )
-        logger.info("All processing and insertion tasks completed.")
-
-    except Exception as e:
-        logger.error(
-            f"An error occurred during concurrent data processing: {e}", exc_info=True
+        gtfs_static_source = (
+            agency["static"]["url"]
+            if "url" in agency["static"]
+            else agency["static"]["file_path"]
         )
-    finally:
-        if client:
-            client.close()
-            logger.info("MongoDB client closed.")
 
-    logger.info("=== GTFS Data Import Finished ===")
+        try:
+            reader = GTFSReader()
+            logger.info(
+                f"Parsing {agency_display_name} GTFS data from '{gtfs_static_source}'..."
+            )
+            parsed_gtfs: ParsedGTFSData = reader.parse(gtfs_static_source)
+            logger.info(f"GTFS parsing for agency {agency_display_name} has completed.")
+        except Exception as e:
+            logger.error(
+                f"Failed during GTFS parsing for agency {agency_display_name}: {e}",
+                exc_info=True,
+            )
+            continue  # Skip to next agency
+
+        # --- Process and Insert Data Concurrently ---
+        logger.info("Starting concurrent processing and insertion of GTFS data...")
+        try:
+            tasks = [
+                (process_and_insert_stops(parsed_gtfs)),
+                (process_and_insert_routes(parsed_gtfs)),
+                (process_and_insert_shapes(parsed_gtfs)),
+                (process_and_insert_scheduled_trips(parsed_gtfs)),
+            ]
+
+            await asyncio.gather(
+                *tasks,
+                return_exceptions=False,
+            )
+            logger.info(
+                f"All processing and insertion tasks for {agency_display_name} has completed."
+            )
+
+        except Exception as e:
+            logger.error(
+                f"An error occurred during concurrent data processing for {agency_display_name}: {e}",
+                exc_info=True,
+            )
+
+    if client:
+        client.close()
+        logger.info("MongoDB client closed.")
+
+    logger.info(
+        f"=== GTFS Data Import From {len(gtfs_config['agencies'])} Agencies Finished ==="
+    )
 
 
 def parse_arguments():
@@ -250,6 +264,15 @@ def parse_arguments():
         help="Enable verbose logging.",
     )
 
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        metavar="PATH",
+        default=None,
+        help="Path to GTFS configuration JSON file. If not specified, looks for 'gtfs_config.json' in current directory.",
+    )
+
     args = parser.parse_args()
 
     return args
@@ -262,8 +285,18 @@ def main():
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logger = setup_logger("static.main", log_level)
 
+    # Load and validate configuration
     try:
-        asyncio.run(start_import(drop_collections=args.drop_collections))
+        gtfs_config = gtfs_config_svc.load_config(args.config)
+        logger.info(
+            f"Configuration loaded successfully from: {args.config or 'gtfs_config.json'}"
+        )
+    except gtfs_config_svc.ConfigurationError as e:
+        logger.error(f"Configuration error: {e}")
+        sys.exit(1)
+
+    try:
+        asyncio.run(start_import(gtfs_config, drop_collections=args.drop_collections))
     except KeyboardInterrupt:
         logger.warning("Ctrl+C detected. Exiting program BEFORE completing import.")
     except Exception as e:
