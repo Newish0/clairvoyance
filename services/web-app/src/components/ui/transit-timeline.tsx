@@ -10,6 +10,7 @@ import {
 } from "solid-js";
 
 import { cn } from "~/lib/utils";
+import { getNearestScrollingContainer } from "~/utils/dom";
 
 export type TransitStopProps = Omit<
     TransitStopItemProps,
@@ -98,11 +99,12 @@ const TransitStopItem: Component<TransitStopItemProps> = (props) => {
 
     onMount(() => {
         if (local.scrollToView && ref !== null) {
-            ref.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-                inline: "center",
-            });
+            const scrollingContainer = getNearestScrollingContainer(ref);
+            const containerBBox = scrollingContainer.getBoundingClientRect();
+            const bbox = ref.getBoundingClientRect();
+            const offset = bbox.height / 2; // Scroll the center of the element
+            const scrollTop = bbox.top - containerBBox.top + offset;
+            scrollingContainer.scrollTo({ top: scrollTop, behavior: "smooth" });
         }
     });
 
