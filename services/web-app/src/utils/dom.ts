@@ -42,3 +42,32 @@ export function getNearestScrollingContainer(element: Element | null): Element |
     // Default to document.documentElement (html element)
     return document.documentElement;
 }
+
+export function scrollContainerTo(
+    element: Element,
+    options: {
+        behavior?: ScrollBehavior;
+        block: "start" | "center" | "end";
+        inline: "start" | "center" | "end";
+    }
+) {
+    const getAlignment = (value: "start" | "center" | "end") => {
+        switch (value) {
+            case "start":
+                return 0;
+            case "center":
+                return 0.5;
+            case "end":
+                return 1;
+        }
+    };
+
+    const scrollingContainer = getNearestScrollingContainer(element);
+    const containerBBox = scrollingContainer.getBoundingClientRect();
+    const bbox = element.getBoundingClientRect();
+    const topOffset = bbox.height * getAlignment(options.block); // Scroll the center of the element
+    const scrollTop = bbox.top - containerBBox.top + topOffset;
+    const leftOffset = bbox.width * getAlignment(options.inline); // Scroll the center of the element
+    const scrollLeft = bbox.left - containerBBox.left + leftOffset;
+    scrollingContainer.scrollTo({ top: scrollTop, left: scrollLeft, behavior: options.behavior });
+}
