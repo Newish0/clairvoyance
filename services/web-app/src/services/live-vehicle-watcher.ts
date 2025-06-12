@@ -1,7 +1,8 @@
+import type { ScheduledTripDocument } from "gtfs-db-types";
 import EndpointEnv from "~/constants/endpoint-env";
 
 export type DirectionId = 0 | 1 | undefined;
-export type Vehicle = any; // Lazy type as requested
+export type Vehicle = any;
 
 export type ConnectionStatus = "idle" | "connecting" | "connected" | "disconnected" | "error";
 

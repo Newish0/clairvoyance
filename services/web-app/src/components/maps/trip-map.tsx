@@ -27,19 +27,22 @@ import { Badge } from "../ui/badge";
 
 import { Sheet, SheetContent } from "~/components/ui/sheet";
 import BaseMap from "../ui/base-map";
-import { OccupancyStatus } from "../ui/occupancy-badge";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
-import { DirectionId, StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
+import {
+    DirectionId,
+    StopTimeUpdateScheduleRelationship,
+    OccupancyStatus,
+    type ScheduledTripDocument,
+} from "gtfs-db-types";
 
 type TripMapProps = {
     tripObjectId: string;
     stopId: string;
 };
 
-type ScheduledTrip = any;
-
 const TripMap: Component<TripMapProps> = (props) => {
-    const [selectedTripVehicle, setSelectedTripVehicle] = createSignal<ScheduledTrip | null>(null);
+    const [selectedTripVehicle, setSelectedTripVehicle] =
+        createSignal<ScheduledTripDocument | null>(null);
 
     const [tripDetails] = createResource(() => getScheduledTripDetails(props.tripObjectId));
     const [rawShapeLineGeoJson] = createResource(

@@ -2,18 +2,7 @@ import { UserRound } from "lucide-solid";
 import { type Component, type ComponentProps, For, Show } from "solid-js";
 import { cn } from "~/lib/utils";
 import { Badge } from "./badge";
-
-export enum OccupancyStatus {
-    EMPTY = 0,
-    MANY_SEATS_AVAILABLE = 1,
-    FEW_SEATS_AVAILABLE = 2,
-    STANDING_ROOM_ONLY = 3,
-    CRUSHED_STANDING_ROOM_ONLY = 4,
-    FULL = 5,
-    NOT_ACCEPTING_PASSENGERS = 6,
-    NO_DATA_AVAILABLE = 7,
-    NOT_BOARDABLE = 8,
-}
+import { OccupancyStatus } from "gtfs-db-types";
 
 interface OccupancyBadgeProps {
     status: number;

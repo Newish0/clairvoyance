@@ -1,35 +1,19 @@
-import {
-    createEffect,
-    createResource,
-    For,
-    mergeProps,
-    onCleanup,
-    onMount,
-    Show,
-    type Component,
-} from "solid-js";
+import { createResource, For, mergeProps, onCleanup, onMount, Show } from "solid-js";
 import { TransitRouteTimeline } from "~/components/ui/transit-timeline";
 import { Badge } from "../ui/badge";
 
 import { addHours, format } from "date-fns";
-import {
-    ArrowLeftRightIcon,
-    CircleIcon,
-    CircleMinusIcon,
-    TriangleAlert,
-    WifiHighIcon,
-} from "lucide-solid";
+import { ArrowLeftRightIcon, CircleMinusIcon, WifiHighIcon } from "lucide-solid";
 import { getRouteNextTripsAtStop, getScheduledTripDetails } from "~/services/trips";
 import { recordToSearchParams } from "~/utils/urls";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { buttonVariants } from "../ui/button";
 import StopNextTrips from "./stop-next-trips";
 
-import { AlertCause, AlertEffect, StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
+import { StopTimeUpdateScheduleRelationship } from "gtfs-db-types";
+import { cn } from "~/lib/utils";
 import { getAnyActiveAlertsByEntitySelector } from "~/services/alerts";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 import TransitAlert from "../ui/transit-alert";
-import { cn } from "~/lib/utils";
 
 interface TripDetailsProps {
     tripObjectId: string;

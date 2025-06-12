@@ -118,15 +118,14 @@
 // export default TripVehicleInfo;
 
 import { differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
+import { OccupancyStatus } from "gtfs-db-types";
+import { AccessibilityIcon, ArrowRight, Bus, Clock, MapPin } from "lucide-solid";
 import { Show, createMemo, type Component } from "solid-js";
-import { Card, CardContent } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { Card, CardContent } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
-import { AccessibilityIcon, Clock, Bus, MapPin, ArrowRight } from "lucide-solid";
 import { cn } from "~/lib/utils";
-import { OccupancyStatus } from "./occupancy-badge";
-
-// Occupancy status enum
+import type { ScheduledTripDocumentWithStopName } from "~/services/dtos";
 
 // Occupancy badge component
 const OccupancyBadge: Component<{ status: OccupancyStatus; size?: number }> = (props) => {
@@ -188,10 +187,9 @@ const RealTimeIndicator: Component<{ delay: number }> = (props) => {
 };
 
 // Main component
-type ScheduledTrip = any;
 
 interface TripVehicleInfoProps {
-    trip: ScheduledTrip;
+    trip: ScheduledTripDocumentWithStopName;
     stopId: string;
 }
 
