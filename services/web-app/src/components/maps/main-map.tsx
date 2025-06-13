@@ -9,20 +9,18 @@ import { $selectedUserLocation } from "~/stores/selected-location-store";
 import { calculateHaversineDistance } from "~/utils/distance";
 import { isFpEqual } from "~/utils/numbers";
 import BaseMap from "../ui/base-map";
+import { useMapLocation } from "~/hooks/use-map-location";
 
 const MainMap: Component = () => {
-    const geolocationWatcher = createGeolocationWatcher(true, {
+    const mapLocation = useMapLocation({
+        thresholdDistance: 100,
+        storageKey: "userSelectedLocation",
         enableHighAccuracy: true,
     });
 
-    const selectedLocation = useStore($selectedUserLocation);
-
-    const mapCenter = () => [selectedLocation().longitude, selectedLocation().latitude] as const;
-
     const [viewport, setViewport] = createSignal({
-        // Format: [lon, lat]. Only get user location once. Do NOT rerender component on atom value change.
-        // Rerendering of map on location change is handled by listeners logic below.
-        center: mapCenter(),
+        // Format: [lon, lat]
+        center: [0, 0],
         zoom: 11,
     } as Viewport);
 
@@ -30,58 +28,43 @@ const MainMap: Component = () => {
         // If the new map center is very close to the user location,
         // snap to the user location.
         let center = evt.center;
-        if (geolocationWatcher.location) {
-            const distFromGps = calculateHaversineDistance(
-                {
-                    lat: evt.center[1],
-                    lon: evt.center[0],
-                },
-                {
-                    lat: geolocationWatcher.location.latitude,
-                    lon: geolocationWatcher.location.longitude,
-                }
-            );
 
-            if (distFromGps < 2 / evt.zoom) {
-                center = [
-                    geolocationWatcher.location.longitude,
-                    geolocationWatcher.location.latitude,
-                ] as const;
-            }
-        }
-
-        setViewport({ ...evt, center }); // Spread to ensure update
-        $selectedUserLocation.set({
-            latitude: center[1],
-            longitude: center[0],
+        // This implicitly triggers viewport to update due to createEffect
+        mapLocation.setSelectedLocation({
+            lng: center[0],
+            lat: center[1],
         });
     };
 
+    // Debug logging
+    createEffect(() => {
+        // console.log("Map Location State:", {
+        //     current: mapLocation.currentLocation(),
+        //     selected: mapLocation.selectedLocation(),
+        //     showSelected: mapLocation.showSelectedMarker(),
+        //     // withinThreshold: mapLocation.isWithinThreshold(),
+        //     geolocationAvailable: mapLocation.geolocationAvailable(),
+        // });
+    });
+
     createEffect(
-        on(
-            () => geolocationWatcher.location,
-            (loc) => {
-                if (loc) {
-                    setViewport((prev) => ({ ...prev, center: [loc.longitude, loc.latitude] }));
-                    $selectedUserLocation.set({
-                        latitude: loc.latitude,
-                        longitude: loc.longitude,
-                    });
-                }
-            },
-            {
-                defer: true,
+        on([mapLocation.selectedLocation], ([selectedLocation]) => {
+            if (selectedLocation) {
+                setViewport({
+                    ...viewport(),
+                    center: [selectedLocation.lng, selectedLocation.lat],
+                });
             }
-        )
+        })
     );
 
     return (
         <BaseMap viewport={viewport()} onViewportChange={handleViewportChange}>
             {/* User GPS location marker  */}
-            <Show when={geolocationWatcher.location}>
-                {(gpsLocation) => (
+            <Show when={mapLocation.currentLocation()}>
+                {(currentLocation) => (
                     <Marker
-                        lngLat={[gpsLocation().longitude, gpsLocation().latitude]}
+                        lngLat={[currentLocation().lng, currentLocation().lat]}
                         options={{
                             element: (
                                 <div
@@ -98,18 +81,10 @@ const MainMap: Component = () => {
             </Show>
 
             {/* Show selected location if there's no GPS location or selected location is different from GPS location */}
-            <Show
-                when={
-                    !geolocationWatcher.location ||
-                    !isFpEqual(geolocationWatcher.location.latitude, selectedLocation().latitude) ||
-                    !isFpEqual(geolocationWatcher.location.longitude, selectedLocation().longitude)
-                        ? selectedLocation()
-                        : null
-                }
-            >
+            <Show when={mapLocation.showSelectedMarker() && mapLocation.selectedLocation()}>
                 {(selectedLocation) => (
                     <Marker
-                        lngLat={[selectedLocation().longitude, selectedLocation().latitude]}
+                        lngLat={[selectedLocation().lng, selectedLocation().lat]}
                         options={{
                             element: (
                                 <div

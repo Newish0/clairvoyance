@@ -16,6 +16,7 @@
         "@nanostores/solid": "^0.5.0",
         "@solid-primitives/geolocation": "^1.5.1",
         "@solid-primitives/scheduled": "^1.4.4",
+        "@solid-primitives/storage": "^4.3.2",
         "astro": "^5.7.10",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -381,6 +382,8 @@
     "@solid-primitives/scheduled": ["@solid-primitives/scheduled@1.5.1", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-WKg/zvAyDIgQ/Xo48YaUY7ISaPyWTZNDzIVWP2R84CuLH+nZN/2O0aFn/gQlWY6y/Bfi/LdDt6Og2/PRzPY7mA=="],
 
     "@solid-primitives/static-store": ["@solid-primitives/static-store@0.1.1", "", { "dependencies": { "@solid-primitives/utils": "^6.3.1" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-daXWvpLjd+4hbYdGaaEJ2kKFuFhshvfIBFLveW7mfk2BWHl9lGQVwUuExp3qllkK9ONA9p+5D2cpwBQosv8odQ=="],
+
+    "@solid-primitives/storage": ["@solid-primitives/storage@4.3.2", "", { "dependencies": { "@solid-primitives/utils": "^6.3.1" }, "peerDependencies": { "@tauri-apps/plugin-store": "*", "solid-js": "^1.6.12" }, "optionalPeers": ["@tauri-apps/plugin-store"] }, "sha512-Vkuk/AqgUOjz6k7Mo5yDFQBQg8KMQcZfaac/bxLApaza3e5c/iNllNvxZWPM9Vf+Gf4m5SgRbvgsm6dSLJ27Jw=="],
 
     "@solid-primitives/trigger": ["@solid-primitives/trigger@1.2.1", "", { "dependencies": { "@solid-primitives/utils": "^6.3.1" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-pvNmddYs5AYUpiH373F7wbQOlcc10SSNHY8kUiu4UHoDlv4jhSnlNXzbFkmt33hq4ODKdN5gVm00jCnAJ+wm8Q=="],
 
