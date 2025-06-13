@@ -3,8 +3,12 @@ interface Coordinates {
     lon: number;
 }
 
-export function calculateHaversineDistance(coord1: Coordinates, coord2: Coordinates): number {
-    const R = 6371; // Earth's radius in kilometers
+export function calculateHaversineDistance(
+    coord1: Coordinates,
+    coord2: Coordinates,
+    unit: "km" | "m" = "km"
+): number {
+    const R = unit === "km" ? 6371 : 6371e3; // Earth's radius
     const dLat = toRadians(coord2.lat - coord1.lat);
     const dLon = toRadians(coord2.lon - coord1.lon);
 
