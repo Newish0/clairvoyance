@@ -3,6 +3,7 @@ import { makePersisted, storageSync } from "@solid-primitives/storage";
 import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
 import { DEFAULT_LOCATION } from "~/constants/location";
 import { calculateHaversineDistance } from "~/utils/distance";
+import { isFpEqual } from "~/utils/numbers";
 
 export interface Location {
     lat: number;
@@ -124,7 +125,8 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
     // 3. Current location exists AND is attached to geolocation
     //     - Sync selected location to current
     // 4. Current location AND selected location exist AND are NOT attached to geolocation
-    //    AND selected location is older than current location by maximumAge
+    //    AND selected location is older than current location by maximumAge. For when user
+    //    comes back to app after an extended period of time.
     //     - Sync selected location to current
     createEffect(
         on(
@@ -134,16 +136,18 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
                 const selected = _selectedLocation();
 
                 if (geolocation && !selected) {
-                    console.log("Case 1");
                     setSelectedLocation(geolocation);
                 } else if (!geolocation && !selected) {
-                    console.log("Case 2");
                     setSelectedLocation({
                         lat: DEFAULT_LOCATION.latitude,
                         lng: DEFAULT_LOCATION.longitude,
                     });
                 } else if (geolocation && isAttached) {
-                    console.log("Case 3");
+                    if (
+                        isFpEqual(geolocation.lat, selected.lat, 0.000001) &&
+                        isFpEqual(geolocation.lng, selected.lng, 0.000001)
+                    )
+                        return;
                     setSelectedLocation(geolocation);
                 } else if (
                     geolocation &&
@@ -151,6 +155,7 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
                     !isAttached &&
                     geolocation.timestamp - selected.timestamp > options.maximumAge
                 ) {
+                    // TODO: might use the clearing selected if has geolocation on app load method instead...
                     setSelectedLocation(geolocation);
                 }
             }
