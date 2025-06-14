@@ -32,6 +32,11 @@ import { Sheet, SheetContent } from "~/components/ui/sheet";
 import { useMapLocation } from "~/hooks/use-map-location";
 import BaseMap from "../ui/base-map";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
+import {
+    ResponsiveDialog,
+    ResponsiveDialogContent,
+    ResponsiveDialogTrigger,
+} from "../ui/responsive-dialog";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -501,7 +506,7 @@ const TripMap: Component<TripMapProps> = (props) => {
             </BaseMap>
 
             {/* Vehicle marker popup  */}
-            <Sheet
+            {/* <Sheet
                 open={!!selectedTripVehicle()}
                 onOpenChange={(open) => {
                     if (!open) {
@@ -516,7 +521,24 @@ const TripMap: Component<TripMapProps> = (props) => {
                         </SheetContent>
                     )}
                 </Show>
-            </Sheet>
+            </Sheet> */}
+
+            <ResponsiveDialog
+                open={!!selectedTripVehicle()}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedTripVehicle(null);
+                    }
+                }}
+            >
+                <Show when={selectedTripVehicle()}>
+                    {(trip) => (
+                        <ResponsiveDialogContent class="px-0 max-h-[80dvh] min-h-[50dvh] md:min-h-36 flex flex-col gap-1 justify-start">
+                            <TripVehicleInfo trip={trip()} stopId={props.stopId} />
+                        </ResponsiveDialogContent>
+                    )}
+                </Show>
+            </ResponsiveDialog>
         </>
     );
 };

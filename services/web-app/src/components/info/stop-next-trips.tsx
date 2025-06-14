@@ -9,7 +9,6 @@ import OccupancyBadge from "../ui/occupancy-badge";
 import RealTimeIndicator from "../ui/realtime-indicator";
 
 import { MapPin } from "lucide-solid";
-import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import RouteStopSchedule from "./route-stop-schedule";
@@ -20,6 +19,11 @@ import {
     type ScheduledTripDocument,
 } from "gtfs-db-types";
 import type { ScheduledTripDocumentWithStopName } from "~/services/dtos";
+import {
+    ResponsiveDialog,
+    ResponsiveDialogContent,
+    ResponsiveDialogTrigger,
+} from "../ui/responsive-dialog";
 
 type StopNextTripsProps = {
     routeId: string;
@@ -132,19 +136,16 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                         <div class="p-1">
                             <Card>
                                 <CardContent class="p-2 relative flex flex-col gap-1 items-center justify-center h-16">
-                                    <Sheet>
-                                        <SheetTrigger
+                                    <ResponsiveDialog>
+                                        <ResponsiveDialogTrigger
                                             as={Button<"button">}
                                             variant="link"
                                             class="h-min"
                                         >
                                             Show more
-                                        </SheetTrigger>
-                                        <SheetContent
-                                            position="right"
-                                            class="flex flex-col gap-2 w-5/6 p-0"
-                                        >
-                                            <div class="bg-primary p-4 text-primary-foreground text-left">
+                                        </ResponsiveDialogTrigger>
+                                        <ResponsiveDialogContent class="px-0 max-h-[80dvh] min-h-[50dvh] md:min-h-36 flex flex-col gap-1 justify-start">
+                                            <div class="p-4 text-left">
                                                 <div class="flex gap-2 items-stretch">
                                                     <Badge
                                                         class="text-4xl font-bold"
@@ -178,8 +179,8 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                     curViewingTrip={viewingTrip()}
                                                 />
                                             </div>
-                                        </SheetContent>
-                                    </Sheet>
+                                        </ResponsiveDialogContent>
+                                    </ResponsiveDialog>
                                 </CardContent>
                             </Card>
                         </div>
