@@ -13,7 +13,7 @@ const MainMap: Component = () => {
     const [viewport, setViewport] = createSignal({
         // Format: [lon, lat]
         center: [0, 0],
-        zoom: 11,
+        zoom: 14,
     } as Viewport);
 
     const handleViewportChange = (evt: Viewport) => {
