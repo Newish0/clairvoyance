@@ -1,4 +1,4 @@
-import { onCleanup, type Component, type ComponentProps } from "solid-js";
+import { onCleanup, type Component, type ComponentProps, createMemo, createEffect } from "solid-js";
 
 import MapGL from "solid-map-gl";
 
@@ -22,27 +22,29 @@ const BaseMap: Component<BaseMapProps> = (props) => {
         maplibre.removeProtocol("pmtiles");
     });
 
+    const mapStyle = createMemo(() => ({
+        version: 8,
+        glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+        sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
+        sources: {
+            protomaps: {
+                type: "vector",
+                url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
+                attribution:
+                    '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+            },
+        },
+        layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
+    }));
+
     return (
         <MapGL
             mapLib={maplibre}
             options={{
-                style: {
-                    version: 8,
-                    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-                    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-                    sources: {
-                        protomaps: {
-                            type: "vector",
-                            url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
-                            attribution:
-                                '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
-                        },
-                    },
-                    layers: layers("protomaps", isDark() ? "dark" : "light", "en"),
-                },
+                style: mapStyle(),
             }}
             {...props}
-        ></MapGL>
+        />
     );
 };
 

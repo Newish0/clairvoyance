@@ -10,6 +10,7 @@ import { Show } from "solid-js";
 import { XIcon } from "lucide-solid";
 import { buttonVariants } from "~/components/ui/button";
 import { getRouteNextTripsAtStop } from "~/services/trips";
+import { ModeToggle } from "~/components/dark-mode-toggle";
 
 const routeId = Astro.url.searchParams.get("route");
 const stopId = Astro.url.searchParams.get("stop");
@@ -100,6 +101,11 @@ if (redirectUrl.toString() !== Astro.url.toString()) {
                     </a>
                 </CardContent>
             </Card>
+        </div>
+
+        <!-- Top right actions  -->
+        <div class="absolute z-10 top-4 right-4">
+            <ModeToggle client:only="solid-js" />
         </div>
 
         <Show when={import.meta.env.DEV}>
