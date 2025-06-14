@@ -166,7 +166,7 @@ const TripMap: Component<TripMapProps> = (props) => {
             mapLocation.selectedLocation()?.lng ?? 0,
             mapLocation.selectedLocation()?.lat ?? 0,
         ],
-        zoom: 14,
+        zoom: 12,
     } as Viewport);
 
     const handleViewportChange = (evt: Viewport) => {
@@ -506,23 +506,6 @@ const TripMap: Component<TripMapProps> = (props) => {
             </BaseMap>
 
             {/* Vehicle marker popup  */}
-            {/* <Sheet
-                open={!!selectedTripVehicle()}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setSelectedTripVehicle(null);
-                    }
-                }}
-            >
-                <Show when={selectedTripVehicle()}>
-                    {(trip) => (
-                        <SheetContent position="right" class="p-0">
-                            <TripVehicleInfo trip={trip()} stopId={props.stopId} />
-                        </SheetContent>
-                    )}
-                </Show>
-            </Sheet> */}
-
             <ResponsiveDialog
                 open={!!selectedTripVehicle()}
                 onOpenChange={(open) => {

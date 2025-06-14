@@ -9,17 +9,27 @@ import "@/style/global.css";
         }
         return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     };
-    const isDark = getThemePreference() === "dark";
-    document.documentElement.classList[isDark ? "add" : "remove"]("dark");
+
+    const applyTheme = (theme) => {
+        const isDark = theme === "dark";
+        document.documentElement.classList[isDark ? "add" : "remove"]("dark");
+    };
+
+    // Initialize theme
+    const theme = getThemePreference();
+    applyTheme(theme);
 
     if (typeof localStorage !== "undefined") {
-        const observer = new MutationObserver(() => {
-            const isDark = document.documentElement.classList.contains("dark");
-            localStorage.setItem("theme", isDark ? "dark" : "light");
-        });
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["class"],
+        // Store initial preference if not set
+        if (!localStorage.getItem("theme")) {
+            localStorage.setItem("theme", theme);
+        }
+
+        // Listen for storage changes from other tabs
+        window.addEventListener("storage", (e) => {
+            if (e.key === "theme" && e.newValue) {
+                applyTheme(e.newValue);
+            }
         });
     }
 </script>
