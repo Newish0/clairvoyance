@@ -18,22 +18,20 @@ import { getShapeAsGeoJson } from "~/services/shapes";
 import { getStopsGeoJson } from "~/services/stops";
 import { getScheduledTripDetails } from "~/services/trips";
 
-import { useStore } from "@nanostores/solid";
-import { createGeolocationWatcher } from "@solid-primitives/geolocation";
 import { ProgressCircle } from "~/components/ui/progress-circle";
-import { $selectedUserLocation } from "~/stores/selected-location-store";
-import { isFpEqual } from "~/utils/numbers";
 import { Badge } from "../ui/badge";
 
-import { Sheet, SheetContent } from "~/components/ui/sheet";
-import BaseMap from "../ui/base-map";
-import TripVehicleInfo from "../ui/trip-vehicle-info";
 import {
     DirectionId,
-    StopTimeUpdateScheduleRelationship,
     OccupancyStatus,
+    StopTimeUpdateScheduleRelationship,
     type ScheduledTripDocument,
 } from "gtfs-db-types";
+import { createEffect, on } from "solid-js";
+import { Sheet, SheetContent } from "~/components/ui/sheet";
+import { useMapLocation } from "~/hooks/use-map-location";
+import BaseMap from "../ui/base-map";
+import TripVehicleInfo from "../ui/trip-vehicle-info";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -152,20 +150,34 @@ const TripMap: Component<TripMapProps> = (props) => {
         };
     };
 
-    const geolocationWatcher = createGeolocationWatcher(true, {
+    const mapLocation = useMapLocation({
+        thresholdDistance: 100,
         enableHighAccuracy: true,
     });
-    const selectedLocation = useStore($selectedUserLocation);
 
     const [viewport, setViewport] = createSignal({
-        // Format: [lon, lat]. Only get user location once. Do NOT rerender component on atom value change.
-        center: [selectedLocation().longitude, selectedLocation().latitude],
+        // Format: [lon, lat]
+        center: [
+            mapLocation.selectedLocation()?.lng ?? 0,
+            mapLocation.selectedLocation()?.lat ?? 0,
+        ],
         zoom: 11,
     } as Viewport);
 
     const handleViewportChange = (evt: Viewport) => {
         setViewport(evt);
     };
+
+    createEffect(
+        on([mapLocation.selectedLocation], ([selectedLocation]) => {
+            if (selectedLocation) {
+                setViewport({
+                    ...viewport(),
+                    center: [selectedLocation.lng, selectedLocation.lat],
+                });
+            }
+        })
+    );
 
     return (
         <>
@@ -420,14 +432,14 @@ const TripMap: Component<TripMapProps> = (props) => {
                 </For>
 
                 {/* User GPS location marker  */}
-                <Show when={geolocationWatcher.location}>
+                <Show when={mapLocation.currentLocation()}>
                     {(gpsLocation) => (
                         <Source
                             source={{
                                 type: "geojson",
                                 data: {
                                     type: "Point",
-                                    coordinates: [gpsLocation().longitude, gpsLocation().latitude],
+                                    coordinates: [gpsLocation().lng, gpsLocation().lat],
                                 },
                             }}
                         >
@@ -454,31 +466,14 @@ const TripMap: Component<TripMapProps> = (props) => {
                 </Show>
 
                 {/* Show selected location if there's no GPS location or selected location is different from GPS location */}
-                <Show
-                    when={
-                        !geolocationWatcher.location ||
-                        !isFpEqual(
-                            geolocationWatcher.location.latitude,
-                            selectedLocation().latitude
-                        ) ||
-                        !isFpEqual(
-                            geolocationWatcher.location.longitude,
-                            selectedLocation().longitude
-                        )
-                            ? selectedLocation()
-                            : null
-                    }
-                >
+                <Show when={mapLocation.showSelectedMarker() && mapLocation.selectedLocation()}>
                     {(selectedLocation) => (
                         <Source
                             source={{
                                 type: "geojson",
                                 data: {
                                     type: "Point",
-                                    coordinates: [
-                                        selectedLocation().longitude,
-                                        selectedLocation().latitude,
-                                    ],
+                                    coordinates: [selectedLocation().lng, selectedLocation().lat],
                                 },
                             }}
                         >

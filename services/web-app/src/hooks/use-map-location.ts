@@ -1,8 +1,8 @@
-import { createSignal, createEffect, createMemo, onCleanup, on, onMount } from "solid-js";
 import { createGeolocationWatcher } from "@solid-primitives/geolocation";
+import { makePersisted, storageSync } from "@solid-primitives/storage";
+import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
 import { DEFAULT_LOCATION } from "~/constants/location";
 import { calculateHaversineDistance } from "~/utils/distance";
-import { makePersisted } from "@solid-primitives/storage";
 
 export interface Location {
     lat: number;
@@ -12,7 +12,6 @@ export interface Location {
 
 export interface UseMapLocationOptions {
     thresholdDistance?: number; // meters, default 5
-    storageKey?: string; // storage key, default 'selectedLocation'
     enableHighAccuracy?: boolean; // default true
     timeout?: number; // geolocation timeout in ms
     maximumAge?: number; // geolocation cache age in ms
@@ -34,28 +33,36 @@ export interface UseMapLocationReturn {
 
 const DEFAULT_OPTIONS: Required<UseMapLocationOptions> = {
     thresholdDistance: 5,
-    storageKey: "selectedLocation",
     enableHighAccuracy: true,
     timeout: 10000,
     maximumAge: 60000,
 };
 
+// Global store
+const [_selectedLocation, setSelectedLocationSignal] = makePersisted(
+    createSignal<Location | null>(null),
+    {
+        storage: sessionStorage,
+        name: "selectedLocation",
+        serialize: JSON.stringify,
+        deserialize: JSON.parse,
+        sync: storageSync,
+    }
+);
+
+export const selectedLocation = _selectedLocation;
+
+/**
+ * Global map location store/hook
+ * @param options
+ * @returns
+ */
 export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocationReturn {
     const opts = { ...DEFAULT_OPTIONS, ...options };
 
-    const [selectedLocation, setSelectedLocationSignal] = makePersisted(
-        createSignal<Location | null>(null),
-        {
-            storage: sessionStorage,
-            name: opts.storageKey,
-            serialize: JSON.stringify,
-            deserialize: JSON.parse,
-        }
-    );
-
     const [geolocationError, setGeolocationError] = createSignal<string | null>(null);
 
-    let isAttached = true;
+    let isAttached = false;
 
     // Set up geolocation watcher
     const geolocationWatcher = createGeolocationWatcher(true, {
@@ -96,12 +103,12 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
     };
 
     // Check if locations are within threshold
-    const isWithinThreshold = (geoLocation = currentLocation(), selected = selectedLocation()) => {
+    const isWithinThreshold = (geoLocation = currentLocation(), selected = _selectedLocation()) => {
         return distanceBetweenLocations(geoLocation, selected) <= opts.thresholdDistance;
     };
 
     const showSelectedMarker = createMemo(() => {
-        const selected = selectedLocation();
+        const selected = _selectedLocation();
 
         // Show selected marker if:
         // 1. Selected location exists AND
@@ -116,21 +123,34 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
     //     - Use default location
     // 3. Current location exists AND is attached to geolocation
     //     - Sync selected location to current
+    // 4. Current location AND selected location exist AND are NOT attached to geolocation
+    //    AND selected location is older than current location by maximumAge
+    //     - Sync selected location to current
     createEffect(
         on(
             () => geolocationWatcher.location,
             () => {
                 const geolocation = currentLocation();
-                const selected = selectedLocation();
+                const selected = _selectedLocation();
 
                 if (geolocation && !selected) {
+                    console.log("Case 1");
                     setSelectedLocation(geolocation);
                 } else if (!geolocation && !selected) {
+                    console.log("Case 2");
                     setSelectedLocation({
                         lat: DEFAULT_LOCATION.latitude,
                         lng: DEFAULT_LOCATION.longitude,
                     });
                 } else if (geolocation && isAttached) {
+                    console.log("Case 3");
+                    setSelectedLocation(geolocation);
+                } else if (
+                    geolocation &&
+                    selected &&
+                    !isAttached &&
+                    geolocation.timestamp - selected.timestamp > options.maximumAge
+                ) {
                     setSelectedLocation(geolocation);
                 }
             }
@@ -187,7 +207,7 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
     return {
         // Reactive getters (return the signal functions themselves)
         currentLocation,
-        selectedLocation,
+        selectedLocation: _selectedLocation,
         geolocationAvailable,
         geolocationError,
         showSelectedMarker,

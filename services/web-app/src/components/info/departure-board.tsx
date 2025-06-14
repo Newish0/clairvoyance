@@ -4,29 +4,26 @@ import { getNearbyTrips } from "~/services/trips";
 import { DepartureRow } from "./departure-row";
 
 import { debounce } from "@solid-primitives/scheduled";
-import { Skeleton } from "../ui/skeleton";
-import { useStore } from "@nanostores/solid";
-import { $selectedUserLocation } from "~/stores/selected-location-store";
 import { TripDescriptorScheduleRelationship } from "gtfs-db-types";
+import { selectedLocation } from "~/hooks/use-map-location";
+import { Skeleton } from "../ui/skeleton";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
 
 export const DepartureBoard: Component = () => {
-    const selectedLocation = useStore($selectedUserLocation);
     const [nearbyTrips, { refetch: refetchNearbyTrips, mutate: setNearbyTrips }] = createResource(
         // NOTE: Must explicitly specify each object field to get update to work
-        () => ({
-            lat: selectedLocation().latitude,
-            lon: selectedLocation().longitude,
-        }),
-        (currentLoc) => {
+        () => [selectedLocation()?.lat, selectedLocation()?.lng],
+        ([latitude, longitude]) => {
+            // if (typeof latitude !== "number" || typeof longitude !== "number") return {} as any;
+
             return new Promise<Awaited<ReturnType<typeof getNearbyTrips>>>((resolve, reject) => {
                 const scheduled = debounce(
                     () =>
                         getNearbyTrips({
-                            latitude: currentLoc.lat,
-                            longitude: currentLoc.lon,
+                            latitude,
+                            longitude,
                             radius: 1000,
                         })
                             .then(resolve)

@@ -1,20 +1,12 @@
 import { createEffect, createSignal, on, Show, type Component } from "solid-js";
-
 import { Marker, type Viewport } from "solid-map-gl";
-
-import { useStore } from "@nanostores/solid";
-import { createGeolocationWatcher } from "@solid-primitives/geolocation";
-import { cn } from "~/lib/utils";
-import { $selectedUserLocation } from "~/stores/selected-location-store";
-import { calculateHaversineDistance } from "~/utils/distance";
-import { isFpEqual } from "~/utils/numbers";
-import BaseMap from "../ui/base-map";
 import { useMapLocation } from "~/hooks/use-map-location";
+import { cn } from "~/lib/utils";
+import BaseMap from "../ui/base-map";
 
 const MainMap: Component = () => {
     const mapLocation = useMapLocation({
         thresholdDistance: 100,
-        storageKey: "userSelectedLocation",
         enableHighAccuracy: true,
     });
 
@@ -25,8 +17,6 @@ const MainMap: Component = () => {
     } as Viewport);
 
     const handleViewportChange = (evt: Viewport) => {
-        // If the new map center is very close to the user location,
-        // snap to the user location.
         let center = evt.center;
 
         // This implicitly triggers viewport to update due to createEffect
@@ -35,17 +25,6 @@ const MainMap: Component = () => {
             lat: center[1],
         });
     };
-
-    // Debug logging
-    createEffect(() => {
-        // console.log("Map Location State:", {
-        //     current: mapLocation.currentLocation(),
-        //     selected: mapLocation.selectedLocation(),
-        //     showSelected: mapLocation.showSelectedMarker(),
-        //     // withinThreshold: mapLocation.isWithinThreshold(),
-        //     geolocationAvailable: mapLocation.geolocationAvailable(),
-        // });
-    });
 
     createEffect(
         on([mapLocation.selectedLocation], ([selectedLocation]) => {
