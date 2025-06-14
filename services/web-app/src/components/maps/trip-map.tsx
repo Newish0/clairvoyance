@@ -1,4 +1,5 @@
 import {
+    createMemo,
     createResource,
     createSignal,
     For,
@@ -28,15 +29,11 @@ import {
     type ScheduledTripDocument,
 } from "gtfs-db-types";
 import { createEffect, on } from "solid-js";
-import { Sheet, SheetContent } from "~/components/ui/sheet";
 import { useMapLocation } from "~/hooks/use-map-location";
 import BaseMap from "../ui/base-map";
+import { ResponsiveDialog, ResponsiveDialogContent } from "../ui/responsive-dialog";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
-import {
-    ResponsiveDialog,
-    ResponsiveDialogContent,
-    ResponsiveDialogTrigger,
-} from "../ui/responsive-dialog";
+import { useTheme } from "~/hooks/use-theme";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -44,6 +41,7 @@ type TripMapProps = {
 };
 
 const TripMap: Component<TripMapProps> = (props) => {
+    const [, , isDark] = useTheme();
     const [selectedTripVehicle, setSelectedTripVehicle] =
         createSignal<ScheduledTripDocument | null>(null);
 
@@ -184,6 +182,35 @@ const TripMap: Component<TripMapProps> = (props) => {
         })
     );
 
+    const routeColor = createMemo(() => {
+        const color = {
+            light: {
+                before: {
+                    border: "#eeee",
+                    fill: "#999c",
+                },
+                after: {
+                    border: "#fffe",
+                    fill: "#333e",
+                },
+                skippedStopFill: "#d339",
+            },
+            dark: {
+                before: {
+                    border: "#999c",
+                    fill: "#333b",
+                },
+                after: {
+                    border: "#fffe",
+                    fill: "#999e",
+                },
+                skippedStopFill: "#d339",
+            },
+        };
+
+        return isDark() ? color.dark : color.light;
+    });
+
     return (
         <>
             <BaseMap viewport={viewport()} onViewportChange={handleViewportChange}>
@@ -203,7 +230,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                         "line-cap": "round",
                                     },
                                     paint: {
-                                        "line-color": "#999c",
+                                        "line-color": routeColor().before.fill,
                                         "line-width": 8,
                                     },
                                 }}
@@ -227,7 +254,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                         "line-cap": "round",
                                     },
                                     paint: {
-                                        "line-color": "#333e",
+                                        "line-color": routeColor().after.fill,
                                         "line-width": 8,
                                     },
                                 }}
@@ -249,7 +276,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                     style={{
                                         type: "circle",
                                         paint: {
-                                            "circle-color": "#d339",
+                                            "circle-color": routeColor().skippedStopFill,
                                             "circle-radius": 20,
                                         },
                                     }}
@@ -271,7 +298,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                 style={{
                                     type: "circle",
                                     paint: {
-                                        "circle-color": "#eeee",
+                                        "circle-color": routeColor().before.border,
                                         "circle-radius": 10,
                                     },
                                 }}
@@ -280,7 +307,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                 style={{
                                     type: "circle",
                                     paint: {
-                                        "circle-color": "#999c",
+                                        "circle-color": routeColor().before.fill,
                                         "circle-radius": 6,
                                     },
                                 }}
@@ -300,7 +327,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                 style={{
                                     type: "circle",
                                     paint: {
-                                        "circle-color": "#fffe",
+                                        "circle-color": routeColor().after.border,
                                         "circle-radius": 10,
                                     },
                                 }}
@@ -309,7 +336,7 @@ const TripMap: Component<TripMapProps> = (props) => {
                                 style={{
                                     type: "circle",
                                     paint: {
-                                        "circle-color": "#333e",
+                                        "circle-color": routeColor().after.fill,
                                         "circle-radius": 6,
                                     },
                                 }}
