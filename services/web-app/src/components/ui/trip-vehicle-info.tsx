@@ -241,7 +241,7 @@ const TripVehicleInfo: Component<TripVehicleInfoProps> = (props) => {
     return (
         <Show when={props.trip && props.stopId} fallback={<div>Loading trip information...</div>}>
             <div class="overflow-hidden">
-                <div class="bg-primary p-4 text-primary-foreground">
+                <div class="p-4 text-primary">
                     <div class="flex items-center justify-between relative">
                         <div>
                             <h2 class="text-xl font-bold flex items-center gap-2">
