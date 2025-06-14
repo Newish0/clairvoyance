@@ -161,7 +161,7 @@ const TripMap: Component<TripMapProps> = (props) => {
             mapLocation.selectedLocation()?.lng ?? 0,
             mapLocation.selectedLocation()?.lat ?? 0,
         ],
-        zoom: 11,
+        zoom: 14,
     } as Viewport);
 
     const handleViewportChange = (evt: Viewport) => {
