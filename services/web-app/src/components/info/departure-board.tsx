@@ -1,13 +1,11 @@
-import { type Component, createResource, For, onCleanup, onMount, Suspense } from "solid-js";
-import { getNearbyTrips } from "~/services/trips";
+import { type Component, For, Suspense } from "solid-js";
 
 import { DepartureRow } from "./departure-row";
 
-import { debounce, leading, throttle } from "@solid-primitives/scheduled";
 import { TripDescriptorScheduleRelationship } from "gtfs-db-types";
 import { selectedLocation } from "~/hooks/use-map-location";
-import { Skeleton } from "../ui/skeleton";
 import { useNearbyTrips } from "~/hooks/use-nearby-trips";
+import { Skeleton } from "../ui/skeleton";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
@@ -57,6 +55,7 @@ export const DepartureBoard: Component = () => {
                                           },
                                       }
                                     : {}),
+                                isLastStop: false, // TODO: Implement on server side
                             }))}
                         />
                     )}
