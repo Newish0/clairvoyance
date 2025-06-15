@@ -1,4 +1,4 @@
-import { differenceInMinutes, differenceInSeconds, type DateArg } from "date-fns";
+import { differenceInSeconds, type DateArg } from "date-fns";
 import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
 import { createEffect, createSignal, For, Show, type Accessor, type Component } from "solid-js";
 import { cn } from "~/lib/utils";
@@ -19,6 +19,7 @@ import {
     type ScheduledTripDocument,
 } from "gtfs-db-types";
 import type { ScheduledTripDocumentWithStopName } from "~/services/dtos";
+import TripTime from "../ui/departure-time";
 import {
     ResponsiveDialog,
     ResponsiveDialogContent,
@@ -202,11 +203,8 @@ const TripOptionItem: Component<{
     occupancyStatus?: OccupancyStatus;
     isCancelled?: boolean;
 }> = (props) => {
-    const departureMinutes = () =>
-        differenceInMinutes(
-            props.predictedDepartureDatetime || props.scheduledDepartureDatetime,
-            new Date()
-        );
+    const departureTime = () =>
+        props.predictedDepartureDatetime || props.scheduledDepartureDatetime;
 
     const delaySeconds = (): number | null =>
         props.predictedDepartureDatetime
@@ -217,13 +215,6 @@ const TripOptionItem: Component<{
             : null;
 
     const curViewing = () => props.viewingTripObjectId === props.tripObjectId;
-
-    const etaMsg = () =>
-        props.hasLeft ? (
-            <span class="text-xs">Left {-departureMinutes()} min ago</span>
-        ) : (
-            <span>{departureMinutes()} min</span>
-        );
 
     return (
         <div class="p-1">
@@ -245,7 +236,11 @@ const TripOptionItem: Component<{
                                 props.isCancelled ? "line-through text-muted-foreground" : ""
                             )}
                         >
-                            {etaMsg()}
+                            <TripTime
+                                datetime={departureTime()}
+                                type={props.hasLeft ? "arrival" : "departure"}
+                                hasLeftOrArrived={props.hasLeft}
+                            />
                         </div>
 
                         <div>

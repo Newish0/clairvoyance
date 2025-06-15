@@ -1,10 +1,11 @@
 import { Badge } from "@/components/ui/badge";
-import { differenceInMinutes, differenceInSeconds, type DateArg } from "date-fns";
+import { differenceInSeconds, type DateArg } from "date-fns";
 import { Clock } from "lucide-solid";
 import { Show, type Component } from "solid-js";
-import { recordToSearchParams } from "~/utils/urls";
-import RealTimeIndicator from "../ui/realtime-indicator";
 import { cn } from "~/lib/utils";
+import { recordToSearchParams } from "~/utils/urls";
+import TripTime from "../ui/departure-time";
+import RealTimeIndicator from "../ui/realtime-indicator";
 
 export interface DepartureCardKeyProps {
     routeId: string;
@@ -16,6 +17,7 @@ export interface DepartureCardKeyProps {
     scheduledDepartureTime: DateArg<Date>;
     predictedDepartureTime?: DateArg<Date> | null;
     isCancelled?: boolean;
+    isLastStop: boolean;
 }
 
 export interface DepartureCardProps extends DepartureCardKeyProps {
@@ -27,11 +29,8 @@ export interface DepartureCardProps extends DepartureCardKeyProps {
 }
 
 export const DepartureCard: Component<DepartureCardProps> = (props) => {
-    const departureMinutes = () =>
-        differenceInMinutes(
-            props.predictedDepartureTime ?? props.scheduledDepartureTime,
-            new Date()
-        );
+    const departureTime = () => props.predictedDepartureTime ?? props.scheduledDepartureTime;
+
     const delayInSeconds = () =>
         props.predictedDepartureTime
             ? differenceInSeconds(props.predictedDepartureTime, props.scheduledDepartureTime)
@@ -51,43 +50,36 @@ export const DepartureCard: Component<DepartureCardProps> = (props) => {
                 : {}),
         });
 
+    const tripTimeType = () => (props.isLastStop ? "arrival" : "departure");
+
     return (
         <a href={`${import.meta.env.BASE_URL}next-trips/?${queryParams()}`}>
             <div class="flex items-center justify-between py-2 border-b last:border-b-0">
-                <div class="flex-1">
-                    <div class="flex items-center gap-2 overflow-hidden">
+                <div class="overflow-hidden">
+                    <div class="flex items-center gap-2">
                         <div class="w-12 flex-shrink-0 flex justify-center">
                             <Badge variant="secondary" class="text-sm font-bold">
                                 {props.routeShortName}
                             </Badge>
                         </div>
 
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-1">
-                                {/* <ArrowRightIcon class="h-3 w-3" /> */}
-                                <h4 class="text-sm font-semibold text-wrap">
-                                    {props.tripHeadsign}
-                                </h4>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                {/* <MapPinIcon class="h-3 w-3" /> */}
-                                <p class="text-xs text-muted-foreground truncate">
-                                    At {props.stopName}
-                                </p>
-                            </div>
+                        <div class="space-y-1 overflow-hidden">
+                            <h4 class="text-sm font-semibold text-wrap">{props.tripHeadsign}</h4>
+                            <p class="text-xs text-muted-foreground truncate">
+                                At {props.stopName}
+                            </p>
                         </div>
                     </div>
                 </div>
-                <div class="relative overflow-visible p-2 mr-1">
+                <div class="relative overflow-visible p-2 mr-1 min-w-16">
                     <div
                         class={cn(
-                            "flex items-center space-x-1",
+                            "flex items-center justify-end space-x-1 h-8",
                             props.isCancelled ? "line-through text-muted-foreground" : ""
                         )}
                     >
                         <Clock class="h-3 w-3" />
-                        <span class="text-lg font-bold">{departureMinutes()}</span>
-                        <span class="text-xs">min</span>
+                        <TripTime datetime={departureTime()} type={tripTimeType()} />
                     </div>
 
                     <Show when={typeof delayInSeconds() === "number"}>
