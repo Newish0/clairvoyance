@@ -15,6 +15,9 @@ const site = Bun.env.SITE || undefined;
 const base = Bun.env.BASE || "/";
 
 
+// TODO: Make this a PWA
+
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [solidJs(), sitemap(), tailwind({

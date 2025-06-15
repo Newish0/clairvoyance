@@ -1,4 +1,5 @@
 import { createGeolocationWatcher } from "@solid-primitives/geolocation";
+import { throttle } from "@solid-primitives/scheduled";
 import { makePersisted, storageSync } from "@solid-primitives/storage";
 import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
 import { DEFAULT_LOCATION } from "~/constants/location";
@@ -9,6 +10,7 @@ export interface Location {
     lat: number;
     lng: number;
     timestamp?: number;
+    isAttached?: boolean;
 }
 
 export interface UseMapLocationOptions {
@@ -43,13 +45,26 @@ const DEFAULT_OPTIONS: Required<UseMapLocationOptions> = {
 const [_selectedLocation, setSelectedLocationSignal] = makePersisted(
     createSignal<Location | null>(null),
     {
-        storage: sessionStorage,
+        storage: localStorage,
         name: "selectedLocation",
         serialize: JSON.stringify,
         deserialize: JSON.parse,
         sync: storageSync,
     }
 );
+
+// isAttached is intentionally NON-REACTIVE because it's a side effect derived from
+// _selectedLocation and currentLocation that is used as a "helper" almost
+const isAttached = () => localStorage.getItem("isSelectedLocationAttached") === "true";
+const setIsAttached = (value: boolean) =>
+    localStorage.setItem("isSelectedLocationAttached", String(value));
+
+// isSessionSelectedLocation ensures we keep the selected location across different
+// pages in the same session
+const isSessionSelectedLocation = () =>
+    sessionStorage.getItem("isSessionSelectedLocation") !== null;
+const setIsSessionSelectedLocation = () =>
+    sessionStorage.setItem("isSessionSelectedLocation", String(true));
 
 export const selectedLocation = _selectedLocation;
 
@@ -62,8 +77,6 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
     const opts = { ...DEFAULT_OPTIONS, ...options };
 
     const [geolocationError, setGeolocationError] = createSignal<string | null>(null);
-
-    let isAttached = false;
 
     // Set up geolocation watcher
     const geolocationWatcher = createGeolocationWatcher(true, {
@@ -112,9 +125,12 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
         const selected = _selectedLocation();
 
         // Show selected marker if:
-        // 1. Selected location exists AND
-        // 2. (No current location OR locations are NOT within threshold)
-        return selected !== null && (!geolocationAvailable() || !isWithinThreshold());
+        // 1. Is not attached to geolocation AND
+        // 2. Selected location exists AND
+        // 3. (No current location OR locations are NOT within threshold)
+        return (
+            !isAttached() && selected !== null && (!geolocationAvailable() || !isWithinThreshold())
+        );
     });
 
     // Auto-set selected location. 3 Cases to consider:
@@ -124,9 +140,9 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
     //     - Use default location
     // 3. Current location exists AND is attached to geolocation
     //     - Sync selected location to current
-    // 4. Current location AND selected location exist AND are NOT attached to geolocation
-    //    AND selected location is older than current location by maximumAge. For when user
-    //    comes back to app after an extended period of time.
+    // 4. For when user comes back to app after an extended period of time...
+    //    Selected location is NOT from the current session &&
+    //    Current location AND selected location exist AND are NOT attached to geolocation
     //     - Sync selected location to current
     createEffect(
         on(
@@ -136,25 +152,31 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
                 const selected = _selectedLocation();
 
                 if (geolocation && !selected) {
+                    console.log("Case 1");
                     setSelectedLocation(geolocation);
                 } else if (!geolocation && !selected) {
+                    console.log("Case 2");
                     setSelectedLocation({
                         lat: DEFAULT_LOCATION.latitude,
                         lng: DEFAULT_LOCATION.longitude,
                     });
-                } else if (geolocation && isAttached) {
+                } else if (geolocation && isAttached()) {
+                    console.log("Case 3");
                     if (
                         isFpEqual(geolocation.lat, selected.lat, 0.000001) &&
                         isFpEqual(geolocation.lng, selected.lng, 0.000001)
                     )
                         return;
-                    setSelectedLocation(geolocation);
+                    setSelectedLocation({
+                        ...geolocation,
+                    });
                 } else if (
+                    !isSessionSelectedLocation() &&
                     geolocation &&
                     selected &&
-                    !isAttached &&
-                    geolocation.timestamp - selected.timestamp > options.maximumAge
+                    !isAttached()
                 ) {
+                    console.log("Case 4");
                     // TODO: might use the clearing selected if has geolocation on app load method instead...
                     setSelectedLocation(geolocation);
                 }
@@ -168,14 +190,15 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
 
         const geoLocation = currentLocation();
         if (geoLocation && isWithinThreshold(geoLocation, newLocation)) {
-            isAttached = true;
+            setIsAttached(true);
             newLocation.lat = geoLocation.lat;
             newLocation.lng = geoLocation.lng;
         } else {
-            isAttached = false;
+            setIsAttached(false);
         }
 
-        setSelectedLocationSignal(newLocation);
+        setSelectedLocationSignal({ ...newLocation, isAttached: isAttached() });
+        setIsSessionSelectedLocation();
     };
 
     const clearSelectedLocation = () => {
