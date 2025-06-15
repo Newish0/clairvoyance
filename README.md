@@ -24,11 +24,20 @@ Visit the [demo site](http://newishdev.space).
 ## 🛠️ Tech Stack
 
 -   **Frontend**: Astro + SolidJS + TypeScript
--   **Backend**: Bun + Hono (API) + Python (GTFS)
+-   **Backend**: Bun + Elysia (API) + Python (GTFS)
 -   **ORM**: Beanie (MongoDB)
 -   **Database**: MongoDB
 -   **Containerization**: Docker
 -   **Package Management**: uv (Python)
+
+## 🎯 Roadmap
+
+-   **1. PWA**: Make the app installable as a PWA
+-   **2. Schedule View**:
+    -   Implement infinite scroll with virtualized scrolling
+    -   Sync schedule view to calendar using virtualized scrolling
+-   **3. Auto Backend Data Updates**: Fetch static data from agencies automatically
+-   **4. Offline Support**: Allow the app to function offline
 
 ## 📝 License
 

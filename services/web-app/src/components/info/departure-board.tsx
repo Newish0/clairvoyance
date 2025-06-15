@@ -3,56 +3,32 @@ import { getNearbyTrips } from "~/services/trips";
 
 import { DepartureRow } from "./departure-row";
 
-import { debounce } from "@solid-primitives/scheduled";
+import { debounce, leading, throttle } from "@solid-primitives/scheduled";
 import { TripDescriptorScheduleRelationship } from "gtfs-db-types";
 import { selectedLocation } from "~/hooks/use-map-location";
 import { Skeleton } from "../ui/skeleton";
+import { useNearbyTrips } from "~/hooks/use-nearby-trips";
 
 const DEFAULT_CLOCK_UPDATE_INTERVAL = 2000; // 2 seconds
 const DEFAULT_REFETCH_INTERVAL = 60 * 1000; // 1 minute
+const DEFAULT_LOCATION_CHANGE_THROTTLE = 10 * 1000; // 10 seconds
+const DEFAULT_LOCATION_CHANGE_DEBOUNCE = 250; // 0.25 seconds
 
 export const DepartureBoard: Component = () => {
-    const [nearbyTrips, { refetch: refetchNearbyTrips, mutate: setNearbyTrips }] = createResource(
-        // NOTE: Must explicitly specify each object field to get update to work
-        () => [selectedLocation()?.lat, selectedLocation()?.lng],
-        ([latitude, longitude]) => {
-            // if (typeof latitude !== "number" || typeof longitude !== "number") return {} as any;
-
-            return new Promise<Awaited<ReturnType<typeof getNearbyTrips>>>((resolve, reject) => {
-                const scheduled = debounce(
-                    () =>
-                        getNearbyTrips({
-                            latitude,
-                            longitude,
-                            radius: 1000,
-                        })
-                            .then(resolve)
-                            .catch(reject),
-                    250
-                );
-
-                scheduled();
-            });
+    const nearbyTrips = useNearbyTrips(
+        () => ({
+            latitude: selectedLocation()?.lat,
+            longitude: selectedLocation()?.lng,
+            radius: 1000,
+            isAttached: selectedLocation()?.isAttached,
+        }),
+        {
+            changeDebounce: DEFAULT_LOCATION_CHANGE_DEBOUNCE,
+            changeThrottle: DEFAULT_LOCATION_CHANGE_THROTTLE,
+            refetchInterval: DEFAULT_REFETCH_INTERVAL,
+            clockUpdateInterval: DEFAULT_CLOCK_UPDATE_INTERVAL,
         }
     );
-
-    let clockUpdateInterval: null | ReturnType<typeof setInterval> = null;
-    let refetchInterval: null | ReturnType<typeof setInterval> = null;
-
-    onMount(() => {
-        clockUpdateInterval = setInterval(() => {
-            setNearbyTrips(nearbyTrips());
-        }, DEFAULT_CLOCK_UPDATE_INTERVAL);
-
-        refetchInterval = setInterval(() => {
-            refetchNearbyTrips();
-        }, DEFAULT_REFETCH_INTERVAL);
-    });
-
-    onCleanup(() => {
-        if (clockUpdateInterval) clearInterval(clockUpdateInterval);
-        if (refetchInterval) clearInterval(refetchInterval);
-    });
 
     return (
         <div class="w-full mx-auto space-y-2">

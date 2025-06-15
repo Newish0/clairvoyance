@@ -3,6 +3,7 @@ import { Marker, type Viewport } from "solid-map-gl";
 import { useMapLocation } from "~/hooks/use-map-location";
 import { cn } from "~/lib/utils";
 import BaseMap from "../ui/base-map";
+import { debounce } from "@solid-primitives/scheduled";
 
 const MainMap: Component = () => {
     const mapLocation = useMapLocation({
@@ -17,9 +18,10 @@ const MainMap: Component = () => {
     } as Viewport);
 
     const handleViewportChange = (evt: Viewport) => {
-        let center = evt.center;
+        setViewport(evt);
+        setViewport((prev) => ({ ...prev, center: evt.center }));
 
-        // This implicitly triggers viewport to update due to createEffect
+        const center = evt.center;
         mapLocation.setSelectedLocation({
             lng: center[0],
             lat: center[1],
