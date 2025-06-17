@@ -231,6 +231,12 @@ export const fetchScheduledTrips = async ({
 
     return await Promise.all(scheduledTrips.map(addStopNameToScheduledTrips));
 };
+
+type ScoreWeightScheme = {
+    distance: number;
+    time: number;
+};
+
 /**
  * Fetches a list of scheduled trips that depart from nearby stops.
  *
@@ -244,6 +250,7 @@ export const fetchScheduledTrips = async ({
  * @param maxDate The maximum start datetime to include in the results. Defaults to 12 hours from the current time.
  * @param minDate The minimum start datetime to include in the results. Defaults to 48 hours ago. For performance at cost of accuracy.
  * @param realtimeMaxAge The maximum age of the position updates to include in the results. Defaults to 5 minutes.
+ * @param scoreWeight The weight of each score component in the final score. MUST SUM TO 1.
  * @returns A list of scheduled trips with stop names.
  */
 export const fetchNearbyTrips = async (
@@ -252,8 +259,14 @@ export const fetchNearbyTrips = async (
     radius: number,
     maxDate = getHoursInFuture(12),
     minDate = getHoursInFuture(-48),
-    realtimeMaxAge = FIVE_MIN_IN_MS
+    realtimeMaxAge = FIVE_MIN_IN_MS,
+    scoreWeight: ScoreWeightScheme = { distance: 0.6, time: 0.4 }
 ) => {
+    // Validate score weight
+    if (Object.values(scoreWeight).reduce((a, b) => a + b, 0) !== 1) {
+        throw new Error("Score weight must sum to 1");
+    }
+
     const realtimeThreshold = new Date(Date.now() - realtimeMaxAge);
 
     // let stepStartTime;
@@ -454,30 +467,34 @@ export const fetchNearbyTrips = async (
     // stepStartTime = performance.now();
     const nextTrips = Array.from(bestNextTripMap.values());
 
-    // Trip at the closest stop and departs the earliest comes first.
-    // Distance & departure time takes 50/50 of the weight
-    nextTrips.sort((a, b) => {
-        let score = 0;
-        if (isFpEqual(a.distance, b.distance, 0.001)) {
-            /* do nothing */
-        } else if (a.distance < b.distance) {
-            score = -1;
-        } else if (a.distance > b.distance) {
-            score = 1;
-        }
+    // For normalizing distance and time (0-1 range) to calculate composite score
+    const maxDistance = Math.max(...nextTrips.map((trip) => trip.distance));
+    const maxTimeDiff = Math.max(
+        ...nextTrips.map((trip) => Math.abs(trip.stop_time.departure_datetime.getTime() - now))
+    );
 
+    // Sort by composite score
+    nextTrips.sort((a, b) => {
+        const now = new Date().getTime();
         const aTime = a.stop_time.departure_datetime.getTime();
         const bTime = b.stop_time.departure_datetime.getTime();
-        if (isFpEqual(aTime, bTime, 1000)) {
-            /* do nothing */
-        } else if (aTime < bTime) {
-            score = -1;
-        } else if (aTime > bTime) {
-            score = 1;
-        }
 
-        return score;
+        const aDistanceScore = a.distance / maxDistance;
+        const aTimeScore = Math.abs(aTime - now) / maxTimeDiff;
+
+        const bDistanceScore = b.distance / maxDistance;
+        const bTimeScore = Math.abs(bTime - now) / maxTimeDiff;
+
+        // Weighted composite score
+        const distanceWeight = scoreWeight.distance;
+        const timeWeight = scoreWeight.time;
+
+        const aScore = aDistanceScore * distanceWeight + aTimeScore * timeWeight;
+        const bScore = bDistanceScore * distanceWeight + bTimeScore * timeWeight;
+
+        return aScore - bScore;
     });
+
     const groupedByRoute: Record<string, typeof nextTrips> = {};
     for (const trip of nextTrips) {
         const key = trip.route_id;
