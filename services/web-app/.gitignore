@@ -1,6 +1,9 @@
 # build output
 dist/
 
+# PWA Dev build output 
+dev-dist/
+
 # generated types
 .astro/
 
