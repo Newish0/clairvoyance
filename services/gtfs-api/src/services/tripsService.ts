@@ -468,22 +468,22 @@ export const fetchNearbyTrips = async (
     const nextTrips = Array.from(bestNextTripMap.values());
 
     // For normalizing distance and time (0-1 range) to calculate composite score
+    const nowTime = now.getTime();
     const maxDistance = Math.max(...nextTrips.map((trip) => trip.distance));
     const maxTimeDiff = Math.max(
-        ...nextTrips.map((trip) => Math.abs(trip.stop_time.departure_datetime.getTime() - now))
+        ...nextTrips.map((trip) => Math.abs(trip.stop_time.departure_datetime.getTime() - nowTime))
     );
 
     // Sort by composite score
     nextTrips.sort((a, b) => {
-        const now = new Date().getTime();
         const aTime = a.stop_time.departure_datetime.getTime();
         const bTime = b.stop_time.departure_datetime.getTime();
 
         const aDistanceScore = a.distance / maxDistance;
-        const aTimeScore = Math.abs(aTime - now) / maxTimeDiff;
+        const aTimeScore = Math.abs(aTime - nowTime) / maxTimeDiff;
 
         const bDistanceScore = b.distance / maxDistance;
-        const bTimeScore = Math.abs(bTime - now) / maxTimeDiff;
+        const bTimeScore = Math.abs(bTime - nowTime) / maxTimeDiff;
 
         // Weighted composite score
         const distanceWeight = scoreWeight.distance;
