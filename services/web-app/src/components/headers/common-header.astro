@@ -1,5 +1,6 @@
 ---
 import { ClientRouter } from "astro:transitions";
+import { pwaInfo } from "virtual:pwa-info";
 
 interface Props {
     title: string;
@@ -11,7 +12,13 @@ const { title, description } = Astro.props;
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+
+<!-- More metadata required by PWA -->
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<link rel="mask-icon" href="/favicon.ico" color="#FFFFFF" />
+<meta name="msapplication-TileColor" content="#FFFFFF" />
+<meta name="theme-color" content="#ffffff" />
 
 <!-- Auto generated sitemap by `@astrojs/sitemap` -->
 <link rel="sitemap" href="/sitemap-index.xml" />
@@ -20,4 +27,9 @@ const { title, description } = Astro.props;
 <meta name="title" content={title} />
 <meta name="description" content={description} />
 <meta name="generator" content={Astro.generator} />
+
+<!-- PWA Initializer -->
+{pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}
+<script src="/src/pwa.ts"></script>
+
 <ClientRouter />
