@@ -7,9 +7,10 @@ from typing import List, Type
 from beanie import Document, init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 from ingest.batch_upsert import BatchUpsert
+from ingest.gtfs_ingest_manager import GTFSIngestManager
 from ingest.gtfs_ingest_service import GTFSIngestService
 from parsing.gtfs_reader import GTFSReader, ParsedGTFSData
-from models import Route, ScheduledTripDocument, Shape, Stop
+from models import Route, ScheduledTripDocument, Shape, Stop, Agency
 from logger_config import setup_logger
 import parsing.gtfs_config as gtfs_config_svc
 
@@ -27,6 +28,7 @@ DOCUMENT_MODELS: List[Type[Document]] = [
     Route,
     Shape,
     ScheduledTripDocument,
+    Agency,
 ]
 
 # --- Setup Logger ---
@@ -76,7 +78,10 @@ async def start_import(
 
     # Initialize services
     upserter = BatchUpsert(batch_size=batch_size, logger=logger)
+
     ingest_service = GTFSIngestService(upserter=upserter, logger=logger)
+
+    ingest_manager = GTFSIngestManager(logger=logger)
 
     # Parse static GTFS data from each agency
     for agency in gtfs_config["agencies"]:
@@ -103,12 +108,38 @@ async def start_import(
             )
             continue  # Skip to next agency
 
+        # Ingest data management check
+        try:
+            data_info = await ingest_manager.get_info(agency["id"], parsed_gtfs)
+        except Exception as e:
+            logger.error(
+                f"Failed during data management for agency {agency_display_name}: {e}",
+                exc_info=True,
+            )
+            continue  # Skip to next agency
+
+        if data_info.data_exists:
+            logger.info(
+                f"The latest data for {agency_display_name} already exists. Skipping ingestion."
+            )
+            continue
+
         # --- Process and Insert Data ---
         try:
             await ingest_service.ingest_all(parsed_gtfs)
             logger.info(
                 f"All processing and insertion tasks for {agency_display_name} has completed."
             )
+
+            try:
+                logger.info(f"Tracking data for {agency_display_name}... Marking data as ingested...")
+                await ingest_manager.track_data(agency["id"], parsed_gtfs)
+            except Exception as e:
+                logger.error(
+                    f"Skipping ingestion for {agency_display_name} due to data tracking failure: {e}.",
+                    exc_info=True,
+                )
+                continue  # Skip to next agency
 
         except Exception as e:
             logger.error(

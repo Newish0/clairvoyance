@@ -521,3 +521,39 @@ class Alert(Document):
                 [("updated_at", pymongo.DESCENDING)], name="idx_updated_at_desc"
             ),  # For fetching latest updates
         ]
+
+
+class FeedInfo(BaseModel):
+    """
+    A Beanie model for storing GTFS FeedHistory.
+    """
+
+    # TODO: Include these fields once we have proper parsing of feed_info.txt
+    # publisher_name: str
+    # publisher_url: str
+    # lang: str
+    # version: str
+    # start_date: Optional[datetime.datetime]
+    # end_date: Optional[datetime.datetime]
+
+    data_hash: str
+
+
+class Agency(Document):
+    """
+    A Beanie model for storing GTFS Agencies.
+    """
+
+    agency_id: str
+    config_agency_id: str  # This will be the ID used in the GTFS Config JSON
+    name: str
+    url: str
+    timezone: str
+    lang: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    imported_feeds: Optional[List[FeedInfo]] = None
+    
+    class Settings:
+        name = "agencies"
+        use_revision = True

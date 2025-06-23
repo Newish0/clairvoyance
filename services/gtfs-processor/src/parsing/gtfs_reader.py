@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import zipfile
 import csv
@@ -47,10 +48,14 @@ class GTFSReader:
         if zip_file_data is None:
             raise ValueError(f"Failed to read GTFS data from {static_data_source}")
 
+        zip_data_hash = self.__get_data_hash(zip_file_data)
+
+        self.logger.info(f"GTFS data hash: {zip_data_hash}")
+
         zip_data_buf = io.BytesIO(zip_file_data)
 
         (
-            agency_timezone,
+            agency,
             routes,
             trips,
             stop_times,
@@ -60,20 +65,26 @@ class GTFSReader:
             shapes,
         ) = self.__read_gtfs_zip(zip_data_buf)
 
+        # Add hash to agency
+        agency["source_hash"] = zip_data_hash
+
         parsed_data = ParsedGTFSData(
-            agency_timezone=agency_timezone,
+            agency=agency,
             routes=routes,
             trips=trips,
             stop_times=stop_times,
             service_dates=service_dates,
             stops=stops,
             shapes=shapes,
+            source_hash=zip_data_hash,
             logger=self.logger,
         )
 
         return parsed_data
 
-    def __read_gtfs_zip(self, zip_file_buffer: io.BytesIO) -> Tuple[Dict[str, Any], ...]:
+    def __read_gtfs_zip(
+        self, zip_file_buffer: io.BytesIO
+    ) -> Tuple[Dict[str, Any], ...]:
         """
         Reads a GTFS zip file and returns the raw parsed data.
 
@@ -82,7 +93,7 @@ class GTFSReader:
 
         Returns:
             A tuple containing:
-            - agency_timezone (str)
+            - agency (Dict[str, Any])
             - routes (Dict[str, Dict[str, Any]])
             - trips (Dict[str, Dict[str, Any]])
             - stop_times (Dict[str, List[Dict[str, Any]]])
@@ -105,7 +116,7 @@ class GTFSReader:
                 filenames_in_zip = set(zip_ref.namelist())
 
                 # First parse agency.txt to get timezone
-                agency_timezone = self._parse_agency(zip_ref, filenames_in_zip)
+                agency = self.__parse_agency(zip_ref, filenames_in_zip)
 
                 # Parse other files
                 routes = self.__parse_routes(zip_ref, filenames_in_zip)
@@ -119,7 +130,7 @@ class GTFSReader:
                 shapes = self.__parse_shapes(zip_ref, filenames_in_zip)
 
                 return (
-                    agency_timezone,
+                    agency,
                     routes,
                     trips,
                     stop_times,
@@ -136,7 +147,7 @@ class GTFSReader:
             self.logger.error(f"Error reading GTFS data: {str(e)}", exc_info=True)
             raise Exception(f"Error reading GTFS data: {str(e)}")
 
-    def _read_csv_from_zip(
+    def __read_csv_from_zip(
         self, zip_ref: zipfile.ZipFile, filename: str
     ) -> Optional[csv.DictReader]:
         """Helper to read a CSV file from the zip archive."""
@@ -154,30 +165,21 @@ class GTFSReader:
             self.logger.error(f"Error reading {filename} from zip: {e}")
             return None
 
-    def _parse_agency(self, zip_ref: zipfile.ZipFile, filenames: Set[str]) -> str:
+    def __get_data_hash(self, data: bytes) -> str:
+        return hashlib.sha256(data).hexdigest()
+
+    def __parse_agency(
+        self, zip_ref: zipfile.ZipFile, filenames: Set[str]
+    ) -> Dict[str, Any]:
         """Parse agency.txt to extract timezone information."""
         agency_timezone = self.default_timezone
         filename = "agency.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 try:
-                    for row in reader:
-                        tz_str = row.get("agency_timezone")
-                        if tz_str:
-                            try:
-                                pytz.timezone(tz_str)  # Validate
-                                agency_timezone = tz_str
-                                self.logger.info(
-                                    f"Using agency timezone: {agency_timezone}"
-                                )
-                                break  # Use first agency's timezone
-                            except pytz.exceptions.UnknownTimeZoneError:
-                                self.logger.warning(
-                                    f"Invalid timezone in {filename}: {tz_str}"
-                                )
-                                continue
+                    row = next(reader)  # Get first row
                 except Exception as e:
                     self.logger.warning(
                         f"Could not parse agency timezone from {filename}: {e}"
@@ -187,10 +189,27 @@ class GTFSReader:
         else:
             self.logger.warning(f"{filename} not found in GTFS zip file.")
 
+        tz_str = row.get("agency_timezone")
+        if tz_str:
+            try:
+                pytz.timezone(tz_str)  # Validate
+                agency_timezone = tz_str
+                self.logger.info(f"Using agency timezone: {agency_timezone}")
+            except pytz.exceptions.UnknownTimeZoneError:
+                self.logger.warning(f"Invalid timezone in {filename}: {tz_str}")
+
         if agency_timezone == self.default_timezone:
             self.logger.info(f"Using default timezone: {self.default_timezone}")
 
-        return agency_timezone
+        return {
+            "agency_id": row.get("agency_id"),
+            "name": row.get("agency_name"),
+            "url": row.get("agency_url"),
+            "timezone": agency_timezone,
+            "lang": row.get("agency_lang"),
+            "phone": row.get("agency_phone"),
+            "email": row.get("agency_email"),
+        }
 
     def __parse_routes(
         self, zip_ref: zipfile.ZipFile, filenames: Set[str]
@@ -200,7 +219,7 @@ class GTFSReader:
         filename = "routes.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 route_count = 0
                 try:
@@ -231,7 +250,7 @@ class GTFSReader:
         filename = "trips.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 trip_count = 0
                 missing_data_count = 0
@@ -269,7 +288,7 @@ class GTFSReader:
         filename = "calendar.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 service_count = 0
                 error_count = 0
@@ -353,7 +372,7 @@ class GTFSReader:
         filename = "calendar_dates.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 exception_count = 0
                 added_count = 0
@@ -432,7 +451,7 @@ class GTFSReader:
         filename = "stop_times.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 self.logger.debug(f"Column headers in {filename}: {reader.fieldnames}")
                 stop_time_count = 0
@@ -508,7 +527,7 @@ class GTFSReader:
         filename = "stops.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 stop_count = 0
                 error_count = 0
@@ -547,7 +566,7 @@ class GTFSReader:
         filename = "shapes.txt"
         if filename in filenames:
             self.logger.debug(f"Parsing {filename}")
-            reader = self._read_csv_from_zip(zip_ref, filename)
+            reader = self.__read_csv_from_zip(zip_ref, filename)
             if reader:
                 point_count = 0
                 error_count = 0

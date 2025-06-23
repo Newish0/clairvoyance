@@ -35,39 +35,44 @@ class ParsedGTFSData:
 
     def __init__(
         self,
-        agency_timezone: str,
+        agency: Dict[str, Any],
         routes: Dict[str, Dict[str, Any]],
         trips: Dict[str, Dict[str, Any]],
         stop_times: Dict[str, List[Dict[str, Any]]],
         service_dates: Dict[str, List[str]],
         stops: Dict[str, Dict[str, Any]],
         shapes: Dict[str, List[Dict[str, Any]]],
+        source_hash: str,
         logger: Optional[logging.Logger] = None,
     ):
         """
         Initialize with raw data parsed by GTFSReader.
 
         Args:
-            agency_timezone: The determined timezone string.
+            agency: The agency info.
             routes: Dictionary of routes keyed by route_id.
             trips: Dictionary of trips keyed by trip_id.
             stop_times: Dictionary of stop time lists keyed by trip_id.
             service_dates: Dictionary of service date lists (YYYYMMDD) keyed by service_id.
             stops: Dictionary of stops keyed by stop_id.
             shapes: Dictionary of shape point lists keyed by shape_id.
+            source_hash: Hash of the source GTFS zip file.
             logger: Optional custom logger instance. If not provided, uses the centralized setup_logger.
         """
-        self.agency_timezone = agency_timezone
+        self.agency = agency
         self.routes = routes
         self.trips = trips
         self.stop_times = stop_times
         self.service_dates = service_dates
         self.stops = stops
         self.shapes = shapes
+        self.source_hash = source_hash
         self.logger = logger if logger is not None else setup_logger(__name__)
 
-        self.logger.info("ParsedGTFSData initialized.")
-        self.logger.info(f"Agency timezone: {self.agency_timezone}")
+        self.logger.info("ParsedGTFSData initialized (source hash: %s)." % source_hash)
+        self.logger.info(
+            f"Agency: {self.agency['name']}({self.agency['agency_id']}) timezone: {self.agency['timezone']}"
+        )
         self.logger.info(f"Loaded {len(routes)} routes.")
         self.logger.info(f"Loaded {len(trips)} trips.")
         self.logger.info(f"Loaded {len(stops)} stops.")
@@ -169,7 +174,7 @@ class ParsedGTFSData:
                         route_id=route_id,
                         route_short_name=route_short_name,
                         service_id=service_id,
-                        agency_timezone_str=self.agency_timezone,
+                        agency_timezone_str=self.agency["timezone"],
                         direction_id=direction_id,
                         shape_id=trip_data.get("shape_id"),
                         trip_headsign=trip_data.get("trip_headsign"),
@@ -179,7 +184,7 @@ class ParsedGTFSData:
                         start_datetime=ScheduledTripDocument.convert_to_datetime(
                             date_str=service_date,
                             time_str=start_time,
-                            tz_str=self.agency_timezone,
+                            tz_str=self.agency["timezone"],
                         ),
                     )
                     yield scheduled_trip
@@ -200,7 +205,7 @@ class ParsedGTFSData:
         self, partial_stop_time_info: PartialStopTimeInfo, date_str: str
     ) -> StopTimeInfo:
         """Convert a list of partially completed stop times to StopTimeInfo objects by computing its derived fields."""
-        tz_str = self.agency_timezone
+        tz_str = self.agency["timezone"]
         arrival_datetime = ScheduledTripDocument.convert_to_datetime(
             date_str, partial_stop_time_info.arrival_time, tz_str
         )

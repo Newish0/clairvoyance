@@ -1,6 +1,6 @@
 import logging
+from logger_config import setup_logger
 from typing import Any, AsyncGenerator, Callable, Dict, Iterable, List, Type
-
 from beanie import Document
 
 
@@ -11,7 +11,7 @@ class BatchUpsert:
         logger: logging.Logger = None,
     ):
         self.batch_size = batch_size
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or setup_logger(__name__)
 
     async def upsert(
         self,
