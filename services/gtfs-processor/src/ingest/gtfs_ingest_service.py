@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 import logging
+from logger_config import setup_logger
 from typing import Callable, Iterator, List
 
 import pytz
@@ -14,7 +15,7 @@ class GTFSIngestService:
 
     def __init__(self, upserter: BatchUpsert, logger: logging.Logger = None):
         self.upserter = upserter
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or setup_logger(__name__)
 
         # Key functions for each document type
         self.key_fns = {
@@ -38,10 +39,10 @@ class GTFSIngestService:
             },
         }
 
-        # Do not update trips that are older than 1 day from now since
-        # they are likely already visible to user with RT data.
+        # Do not update trips that will depart in the next 24 hours.
+        # they are likely already filled with RT data.
         self.trips_insert_only_fn: Callable[[ScheduledTripDocument], bool] = (
-            lambda d: d.start_datetime < (datetime.now(pytz.UTC) - timedelta(days=1))
+            lambda d: d.start_datetime < (datetime.now(pytz.UTC) + timedelta(days=1))
         )
 
     async def ingest_stops(self, parsed_gtfs: ParsedGTFSData) -> None:
