@@ -9,6 +9,7 @@ import {
     type Component,
 } from "solid-js";
 
+import MapLibreGlDirections from "@maplibre/maplibre-gl-directions";
 import { Layer, Marker, Source, type Viewport } from "solid-map-gl";
 
 import { differenceInSeconds } from "date-fns";
@@ -30,10 +31,10 @@ import {
 } from "gtfs-db-types";
 import { createEffect, on } from "solid-js";
 import { useMapLocation } from "~/hooks/use-map-location";
+import { useTheme } from "~/hooks/use-theme";
 import BaseMap from "../ui/base-map";
 import { ResponsiveDialog, ResponsiveDialogContent } from "../ui/responsive-dialog";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
-import { useTheme } from "~/hooks/use-theme";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -211,9 +212,24 @@ const TripMap: Component<TripMapProps> = (props) => {
         return isDark() ? color.dark : color.light;
     });
 
+    const handleMapLoad = ({ target: map }: { target: maplibregl.Map }) => {
+        const directions = new MapLibreGlDirections(map);
+
+        const selectedLocation = mapLocation.selectedLocation();
+        const stopLocation = groupedStopsGeoJson().at.features[0].geometry.coordinates;
+        directions.setWaypoints([
+            [selectedLocation.lng, selectedLocation.lat],
+            [stopLocation[0], stopLocation[1]],
+        ]);
+    };
+
     return (
         <>
-            <BaseMap viewport={viewport()} onViewportChange={handleViewportChange}>
+            <BaseMap
+                viewport={viewport()}
+                onViewportChange={handleViewportChange}
+                onLoad={handleMapLoad}
+            >
                 <Show when={groupedShapeLineGeoJson()?.before}>
                     {(geoJson) => (
                         <Source
