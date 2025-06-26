@@ -39,11 +39,11 @@ const BaseMap: Component<BaseMapProps> = (props) => {
 
     return (
         <MapGL
+            {...props}
             mapLib={maplibre}
             options={{
                 style: mapStyle(),
             }}
-            {...props}
         />
     );
 };
