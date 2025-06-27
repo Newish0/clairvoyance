@@ -40,6 +40,7 @@ import { useMapStyle } from "~/hooks/use-map-style";
 import { useTheme } from "~/hooks/use-theme";
 import { ResponsiveDialog, ResponsiveDialogContent } from "../ui/responsive-dialog";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
+import { asHtmlElement, LocationMarker } from "./location-marker";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -169,6 +170,16 @@ const TripMap: Component<TripMapProps> = (props) => {
         ],
         zoom: 12,
     });
+
+    const markers = {
+        currentLocation: new maplibregl.Marker({
+            element: asHtmlElement(<LocationMarker type="blue" />),
+        }).setLngLat([0, 0]),
+        selectedLocation: new maplibregl.Marker({
+            element: asHtmlElement(<LocationMarker type="purple" />),
+        }).setLngLat([0, 0]),
+    } as const;
+
     createEffect(
         on(
             mapLocation.selectedLocation,
@@ -200,7 +211,7 @@ const TripMap: Component<TripMapProps> = (props) => {
             },
             dark: {
                 before: { border: "#999c", fill: "#333b" },
-                after: { border: "#fffe", fill: "#999e" },
+                after: { border: "#666e", fill: "#fffd" },
                 skippedStopFill: "#d339",
             },
         };
@@ -231,8 +242,6 @@ const TripMap: Component<TripMapProps> = (props) => {
                 map.addSource("stops-before", { type: "geojson", data: emptyGeoJson });
                 map.addSource("stops-after", { type: "geojson", data: emptyGeoJson });
                 map.addSource("skipped-stops", { type: "geojson", data: emptyGeoJson });
-                map.addSource("gps-location", { type: "geojson", data: emptyGeoJson });
-                map.addSource("selected-location", { type: "geojson", data: emptyGeoJson });
                 const colors = routeColor();
                 map.addLayer({
                     id: "shape-before",
@@ -278,45 +287,22 @@ const TripMap: Component<TripMapProps> = (props) => {
                     source: "stops-after",
                     paint: { "circle-color": colors.after.fill, "circle-radius": 6 },
                 });
-                map.addLayer({
-                    id: "gps-location-border",
-                    type: "circle",
-                    source: "gps-location",
-                    paint: { "circle-color": "#e9e9ea", "circle-radius": 16 },
-                });
-                map.addLayer({
-                    id: "gps-location-fill",
-                    type: "circle",
-                    source: "gps-location",
-                    paint: { "circle-color": "#047fbf", "circle-radius": 10 },
-                });
-                map.addLayer({
-                    id: "selected-location-border",
-                    type: "circle",
-                    source: "selected-location",
-                    paint: { "circle-color": "#e9e9ea", "circle-radius": 16 },
-                });
-                map.addLayer({
-                    id: "selected-location-fill",
-                    type: "circle",
-                    source: "selected-location",
-                    paint: { "circle-color": "#b2047f", "circle-radius": 10 },
-                });
-                const directions = new MapLibreGlDirections(map);
-                createEffect(
-                    on(
-                        [mapLocation.selectedLocation, () => groupedStopsGeoJson()?.at],
-                        ([loc, atStop]) => {
-                            if (loc && atStop?.features[0]) {
-                                const stopCoords = atStop.features[0].geometry.coordinates;
-                                directions.setWaypoints([
-                                    [loc.lng, loc.lat],
-                                    [stopCoords[0], stopCoords[1]],
-                                ]);
-                            }
-                        }
-                    )
-                );
+
+                // const directions = new MapLibreGlDirections(map);
+                // createEffect(
+                //     on(
+                //         [mapLocation.selectedLocation, () => groupedStopsGeoJson()?.at],
+                //         ([loc, atStop]) => {
+                //             if (loc && atStop?.features[0]) {
+                //                 const stopCoords = atStop.features[0].geometry.coordinates;
+                //                 directions.setWaypoints([
+                //                     [loc.lng, loc.lat],
+                //                     [stopCoords[0], stopCoords[1]],
+                //                 ]);
+                //             }
+                //         }
+                //     )
+                // );
             },
             { defer: true }
         )
@@ -349,23 +335,28 @@ const TripMap: Component<TripMapProps> = (props) => {
         )
     );
     createEffect(
-        on(
-            [mapLocation.currentLocation, map],
-            ([loc, map]) =>
-                map?.getSource("gps-location") &&
-                (map!.getSource("gps-location") as maplibregl.GeoJSONSource).setData(
-                    loc ? { type: "Point", coordinates: [loc.lng, loc.lat] } : emptyGeoJson
-                )
-        )
+        on([mapLocation.currentLocation, map], ([loc, map]) => {
+            if (!map) return;
+
+            if (loc) {
+                markers.currentLocation.setLngLat([loc.lng, loc.lat]).addTo(map);
+            } else {
+                markers.currentLocation.remove();
+            }
+        })
     );
     createEffect(
         on(
             [mapLocation.selectedLocation, mapLocation.showSelectedMarker, map],
-            ([loc, show, map]) =>
-                map?.getSource("selected-location") &&
-                (map!.getSource("selected-location") as maplibregl.GeoJSONSource).setData(
-                    loc && show ? { type: "Point", coordinates: [loc.lng, loc.lat] } : emptyGeoJson
-                )
+            ([loc, show, map]) => {
+                if (!map) return;
+
+                if (loc && show) {
+                    markers.selectedLocation.setLngLat([loc.lng, loc.lat]).addTo(map);
+                } else {
+                    markers.selectedLocation.remove();
+                }
+            }
         )
     );
     createEffect(
