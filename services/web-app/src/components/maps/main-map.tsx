@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import { useMapStyle } from "~/hooks/use-map-style";
 import { isFpEqual } from "~/utils/numbers";
 import { createCustomZoomController } from "~/lib/map/custom-zoom-controller";
+import { LocationMarker, asHtmlElement } from "./location-marker";
 
 const MainMap: Component = () => {
     let container: HTMLDivElement;
@@ -13,22 +14,10 @@ const MainMap: Component = () => {
     const mapStyle = useMapStyle();
     const markers = {
         currentLocation: new maplibregl.Marker({
-            element: (
-                <div
-                    class={cn("rounded-full w-6 h-6 border-4", "bg-sky-600/95", "border-white/90")}
-                ></div>
-            ) as HTMLDivElement,
+            element: asHtmlElement(<LocationMarker type="blue" />),
         }).setLngLat([0, 0]),
         selectedLocation: new maplibregl.Marker({
-            element: (
-                <div
-                    class={cn(
-                        "rounded-full w-6 h-6 border-4",
-                        "bg-purple-600/95",
-                        "border-white/90"
-                    )}
-                ></div>
-            ) as HTMLDivElement,
+            element: asHtmlElement(<LocationMarker type="purple" />),
         }).setLngLat([0, 0]),
     } as const;
 
