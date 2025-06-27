@@ -1,4 +1,5 @@
-import { Match, Switch, type Component } from "solid-js";
+import { type JSX, Match, Switch, type Component } from "solid-js";
+import { render } from "solid-js/web";
 import { cn } from "~/lib/utils";
 
 type LocationMarkerProps = {
@@ -17,7 +18,7 @@ const LocationMarker: Component<LocationMarkerProps> = ({ type }) => {
                 <div
                     class={cn(
                         "rounded-full w-6 h-6 border-4",
-                        "bg-purple-600/95",
+                        "bg-fuchsia-600/95",
                         "border-white/90"
                     )}
                 />
@@ -26,4 +27,10 @@ const LocationMarker: Component<LocationMarkerProps> = ({ type }) => {
     );
 };
 
-export default LocationMarker;
+const asHtmlElement = (component: JSX.Element) => {
+    const container = document.createElement("div");
+    render(() => component, container);
+    return container.firstElementChild as HTMLElement;
+};
+
+export { LocationMarker, asHtmlElement };
