@@ -39,7 +39,6 @@
     "pmtiles": "^4.1.0",
     "protomaps-themes-base": "^4.3.0",
     "solid-js": "^1.9.3",
-    "solid-map-gl": "^1.11.3",
     "solid-sonner": "^0.2.8",
     "solidui-cli": "^0.7.1",
     "tailwind-merge": "^2.6.0",
