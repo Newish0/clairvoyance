@@ -163,8 +163,8 @@ export function useMapLocation(options: UseMapLocationOptions = {}): UseMapLocat
                 } else if (geolocation && isAttached()) {
                     console.log("Case 3");
                     if (
-                        isFpEqual(geolocation.lat, selected.lat, 0.000001) &&
-                        isFpEqual(geolocation.lng, selected.lng, 0.000001)
+                        isFpEqual(geolocation.lat, selected.lat, 1e-16) &&
+                        isFpEqual(geolocation.lng, selected.lng, 1e-16)
                     )
                         return;
                     setSelectedLocation({
