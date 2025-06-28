@@ -74,11 +74,8 @@ const MainMap: Component = () => {
                     isFpEqual(selectedLocation.lng, mapCenter.lng, 1e-32) &&
                     isFpEqual(selectedLocation.lat, mapCenter.lat, 1e-32)
                 ) {
-                    console.log("Map already at selected location");
                     return;
                 }
-
-                console.log("Moving map to selected location", selectedLocation);
 
                 map.setCenter([selectedLocation.lng, selectedLocation.lat]);
             }

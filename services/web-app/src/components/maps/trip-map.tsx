@@ -8,6 +8,8 @@ import {
     type Component,
     createEffect,
     on,
+    type Accessor,
+    type Signal,
 } from "solid-js";
 import { render } from "solid-js/web";
 
@@ -15,7 +17,6 @@ import MapLibreGlDirections from "@maplibre/maplibre-gl-directions";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-// Import GeoJSON types for better type safety
 import type { Feature, FeatureCollection, Point } from "geojson";
 
 import { differenceInSeconds } from "date-fns";
@@ -79,13 +80,12 @@ const TripMap: Component<TripMapProps> = (props) => {
     });
     const vehicles = () => vehiclesMap().values().toArray();
 
+    // Group stops geojson into before, at, and after our stop
     const groupedStopsGeoJson = createMemo(() => {
         const stopsGeoJson = rawStopsGeoJson();
         const details = tripDetails();
         if (!stopsGeoJson || !details) return null;
 
-        // FIX: Cast features to the correct, specific GeoJSON Feature type.
-        // This resolves the "Type 'string' is not assignable to type '\"Feature\"'" error.
         const features = stopsGeoJson.features as Feature<Point, { stopId: string }>[];
 
         const stopTimes = details.stop_times;
@@ -119,12 +119,12 @@ const TripMap: Component<TripMapProps> = (props) => {
         } as const;
     });
 
+    // Create geojson for stops we're skipping (likely with associated alerts)
     const skippedStopsGeoJson = createMemo(() => {
         const stopsGeoJson = rawStopsGeoJson();
         const details = tripDetails();
         if (!stopsGeoJson || !details) return null;
 
-        // FIX: Cast features here as well for the same reason.
         const features = stopsGeoJson.features as Feature<Point, { stopId: string }>[];
 
         const stopTimes = details.stop_times;
@@ -142,6 +142,7 @@ const TripMap: Component<TripMapProps> = (props) => {
         } as const;
     });
 
+    // Group shape line geojson into those before and after our stop
     const groupedShapeLineGeoJson = createMemo(() => {
         if (!rawShapeLineGeoJson() || !tripDetails()) return null;
         const ourStopTime = tripDetails()!.stop_times.find((st) => st.stop_id === props.stopId);
@@ -218,6 +219,7 @@ const TripMap: Component<TripMapProps> = (props) => {
         return isDark() ? color.dark : color.light;
     });
 
+    // Init map
     onMount(() => {
         const m = new maplibregl.Map({
             container,
@@ -232,6 +234,7 @@ const TripMap: Component<TripMapProps> = (props) => {
         onCleanup(() => m.remove());
     });
 
+    // Init geojson sources and layers when map chances (e.g. map is loaded)
     createEffect(
         on(
             map,
@@ -308,6 +311,7 @@ const TripMap: Component<TripMapProps> = (props) => {
         )
     );
 
+    // geojson for shapes (i.e. route lines)
     createEffect(
         on([groupedShapeLineGeoJson, map], ([data, map]) => {
             if (map && data) {
@@ -317,6 +321,8 @@ const TripMap: Component<TripMapProps> = (props) => {
             }
         })
     );
+
+    // geojson for stops
     createEffect(
         on([groupedStopsGeoJson, map], ([data, map]) => {
             if (map && data) {
@@ -325,6 +331,8 @@ const TripMap: Component<TripMapProps> = (props) => {
             }
         })
     );
+
+    // Skipped stops red circles geojson
     createEffect(
         on(
             [skippedStopsGeoJson, map],
@@ -334,6 +342,8 @@ const TripMap: Component<TripMapProps> = (props) => {
                 (map!.getSource("skipped-stops") as maplibregl.GeoJSONSource).setData(data)
         )
     );
+
+    // Current location marker
     createEffect(
         on([mapLocation.currentLocation, map], ([loc, map]) => {
             if (!map) return;
@@ -345,6 +355,8 @@ const TripMap: Component<TripMapProps> = (props) => {
             }
         })
     );
+
+    // Selected location marker
     createEffect(
         on(
             [mapLocation.selectedLocation, mapLocation.showSelectedMarker, map],
@@ -359,6 +371,8 @@ const TripMap: Component<TripMapProps> = (props) => {
             }
         )
     );
+
+    // Route shape colors/styles
     createEffect(
         on([routeColor, map], ([colors, map]) => {
             if (!map?.isStyleLoaded()) return;
@@ -372,106 +386,79 @@ const TripMap: Component<TripMapProps> = (props) => {
         })
     );
 
-    const vehicleMarkers = new Map<string, { marker: maplibregl.Marker; dispose: () => void }>();
-    onCleanup(() => vehicleMarkers.forEach(({ marker, dispose }) => (marker.remove(), dispose())));
+    // Vehicle markers
+    const vehicleMarkers = new Map<
+        string,
+        {
+            marker: maplibregl.Marker;
+            dispose: () => void;
+            tripSignal: Signal<ScheduledTripDocument>;
+        }
+    >();
     createEffect(
         on(
             [map, vehicles],
             ([map, vehiclesList]) => {
+                console.log("vehicles", vehiclesList);
                 if (!map) return;
-                const seenTripIds = new Set<string>();
+
                 for (const trip of vehiclesList) {
                     if (!trip.current_position?.longitude || !trip.current_position?.latitude)
                         continue;
-                    seenTripIds.add(trip._id);
-                    const lngLat: [number, number] = [
+                    const lngLat: [longitude: number, latitude: number] = [
                         trip.current_position.longitude,
                         trip.current_position.latitude,
                     ];
-                    if (vehicleMarkers.has(trip._id)) {
-                        vehicleMarkers.get(trip._id)!.marker.setLngLat(lngLat);
-                        continue;
-                    }
-                    const el = document.createElement("div");
-                    el.className = "cursor-pointer";
-                    const MarkerComponent: Component = () => {
-                        const calSecondsAgo = () =>
-                            differenceInSeconds(new Date(), trip.position_updated_at);
-                        const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
-                        const isNotAccepting = () =>
-                            trip.current_occupancy === OccupancyStatus.NOT_ACCEPTING_PASSENGERS ||
-                            trip.current_occupancy === OccupancyStatus.NOT_BOARDABLE;
-                        const percentageFromOccupancyStatus = () => {
-                            if (
-                                !trip.current_occupancy ||
-                                trip.current_occupancy === OccupancyStatus.NO_DATA_AVAILABLE
-                            )
-                                return -1;
-                            if (isNotAccepting()) return -2;
-                            if (trip.current_occupancy === OccupancyStatus.EMPTY) return 10;
-                            if (trip.current_occupancy === OccupancyStatus.MANY_SEATS_AVAILABLE)
-                                return 25;
-                            if (trip.current_occupancy === OccupancyStatus.FEW_SEATS_AVAILABLE)
-                                return 50;
-                            if (trip.current_occupancy === OccupancyStatus.STANDING_ROOM_ONLY)
-                                return 75;
-                            if (
-                                trip.current_occupancy ===
-                                OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY
-                            )
-                                return 95;
-                            return 100;
-                        };
-                        let interval: ReturnType<typeof setInterval>;
-                        onMount(() => {
-                            interval = setInterval(() => setSecondsAgo(calSecondsAgo()), 1000);
-                        });
-                        onCleanup(() => clearInterval(interval));
-                        return (
-                            <div
-                                class="relative flex flex-col items-center justify-center"
-                                onClick={() =>
-                                    trip._id !== selectedTripVehicle()?._id &&
-                                    setSelectedTripVehicle(trip)
-                                }
-                            >
-                                <div
-                                    class={cn(
-                                        "rounded-full bg-background p-[2px]",
-                                        isNotAccepting() ? "invert" : ""
-                                    )}
-                                >
-                                    <ProgressCircle
-                                        value={percentageFromOccupancyStatus()}
-                                        class="w-10 h-10"
-                                    >
-                                        <BusFrontIcon size={20} />
-                                    </ProgressCircle>
-                                </div>
-                                <Badge variant={"default"} class="text-xs w-min p-0 px-1">
-                                    {secondsAgo()}s
-                                </Badge>
-                            </div>
+
+                    if (!vehicleMarkers.has(trip._id)) {
+                        const tripSignal = createSignal(trip);
+
+                        const container = document.createElement("div");
+                        const dispose = render(
+                            () => (
+                                <VehicleMarkerComponent
+                                    trip={tripSignal[0]}
+                                    onClick={setSelectedTripVehicle}
+                                />
+                            ),
+                            container
                         );
-                    };
-                    const dispose = render(() => <MarkerComponent />, el);
-                    const marker = new maplibregl.Marker({ element: el })
-                        .setLngLat(lngLat)
-                        .addTo(map);
-                    vehicleMarkers.set(trip._id, { marker, dispose });
+                        const marker = new maplibregl.Marker({
+                            element: container,
+                        })
+                            .setLngLat(lngLat)
+                            .addTo(map);
+                        vehicleMarkers.set(trip._id, {
+                            marker,
+                            dispose: () => {
+                                marker.remove();
+                                dispose();
+                            },
+                            tripSignal,
+                        });
+                    } else {
+                        const { marker, tripSignal } = vehicleMarkers.get(trip._id)!;
+                        marker.setLngLat(lngLat);
+                        tripSignal[1](trip); // Update vehicle marker via signal
+                    }
                 }
-                for (const tripId of Array.from(vehicleMarkers.keys())) {
-                    if (!seenTripIds.has(tripId)) {
-                        const { marker, dispose } = vehicleMarkers.get(tripId)!;
+
+                // Remove markers if the trip no longer exist
+                for (const trip of vehicleMarkers.keys()) {
+                    if (!vehiclesList.find((v) => v._id === trip)) {
+                        const { marker, dispose } = vehicleMarkers.get(trip)!;
                         marker.remove();
                         dispose();
-                        vehicleMarkers.delete(tripId);
+                        vehicleMarkers.delete(trip);
                     }
                 }
             },
             { defer: true }
         )
     );
+    onCleanup(() => vehicleMarkers.forEach(({ dispose }) => dispose()));
+
+    // TODO: Fix dialog cannot open after closing on mobile
 
     return (
         <>
@@ -489,6 +476,53 @@ const TripMap: Component<TripMapProps> = (props) => {
                 </Show>
             </ResponsiveDialog>
         </>
+    );
+};
+
+const VehicleMarkerComponent: Component<{
+    trip: Accessor<ScheduledTripDocument>;
+    onClick: (trip: ScheduledTripDocument) => void;
+}> = (props) => {
+    const trip = () => props.trip();
+
+    const calSecondsAgo = () => differenceInSeconds(new Date(), trip().position_updated_at);
+    const [secondsAgo, setSecondsAgo] = createSignal(calSecondsAgo());
+    const isNotAccepting = () =>
+        trip().current_occupancy === OccupancyStatus.NOT_ACCEPTING_PASSENGERS ||
+        trip().current_occupancy === OccupancyStatus.NOT_BOARDABLE;
+    const percentageFromOccupancyStatus = () => {
+        if (
+            !trip().current_occupancy ||
+            trip().current_occupancy === OccupancyStatus.NO_DATA_AVAILABLE
+        )
+            return -1;
+        if (isNotAccepting()) return -2;
+        if (trip().current_occupancy === OccupancyStatus.EMPTY) return 10;
+        if (trip().current_occupancy === OccupancyStatus.MANY_SEATS_AVAILABLE) return 25;
+        if (trip().current_occupancy === OccupancyStatus.FEW_SEATS_AVAILABLE) return 50;
+        if (trip().current_occupancy === OccupancyStatus.STANDING_ROOM_ONLY) return 75;
+        if (trip().current_occupancy === OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY) return 95;
+        return 100;
+    };
+    let interval: ReturnType<typeof setInterval>;
+    onMount(() => {
+        interval = setInterval(() => setSecondsAgo(calSecondsAgo()), 1000);
+    });
+    onCleanup(() => clearInterval(interval));
+    return (
+        <div
+            class="relative flex flex-col items-center justify-center"
+            onClick={() => props.onClick(trip())}
+        >
+            <div class={cn("rounded-full bg-background p-[2px]", isNotAccepting() ? "invert" : "")}>
+                <ProgressCircle value={percentageFromOccupancyStatus()} class="w-10 h-10">
+                    <BusFrontIcon size={20} />
+                </ProgressCircle>
+            </div>
+            <Badge variant={"default"} class="text-xs w-min p-0 px-1">
+                {secondsAgo()}s
+            </Badge>
+        </div>
     );
 };
 
