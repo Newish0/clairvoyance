@@ -48,8 +48,6 @@ type TripMapProps = {
     stopId: string;
 };
 
-type Viewport = { center: [number, number]; zoom: number };
-
 const emptyGeoJson: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 const TripMap: Component<TripMapProps> = (props) => {
@@ -164,13 +162,6 @@ const TripMap: Component<TripMapProps> = (props) => {
     });
 
     const mapLocation = useMapLocation({ thresholdDistance: 100, enableHighAccuracy: true });
-    const [viewport, setViewport] = createSignal<Viewport>({
-        center: [
-            mapLocation.selectedLocation()?.lng ?? 0,
-            mapLocation.selectedLocation()?.lat ?? 0,
-        ],
-        zoom: 12,
-    });
 
     const markers = {
         currentLocation: new maplibregl.Marker({
@@ -186,15 +177,11 @@ const TripMap: Component<TripMapProps> = (props) => {
             mapLocation.selectedLocation,
             (selectedLocation) => {
                 if (selectedLocation) {
-                    const currentCenter = viewport().center;
+                    const currentCenter = map()?.getCenter();
                     if (
-                        currentCenter[0] !== selectedLocation.lng ||
-                        currentCenter[1] !== selectedLocation.lat
+                        currentCenter?.lng !== selectedLocation.lng ||
+                        currentCenter?.lat !== selectedLocation.lat
                     ) {
-                        setViewport({
-                            ...viewport(),
-                            center: [selectedLocation.lng, selectedLocation.lat],
-                        });
                         map()?.setCenter([selectedLocation.lng, selectedLocation.lat]);
                     }
                 }
@@ -224,12 +211,10 @@ const TripMap: Component<TripMapProps> = (props) => {
         const m = new maplibregl.Map({
             container,
             style: mapStyle(),
-            center: viewport().center,
-            zoom: viewport().zoom,
+            center: mapLocation.selectedLocation(),
+            zoom: 12,
         });
-        m.on("move", () =>
-            setViewport({ center: m.getCenter().toArray() as [number, number], zoom: m.getZoom() })
-        );
+
         m.once("load", () => setMap(m));
         onCleanup(() => m.remove());
     });
