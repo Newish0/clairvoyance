@@ -1,47 +1,46 @@
-import {
-    createMemo,
-    createResource,
-    createSignal,
-    onCleanup,
-    onMount,
-    Show,
-    type Component,
-    createEffect,
-    on,
-    type Accessor,
-    type Signal,
-} from "solid-js";
-import { render } from "solid-js/web";
-
-import MapLibreGlDirections from "@maplibre/maplibre-gl-directions";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-
-import type { Feature, FeatureCollection, Point } from "geojson";
-
 import { differenceInSeconds } from "date-fns";
-import { BusFrontIcon } from "lucide-solid";
-import { useRouteLiveVehicles } from "~/hooks/use-route-live-vehicles";
-import { cn } from "~/lib/utils";
-import { getShapeAsGeoJson } from "~/services/shapes";
-import { getStopsGeoJson } from "~/services/stops";
-import { getScheduledTripDetails } from "~/services/trips";
-
-import { ProgressCircle } from "~/components/ui/progress-circle";
-import { Badge } from "../ui/badge";
-
+import type { Feature, FeatureCollection, Point } from "geojson";
 import {
     DirectionId,
     OccupancyStatus,
     StopTimeUpdateScheduleRelationship,
     type ScheduledTripDocument,
 } from "gtfs-db-types";
+import { BusFrontIcon } from "lucide-solid";
+import {
+    createEffect,
+    createMemo,
+    createResource,
+    createSignal,
+    on,
+    onCleanup,
+    onMount,
+    Show,
+    type Accessor,
+    type Component,
+    type Signal,
+} from "solid-js";
+import { render } from "solid-js/web";
+import { ProgressCircle } from "~/components/ui/progress-circle";
 import { useMapLocation } from "~/hooks/use-map-location";
 import { useMapStyle } from "~/hooks/use-map-style";
+import { useRouteLiveVehicles } from "~/hooks/use-route-live-vehicles";
 import { useTheme } from "~/hooks/use-theme";
-import { ResponsiveDialog, ResponsiveDialogContent } from "../ui/responsive-dialog";
+import { cn } from "~/lib/utils";
+import { getShapeAsGeoJson } from "~/services/shapes";
+import { getStopsGeoJson } from "~/services/stops";
+import { getScheduledTripDetails } from "~/services/trips";
+import { Badge } from "../ui/badge";
+import {
+    ResponsiveDialog,
+    ResponsiveDialogContent,
+    ResponsiveDialogTrigger,
+} from "../ui/responsive-dialog";
 import TripVehicleInfo from "../ui/trip-vehicle-info";
 import { asHtmlElement, LocationMarker } from "./location-marker";
+
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 type TripMapProps = {
     tripObjectId: string;
@@ -55,9 +54,6 @@ const TripMap: Component<TripMapProps> = (props) => {
     const [map, setMap] = createSignal<maplibregl.Map | null>(null);
     const mapStyle = useMapStyle();
     const [, , isDark] = useTheme();
-
-    const [selectedTripVehicle, setSelectedTripVehicle] =
-        createSignal<ScheduledTripDocument | null>(null);
 
     const [tripDetails] = createResource(() => getScheduledTripDetails(props.tripObjectId));
 
@@ -300,7 +296,6 @@ const TripMap: Component<TripMapProps> = (props) => {
     createEffect(
         on([groupedShapeLineGeoJson, map], ([data, map]) => {
             if (map && data) {
-                console.log("set data");
                 (map.getSource("shape-before") as maplibregl.GeoJSONSource).setData(data.before);
                 (map.getSource("shape-after") as maplibregl.GeoJSONSource).setData(data.after);
             }
@@ -384,7 +379,6 @@ const TripMap: Component<TripMapProps> = (props) => {
         on(
             [map, vehicles],
             ([map, vehiclesList]) => {
-                console.log("vehicles", vehiclesList);
                 if (!map) return;
 
                 for (const trip of vehiclesList) {
@@ -401,10 +395,25 @@ const TripMap: Component<TripMapProps> = (props) => {
                         const container = document.createElement("div");
                         const dispose = render(
                             () => (
-                                <VehicleMarkerComponent
-                                    trip={tripSignal[0]}
-                                    onClick={setSelectedTripVehicle}
-                                />
+                                <ResponsiveDialog>
+                                    <ResponsiveDialogTrigger
+                                        as={VehicleMarkerComponent}
+                                        trip={tripSignal[0]}
+                                    >
+                                        {null}
+                                    </ResponsiveDialogTrigger>
+                                    <ResponsiveDialogContent class="px-0 max-h-[80dvh] min-h-[50dvh] md:min-h-36 flex flex-col gap-1 justify-start">
+                                        {/* Need to be wrapped in <Show> to trigger/pass in reactivity */}
+                                        <Show when={tripSignal[0]()}>
+                                            {(trip) => (
+                                                <TripVehicleInfo
+                                                    trip={trip()}
+                                                    stopId={props.stopId}
+                                                />
+                                            )}
+                                        </Show>
+                                    </ResponsiveDialogContent>
+                                </ResponsiveDialog>
                             ),
                             container
                         );
@@ -443,30 +452,16 @@ const TripMap: Component<TripMapProps> = (props) => {
     );
     onCleanup(() => vehicleMarkers.forEach(({ dispose }) => dispose()));
 
-    // TODO: Fix dialog cannot open after closing on mobile
-
     return (
         <>
             <div ref={container} class="w-full h-full" />
-            <ResponsiveDialog
-                open={!!selectedTripVehicle()}
-                onOpenChange={(open) => !open && setSelectedTripVehicle(null)}
-            >
-                <Show when={selectedTripVehicle()}>
-                    {(trip) => (
-                        <ResponsiveDialogContent class="px-0 max-h-[80dvh] min-h-[50dvh] md:min-h-36 flex flex-col gap-1 justify-start">
-                            <TripVehicleInfo trip={trip()} stopId={props.stopId} />
-                        </ResponsiveDialogContent>
-                    )}
-                </Show>
-            </ResponsiveDialog>
         </>
     );
 };
 
 const VehicleMarkerComponent: Component<{
     trip: Accessor<ScheduledTripDocument>;
-    onClick: (trip: ScheduledTripDocument) => void;
+    onClick?: (trip: ScheduledTripDocument) => void;
 }> = (props) => {
     const trip = () => props.trip();
 
@@ -497,7 +492,7 @@ const VehicleMarkerComponent: Component<{
     return (
         <div
             class="relative flex flex-col items-center justify-center"
-            onClick={() => props.onClick(trip())}
+            onClick={() => props.onClick && props.onClick(trip())}
         >
             <div class={cn("rounded-full bg-background p-[2px]", isNotAccepting() ? "invert" : "")}>
                 <ProgressCircle value={percentageFromOccupancyStatus()} class="w-10 h-10">
