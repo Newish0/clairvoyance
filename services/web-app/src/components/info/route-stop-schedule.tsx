@@ -66,7 +66,7 @@ const RouteStopSchedule: Component<RouteStopScheduleProps> = (props) => {
                 isRealtime: predictedDepartureTime,
                 isCancelled:
                     trip.schedule_relationship === TripDescriptorScheduleRelationship.CANCELED,
-                href: `${import.meta.env.BASE_URL}next-trips/?route=${trip.route_id}&stop=${
+                href: `${import.meta.env.BASE_URL}app/next-trips/?route=${trip.route_id}&stop=${
                     props.stopId
                 }&trip=${trip._id}`,
             });

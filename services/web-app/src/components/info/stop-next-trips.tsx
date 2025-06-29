@@ -244,7 +244,7 @@ const TripOptionItem: Component<{
 
     return (
         <div class="p-1">
-            <a href={`${import.meta.env.BASE_URL}next-trips/?${queryParams()}`}>
+            <a href={`${import.meta.env.BASE_URL}app/next-trips/?${queryParams()}`}>
                 <Card>
                     <CardContent
                         class={cn(

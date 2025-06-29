@@ -53,7 +53,7 @@ export const DepartureCard: Component<DepartureCardProps> = (props) => {
     const tripTimeType = () => (props.isLastStop ? "arrival" : "departure");
 
     return (
-        <a href={`${import.meta.env.BASE_URL}next-trips/?${queryParams()}`}>
+        <a href={`${import.meta.env.BASE_URL}app/next-trips/?${queryParams()}`}>
             <div class="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div class="overflow-hidden">
                     <div class="flex items-center gap-2">
