@@ -148,6 +148,10 @@ const TripDetails = (props: TripDetailsProps) => {
                             stopId={props.stopId}
                             viewingTrip={ourTrip()}
                             stopNextTrips={stopNextTrips()}
+                            alt={{
+                                routeId: props.altRouteId,
+                                stopId: props.altStopId,
+                            }}
                         />
                     )}
                 </Show>
