@@ -25,12 +25,18 @@ import {
     ResponsiveDialogContent,
     ResponsiveDialogTrigger,
 } from "../ui/responsive-dialog";
+import { recordToSearchParams } from "~/utils/urls";
 
 type StopNextTripsProps = {
     routeId: string;
     stopId: string;
     stopNextTrips: ScheduledTripDocumentWithStopName[];
     viewingTrip?: ScheduledTripDocumentWithStopName;
+    alt?: {
+        routeId: string;
+        tripObjectId?: string;
+        stopId: string;
+    };
 };
 
 const StopNextTrips: Component<StopNextTripsProps> = (props) => {
@@ -125,6 +131,7 @@ const StopNextTrips: Component<StopNextTripsProps> = (props) => {
                                                     trip().schedule_relationship ===
                                                     TripDescriptorScheduleRelationship.CANCELED
                                                 }
+                                                alt={props.alt}
                                             />
                                         </CarouselItem>
                                     );
@@ -202,6 +209,11 @@ const TripOptionItem: Component<{
     hasLeft?: boolean;
     occupancyStatus?: OccupancyStatus;
     isCancelled?: boolean;
+    alt?: {
+        routeId: string;
+        tripObjectId?: string;
+        stopId: string;
+    };
 }> = (props) => {
     const departureTime = () =>
         props.predictedDepartureDatetime || props.scheduledDepartureDatetime;
@@ -216,13 +228,23 @@ const TripOptionItem: Component<{
 
     const curViewing = () => props.viewingTripObjectId === props.tripObjectId;
 
+    const queryParams = () =>
+        recordToSearchParams({
+            route: props.routeId,
+            stop: props.stopId,
+            trip: props.tripObjectId,
+            ...(props.alt
+                ? {
+                      alt_route: props.alt.routeId,
+                      alt_stop: props.alt.stopId,
+                      ...(props.alt.tripObjectId ? { alt_trip: props.alt.tripObjectId } : {}),
+                  }
+                : {}),
+        });
+
     return (
         <div class="p-1">
-            <a
-                href={`${import.meta.env.BASE_URL}next-trips/?route=${props.routeId}&stop=${
-                    props.stopId
-                }&trip=${props.tripObjectId}`}
-            >
+            <a href={`${import.meta.env.BASE_URL}next-trips/?${queryParams()}`}>
                 <Card>
                     <CardContent
                         class={cn(
