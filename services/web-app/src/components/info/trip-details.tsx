@@ -115,7 +115,7 @@ const TripDetails = (props: TripDetailsProps) => {
                                             })}
                                             href={`${
                                                 import.meta.env.BASE_URL
-                                            }next-trips/?${recordToSearchParams({
+                                            }app/next-trips/?${recordToSearchParams({
                                                 route: props.altRouteId,
                                                 stop: props.altStopId,
                                                 alt_route: props.routeId,
