@@ -62,6 +62,12 @@ const MainMap: Component = () => {
         map()?.remove();
     });
 
+    // Sync map style to map
+    createEffect(() => {
+        if (!map()) return;
+        map().setStyle(mapStyle());
+    });
+
     // Sync map center with selected location. This ensures the map is always at the selected location.
     // NOTE: if using geolocation (aka current location), the geolocation is still sync to selected location
     //       given the user has attached the selected location to the current geolocation (see `useMapLocation`)

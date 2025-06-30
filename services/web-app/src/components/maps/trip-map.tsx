@@ -215,11 +215,27 @@ const TripMap: Component<TripMapProps> = (props) => {
         onCleanup(() => m.remove());
     });
 
+    // HACK: sync map style to map by reconstructing map (b/c setStyle removes our own geojson layers and sources)
+    createEffect(
+        on(mapStyle, (mapStyle) => {
+            const mapInstance = map();
+            if (!mapInstance) return;
+            const newMap = new maplibregl.Map({
+                container: mapInstance.getContainer(),
+                style: mapStyle,
+                center: mapInstance.getCenter(),
+                zoom: mapInstance.getZoom(),
+            });
+            newMap.once("load", () => setMap(newMap));
+            mapInstance.remove();
+        })
+    );
+
     // Init geojson sources and layers when map chances (e.g. map is loaded)
     createEffect(
         on(
-            map,
-            (map) => {
+            [map],
+            ([map]) => {
                 if (!map) return;
                 map.addSource("shape-before", { type: "geojson", data: emptyGeoJson });
                 map.addSource("shape-after", { type: "geojson", data: emptyGeoJson });

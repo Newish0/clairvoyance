@@ -1,7 +1,7 @@
 import { LaptopIcon, MoonIcon, SunIcon } from "lucide-solid";
 import { createEffect, createSignal } from "solid-js";
 
-import { Button } from "~/components/ui/button";
+import { Button, type ButtonProps } from "~/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,14 +10,14 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { useTheme } from "~/hooks/use-theme";
 
-export function ModeToggle() {
+export function ModeToggle(props: { variant?: ButtonProps["variant"] }) {
     const [theme, setTheme] = useTheme();
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
                 as={Button<"button">}
-                variant="secondary"
+                variant={props.variant || "secondary"}
                 size="sm"
                 class="w-9 px-0"
             >
