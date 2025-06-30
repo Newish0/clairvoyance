@@ -6,7 +6,7 @@ export function useTheme() {
         return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     };
 
-    const [theme, setTheme] = makePersisted(createSignal<"light" | "dark">(getSystemTheme()), {
+    const [theme, _setTheme] = makePersisted(createSignal<"light" | "dark">(getSystemTheme()), {
         storage: localStorage,
         name: "theme",
         serialize: (value) => value,
@@ -30,7 +30,7 @@ export function useTheme() {
             // Only update if there's no stored preference
             if (!localStorage.getItem("theme")) {
                 const systemTheme = getSystemTheme();
-                setTheme(systemTheme);
+                _setTheme(systemTheme);
             }
         };
 
@@ -40,6 +40,14 @@ export function useTheme() {
             mediaQuery.removeEventListener("change", handleSystemThemeChange);
         });
     });
+
+    const setTheme = (theme: "light" | "dark" | "system") => {
+        if (theme === "system") {
+            _setTheme(getSystemTheme());
+        } else {
+            _setTheme(theme);
+        }
+    };
 
     return [theme, setTheme, isDark] as const;
 }

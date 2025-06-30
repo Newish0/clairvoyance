@@ -1,0 +1,375 @@
+---
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Layout from "@/layouts/root-layout.astro";
+import {
+    Code,
+    Database,
+    Github,
+    Globe,
+    LucideFullscreen,
+    MaximizeIcon,
+    Shield,
+    Users,
+    Zap,
+} from "lucide-solid";
+import { ModeToggle } from "~/components/dark-mode-toggle";
+import CommonHeader from "~/components/headers/common-header.astro";
+import { TextField, TextFieldInput } from "~/components/ui/text-field";
+---
+
+<Layout>
+    <Fragment slot="header">
+        <CommonHeader
+            title="Clairvoyance"
+            description="Privacy-focused, real-time transit tracking. No location data collected. Open source and free to use."
+        />
+    </Fragment>
+    <Fragment slot="body">
+        <!-- Header -->
+        <header
+            class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        >
+            <div class="container flex h-14 items-center justify-between px-4 md:px-6">
+                <div class="flex items-center space-x-2">
+                    <img src="/icon-192.png" alt="Clairvoyance Logo" class="h-8 w-8" />
+                    <span class="font-bold text-xl">Clairvoyance</span>
+                </div>
+                <nav class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                    <a href="#features" class="transition-colors hover:text-foreground/80"
+                        >Features</a
+                    >
+                    <a href="#privacy" class="transition-colors hover:text-foreground/80">Privacy</a
+                    >
+                    <a href="#open-source" class="transition-colors hover:text-foreground/80"
+                        >Open Source</a
+                    >
+                    <a href="#technical" class="transition-colors hover:text-foreground/80"
+                        >Technical</a
+                    >
+                </nav>
+                <div class="flex items-center space-x-2">
+                    <ModeToggle client:only />
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+                        <Button variant="ghost" size="icon">
+                            <Github class="h-4 w-4" />
+                            <span class="sr-only">GitHub</span>
+                        </Button>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Hero Section -->
+            <section class="w-full py-12 md:py-24 lg:py-32">
+                <div class="mx-auto max-w-7xl px-6 lg:flex lg:items-center lg:gap-x-10 lg:px-8">
+                    <!-- <div class="container px-4 md:px-6"> -->
+                    <div class="space-y-4 text-left lg:w-1/2">
+                        <div class="space-y-2">
+                            <Badge variant="secondary" class="mb-4">
+                                Real-time Transit Tracking
+                            </Badge>
+                            <h1
+                                class="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none"
+                            >
+                                Clairvoyance
+                            </h1>
+                            <p class="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+                                Track buses and trains in real-time. No apps to download, no
+                                location tracking, no data collection. Just clean, fast transit
+                                information when you need it. Try the live app right here.
+                            </p>
+                        </div>
+                        <div class="space-x-4">
+                            <a
+                                href="/app"
+                                class={buttonVariants({
+                                    size: "lg",
+                                    class: "h-12 px-8",
+                                })}
+                            >
+                                <Zap class="mr-2 h-4 w-4" />
+                                Launch App
+                            </a>
+                            <a
+                                href="https://github.com/newish0/clairvoyance"
+                                target="_blank"
+                                class={buttonVariants({
+                                    variant: "outline",
+                                    size: "lg",
+                                    class: "h-12 px-8",
+                                })}
+                            >
+                                View on GitHub
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- App demo -->
+                    <div
+                        class="mx-auto mt-8 lg:mt-0 max-w-2xl w-full lg:w-1/2 min-h-[500px] relative"
+                    >
+                        <!-- Demo Container -->
+                        <div
+                            class="relative overflow-hidden rounded-xl border bg-background shadow-2xl h-[500px]"
+                        >
+                            <a
+                                href="/app"
+                                class={buttonVariants({
+                                    variant: "secondary",
+                                    size: "icon",
+                                    class: "absolute top-3 right-3 z-10 bg-opacity-100",
+                                })}
+                            >
+                                <MaximizeIcon />
+                            </a>
+
+                            <iframe
+                                src="/app"
+                                class="h-full w-full"
+                                title="Transit App Preview"
+                                loading="lazy"
+                                transition:name="hero-app-demo"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Static Schedule Search Section -->
+        <section class="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
+            <div class="container px-4 md:px-6">
+                <div class="flex flex-col items-center space-y-4 text-center">
+                    <h2 class="text-3xl font-bold tracking-tighter sm:text-4xl">
+                        Prefer Traditional Schedules
+                    </h2>
+                    <p class="max-w-[600px] text-muted-foreground md:text-xl">
+                        Search and view traditional styled schedules instead.
+                    </p>
+                </div>
+                <div class="mx-auto mt-8 max-w-4xl">
+                    <!-- <TextField client:only>
+                        <TextFieldInput client:only />
+                    </TextField> -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="w-full py-12 md:py-24 lg:py-32">
+            <div class="container px-4 md:px-6">
+                <div class="flex flex-col items-center space-y-4 text-center">
+                    <h2 class="text-3xl font-bold tracking-tighter sm:text-4xl">
+                        Built for Everyone
+                    </h2>
+                    <p class="max-w-[600px] text-muted-foreground md:text-xl">
+                        Simple, fast, and respectful of your privacy.
+                    </p>
+                </div>
+                <div
+                    class="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                    <Card>
+                        <CardHeader>
+                            <Zap class="h-8 w-8 text-primary" />
+                            <CardTitle>Real-time Updates</CardTitle>
+                            <CardDescription>
+                                Live arrival times and service alerts updated every few seconds.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <Shield class="h-8 w-8 text-primary" />
+                            <CardTitle>Privacy First</CardTitle>
+                            <CardDescription>
+                                No location tracking, no data collection, no user accounts required.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <Globe class="h-8 w-8 text-primary" />
+                            <CardTitle>Works Everywhere</CardTitle>
+                            <CardDescription>
+                                No app installation needed. Works on any device with a web browser.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                </div>
+            </div>
+        </section>
+
+        <!-- Privacy Section -->
+        <section id="privacy" class="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
+            <div class="container px-4 md:px-6">
+                <div
+                    class="grid items-center gap-6 lg:grid-cols-[1fr_500px] lg:gap-12 xl:grid-cols-[1fr_550px]"
+                >
+                    <div class="flex flex-col justify-center space-y-4">
+                        <div class="space-y-2">
+                            <Badge variant="outline">Privacy Focused</Badge>
+                            <h2 class="text-3xl font-bold tracking-tighter sm:text-5xl">
+                                Your Privacy Matters
+                            </h2>
+                            <p
+                                class="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed"
+                            >
+                                We believe transit information should be accessible without
+                                compromising your privacy. No location tracking, no cookies, no data
+                                collection. Just the information you need.
+                            </p>
+                        </div>
+                        <div class="flex flex-col gap-2 min-[400px]:flex-row">
+                            <Button>
+                                <Shield class="mr-2 h-4 w-4" />
+                                Privacy Policy
+                            </Button>
+                            <Button variant="outline"> Learn More </Button>
+                        </div>
+                    </div>
+                    <div
+                        class="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full lg:order-last"
+                    >
+                        <div class="flex h-full items-center justify-center bg-muted">
+                            <Shield class="h-24 w-24 text-muted-foreground" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Open Source Section -->
+        <section id="open-source" class="w-full py-12 md:py-24 lg:py-32">
+            <div class="container px-4 md:px-6">
+                <div
+                    class="grid items-center gap-6 lg:grid-cols-[500px_1fr] lg:gap-12 xl:grid-cols-[550px_1fr]"
+                >
+                    <div
+                        class="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full"
+                    >
+                        <div class="flex h-full items-center justify-center bg-muted">
+                            <Github class="h-24 w-24 text-muted-foreground" />
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center space-y-4">
+                        <div class="space-y-2">
+                            <Badge variant="outline">MIT Licensed</Badge>
+                            <h2 class="text-3xl font-bold tracking-tighter sm:text-5xl">
+                                Fully Open Source
+                            </h2>
+                            <p
+                                class="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed"
+                            >
+                                Every line of code is open source and available on GitHub. Fork it,
+                                contribute to it, or run your own instance. The community drives
+                                development.
+                            </p>
+                        </div>
+                        <div class="flex flex-col gap-2 min-[400px]:flex-row">
+                            <Button>
+                                <Github class="mr-2 h-4 w-4" />
+                                View on GitHub
+                            </Button>
+                            <Button variant="outline">
+                                <Users class="mr-2 h-4 w-4" />
+                                Join Community
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Technical Section -->
+        <section id="technical" class="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
+            <div class="container px-4 md:px-6">
+                <div class="flex flex-col items-center space-y-4 text-center">
+                    <Badge variant="outline">For Developers</Badge>
+                    <h2 class="text-3xl font-bold tracking-tighter sm:text-4xl">
+                        Built with Modern Architecture
+                    </h2>
+                    <p class="max-w-[600px] text-muted-foreground md:text-xl">
+                        Scalable microservices architecture processing real-time GTFS data streams.
+                    </p>
+                </div>
+                <div
+                    class="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                    <Card>
+                        <CardHeader>
+                            <Database class="h-8 w-8 text-primary" />
+                            <CardTitle>GTFS Real-time</CardTitle>
+                            <CardDescription>
+                                Processing live transit feeds from multiple agencies using GTFS-RT
+                                protocol.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <Code class="h-8 w-8 text-primary" />
+                            <CardTitle>Microservices</CardTitle>
+                            <CardDescription>
+                                Distributed architecture with independent services for data
+                                ingestion, processing, and API delivery.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <Zap class="h-8 w-8 text-primary" />
+                            <CardTitle>Real-time Sync</CardTitle>
+                            <CardDescription>
+                                WebSocket connections and efficient caching ensure sub-second data
+                                freshness.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="w-full py-12 md:py-24 lg:py-32 border-t">
+            <div class="container px-4 md:px-6">
+                <div class="flex flex-col items-center space-y-4 text-center">
+                    <h2 class="text-3xl font-bold tracking-tighter sm:text-4xl">
+                        Ready to Get Started?
+                    </h2>
+                    <p class="max-w-[600px] text-muted-foreground md:text-xl">
+                        No signup required. Start tracking your transit right now.
+                    </p>
+                    <div class="flex flex-col gap-2 min-[400px]:flex-row">
+                        <Button size="lg" class="h-12 px-8">
+                            <Zap class="mr-2 h-4 w-4" />
+                            Launch App Now
+                        </Button>
+                        <Button variant="outline" size="lg" class="h-12 px-8">
+                            <Github class="mr-2 h-4 w-4" />
+                            Star on GitHub
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </Fragment>
+
+    <!-- Footer -->
+    <footer class="w-full border-t py-6">
+        <div
+            class="container flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6"
+        >
+            <p class="text-xs text-muted-foreground">
+                © 2024 Transit. Open source under MIT License.
+            </p>
+            <nav class="sm:ml-auto flex gap-4 sm:gap-6">
+                <a href="#" class="text-xs hover:underline underline-offset-4"> Privacy Policy </a>
+                <a href="#" class="text-xs hover:underline underline-offset-4"> GitHub </a>
+                <a href="#" class="text-xs hover:underline underline-offset-4"> Documentation </a>
+            </nav>
+        </div>
+    </footer>
+</Layout>
