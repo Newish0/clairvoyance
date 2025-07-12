@@ -37,6 +37,12 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                     <span class="font-bold text-xl">Clairvoyance</span>
                 </div>
                 <nav class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                    <a href="/app" class="transition-colors hover:text-foreground/80">Web App</a>
+
+                    <a href="/schedules" class="transition-colors hover:text-foreground/80"
+                        >Schedules</a
+                    >
+
                     <a href="#features" class="transition-colors hover:text-foreground/80"
                         >Features</a
                     >
@@ -120,7 +126,7 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                                 class={buttonVariants({
                                     variant: "secondary",
                                     size: "icon",
-                                    class: "absolute top-3 right-3 z-10 bg-opacity-100",
+                                    class: "absolute top-3 right-3 z-10 opacity-100 hover:opacity-100",
                                 })}
                             >
                                 <MaximizeIcon />
@@ -269,10 +275,18 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                             </p>
                         </div>
                         <div class="flex flex-col gap-2 min-[400px]:flex-row">
-                            <Button>
+                            <a
+                                href="https://github.com/newish0/clairvoyance"
+                                target="_blank"
+                                class={buttonVariants({
+                                    variant: "outline",
+                                    size: "lg",
+                                })}
+                            >
                                 <Github class="mr-2 h-4 w-4" />
                                 View on GitHub
-                            </Button>
+                            </a>
+
                             <Button variant="outline">
                                 <Users class="mr-2 h-4 w-4" />
                                 Join Community
@@ -292,7 +306,8 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                         Built with Modern Architecture
                     </h2>
                     <p class="max-w-[600px] text-muted-foreground md:text-xl">
-                        Scalable microservices architecture processing real-time GTFS data streams.
+                        Scalable microservices architecture processing real-time GTFS data,
+                        streaming the latest information to users.
                     </p>
                 </div>
                 <div
@@ -303,8 +318,7 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                             <Database class="h-8 w-8 text-primary" />
                             <CardTitle>GTFS Real-time</CardTitle>
                             <CardDescription>
-                                Processing live transit feeds from multiple agencies using GTFS-RT
-                                protocol.
+                                Processing live transit feeds from agencies using GTFS-RT protocol.
                             </CardDescription>
                         </CardHeader>
                     </Card>
@@ -313,8 +327,8 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                             <Code class="h-8 w-8 text-primary" />
                             <CardTitle>Microservices</CardTitle>
                             <CardDescription>
-                                Distributed architecture with independent services for data
-                                ingestion, processing, and API delivery.
+                                Microservices architecture with independent services for data
+                                ingestion, processing, and API data delivery.
                             </CardDescription>
                         </CardHeader>
                     </Card>
@@ -322,10 +336,7 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                         <CardHeader>
                             <Zap class="h-8 w-8 text-primary" />
                             <CardTitle>Real-time Sync</CardTitle>
-                            <CardDescription>
-                                WebSocket connections and efficient caching ensure sub-second data
-                                freshness.
-                            </CardDescription>
+                            <CardDescription> Live data feed via SSE. </CardDescription>
                         </CardHeader>
                     </Card>
                 </div>
@@ -343,14 +354,21 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
                         No signup required. Start tracking your transit right now.
                     </p>
                     <div class="flex flex-col gap-2 min-[400px]:flex-row">
-                        <Button size="lg" class="h-12 px-8">
+                        <a href="/app" class={buttonVariants({ size: "lg", class: "h-12 px-8" })}>
                             <Zap class="mr-2 h-4 w-4" />
                             Launch App Now
-                        </Button>
-                        <Button variant="outline" size="lg" class="h-12 px-8">
+                        </a>
+                        <a
+                            href="https://github.com/newish0/clairvoyance"
+                            class={buttonVariants({
+                                variant: "outline",
+                                size: "lg",
+                                class: "h-12 px-8",
+                            })}
+                        >
                             <Github class="mr-2 h-4 w-4" />
                             Star on GitHub
-                        </Button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -362,12 +380,15 @@ import { TextField, TextFieldInput } from "~/components/ui/text-field";
         <div
             class="container flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6"
         >
-            <p class="text-xs text-muted-foreground">
-                © 2024 Transit. Open source under MIT License.
-            </p>
+            <p class="text-xs text-muted-foreground">Open source under MIT License.</p>
             <nav class="sm:ml-auto flex gap-4 sm:gap-6">
                 <a href="#" class="text-xs hover:underline underline-offset-4"> Privacy Policy </a>
-                <a href="#" class="text-xs hover:underline underline-offset-4"> GitHub </a>
+                <a
+                    href="https://github.com/newish0/clairvoyance"
+                    class="text-xs hover:underline underline-offset-4"
+                >
+                    GitHub
+                </a>
                 <a href="#" class="text-xs hover:underline underline-offset-4"> Documentation </a>
             </nav>
         </div>

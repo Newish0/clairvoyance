@@ -17,7 +17,7 @@ const base = Bun.env.BASE || "/";
 // https://astro.build/config
 export default defineConfig({
   integrations: [
-    solidJs(),
+    solidJs({ devtools: true }),
     sitemap(),
     tailwind({
       applyBaseStyles: false

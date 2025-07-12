@@ -61,7 +61,7 @@ export const fetchScheduledTripDetails = async (tripObjectId: string) => {
 interface ScheduledTripsParams {
     routeId: string;
     directionId?: string;
-    stopId: string;
+    stopId?: string;
     startDatetime?: string;
     endDatetime?: string;
     limit?: number;
@@ -89,8 +89,8 @@ export const fetchScheduledTrips = async ({
                 // and match the route and direction
                 // and match the start and end datetimes search range if provided
                 $match: {
-                    "stop_times.stop_id": stopId,
                     route_id: routeId,
+                    ...(stopId ? { "stop_times.stop_id": stopId } : {}),
                     ...(directionId ? { direction_id: parseInt(directionId) } : {}),
                     ...(startDatetime && {
                         start_datetime: {
@@ -115,8 +115,8 @@ export const fetchScheduledTrips = async ({
                             as: "stopTime",
                             cond: {
                                 $and: [
-                                    // Filter to only include the stop times for our stop of interest
-                                    { $eq: ["$$stopTime.stop_id", stopId] },
+                                    // Filter to only include the stop times for our stop of interest if provided
+                                    ...(stopId ? [{ $eq: ["$$stopTime.stop_id", stopId] }] : []),
                                     {
                                         // Use realtime (if it exists) or use static schedule.
                                         // Include stops with departure times in the future,

@@ -27,14 +27,18 @@ export const getScheduledTripDetails = async (tripObjectId: string) => {
     return res.data;
 };
 
-interface GetRouteNextTripsAtStopParams extends Record<string, any> {
+interface GetRouteNextTripsParams extends Record<string, any> {
     routeId: string;
-    stopId: string;
+    stopId?: string;
     directionId?: 0 | 1 | "0" | "1";
     startDatetime?: string | Date;
     endDatetime?: string | Date;
     limit?: number;
     excludedTripObjectIds?: string[];
+}
+
+interface GetRouteNextTripsAtStopParams extends GetRouteNextTripsParams {
+    stopId: string;
 }
 
 export const getRouteNextTripsAtStop = async (
@@ -43,5 +47,11 @@ export const getRouteNextTripsAtStop = async (
     // TODO: Error handling
     const res = await client.trips.next.get({ query: stringifyRecord(params) });
 
+    return res.data;
+};
+
+export const getRouteNextTrips = async (params: GetRouteNextTripsParams) => {
+    // TODO: Error handling
+    const res = await client.trips.next.get({ query: stringifyRecord(params) });
     return res.data;
 };
