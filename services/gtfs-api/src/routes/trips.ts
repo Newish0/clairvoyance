@@ -49,7 +49,7 @@ const router = new Elysia()
             query: t.Object({
                 routeId: t.String(),
                 directionId: t.Optional(t.String()),
-                stopId: t.String(),
+                stopId: t.Optional(t.String()),
                 startDatetime: t.Optional(t.String()),
                 endDatetime: t.Optional(t.String()),
                 limit: t.Optional(t.Number()),
