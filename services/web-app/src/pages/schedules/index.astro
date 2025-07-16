@@ -9,13 +9,6 @@ import { Badge } from "~/components/ui/badge";
 import { buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { DayPicker } from "~/components/ui/day-picker";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "~/components/ui/select";
 import { Separator } from "~/components/ui/separator";
 import TripsTable from "~/components/ui/trips-table.astro";
 import { getRouteNextTrips } from "~/services/trips";
@@ -23,13 +16,13 @@ import { mostCommonValue } from "~/utils/search";
 
 const routeId = Astro.url.searchParams.get("route");
 const directionId = Astro.url.searchParams.get("direction");
-const dateParam = new Date(Astro.url.searchParams.get("date"));
+const dateParam = Astro.url.searchParams.get("date");
 
-const curViewingDate = isValid(dateParam) ? dateParam : new Date();
+const curViewingDate = dateParam && isValid(new Date(dateParam)) ? new Date(dateParam) : new Date();
 
 const trips = await getRouteNextTrips({
-    routeId: "26-VIC",
-    directionId: 0,
+    routeId: routeId,
+    directionId: directionId === "1" ? 1 : 0,
     startDatetime: startOfDay(curViewingDate),
     endDatetime: endOfDay(curViewingDate),
     limit: 10000, // Basically infinite
@@ -54,8 +47,8 @@ const commonTripHeadsign = mostCommonValue(trips.map((trip) => trip.trip_headsig
 
             <Separator class="mt-2 mb-4" />
 
-            <div class="flex items-center justify-between gap- mb-4">
-                <div class="flex items-center gap-4">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-4 min-w-[33%]">
                     <a
                         href={`/schedules?route=${routeId}&date=${addDays(curViewingDate, -1).toISOString()}&direction=${directionId}`}
                         class={buttonVariants({ variant: "secondary" })}
@@ -87,7 +80,7 @@ const commonTripHeadsign = mostCommonValue(trips.map((trip) => trip.trip_headsig
                 </a>
             </div>
 
-            <div class="flex gap-4">
+            <div class="flex gap-4 flex-col md:flex-row">
                 <Card class="overflow-auto">
                     <CardHeader>
                         <CardTitle>{formatDate(curViewingDate, "EEEE, MMMM dd")}</CardTitle>
@@ -97,10 +90,10 @@ const commonTripHeadsign = mostCommonValue(trips.map((trip) => trip.trip_headsig
                     </CardContent>
                 </Card>
 
-                <Card class="w-min h-min sticky top-4">
-                    <CardContent class="p-0">
+                <Card class="w-full md:w-min h-min sticky top-4">
+                    <CardContent class="p-0 w-full">
                         <iframe
-                            class="w-[400px] h-[700px] rounded-lg"
+                            class="w-full md:w-[400px] h-[700px] rounded-lg"
                             id="app-iframe"
                             data-route-id={routeId}
                             data-direction-id={directionId}
