@@ -12,6 +12,7 @@ from models.gtfs_enums import (
     WheelchairBoarding,
 )
 from models.gtfs_models import LineStringGeometry, PointGeometry, Route, Shape, Stop
+from utils.datetime import convert_to_datetime
 
 
 @dataclass(frozen=True)
@@ -181,10 +182,11 @@ class ParsedGTFSData:
                         trip_short_name=trip_data.get("trip_short_name"),
                         block_id=trip_data.get("block_id"),
                         stop_times=final_stop_times,
-                        start_datetime=ScheduledTripDocument.convert_to_datetime(
+                        start_datetime=convert_to_datetime(
                             date_str=service_date,
                             time_str=start_time,
                             tz_str=self.agency["timezone"],
+                            logger=self.logger,
                         ),
                     )
                     yield scheduled_trip
@@ -206,11 +208,17 @@ class ParsedGTFSData:
     ) -> StopTimeInfo:
         """Convert a list of partially completed stop times to StopTimeInfo objects by computing its derived fields."""
         tz_str = self.agency["timezone"]
-        arrival_datetime = ScheduledTripDocument.convert_to_datetime(
-            date_str, partial_stop_time_info.arrival_time, tz_str
+        arrival_datetime = convert_to_datetime(
+            date_str,
+            partial_stop_time_info.arrival_time,
+            tz_str,
+            logger=self.logger,
         )
-        departure_datetime = ScheduledTripDocument.convert_to_datetime(
-            date_str, partial_stop_time_info.departure_time, tz_str
+        departure_datetime = convert_to_datetime(
+            date_str,
+            partial_stop_time_info.departure_time,
+            tz_str,
+            logger=self.logger,
         )
         return StopTimeInfo(
             stop_id=partial_stop_time_info.stop_id,

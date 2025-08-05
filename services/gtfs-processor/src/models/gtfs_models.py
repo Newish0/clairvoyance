@@ -5,10 +5,9 @@ IMPORTANT: The use of `Indexed()` is forbidden in Beanie in order for
 """
 
 import datetime
-import re
-from typing import Dict, List, Optional, Tuple, Any
+from typing import List, Optional
 
-import pytz
+
 from beanie import Document, Update, ValidateOnSave, before_event
 from pydantic import BaseModel, Field, model_validator, field_validator
 import pymongo
@@ -135,42 +134,7 @@ class ScheduledTripDocument(Document):
     # --- Derived & Persisted Fields - For query efficiency ---
     # These fields are calculated *before* saving using the validator below.
     start_datetime: datetime.datetime
-
-    # --- Methods ---
-    @staticmethod
-    def _parse_hhmmss(time_str: Optional[str]) -> Optional[Tuple[int, int, int]]:
-        """Parses HH:MM:SS, handling >23 hours. Returns (h, m, s) or None."""
-        if not time_str:
-            return None
-        match = re.match(r"\s*(\d+):([0-5]\d):([0-5]\d)\s*", time_str)
-        if match:
-            return int(match.group(1)), int(match.group(2)), int(match.group(3))
-        print(f"Warning: Could not parse time string: '{time_str}'")  # Add logging
-        return None
-
-    @staticmethod
-    def convert_to_datetime(
-        date_str: str, time_str: str, tz_str: str = "UTC"
-    ) -> datetime.datetime:
-        parsed_time = ScheduledTripDocument._parse_hhmmss(time_str)
-        if not parsed_time:
-            return None  # Should raise error or be handled by validator
-        h, m, s = parsed_time
-
-        base_date = datetime.datetime.strptime(date_str, "%Y%m%d").date()
-        days_offset = h // 24
-        actual_hour = h % 24
-        actual_date = base_date + datetime.timedelta(days=days_offset)
-
-        # Create naive datetime in given timezone
-        tz = pytz.timezone(tz_str)
-        naive_dt = datetime.datetime(
-            actual_date.year, actual_date.month, actual_date.day, actual_hour, m, s
-        )
-        # Localize to given timezone
-        local_dt = tz.localize(naive_dt, is_dst=None)
-
-        return local_dt
+   
 
     class Settings:
         name = "scheduled_trips"
