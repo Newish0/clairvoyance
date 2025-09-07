@@ -1,7 +1,7 @@
 import asyncio
 import csv
 from pathlib import Path
-from typing import AsyncIterator, Dict
+from typing import AsyncIterator, Dict, Type
 
 from ingest_pipeline.core.types import Transformer
 
@@ -15,22 +15,22 @@ class CSVDecoder(Transformer[Path, Dict[str, str]]):
     Uses a background thread + asyncio.Queue for safe streaming
     of arbitrarily large CSV files.
     """
+    
+    input_type: Type[Path] = Path
+    output_type: Type[Dict[str, str]] = Dict[str, str]
 
     def __init__(self, queue_size: int = 1000):
         self.queue_size = queue_size
-        
-        # alias
-        self.run = self.transform
 
-    async def transform(
-        self, items: AsyncIterator[Path]
+    async def run(  
+        self, inputs: AsyncIterator[Path]  
     ) -> AsyncIterator[Dict[str, str]]:
-        async for path in items:
+        async for path in inputs: 
             queue: asyncio.Queue = asyncio.Queue(self.queue_size)
 
             async def produce():
                 def _producer():
-                    with open(path, newline="", encoding="utf-8") as f:
+                    with open(path, newline="", encoding="utf-8-sig") as f:  # utf-8-sig handles BOM
                         reader = csv.DictReader(f)
                         for row in reader:
                             asyncio.run_coroutine_threadsafe(queue.put(row), loop)

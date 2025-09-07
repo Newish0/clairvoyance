@@ -87,8 +87,6 @@ class Orchestrator:
                 item = await q.get()
                 if item is SENTINEL:
                     break
-                print("\n\n\n\n DEBUG A")
-                print(item)
                 yield item
 
         # worker factories
@@ -124,8 +122,6 @@ class Orchestrator:
             transformer: Transformer = spec.stage
             # Each worker gets its own queue reader that competes for items.
             try:
-                print("\n\n\n\n DEBUG B")
-                print(in_q)
                 async for out_item in transformer.run(_queue_reader(in_q)):
                     if fatal_event.is_set():
                         break
@@ -227,8 +223,9 @@ class Orchestrator:
         # Wait for the final coordinator to finish (which implies the whole pipeline drained),
         # or for a fatal_event to be set.
         final_coord = coordinator_tasks[-1]
+        fatal_wait_task = asyncio.create_task(fatal_event.wait())
         done, pending = await asyncio.wait(
-            [final_coord, fatal_event.wait()], return_when=asyncio.FIRST_COMPLETED
+            [final_coord, fatal_wait_task], return_when=asyncio.FIRST_COMPLETED
         )
 
         # If fatal_event set -> cancel all workers & coordinators
@@ -241,6 +238,8 @@ class Orchestrator:
             for c in coordinator_tasks:
                 if not c.done():
                     c.cancel()
+            # Cancel the fatal_wait_task too
+            fatal_wait_task.cancel()
             # re-raise captured exception
             exc = exception_holder.get("exc")
             if exc:
@@ -249,5 +248,7 @@ class Orchestrator:
                 raise RuntimeError("Pipeline aborted due to fatal event")
 
         # Otherwise await all coordinators to finish normally
+        # Cancel the fatal_wait_task since we don't need it anymore
+        fatal_wait_task.cancel()
         await asyncio.gather(*coordinator_tasks, return_exceptions=True)
         self._logger.info("Pipeline completed successfully.")
