@@ -3,16 +3,16 @@ from types import CoroutineType
 from typing import AsyncIterator, Any, List
 
 from pymongo.collection import Collection
-from pymongo.results import UpdateResult
+from pymongo import UpdateOne
 
 from ingest_pipeline.core.types import Sink
 from beanie import Document
 
 
-class MongoSink(Sink[CoroutineType[Any, Any, UpdateResult]]):
+class MongoSink(Sink[UpdateOne]):
     """
-    Sink that writes Motor CoroutineType[Any, Any, UpdateResult] operations to MongoDB in batches.
-    Input: Motor's update one operation CoroutineType[Any, Any, UpdateResult]
+    Sink that writes Motor UpdateOne operations to MongoDB in batches.
+    Input: Motor's update one operation UpdateOne
     """
 
     def __init__(self, document: Document, batch_size: int = 1000):
@@ -24,9 +24,9 @@ class MongoSink(Sink[CoroutineType[Any, Any, UpdateResult]]):
     
     
     async def write(
-        self, items: AsyncIterator[CoroutineType[Any, Any, UpdateResult]]
+        self, items: AsyncIterator[UpdateOne]
     ) -> None:
-        buffer: List[CoroutineType[Any, Any, UpdateResult]] = []
+        buffer: List[UpdateOne] = []
 
         async for op in items:
             buffer.append(op)
@@ -39,6 +39,6 @@ class MongoSink(Sink[CoroutineType[Any, Any, UpdateResult]]):
     
     
     
-    async def _flush(self, ops: List[CoroutineType[Any, Any, UpdateResult]]) -> None:
+    async def _flush(self, ops: List[UpdateOne]) -> None:
         # Offload blocking I/O to a thread pool
         await asyncio.to_thread(self.collection.bulk_write, ops, ordered=False)

@@ -1,12 +1,12 @@
 from types import CoroutineType
 from typing import Any, AsyncIterator, Dict
 from models.mongo_schemas import Agency
-from pymongo.results import UpdateResult
+from pymongo import UpdateOne
 from ingest_pipeline.core.types import Transformer
 from beanie.odm.operators.update.general import Set
 
 
-class AgencyMapper(Transformer[Dict[str, str], CoroutineType[Any, Any, UpdateResult]]):
+class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
     """
     Maps GTFS agency.txt rows (dict) into Motor CoroutineType[Any, Any, UpdateResult] operations after validation through DB model.
     Input: Dict[str, str]
@@ -21,7 +21,7 @@ class AgencyMapper(Transformer[Dict[str, str], CoroutineType[Any, Any, UpdateRes
 
     async def transform(
         self, items: AsyncIterator[Dict[str, str]]
-    ) -> AsyncIterator[CoroutineType[Any, Any, UpdateResult]]:
+    ) -> AsyncIterator[UpdateOne]:
         async for row in items:
             agency_doc = Agency(
                 agency_id=self.agency_id,
@@ -34,12 +34,10 @@ class AgencyMapper(Transformer[Dict[str, str], CoroutineType[Any, Any, UpdateRes
                 agency_fare_url=row["agency_fare_url"],
                 agency_email=row["agency_email"],
             )
-            
 
-            update_operation = Agency.get_motor_collection().update_one(
-                {"agency_id": self.agency_id},
-                {"$set": agency_doc.model_dump()},
-                upsert=True,
+            yield UpdateOne(
+                {"agency_id": self.agency_id, "source_agency_id": agency_doc.source_agency_id},
+                {"$set": agency_doc.model_dump(exclude={"id"})},
+                upsert=True
             )
 
-            yield update_operation
