@@ -3,8 +3,9 @@ name = "gtfs-processor"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
+    "aiohttp>=3.12.15",
     "beanie>=1.29.0",
     "jsonschema>=4.24.0",
     "motor>=3.7.0",

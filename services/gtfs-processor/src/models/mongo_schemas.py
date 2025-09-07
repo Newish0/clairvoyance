@@ -403,11 +403,11 @@ class StopTimeInstance(BaseModel):
     timepoint: Timepoint
     shape_dist_traveled: Optional[float] = None
 
-    arrival_datetime: datetime.datetime
-    departure_datetime: datetime.datetime
+    arrival_datetime: datetime
+    departure_datetime: datetime
 
-    predicted_arrival_datetime: Optional[datetime.datetime] = None
-    predicted_departure_datetime: Optional[datetime.datetime] = None
+    predicted_arrival_datetime: Optional[datetime] = None
+    predicted_departure_datetime: Optional[datetime] = None
 
     predicted_arrival_uncertainty: Optional[int] = None  # seconds
     predicted_departure_uncertainty: Optional[int] = None  # seconds
