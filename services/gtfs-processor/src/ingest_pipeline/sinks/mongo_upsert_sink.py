@@ -9,7 +9,7 @@ from ingest_pipeline.core.types import Sink
 from beanie import Document
 
 
-class MongoSink(Sink[UpdateOne]):
+class MongoUpsertSink(Sink[UpdateOne]):
     """
     Sink that writes Motor UpdateOne operations to MongoDB in batches.
     Input: Motor's update one operation UpdateOne

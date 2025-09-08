@@ -1,4 +1,5 @@
 from typing import AsyncIterator, Dict, Any
+from models.enums import Direction
 from models.mongo_schemas import Trip
 from pymongo import UpdateOne
 from ingest_pipeline.core.types import Transformer
@@ -11,10 +12,15 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: pymongo UpdateOne
     """
 
+    __DIRECTION_ID_MAPPING = {
+        "0": Direction.OUTBOUND,
+        "1": Direction.INBOUND,
+    }
+
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
-    async def transform(
+    async def run(
         self, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
@@ -25,13 +31,11 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
                 service_id=row["service_id"],
                 trip_headsign=row["trip_headsign"],
                 trip_short_name=row["trip_short_name"],
-                direction_id=row["direction_id"],
+                direction_id=self.__DIRECTION_ID_MAPPING.get(row["direction_id"], None),
                 block_id=row["block_id"],
                 shape_id=row["shape_id"],
             )
-            
-            
-            
+
             update = UpdateOne(
                 {"agency_id": self.agency_id, "trip_id": trip_doc.trip_id},
                 {"$set": trip_doc.model_dump()},
