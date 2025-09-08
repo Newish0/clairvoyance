@@ -163,7 +163,7 @@ class Route(Document):
 
     route_short_name: Optional[str] = None
     route_long_name: Optional[str] = None
-    route_type: Optional[RouteType] = None
+    route_type: RouteType
     route_color: Optional[str] = None
     route_text_color: Optional[str] = None
 

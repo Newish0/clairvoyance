@@ -2,15 +2,15 @@ from ingest_pipeline.core.orchestrator import Orchestrator
 from ingest_pipeline.core.types import StageSpec
 from ingest_pipeline.sources.local_file import LocalFileSource
 from ingest_pipeline.transforms.csv_decoder import CSVDecoder
-from ingest_pipeline.transforms.gtfs.trip_mapper import TripMapper
+from ingest_pipeline.transforms.gtfs.calendar_date_mapper import CalendarDateMapper
 from ingest_pipeline.sinks.mongo_upsert_sink import MongoUpsertSink
 
 
-def build_trips_pipeline(file_path, agency_id, trip_document):
+def build_calendar_dates_pipeline(file_path, agency_id, document):
     stages = [
         StageSpec("files", LocalFileSource(file_path)),
         StageSpec("csv", CSVDecoder()),
-        StageSpec("mapper", TripMapper(agency_id)),
-        StageSpec("mongo", MongoUpsertSink(trip_document)),
+        StageSpec("mapper", CalendarDateMapper(agency_id)),
+        StageSpec("mongo", MongoUpsertSink(document)),
     ]
     return Orchestrator(stages)

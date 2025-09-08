@@ -1,4 +1,3 @@
-from types import CoroutineType
 from typing import Any, AsyncIterator, Dict
 from models.mongo_schemas import Agency
 from pymongo import UpdateOne
@@ -8,18 +7,15 @@ from beanie.odm.operators.update.general import Set
 
 class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
     """
-    Maps GTFS agency.txt rows (dict) into Motor CoroutineType[Any, Any, UpdateResult] operations after validation through DB model.
+    Maps GTFS agency.txt rows (dict) into mongo UpdateOne operations after validation through DB model.
     Input: Dict[str, str]
-    Output: Motor CoroutineType[Any, Any, UpdateResult]
+    Output: mongo UpdateOne
     """
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
-        
-        # alias
-        self.run = self.transform
 
-    async def transform(
+    async def run(
         self, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
@@ -36,8 +32,10 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
             )
 
             yield UpdateOne(
-                {"agency_id": self.agency_id, "source_agency_id": agency_doc.source_agency_id},
+                {
+                    "agency_id": self.agency_id,
+                    "source_agency_id": agency_doc.source_agency_id,
+                },
                 {"$set": agency_doc.model_dump(exclude={"id"})},
-                upsert=True
+                upsert=True,
             )
-
