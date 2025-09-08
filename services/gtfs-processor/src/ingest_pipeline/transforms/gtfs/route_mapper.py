@@ -35,12 +35,12 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
         async for row in items:
             route_doc = Route(
                 agency_id=self.agency_id,
-                route_id=row["route_id"],
-                route_short_name=row["route_short_name"],
-                route_long_name=row["route_long_name"],
-                route_type=self.__ROUTE_TYPE_MAPPING.get(row["route_type"], None),
-                route_color=row["route_color"],
-                route_text_color=row["route_text_color"],
+                route_id=row.get("route_id"),
+                route_short_name=row.get("route_short_name"),
+                route_long_name=row.get("route_long_name"),
+                route_type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),
+                route_color=row.get("route_color"),
+                route_text_color=row.get("route_text_color"),
             )
 
             yield UpdateOne(

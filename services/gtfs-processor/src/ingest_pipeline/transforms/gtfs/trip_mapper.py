@@ -26,14 +26,14 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
         async for row in items:
             trip_doc = Trip(
                 agency_id=self.agency_id,
-                trip_id=row["trip_id"],
-                route_id=row["route_id"],
-                service_id=row["service_id"],
-                trip_headsign=row["trip_headsign"],
-                trip_short_name=row["trip_short_name"],
-                direction_id=self.__DIRECTION_ID_MAPPING.get(row["direction_id"], None),
-                block_id=row["block_id"],
-                shape_id=row["shape_id"],
+                trip_id=row.get("trip_id"),
+                route_id=row.get("route_id"),
+                service_id=row.get("service_id"),
+                trip_headsign=row.get("trip_headsign"),
+                trip_short_name=row.get("trip_short_name"),
+                direction_id=self.__DIRECTION_ID_MAPPING.get(row.get("direction_id")),
+                block_id=row.get("block_id"),
+                shape_id=row.get("shape_id"),
             )
 
             update = UpdateOne(
