@@ -21,14 +21,14 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
         async for row in items:
             agency_doc = Agency(
                 agency_id=self.agency_id,
-                source_agency_id=row["agency_id"],
-                agency_name=row["agency_name"],
-                agency_url=row["agency_url"],
-                agency_timezone=row["agency_timezone"],
-                agency_lang=row["agency_lang"],
-                agency_phone=row["agency_phone"],
-                agency_fare_url=row["agency_fare_url"],
-                agency_email=row["agency_email"],
+                source_agency_id=row.get("agency_id"),
+                agency_name=row.get("agency_name"),
+                agency_url=row.get("agency_url"),
+                agency_timezone=row.get("agency_timezone"),
+                agency_lang=row.get("agency_lang"),
+                agency_phone=row.get("agency_phone"),
+                agency_fare_url=row.get("agency_fare_url"),
+                agency_email=row.get("agency_email"),
             )
 
             yield UpdateOne(

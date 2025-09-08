@@ -27,11 +27,9 @@ class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
         async for row in items:
             calendar_date_doc = CalendarDate(
                 agency_id=self.agency_id,
-                service_id=row["service_id"],
-                date=row["date"],
-                exception_type=self.__EXCEPTION_MAPPING.get(
-                    row["exception_type"], None
-                ),  # Model validation will error on None to get better error messages
+                service_id=row.get("service_id"),
+                date=row.get("date"),
+                exception_type=self.__EXCEPTION_MAPPING.get(row.get("exception_type")),
             )
 
             yield UpdateOne(

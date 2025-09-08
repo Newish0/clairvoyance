@@ -32,22 +32,32 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
         self, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
+            stop_sequence_raw = row.get("stop_sequence")
+            stop_sequence = (
+                int(stop_sequence_raw) if stop_sequence_raw not in (None, "") else None
+            )
+
+            shape_dist_traveled_raw = row.get("shape_dist_traveled")
+            shape_dist_traveled = (
+                float(shape_dist_traveled_raw)
+                if shape_dist_traveled_raw not in (None, "")
+                else None
+            )
+
             stop_time = StopTime(
                 agency_id=self.agency_id,
-                trip_id=row["trip_id"],
-                arrival_time=row["arrival_time"],
-                departure_time=row["departure_time"],
-                stop_id=row["stop_id"],
-                stop_sequence=int(row["stop_sequence"]),
-                stop_headsign=row["stop_headsign"],
-                pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(
-                    row["pickup_type"], None
-                ),
+                trip_id=row.get("trip_id"),
+                arrival_time=row.get("arrival_time"),
+                departure_time=row.get("departure_time"),
+                stop_id=row.get("stop_id"),
+                stop_sequence=stop_sequence,
+                stop_headsign=row.get("stop_headsign"),
+                pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(row.get("pickup_type")),
                 drop_off_type=self.__PICKUP_DROP_OFF_MAPPING.get(
-                    row["drop_off_type"], None
+                    row.get("drop_off_type")
                 ),
-                timepoint=self.__TIMEPOINT_MAPPING.get(row["timepoint"], None),
-                shape_dist_traveled=float(row["shape_dist_traveled"]),
+                timepoint=self.__TIMEPOINT_MAPPING.get(row.get("timepoint")),
+                shape_dist_traveled=shape_dist_traveled,
             )
 
             yield UpdateOne(

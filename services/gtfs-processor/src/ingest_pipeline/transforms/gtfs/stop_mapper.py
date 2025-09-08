@@ -34,8 +34,8 @@ class StopMapper(Transformer[Dict[str, str], UpdateOne]):
         self, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
-            stop_lat = row["stop_lat"]
-            stop_lon = row["stop_lon"]
+            stop_lat = row.get("stop_lat")
+            stop_lon = row.get("stop_lon")
 
             point_geometry = (
                 PointGeometry(
@@ -48,20 +48,20 @@ class StopMapper(Transformer[Dict[str, str], UpdateOne]):
 
             stop_doc = Stop(
                 agency_id=self.agency_id,
-                stop_id=row["stop_id"],
-                stop_code=row["stop_code"],
-                stop_name=row["stop_name"],
-                stop_desc=row["stop_desc"],
+                stop_id=row.get("stop_id"),
+                stop_code=row.get("stop_code"),
+                stop_name=row.get("stop_name"),
+                stop_desc=row.get("stop_desc"),
                 location=point_geometry,
-                zone_id=row["zone_id"],
-                stop_url=row["stop_url"],
+                zone_id=row.get("zone_id"),
+                stop_url=row.get("stop_url"),
                 location_type=self.__LOCATION_TYPE_MAPPING.get(
-                    row["location_type"], None
+                    row.get("location_type")
                 ),
-                parent_station=row["parent_station"],
-                stop_timezone=row["stop_timezone"],
+                parent_station=row.get("parent_station"),
+                stop_timezone=row.get("stop_timezone"),
                 wheelchair_boarding=self.__WHEELCHAIR_BOARDING_MAPPING.get(
-                    row["wheelchair_boarding"], None
+                    row.get("wheelchair_boarding")
                 ),
             )
 
