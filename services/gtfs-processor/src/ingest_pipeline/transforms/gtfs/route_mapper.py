@@ -1,8 +1,9 @@
 from typing import AsyncIterator, Dict
+from ingest_pipeline.core.errors import ErrorPolicy
 from models.enums import RouteType
 from models.mongo_schemas import Route
 from pymongo import UpdateOne
-from ingest_pipeline.core.types import Transformer
+from ingest_pipeline.core.types import Context, Transformer
 from beanie.odm.operators.update.general import Set
 
 
@@ -30,21 +31,32 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
         self.agency_id = agency_id
 
     async def run(
-        self, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
-            route_doc = Route(
-                agency_id=self.agency_id,
-                route_id=row.get("route_id"),
-                route_short_name=row.get("route_short_name"),
-                route_long_name=row.get("route_long_name"),
-                route_type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),
-                route_color=row.get("route_color"),
-                route_text_color=row.get("route_text_color"),
-            )
+            try:
+                route_doc = Route(
+                    agency_id=self.agency_id,
+                    route_id=row.get("route_id"),
+                    route_short_name=row.get("route_short_name"),
+                    route_long_name=row.get("route_long_name"),
+                    route_type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),
+                    route_color=row.get("route_color"),
+                    route_text_color=row.get("route_text_color"),
+                )
 
-            yield UpdateOne(
-                {"agency_id": self.agency_id, "route_id": route_doc.route_id},
-                {"$set": route_doc.model_dump(exclude={"id"})},
-                upsert=True,
-            )
+                yield UpdateOne(
+                    {"agency_id": self.agency_id, "route_id": route_doc.route_id},
+                    {"$set": route_doc.model_dump(exclude={"id"})},
+                    upsert=True,
+                )
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr(f"route_mapper.skipped")
+                        context.logger.error(e)
+                        continue
+                    case _:
+                        raise e

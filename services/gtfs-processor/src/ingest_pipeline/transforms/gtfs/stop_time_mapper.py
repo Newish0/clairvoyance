@@ -1,8 +1,9 @@
 from typing import AsyncIterator, Dict
+from ingest_pipeline.core.errors import ErrorPolicy
 from models.enums import PickupDropOff, Timepoint
 from models.mongo_schemas import StopTime
 from pymongo import UpdateOne
-from ingest_pipeline.core.types import Transformer
+from ingest_pipeline.core.types import Context, Transformer
 from beanie.odm.operators.update.general import Set
 
 
@@ -29,43 +30,54 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
         self.agency_id = agency_id
 
     async def run(
-        self, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
-            stop_sequence_raw = row.get("stop_sequence")
-            stop_sequence = (
-                int(stop_sequence_raw) if stop_sequence_raw not in (None, "") else None
-            )
+            try:
+                stop_sequence_raw = row.get("stop_sequence")
+                stop_sequence = (
+                    int(stop_sequence_raw) if stop_sequence_raw not in (None, "") else None
+                )
 
-            shape_dist_traveled_raw = row.get("shape_dist_traveled")
-            shape_dist_traveled = (
-                float(shape_dist_traveled_raw)
-                if shape_dist_traveled_raw not in (None, "")
-                else None
-            )
+                shape_dist_traveled_raw = row.get("shape_dist_traveled")
+                shape_dist_traveled = (
+                    float(shape_dist_traveled_raw)
+                    if shape_dist_traveled_raw not in (None, "")
+                    else None
+                )
 
-            stop_time = StopTime(
-                agency_id=self.agency_id,
-                trip_id=row.get("trip_id"),
-                arrival_time=row.get("arrival_time"),
-                departure_time=row.get("departure_time"),
-                stop_id=row.get("stop_id"),
-                stop_sequence=stop_sequence,
-                stop_headsign=row.get("stop_headsign"),
-                pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(row.get("pickup_type")),
-                drop_off_type=self.__PICKUP_DROP_OFF_MAPPING.get(
-                    row.get("drop_off_type")
-                ),
-                timepoint=self.__TIMEPOINT_MAPPING.get(row.get("timepoint")),
-                shape_dist_traveled=shape_dist_traveled,
-            )
+                stop_time = StopTime(
+                    agency_id=self.agency_id,
+                    trip_id=row.get("trip_id"),
+                    arrival_time=row.get("arrival_time"),
+                    departure_time=row.get("departure_time"),
+                    stop_id=row.get("stop_id"),
+                    stop_sequence=stop_sequence,
+                    stop_headsign=row.get("stop_headsign"),
+                    pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(row.get("pickup_type")),
+                    drop_off_type=self.__PICKUP_DROP_OFF_MAPPING.get(
+                        row.get("drop_off_type")
+                    ),
+                    timepoint=self.__TIMEPOINT_MAPPING.get(row.get("timepoint")),
+                    shape_dist_traveled=shape_dist_traveled,
+                )
 
-            yield UpdateOne(
-                {
-                    "agency_id": self.agency_id,
-                    "trip_id": stop_time.trip_id,
-                    "stop_sequence": stop_time.stop_sequence,
-                },
-                {"$set": stop_time.model_dump(exclude={"id"})},
-                upsert=True,
-            )
+                yield UpdateOne(
+                    {
+                        "agency_id": self.agency_id,
+                        "trip_id": stop_time.trip_id,
+                        "stop_sequence": stop_time.stop_sequence,
+                    },
+                    {"$set": stop_time.model_dump(exclude={"id"})},
+                    upsert=True,
+                )
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr(f"stop_time_mapper.skipped")
+                        context.logger.error(e)
+                        continue
+                    case _:
+                        raise e

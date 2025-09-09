@@ -1,7 +1,8 @@
 from typing import AsyncIterator, Dict
+from ingest_pipeline.core.errors import ErrorPolicy
 from models.mongo_schemas import FeedInfo
 from pymongo import UpdateOne
-from ingest_pipeline.core.types import Transformer
+from ingest_pipeline.core.types import Context, Transformer
 from beanie.odm.operators.update.general import Set
 
 
@@ -17,22 +18,33 @@ class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
         self.feed_hash = feed_hash
 
     async def run(
-        self, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
-            feed_info_doc = FeedInfo(
-                agency_id=self.agency_id,
-                feed_hash=self.feed_hash,
-                feed_publisher_name=row.get("publisher_name"),
-                feed_publisher_url=row.get("publisher_url"),
-                feed_lang=row.get("lang"),
-                feed_version=row.get("version"),
-                feed_start_date=row.get("start_date"),
-                feed_end_date=row.get("end_date"),
-            )
+            try:
+                feed_info_doc = FeedInfo(
+                    agency_id=self.agency_id,
+                    feed_hash=self.feed_hash,
+                    feed_publisher_name=row.get("publisher_name"),
+                    feed_publisher_url=row.get("publisher_url"),
+                    feed_lang=row.get("lang"),
+                    feed_version=row.get("version"),
+                    feed_start_date=row.get("start_date"),
+                    feed_end_date=row.get("end_date"),
+                )
 
-            yield UpdateOne(
-                {"agency_id": self.agency_id, "feed_hash": self.feed_hash},
-                {"$set": feed_info_doc.model_dump(exclude={"id"})},
-                upsert=True,
-            )
+                yield UpdateOne(
+                    {"agency_id": self.agency_id, "feed_hash": self.feed_hash},
+                    {"$set": feed_info_doc.model_dump(exclude={"id"})},
+                    upsert=True,
+                )
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr(f"feed_info_mapper.skipped")
+                        context.logger.error(e)
+                        continue
+                    case _:
+                        raise e

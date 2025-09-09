@@ -5,7 +5,7 @@ from typing import AsyncIterator, Any, List
 from pymongo.collection import Collection
 from pymongo import UpdateOne
 
-from ingest_pipeline.core.types import Sink
+from ingest_pipeline.core.types import Context, Sink
 from beanie import Document
 
 
@@ -18,13 +18,10 @@ class MongoUpsertSink(Sink[UpdateOne]):
     def __init__(self, document: Document, batch_size: int = 1000):
         self.batch_size = batch_size
         self.collection = document.get_motor_collection()
-        
-        # alias
-        self.consume = self.write
     
     
-    async def write(
-        self, items: AsyncIterator[UpdateOne]
+    async def consume(
+        self, context: Context, items: AsyncIterator[UpdateOne]
     ) -> None:
         buffer: List[UpdateOne] = []
 
