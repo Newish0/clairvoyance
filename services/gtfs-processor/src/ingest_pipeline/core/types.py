@@ -1,5 +1,18 @@
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Generic, Protocol, Type, TypeVar, Union
+from typing import (
+    Any,
+    AsyncIterator,
+    Generic,
+    List,
+    Optional,
+    Protocol,
+    Type,
+    TypeVar,
+    Union,
+)
+import logging
+
+from ingest_pipeline.core.errors import ErrorPolicy
 
 
 T = TypeVar("T")
@@ -14,12 +27,21 @@ class Telemetry(Protocol):
     def gauge(self, name: str, value: float) -> None: ...
 
 
+@dataclass
+class Context:
+    """Shared context passed to all pipeline stages."""
+
+    logger: logging.Logger
+    telemetry: Telemetry
+    error_policy: ErrorPolicy
+
+
 class Source(Protocol[T]):
     """Produces items of type T. Implementations should set .output_type."""
 
     output_type: Type[T]  # concrete Python type (or typing.Any)
 
-    async def stream(self) -> AsyncIterator[T]:
+    async def stream(self, context: Context) -> AsyncIterator[T]:
         """Yield items and then return."""
 
 
@@ -29,7 +51,7 @@ class Transformer(Protocol, Generic[T, U]):
     input_type: Type[T]
     output_type: Type[U]
 
-    async def run(self, inputs: AsyncIterator[T]) -> AsyncIterator[U]:
+    async def run(self, context: Context, inputs: AsyncIterator[T]) -> AsyncIterator[U]:
         """Consume async iterator of T, produce async iterator of U."""
 
 
@@ -38,7 +60,7 @@ class Sink(Protocol[T]):
 
     input_type: Type[T]
 
-    async def consume(self, inputs: AsyncIterator[T]) -> None:
+    async def consume(self, context: Context, inputs: AsyncIterator[T]) -> None:
         """Consume an async iterator until exhaustion."""
 
 

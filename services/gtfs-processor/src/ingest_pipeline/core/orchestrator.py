@@ -1,9 +1,16 @@
 import asyncio
 import logging
-from typing import Any, AsyncIterator, Dict, Optional, Type
+from typing import Any, AsyncIterator, Dict, List, Optional, Type
 from ingest_pipeline.core.errors import ErrorPolicy
 from ingest_pipeline.core.telemetry import SimpleTelemetry
-from ingest_pipeline.core.types import Sink, Source, StageSpec, Telemetry, Transformer
+from ingest_pipeline.core.types import (
+    Context,
+    Sink,
+    Source,
+    StageSpec,
+    Telemetry,
+    Transformer,
+)
 
 
 class Orchestrator:
@@ -14,15 +21,13 @@ class Orchestrator:
         stages: list[StageSpec],
         telemetry: Optional[Telemetry] = None,
         error_policy: ErrorPolicy = ErrorPolicy.SKIP_RECORD,
-        dlq_sink: Optional[Sink[Any]] = None,
     ):
         if len(stages) < 2:
             raise ValueError("pipeline must contain at least a source and a sink")
         self.stages = stages
         self.telemetry = telemetry or SimpleTelemetry()
         self.error_policy = error_policy
-        self.dlq_sink = dlq_sink
-        self._logger = logging.getLogger("typed_orchestrator")
+        self._logger = logging.getLogger("orchestrator")
 
         # Validate types at construction time
         self._validate_stage_io()
@@ -81,6 +86,13 @@ class Orchestrator:
         fatal_event = asyncio.Event()
         exception_holder: Dict[str, Optional[BaseException]] = {"exc": None}
 
+        # Create context for all stages
+        context = Context(
+            logger=self._logger,
+            telemetry=self.telemetry,
+            error_policy=self.error_policy,
+        )
+
         # helper generator to adapt a queue into an async iterator for workers.
         async def _queue_reader(q: asyncio.Queue) -> AsyncIterator[Any]:
             while True:
@@ -93,7 +105,7 @@ class Orchestrator:
         async def _source_worker(spec: StageSpec, out_q: asyncio.Queue) -> None:
             src: Source = spec.stage
             try:
-                async for item in src.stream():
+                async for item in src.stream(context):
                     # If fatal event set, stop producing
                     if fatal_event.is_set():
                         break
@@ -103,18 +115,9 @@ class Orchestrator:
                 self.telemetry.incr(f"{spec.name}.errors")
                 self._logger.exception("source worker error in %s", spec.name)
                 exception_holder["exc"] = exc
+
                 if self.error_policy == ErrorPolicy.FAIL_FAST:
                     fatal_event.set()
-                elif self.error_policy == ErrorPolicy.SEND_TO_DLQ and self.dlq_sink:
-                    # attempt to send problematic stream information: best-effort
-                    try:
-
-                        async def one_item_iter() -> AsyncIterator[Any]:
-                            yield {"__source_error__": str(exc), "stage": spec.name}
-
-                        await self.dlq_sink.consume(one_item_iter())
-                    except Exception:
-                        self._logger.exception("error writing to DLQ for %s", spec.name)
 
         async def _transform_worker(
             spec: StageSpec, in_q: asyncio.Queue, out_q: asyncio.Queue
@@ -122,7 +125,7 @@ class Orchestrator:
             transformer: Transformer = spec.stage
             # Each worker gets its own queue reader that competes for items.
             try:
-                async for out_item in transformer.run(_queue_reader(in_q)):
+                async for out_item in transformer.run(context, _queue_reader(in_q)):
                     if fatal_event.is_set():
                         break
                     await out_q.put(out_item)
@@ -133,21 +136,11 @@ class Orchestrator:
                 exception_holder["exc"] = exc
                 if self.error_policy == ErrorPolicy.FAIL_FAST:
                     fatal_event.set()
-                elif self.error_policy == ErrorPolicy.SEND_TO_DLQ and self.dlq_sink:
-                    # for stream-level errors we push a sentinel entry into DLQ
-                    try:
-
-                        async def bad_iter() -> AsyncIterator[Any]:
-                            yield {"__transform_error__": str(exc), "stage": spec.name}
-
-                        await self.dlq_sink.consume(bad_iter())
-                    except Exception:
-                        self._logger.exception("error writing to DLQ for %s", spec.name)
 
         async def _sink_worker(spec: StageSpec, in_q: asyncio.Queue) -> None:
             sink: Sink = spec.stage
             try:
-                await sink.consume(_queue_reader(in_q))
+                await sink.consume(context, _queue_reader(in_q))
                 self.telemetry.incr(f"{spec.name}.consumed")
             except Exception as exc:
                 self.telemetry.incr(f"{spec.name}.errors")
@@ -155,15 +148,6 @@ class Orchestrator:
                 exception_holder["exc"] = exc
                 if self.error_policy == ErrorPolicy.FAIL_FAST:
                     fatal_event.set()
-                elif self.error_policy == ErrorPolicy.SEND_TO_DLQ and self.dlq_sink:
-                    try:
-
-                        async def bad_iter() -> AsyncIterator[Any]:
-                            yield {"__sink_error__": str(exc), "stage": spec.name}
-
-                        await self.dlq_sink.consume(bad_iter())
-                    except Exception:
-                        self._logger.exception("error writing to DLQ for %s", spec.name)
 
         # start all worker groups and coordinators
         all_worker_groups: list[list[asyncio.Task]] = []

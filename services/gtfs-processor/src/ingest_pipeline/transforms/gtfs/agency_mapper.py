@@ -1,7 +1,8 @@
 from typing import Any, AsyncIterator, Dict
+from ingest_pipeline.core.errors import ErrorPolicy
 from models.mongo_schemas import Agency
 from pymongo import UpdateOne
-from ingest_pipeline.core.types import Transformer
+from ingest_pipeline.core.types import Context, Transformer
 from beanie.odm.operators.update.general import Set
 
 
@@ -16,26 +17,39 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
         self.agency_id = agency_id
 
     async def run(
-        self, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, items: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
         async for row in items:
-            agency_doc = Agency(
-                agency_id=self.agency_id,
-                source_agency_id=row.get("agency_id"),
-                agency_name=row.get("agency_name"),
-                agency_url=row.get("agency_url"),
-                agency_timezone=row.get("agency_timezone"),
-                agency_lang=row.get("agency_lang"),
-                agency_phone=row.get("agency_phone"),
-                agency_fare_url=row.get("agency_fare_url"),
-                agency_email=row.get("agency_email"),
-            )
+            try:
+                agency_doc = Agency(
+                    agency_id=self.agency_id,
+                    source_agency_id=row.get("agency_id"),
+                    agency_name=row.get("agency_name"),
+                    agency_url=row.get("agency_url"),
+                    agency_timezone=row.get("agency_timezone"),
+                    agency_lang=row.get("agency_lang"),
+                    agency_phone=row.get("agency_phone"),
+                    agency_fare_url=row.get("agency_fare_url"),
+                    agency_email=row.get("agency_email"),
+                )
 
-            yield UpdateOne(
-                {
-                    "agency_id": self.agency_id,
-                    "source_agency_id": agency_doc.source_agency_id,
-                },
-                {"$set": agency_doc.model_dump(exclude={"id"})},
-                upsert=True,
-            )
+                # agency_doc.model_validate()
+
+                yield UpdateOne(
+                    {
+                        "agency_id": self.agency_id,
+                        "source_agency_id": agency_doc.source_agency_id,
+                    },
+                    {"$set": agency_doc.model_dump(exclude={"id"})},
+                    upsert=True,
+                )
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr(f"agency_mapper.skipped")
+                        context.logger.error(e)
+                        continue
+                    case _:
+                        raise e

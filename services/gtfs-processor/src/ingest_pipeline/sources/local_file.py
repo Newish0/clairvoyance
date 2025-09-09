@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 from typing import AsyncIterator, Union, List
 
-from ingest_pipeline.core.types import Source
+from ingest_pipeline.core.types import Context, Source
 
 PathLike = Union[str, Path]
 
@@ -20,9 +20,10 @@ class LocalFileSource(Source[Path]):
             files = [files]
         self.files = [Path(f).resolve() for f in files]
 
-    async def stream(self) -> AsyncIterator[Path]:
+    async def stream(self, context: Context) -> AsyncIterator[Path]:
         for f in self.files:
             if not f.exists():
+                context.logger.error(f"File not found: {f}")
                 raise FileNotFoundError(f"File not found: {f}")
             # Yield file paths asynchronously so we don't block event loop
             await asyncio.sleep(0)

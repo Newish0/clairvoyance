@@ -3,7 +3,7 @@ import csv
 from pathlib import Path
 from typing import AsyncIterator, Dict, Type
 
-from ingest_pipeline.core.types import Transformer
+from ingest_pipeline.core.types import Context, Transformer
 
 
 class CSVDecoder(Transformer[Path, Dict[str, str]]):
@@ -23,7 +23,7 @@ class CSVDecoder(Transformer[Path, Dict[str, str]]):
         self.queue_size = queue_size
 
     async def run(  
-        self, inputs: AsyncIterator[Path]  
+        self, context: Context, inputs: AsyncIterator[Path]  
     ) -> AsyncIterator[Dict[str, str]]:
         async for path in inputs: 
             queue: asyncio.Queue = asyncio.Queue(self.queue_size)
