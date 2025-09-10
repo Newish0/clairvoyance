@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, Tuple, Union, List
+from typing import AsyncIterator, Optional, Tuple, List
 from cachetools import LRUCache
 from models.mongo_schemas import Agency, CalendarDate, Route, Shape, Trip, StopTime
 from ingest_pipeline.core.types import Context, Source
