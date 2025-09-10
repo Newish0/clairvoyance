@@ -26,6 +26,7 @@ from models.enums import (
     StopTimeUpdateScheduleRelationship,
     Timepoint,
     TripDescriptorScheduleRelationship,
+    TripInstanceState,
     VehicleStopStatus,
     WheelchairBoarding,
 )
@@ -423,6 +424,8 @@ class TripInstance(Document):
     start_date: str  # YYYYMMDD
     start_time: str  # HH:MM:SS (Scheduled start time)
 
+    state: TripInstanceState = TripInstanceState.PRISTINE
+
     start_datetime: datetime
 
     stop_times: List[StopTimeInstance]
@@ -430,7 +433,7 @@ class TripInstance(Document):
     trip: Link[Trip]
     route: Link[Route]
     shape: Link[Shape]
-    vehicle: Link[Vehicle]
+    vehicle: Optional[Link[Vehicle]] = None
     positions: List[Link[VehiclePosition]] = Field(default_factory=list)
 
     class Settings:

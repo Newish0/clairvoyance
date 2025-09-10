@@ -10,6 +10,9 @@ from ingest_pipeline.pipelines.gtfs.routes_pipeline import build_routes_pipeline
 from ingest_pipeline.pipelines.gtfs.shapes_pipeline import build_shapes_pipeline
 from ingest_pipeline.pipelines.gtfs.stop_times_pipeline import build_stop_times_pipeline
 from ingest_pipeline.pipelines.gtfs.stops_pipeline import build_stops_pipeline
+from ingest_pipeline.pipelines.gtfs.trip_instances_pipeline import (
+    build_trip_instances_pipeline,
+)
 from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
 from models.mongo_schemas import (
@@ -20,6 +23,7 @@ from models.mongo_schemas import (
     Stop,
     StopTime,
     Trip,
+    TripInstance,
 )
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -35,7 +39,16 @@ async def run_pipelines():
     # client["gtfs_data"]["trips"].drop()
     await init_beanie(
         database=client.gtfs_data,
-        document_models=[Agency, StopTime, CalendarDate, Route, Stop, Trip, Shape],
+        document_models=[
+            Agency,
+            StopTime,
+            CalendarDate,
+            Route,
+            Stop,
+            Trip,
+            Shape,
+            TripInstance,
+        ],
     )
 
     url = "https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48"
@@ -52,6 +65,8 @@ async def run_pipelines():
         )
         shapes_pipeline = build_shapes_pipeline(tmpdir / "shapes.txt", "BCT-48", Shape)
 
+        trip_instances_pipeline = build_trip_instances_pipeline("BCT-48", TripInstance)
+
         await asyncio.gather(
             agency_pipeline.run(),
             stop_times_pipeline.run(),
@@ -61,6 +76,9 @@ async def run_pipelines():
             trips_pipeline.run(),
             shapes_pipeline.run(),
         )
+
+        # Must run after GTFS ingest from zip is complete.
+        await trip_instances_pipeline.run()
 
 
 def main():
