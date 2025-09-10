@@ -21,12 +21,14 @@ class MongoUpsertSink(Sink[UpdateOne]):
 
     async def consume(self, context: Context, items: AsyncIterator[UpdateOne]) -> None:
         buffer: List[UpdateOne] = []
+        buffer_lock = asyncio.Lock()
 
         async for op in items:
             buffer.append(op)
             if len(buffer) >= self.batch_size:
-                ops_to_flush = buffer.copy()
-                buffer.clear()
+                async with buffer_lock:
+                    ops_to_flush = buffer.copy()
+                    buffer.clear()
                 await self._flush(ops_to_flush)
 
         if buffer:
