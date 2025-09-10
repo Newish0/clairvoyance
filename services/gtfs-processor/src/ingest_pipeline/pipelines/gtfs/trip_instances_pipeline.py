@@ -8,7 +8,7 @@ from ingest_pipeline.sinks.mongo_upsert_sink import MongoUpsertSink
 def build_trip_instances_pipeline(agency_id, document):
     stages = [
         StageSpec("trip_instances_source", TripInstanceSource(agency_id)),
-        StageSpec("mapper", TripInstanceMapper()),
+        StageSpec("mapper", TripInstanceMapper(), parallelism=2),
         StageSpec("mongo", MongoUpsertSink(document)),
     ]
     return Orchestrator(stages)
