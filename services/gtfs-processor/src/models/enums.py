@@ -27,7 +27,7 @@ class PickupDropOff(StrEnum):
 
     # Is "NO PICKUP" for pickup type and "NO DROP OFF" for drop off type
     NO_PICKUP_OR_DROP_OFF = "NO_PICKUP_OR_DROP_OFF"
-    
+
     PHONE_AGENCY = "PHONE_AGENCY"
     COORDINATE_WITH_DRIVER = "COORDINATE_WITH_DRIVER"
 
@@ -131,3 +131,8 @@ class AlertSeverity(StrEnum):
     INFO = "INFO"
     WARNING = "WARNING"
     SEVERE = "SEVERE"
+
+
+class TripInstanceState(StrEnum):
+    PRISTINE = "PRISTINE"
+    DIRTY = "DIRTY"
