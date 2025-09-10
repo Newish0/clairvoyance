@@ -7,26 +7,35 @@ from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
     build_calendar_dates_pipeline,
 )
 from ingest_pipeline.pipelines.gtfs.routes_pipeline import build_routes_pipeline
+from ingest_pipeline.pipelines.gtfs.shapes_pipeline import build_shapes_pipeline
 from ingest_pipeline.pipelines.gtfs.stop_times_pipeline import build_stop_times_pipeline
 from ingest_pipeline.pipelines.gtfs.stops_pipeline import build_stops_pipeline
 from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
-from models.mongo_schemas import Agency, CalendarDate, Route, Stop, StopTime, Trip
+from models.mongo_schemas import (
+    Agency,
+    CalendarDate,
+    Route,
+    Shape,
+    Stop,
+    StopTime,
+    Trip,
+)
 from motor.motor_asyncio import AsyncIOMotorClient
 
 
 async def run_pipelines():
 
     client = AsyncIOMotorClient("mongodb://localhost:27017")
-    client["gtfs_data"]["agencies"].drop()
-    client["gtfs_data"]["stop_times"].drop()
-    client["gtfs_data"]["calendar_dates"].drop()
-    client["gtfs_data"]["routes"].drop()
-    client["gtfs_data"]["stops"].drop()
-    client["gtfs_data"]["trips"].drop()
+    # client["gtfs_data"]["agencies"].drop()
+    # client["gtfs_data"]["stop_times"].drop()
+    # client["gtfs_data"]["calendar_dates"].drop()
+    # client["gtfs_data"]["routes"].drop()
+    # client["gtfs_data"]["stops"].drop()
+    # client["gtfs_data"]["trips"].drop()
     await init_beanie(
         database=client.gtfs_data,
-        document_models=[Agency, StopTime, CalendarDate, Route, Stop, Trip],
+        document_models=[Agency, StopTime, CalendarDate, Route, Stop, Trip, Shape],
     )
 
     url = "https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48"
@@ -41,6 +50,7 @@ async def run_pipelines():
         stop_times_pipeline = build_stop_times_pipeline(
             tmpdir / "stop_times.txt", "BCT-48", StopTime
         )
+        shapes_pipeline = build_shapes_pipeline(tmpdir / "shapes.txt", "BCT-48", Shape)
 
         await asyncio.gather(
             agency_pipeline.run(),
@@ -49,6 +59,7 @@ async def run_pipelines():
             routes_pipeline.run(),
             stops_pipeline.run(),
             trips_pipeline.run(),
+            shapes_pipeline.run(),
         )
 
 
