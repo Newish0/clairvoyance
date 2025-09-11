@@ -441,11 +441,16 @@ class TripInstance(Document):
         indexes = [
             pymongo.IndexModel(
                 [
+                    ("agency_id", pymongo.ASCENDING),
                     ("trip_id", pymongo.ASCENDING),
                     ("start_date", pymongo.ASCENDING),
                     ("start_time", pymongo.ASCENDING),
                 ],
                 unique=True,
                 name="trip_instance_unique_idx",
-            )
+            ),
+            pymongo.IndexModel(
+                [("state", pymongo.ASCENDING)],
+                name="state_idx",
+            ),
         ]
