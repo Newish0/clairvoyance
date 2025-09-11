@@ -237,7 +237,7 @@
 #     main()
 
 
-from ingest_pipeline.cli import main
+from ingest_pipeline.static import main
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import Any, AsyncIterator, Dict, List, Optional, Type
 from ingest_pipeline.core.errors import ErrorPolicy
 from ingest_pipeline.core.telemetry import SimpleTelemetry
@@ -11,6 +10,11 @@ from ingest_pipeline.core.types import (
     Telemetry,
     Transformer,
 )
+from utils.logger_config import setup_logger
+
+
+"""A sequence number for auto generated orchestrator names."""
+orchestrator_seq = 0
 
 
 class Orchestrator:
@@ -21,13 +25,21 @@ class Orchestrator:
         stages: list[StageSpec],
         telemetry: Optional[Telemetry] = None,
         error_policy: ErrorPolicy = ErrorPolicy.SKIP_RECORD,
+        name: Optional[str] = None,
     ):
         if len(stages) < 2:
             raise ValueError("pipeline must contain at least a source and a sink")
         self.stages = stages
         self.telemetry = telemetry or SimpleTelemetry()
         self.error_policy = error_policy
-        self._logger = logging.getLogger("orchestrator")
+        self._logger = setup_logger("orchestrator")
+
+        if not name:
+            global orchestrator_seq
+            orchestrator_seq += 1
+            self.name = f"{orchestrator_seq}"
+        else:
+            self.name = name
 
         # Validate types at construction time
         self._validate_stage_io()
@@ -235,4 +247,4 @@ class Orchestrator:
         # Cancel the fatal_wait_task since we don't need it anymore
         fatal_wait_task.cancel()
         await asyncio.gather(*coordinator_tasks, return_exceptions=True)
-        self._logger.info("Pipeline completed successfully.")
+        self._logger.info(f"Pipeline {self.name} completed successfully.")

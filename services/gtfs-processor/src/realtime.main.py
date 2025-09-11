@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from models import ScheduledTripDocument, Alert
 from parsing.gtfs_realtime import RealtimeUpdaterService
-from logger_config import setup_logger
+from utils.logger_config import setup_logger
 import os
 import parsing.gtfs_config as gtfs_config_svc
 
