@@ -7,6 +7,7 @@ from ingest_pipeline.pipelines.gtfs.agency_pipeline import build_agency_pipeline
 from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
     build_calendar_dates_pipeline,
 )
+from ingest_pipeline.pipelines.gtfs.feed_info_pipeline import build_feed_info_pipeline
 from ingest_pipeline.pipelines.gtfs.routes_pipeline import build_routes_pipeline
 from ingest_pipeline.pipelines.gtfs.shapes_pipeline import build_shapes_pipeline
 from ingest_pipeline.pipelines.gtfs.stop_times_pipeline import build_stop_times_pipeline
@@ -19,6 +20,7 @@ from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
 from models.mongo_schemas import (
     Agency,
     CalendarDate,
+    FeedInfo,
     Route,
     Shape,
     Stop,
@@ -40,6 +42,7 @@ DOCUMENT_MODELS = [
     Trip,
     Shape,
     TripInstance,
+    FeedInfo,
 ]
 
 
@@ -69,9 +72,14 @@ async def run_gtfs_static_pipelines(
         document_models=DOCUMENT_MODELS,
     )
 
-    async with GTFSArchiveSource(gtfs_url).materialize() as tmpdir:
+    async with GTFSArchiveSource(gtfs_url).materialize() as source_info:
+        tmpdir = source_info.path
+
         agency_pipeline = build_agency_pipeline(
             tmpdir / "agency.txt", agency_id, Agency
+        )
+        feed_info_pipeline = build_feed_info_pipeline(
+            tmpdir / "feed_info.txt", agency_id, source_info.hash, FeedInfo
         )
         calendar_dates_pipeline = build_calendar_dates_pipeline(
             tmpdir / "calendar_dates.txt", agency_id, CalendarDate
@@ -88,6 +96,7 @@ async def run_gtfs_static_pipelines(
 
         await asyncio.gather(
             agency_pipeline.run(),
+            feed_info_pipeline.run(),
             stop_times_pipeline.run(),
             calendar_dates_pipeline.run(),
             routes_pipeline.run(),
