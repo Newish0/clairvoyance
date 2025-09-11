@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from enum import IntEnum
 from typing import Any, Dict, Literal, Optional, TypeVar
 
-from logger_config import setup_logger
+from utils.logger_config import setup_logger
 from lib import gtfs_realtime_pb2 as pb
 from google.protobuf.message import Message
 
