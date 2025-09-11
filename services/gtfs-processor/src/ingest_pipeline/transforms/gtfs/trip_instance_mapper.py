@@ -88,18 +88,7 @@ class TripInstanceMapper(
                     shape=ObjectId(shape.id.binary),
                 )
 
-                # TODO: Run validation
-
-                if await TripInstance.find_one(
-                    TripInstance.agency_id == trip_instance_doc.agency_id,
-                    TripInstance.trip_id == trip_instance_doc.trip_id,
-                    TripInstance.start_date == trip_instance_doc.start_date,
-                    TripInstance.start_time == trip_instance_doc.start_time,
-                    TripInstance.state != TripInstanceState.PRISTINE,
-                ):
-                    raise Exception(
-                        f"Trip instance already exists and it is not PRISTINE: {trip_instance_doc.agency_id}, {trip_instance_doc.trip_id}, {trip_instance_doc.start_date}, {trip_instance_doc.start_time}"
-                    )
+                TripInstance.model_validate(trip_instance_doc)
 
                 yield UpdateOne(
                     {

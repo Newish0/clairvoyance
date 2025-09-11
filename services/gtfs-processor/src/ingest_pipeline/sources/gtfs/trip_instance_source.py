@@ -1,6 +1,15 @@
 from typing import AsyncIterator, Optional, Tuple, List
 from cachetools import LRUCache
-from models.mongo_schemas import Agency, CalendarDate, Route, Shape, Trip, StopTime
+from models.enums import TripInstanceState
+from models.mongo_schemas import (
+    Agency,
+    CalendarDate,
+    Route,
+    Shape,
+    Trip,
+    StopTime,
+    TripInstance,
+)
 from ingest_pipeline.core.types import Context, Source
 
 
@@ -80,7 +89,7 @@ class TripInstanceSource(
         async for trip in Trip.find(
             Trip.agency_id == self.agency_id,
         ):
-            async for calendarDate in CalendarDate.find(
+            async for calendar_date in CalendarDate.find(
                 CalendarDate.agency_id == self.agency_id,
                 CalendarDate.service_id == trip.service_id,
             ):
@@ -90,4 +99,20 @@ class TripInstanceSource(
                 route = await self._get_route_cached(trip.route_id)
                 shape = await self._get_shape_cached(trip.shape_id)
 
-                yield (agency, calendarDate, trip, stop_times, route, shape)
+                # Do not make changes to existing trip instances that are not pristine. Skip them.
+                exist_not_pristine = await TripInstance.find_one(
+                    TripInstance.agency_id == self.agency_id,
+                    TripInstance.trip_id == trip.trip_id,
+                    TripInstance.start_date == calendar_date.date,
+                    TripInstance.start_time == stop_times[0].arrival_time,
+                    TripInstance.state != TripInstanceState.PRISTINE,
+                ).exists()
+
+                if exist_not_pristine:
+                    context.logger.info(
+                        f"Skipping trip instance {self.agency_id} {trip.trip_id} {calendar_date.date} {stop_times[0].arrival_time} because it is not pristine."
+                    )
+                    context.telemetry.incr("trip_instance_source.not_pristine_skip")
+                    continue
+
+                yield (agency, calendar_date, trip, stop_times, route, shape)
