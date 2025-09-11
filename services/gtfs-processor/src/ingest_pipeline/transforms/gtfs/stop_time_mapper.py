@@ -36,7 +36,9 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
             try:
                 stop_sequence_raw = row.get("stop_sequence")
                 stop_sequence = (
-                    int(stop_sequence_raw) if stop_sequence_raw not in (None, "") else None
+                    int(stop_sequence_raw)
+                    if stop_sequence_raw not in (None, "")
+                    else None
                 )
 
                 shape_dist_traveled_raw = row.get("shape_dist_traveled")
@@ -54,13 +56,17 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
                     stop_id=row.get("stop_id"),
                     stop_sequence=stop_sequence,
                     stop_headsign=row.get("stop_headsign"),
-                    pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(row.get("pickup_type")),
+                    pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(
+                        row.get("pickup_type")
+                    ),
                     drop_off_type=self.__PICKUP_DROP_OFF_MAPPING.get(
                         row.get("drop_off_type")
                     ),
                     timepoint=self.__TIMEPOINT_MAPPING.get(row.get("timepoint")),
                     shape_dist_traveled=shape_dist_traveled,
                 )
+
+                await stop_time.validate_self()
 
                 yield UpdateOne(
                     {

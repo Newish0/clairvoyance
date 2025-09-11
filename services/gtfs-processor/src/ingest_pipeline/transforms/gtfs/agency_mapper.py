@@ -33,7 +33,7 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
                     agency_email=row.get("agency_email"),
                 )
 
-                # agency_doc.model_validate()
+                await agency_doc.validate_self()
 
                 yield UpdateOne(
                     {

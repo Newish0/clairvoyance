@@ -67,6 +67,8 @@ class StopMapper(Transformer[Dict[str, str], UpdateOne]):
                     ),
                 )
 
+                await stop_doc.validate_self()
+
                 yield UpdateOne(
                     {"agency_id": self.agency_id, "stop_id": stop_doc.stop_id},
                     {"$set": stop_doc.model_dump(exclude={"id"})},

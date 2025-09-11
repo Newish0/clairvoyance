@@ -88,7 +88,7 @@ class TripInstanceMapper(
                     shape=ObjectId(shape.id.binary),
                 )
 
-                TripInstance.model_validate(trip_instance_doc)
+                await trip_instance_doc.validate_self()
 
                 yield UpdateOne(
                     {
