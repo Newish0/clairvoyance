@@ -94,6 +94,9 @@ class TripInstanceSource(
                 CalendarDate.service_id == trip.service_id,
             ):
 
+                # TODO: if calendar_date.exception_type is ADDED we create trip instances upsert
+                #       if calendar_date.exception_type is REMOVED we upsert a state of REMOVED
+
                 # Use cached queries
                 stop_times = await self._get_stop_times_cached(trip.trip_id)
                 route = await self._get_route_cached(trip.route_id)

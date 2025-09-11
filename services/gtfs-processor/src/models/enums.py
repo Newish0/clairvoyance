@@ -136,3 +136,6 @@ class AlertSeverity(StrEnum):
 class TripInstanceState(StrEnum):
     PRISTINE = "PRISTINE"
     DIRTY = "DIRTY"
+
+    """Was scheduled but now removed"""
+    REMOVED = "REMOVED"
