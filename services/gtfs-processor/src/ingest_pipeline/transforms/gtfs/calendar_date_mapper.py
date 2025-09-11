@@ -33,6 +33,8 @@ class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
                     date=row.get("date"),
                     exception_type=self.__EXCEPTION_MAPPING.get(row.get("exception_type")),
                 )
+                
+                await calendar_date_doc.validate_self()
 
                 yield UpdateOne(
                     {

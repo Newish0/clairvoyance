@@ -45,6 +45,8 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
                     route_text_color=row.get("route_text_color"),
                 )
 
+                await route_doc.validate_self()
+
                 yield UpdateOne(
                     {"agency_id": self.agency_id, "route_id": route_doc.route_id},
                     {"$set": route_doc.model_dump(exclude={"id"})},

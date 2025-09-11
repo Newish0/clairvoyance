@@ -32,6 +32,8 @@ class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
                     feed_start_date=row.get("start_date"),
                     feed_end_date=row.get("end_date"),
                 )
+                
+                await feed_info_doc.validate_self()
 
                 yield UpdateOne(
                     {"agency_id": self.agency_id, "feed_hash": self.feed_hash},

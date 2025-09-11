@@ -40,6 +40,8 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
                     shape_id=row.get("shape_id"),
                 )
 
+                await trip_doc.validate_self()
+
                 update = UpdateOne(
                     {"agency_id": self.agency_id, "trip_id": trip_doc.trip_id},
                     {"$set": trip_doc.model_dump()},

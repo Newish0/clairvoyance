@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Dict, List, Tuple
@@ -19,11 +20,10 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
         geometry: Dict[int, Tuple[float, float]] = field(default_factory=dict)
         distances_traveled: Dict[int, float] = field(default_factory=dict)
 
-    __tmp_shapes: Dict[str, __TmpShapeInfo]
+    __tmp_shapes: Dict[str, __TmpShapeInfo] = defaultdict(__TmpShapeInfo)
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
-        self.__tmp_shapes = defaultdict(self.__TmpShapeInfo)
 
     async def run(
         self, context: Context, items: AsyncIterator[Dict[str, str]]
@@ -70,36 +70,54 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
                     case _:
                         raise e
 
-        try:
-            shape_docs = self.__get_constructed_shape()
-            for shape_doc in shape_docs:
+        shape_docs = self.__get_constructed_shape()
+        for shape_doc in shape_docs:
+            try:
+                await shape_doc.validate_self()
                 yield UpdateOne(
                     {"agency_id": self.agency_id, "shape_id": shape_doc.shape_id},
                     {"$set": shape_doc.model_dump(exclude={"id"})},
                     upsert=True,
                 )
-        except Exception as e:
-            match context.error_policy:
-                case ErrorPolicy.FAIL_FAST:
-                    raise e
-                case ErrorPolicy.SKIP_RECORD:
-                    context.telemetry.incr(f"shape_mapper.skipped")
-                    context.logger.error(e)
-                case _:
-                    raise e
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr(f"shape_mapper.skipped")
+                        context.logger.error(e)
+                    case _:
+                        raise e
 
     def __get_constructed_shape(self):
         for shape_id, tmp_shape in self.__tmp_shapes.items():
+
+            # MongoDB GeoJSON LineString must have at least 2 vertices.
+            # So for a single point, we duplicate the point with a small offset.
+            # Note: it's safe to assume we have at least 1 point at this point in the code.
+            coordinates = (
+                [tmp_shape.geometry[i] for i in sorted(tmp_shape.geometry.keys())]
+                if len(tmp_shape.geometry) > 1
+                else [
+                    tmp_shape.geometry[0],
+                    (
+                        tmp_shape.geometry[0][0] + 0.00001,
+                        tmp_shape.geometry[0][1] + 0.00001,
+                    ),
+                ]
+            )
+            distances_traveled = (
+                [
+                    tmp_shape.distances_traveled[i]
+                    for i in sorted(tmp_shape.distances_traveled.keys())
+                ]
+                if len(tmp_shape.distances_traveled) > 1
+                else [tmp_shape.distances_traveled[0], tmp_shape.distances_traveled[0]]
+            )
+
             yield Shape(
                 agency_id=self.agency_id,
                 shape_id=shape_id,
-                geometry=LineStringGeometry(
-                    coordinates=[
-                        tmp_shape.geometry[i] for i in sorted(tmp_shape.geometry.keys())
-                    ]
-                ),
-                distances_traveled=[
-                    tmp_shape.distances_traveled[i]
-                    for i in sorted(tmp_shape.distances_traveled.keys())
-                ],
+                geometry=LineStringGeometry(coordinates=coordinates),
+                distances_traveled=distances_traveled,
             )
