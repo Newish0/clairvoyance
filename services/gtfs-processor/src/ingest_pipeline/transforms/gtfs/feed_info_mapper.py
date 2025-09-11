@@ -25,14 +25,14 @@ class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
                 feed_info_doc = FeedInfo(
                     agency_id=self.agency_id,
                     feed_hash=self.feed_hash,
-                    feed_publisher_name=row.get("publisher_name"),
-                    feed_publisher_url=row.get("publisher_url"),
-                    feed_lang=row.get("lang"),
-                    feed_version=row.get("version"),
-                    feed_start_date=row.get("start_date"),
-                    feed_end_date=row.get("end_date"),
+                    feed_publisher_name=row.get("feed_publisher_name"),
+                    feed_publisher_url=row.get("feed_publisher_url"),
+                    feed_lang=row.get("feed_lang"),
+                    feed_version=row.get("feed_version"),
+                    feed_start_date=row.get("feed_start_date"),
+                    feed_end_date=row.get("feed_end_date"),
                 )
-                
+
                 await feed_info_doc.validate_self()
 
                 yield UpdateOne(

@@ -127,7 +127,7 @@ class FeedInfo(Document):
     feed_end_date: Optional[str] = None  # YYYYMMDD
 
     class Settings:
-        name = "feedinfo"
+        name = "feed_info"
         indexes = [
             pymongo.IndexModel(
                 [("feed_hash", pymongo.ASCENDING)],
