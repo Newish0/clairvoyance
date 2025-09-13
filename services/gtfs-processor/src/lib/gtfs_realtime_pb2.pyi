@@ -61,15 +61,17 @@ class TripUpdate(_message.Message):
     __slots__ = ("trip", "vehicle", "stop_time_update", "timestamp", "delay", "trip_properties")
     Extensions: _python_message._ExtensionDict
     class StopTimeEvent(_message.Message):
-        __slots__ = ("delay", "time", "uncertainty")
+        __slots__ = ("delay", "time", "uncertainty", "scheduled_time")
         Extensions: _python_message._ExtensionDict
         DELAY_FIELD_NUMBER: _ClassVar[int]
         TIME_FIELD_NUMBER: _ClassVar[int]
         UNCERTAINTY_FIELD_NUMBER: _ClassVar[int]
+        SCHEDULED_TIME_FIELD_NUMBER: _ClassVar[int]
         delay: int
         time: int
         uncertainty: int
-        def __init__(self, delay: _Optional[int] = ..., time: _Optional[int] = ..., uncertainty: _Optional[int] = ...) -> None: ...
+        scheduled_time: int
+        def __init__(self, delay: _Optional[int] = ..., time: _Optional[int] = ..., uncertainty: _Optional[int] = ..., scheduled_time: _Optional[int] = ...) -> None: ...
     class StopTimeUpdate(_message.Message):
         __slots__ = ("stop_sequence", "stop_id", "arrival", "departure", "departure_occupancy_status", "schedule_relationship", "stop_time_properties")
         Extensions: _python_message._ExtensionDict
@@ -84,11 +86,27 @@ class TripUpdate(_message.Message):
         NO_DATA: TripUpdate.StopTimeUpdate.ScheduleRelationship
         UNSCHEDULED: TripUpdate.StopTimeUpdate.ScheduleRelationship
         class StopTimeProperties(_message.Message):
-            __slots__ = ("assigned_stop_id",)
+            __slots__ = ("assigned_stop_id", "stop_headsign", "pickup_type", "drop_off_type")
             Extensions: _python_message._ExtensionDict
+            class DropOffPickupType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+                __slots__ = ()
+                REGULAR: _ClassVar[TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType]
+                NONE: _ClassVar[TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType]
+                PHONE_AGENCY: _ClassVar[TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType]
+                COORDINATE_WITH_DRIVER: _ClassVar[TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType]
+            REGULAR: TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType
+            NONE: TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType
+            PHONE_AGENCY: TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType
+            COORDINATE_WITH_DRIVER: TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType
             ASSIGNED_STOP_ID_FIELD_NUMBER: _ClassVar[int]
+            STOP_HEADSIGN_FIELD_NUMBER: _ClassVar[int]
+            PICKUP_TYPE_FIELD_NUMBER: _ClassVar[int]
+            DROP_OFF_TYPE_FIELD_NUMBER: _ClassVar[int]
             assigned_stop_id: str
-            def __init__(self, assigned_stop_id: _Optional[str] = ...) -> None: ...
+            stop_headsign: str
+            pickup_type: TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType
+            drop_off_type: TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType
+            def __init__(self, assigned_stop_id: _Optional[str] = ..., stop_headsign: _Optional[str] = ..., pickup_type: _Optional[_Union[TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType, str]] = ..., drop_off_type: _Optional[_Union[TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType, str]] = ...) -> None: ...
         STOP_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
         STOP_ID_FIELD_NUMBER: _ClassVar[int]
         ARRIVAL_FIELD_NUMBER: _ClassVar[int]
@@ -105,17 +123,21 @@ class TripUpdate(_message.Message):
         stop_time_properties: TripUpdate.StopTimeUpdate.StopTimeProperties
         def __init__(self, stop_sequence: _Optional[int] = ..., stop_id: _Optional[str] = ..., arrival: _Optional[_Union[TripUpdate.StopTimeEvent, _Mapping]] = ..., departure: _Optional[_Union[TripUpdate.StopTimeEvent, _Mapping]] = ..., departure_occupancy_status: _Optional[_Union[VehiclePosition.OccupancyStatus, str]] = ..., schedule_relationship: _Optional[_Union[TripUpdate.StopTimeUpdate.ScheduleRelationship, str]] = ..., stop_time_properties: _Optional[_Union[TripUpdate.StopTimeUpdate.StopTimeProperties, _Mapping]] = ...) -> None: ...
     class TripProperties(_message.Message):
-        __slots__ = ("trip_id", "start_date", "start_time", "shape_id")
+        __slots__ = ("trip_id", "start_date", "start_time", "shape_id", "trip_headsign", "trip_short_name")
         Extensions: _python_message._ExtensionDict
         TRIP_ID_FIELD_NUMBER: _ClassVar[int]
         START_DATE_FIELD_NUMBER: _ClassVar[int]
         START_TIME_FIELD_NUMBER: _ClassVar[int]
         SHAPE_ID_FIELD_NUMBER: _ClassVar[int]
+        TRIP_HEADSIGN_FIELD_NUMBER: _ClassVar[int]
+        TRIP_SHORT_NAME_FIELD_NUMBER: _ClassVar[int]
         trip_id: str
         start_date: str
         start_time: str
         shape_id: str
-        def __init__(self, trip_id: _Optional[str] = ..., start_date: _Optional[str] = ..., start_time: _Optional[str] = ..., shape_id: _Optional[str] = ...) -> None: ...
+        trip_headsign: str
+        trip_short_name: str
+        def __init__(self, trip_id: _Optional[str] = ..., start_date: _Optional[str] = ..., start_time: _Optional[str] = ..., shape_id: _Optional[str] = ..., trip_headsign: _Optional[str] = ..., trip_short_name: _Optional[str] = ...) -> None: ...
     TRIP_FIELD_NUMBER: _ClassVar[int]
     VEHICLE_FIELD_NUMBER: _ClassVar[int]
     STOP_TIME_UPDATE_FIELD_NUMBER: _ClassVar[int]
@@ -340,6 +362,7 @@ class TripDescriptor(_message.Message):
         REPLACEMENT: _ClassVar[TripDescriptor.ScheduleRelationship]
         DUPLICATED: _ClassVar[TripDescriptor.ScheduleRelationship]
         DELETED: _ClassVar[TripDescriptor.ScheduleRelationship]
+        NEW: _ClassVar[TripDescriptor.ScheduleRelationship]
     SCHEDULED: TripDescriptor.ScheduleRelationship
     ADDED: TripDescriptor.ScheduleRelationship
     UNSCHEDULED: TripDescriptor.ScheduleRelationship
@@ -347,6 +370,7 @@ class TripDescriptor(_message.Message):
     REPLACEMENT: TripDescriptor.ScheduleRelationship
     DUPLICATED: TripDescriptor.ScheduleRelationship
     DELETED: TripDescriptor.ScheduleRelationship
+    NEW: TripDescriptor.ScheduleRelationship
     class ModifiedTripSelector(_message.Message):
         __slots__ = ("modifications_id", "affected_trip_id", "start_time", "start_date")
         Extensions: _python_message._ExtensionDict
