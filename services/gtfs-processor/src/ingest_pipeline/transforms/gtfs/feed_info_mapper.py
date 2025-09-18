@@ -3,7 +3,6 @@ from ingest_pipeline.core.errors import ErrorPolicy
 from models.mongo_schemas import FeedInfo
 from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
-from beanie.odm.operators.update.general import Set
 
 
 class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
@@ -18,9 +17,9 @@ class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
         self.feed_hash = feed_hash
 
     async def run(
-        self, context: Context, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             try:
                 feed_info_doc = FeedInfo(
                     agency_id=self.agency_id,
