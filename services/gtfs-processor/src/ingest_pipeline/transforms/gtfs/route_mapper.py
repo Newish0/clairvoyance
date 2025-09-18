@@ -4,7 +4,6 @@ from models.enums import RouteType
 from models.mongo_schemas import Route
 from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
-from beanie.odm.operators.update.general import Set
 
 
 class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
@@ -25,15 +24,16 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
         "7": RouteType.FUNICULAR,
         "11": RouteType.TROLLEYBUS,
         "12": RouteType.MONORAIL,
+        None: None,
     }
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
     async def run(
-        self, context: Context, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             try:
                 route_doc = Route(
                     agency_id=self.agency_id,
@@ -57,7 +57,7 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"route_mapper.skipped")
+                        context.telemetry.incr("route_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

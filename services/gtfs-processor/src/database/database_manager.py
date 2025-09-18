@@ -1,6 +1,6 @@
 import logging
-from typing import Any, List, Type
-from motor.motor_asyncio import AsyncIOMotorClient
+from typing import List
+from pymongo import AsyncMongoClient, MongoClient
 from beanie import init_beanie, Document
 from models.mongo_schemas import (
     Agency,
@@ -42,15 +42,15 @@ class DatabaseManager:
         self.database_name = database_name
         self.document_models = document_models
         self.logger = logger
-        self.client: AsyncIOMotorClient | None = None
+        self.client: AsyncMongoClient | None = None
 
     async def connect(self) -> None:
-        if self.client:
+        if self.client is not None:
             self.logger.debug("Database already connected.")
             return
 
         self.logger.info("Connecting to MongoDB...")
-        self.client = AsyncIOMotorClient(self.connection_string)
+        self.client = AsyncMongoClient(self.connection_string)
         # Initialize beanie using the motor database object, so beanie models work.
         await init_beanie(
             database=self.client[self.database_name],
@@ -59,9 +59,9 @@ class DatabaseManager:
         self.logger.info("Connected & init_beanie completed.")
 
     async def close(self) -> None:
-        if self.client:
+        if self.client is not None:
             # motor client close is synchronous
-            self.client.close()
+            await self.client.close()
             self.client = None
             self.logger.info("MongoDB client closed.")
 
@@ -75,6 +75,14 @@ class DatabaseManager:
                 await self.client[self.database_name][coll_name].drop()
                 self.logger.debug("Dropped collection: %s", coll_name)
             self.logger.info("All specified collections dropped.")
+
+            # Recreate collections and indexes
+            self.logger.info("Recreating collections and indexes for document models...")
+            await init_beanie(
+                database=self.client[self.database_name],
+                document_models=self.document_models,
+            )
+            self.logger.info("Collections and indexes recreated.")
         except Exception:
             self.logger.exception("Failed when dropping collections.")
             raise

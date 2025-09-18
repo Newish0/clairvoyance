@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict
 from ingest_pipeline.core.errors import ErrorPolicy
 from models.enums import Direction
 from models.mongo_schemas import Trip
@@ -16,15 +16,16 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
     __DIRECTION_ID_MAPPING = {
         "0": Direction.OUTBOUND,
         "1": Direction.INBOUND,
+        None: None,
     }
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
     async def run(
-        self, context: Context, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             try:
                 trip_doc = Trip(
                     agency_id=self.agency_id,
@@ -53,7 +54,7 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"trip_mapper.skipped")
+                        context.telemetry.incr("trip_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

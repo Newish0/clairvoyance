@@ -44,7 +44,7 @@ class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"feed_info_mapper.skipped")
+                        context.telemetry.incr("feed_info_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

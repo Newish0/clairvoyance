@@ -14,15 +14,21 @@ _TRIP_DESCRIPTOR_SCHEDULE_RELATIONSHIP_MAP = {
     pb.TripDescriptor.ScheduleRelationship.DUPLICATED: ms.TripDescriptorScheduleRelationship.DUPLICATED,
     pb.TripDescriptor.ScheduleRelationship.DELETED: ms.TripDescriptorScheduleRelationship.DELETED,
     pb.TripDescriptor.ScheduleRelationship.NEW: ms.TripDescriptorScheduleRelationship.NEW,
+    None: None,
 }
 
-_DIRECTION_ID_MAP = {0: ms.Direction.OUTBOUND, 1: ms.Direction.INBOUND}
+_DIRECTION_ID_MAP = {
+    0: ms.Direction.OUTBOUND,
+    1: ms.Direction.INBOUND,
+    None: None,
+}
 
 _STOP_TIME_SCHEDULE_RELATIONSHIP_MAP = {
     pb.TripUpdate.StopTimeUpdate.ScheduleRelationship.SCHEDULED: ms.StopTimeUpdateScheduleRelationship.SCHEDULED,
     pb.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED: ms.StopTimeUpdateScheduleRelationship.SKIPPED,
     pb.TripUpdate.StopTimeUpdate.ScheduleRelationship.NO_DATA: ms.StopTimeUpdateScheduleRelationship.NO_DATA,
     pb.TripUpdate.StopTimeUpdate.ScheduleRelationship.UNSCHEDULED: ms.StopTimeUpdateScheduleRelationship.UNSCHEDULED,
+    None: None,
 }
 
 _OCCUPANCY_STATUS_MAP = {
@@ -35,6 +41,7 @@ _OCCUPANCY_STATUS_MAP = {
     pb.VehiclePosition.OccupancyStatus.NOT_ACCEPTING_PASSENGERS: ms.OccupancyStatus.NOT_ACCEPTING_PASSENGERS,
     pb.VehiclePosition.OccupancyStatus.NO_DATA_AVAILABLE: ms.OccupancyStatus.NO_DATA_AVAILABLE,
     pb.VehiclePosition.OccupancyStatus.NOT_BOARDABLE: ms.OccupancyStatus.NOT_BOARDABLE,
+    None: None,
 }
 
 
@@ -73,7 +80,7 @@ def trip_to_model(trip: pb.TripDescriptor) -> ms.TripDescriptor:
     )
     route_id: str | None = getattr(trip, "route_id", None)
     direction_id: int | None = getattr(trip, "direction_id", None)
-    
+
     return ms.TripDescriptor(
         trip_id=trip_id,
         start_time=start_time,

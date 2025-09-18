@@ -48,8 +48,11 @@ class TripInstanceSource(
         self._route_cache[route_id] = route
         return route
 
-    async def _get_shape_cached(self, shape_id: str) -> Optional[Shape]:
+    async def _get_shape_cached(self, shape_id: str | None) -> Optional[Shape]:
         """Get shape with LRU caching."""
+        if not shape_id:
+            return None
+
         if shape_id in self._shape_cache:
             return self._shape_cache[shape_id]
 
@@ -93,7 +96,6 @@ class TripInstanceSource(
                 CalendarDate.agency_id == self.agency_id,
                 CalendarDate.service_id == trip.service_id,
             ):
-
                 # TODO: if calendar_date.exception_type is ADDED we create trip instances upsert
                 #       if calendar_date.exception_type is REMOVED we upsert a state of REMOVED
 

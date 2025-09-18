@@ -33,7 +33,7 @@ class GTFSRealtimeProtobufDecoder(Transformer[bytes, ParsedEntity]):
             except Exception as e:
                 match context.error_policy:
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"gtfs_realtime_protobuf_mapper.skipped")
+                        context.telemetry.incr("gtfs_realtime_protobuf_mapper.skipped")
                         context.logger.error(
                             f"Failed to validate header {e}", exc_info=e
                         )
