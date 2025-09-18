@@ -1,8 +1,7 @@
 import asyncio
 import logging
 
-from beanie import init_beanie
-
+from database.database_manager import DatabaseManager
 from ingest_pipeline.pipelines.gtfs.agency_pipeline import build_agency_pipeline
 from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
     build_calendar_dates_pipeline,
@@ -17,33 +16,7 @@ from ingest_pipeline.pipelines.gtfs.trip_instances_pipeline import (
 )
 from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
-from models.mongo_schemas import (
-    Agency,
-    CalendarDate,
-    FeedInfo,
-    Route,
-    Shape,
-    Stop,
-    StopTime,
-    Trip,
-    TripInstance,
-)
-from motor.motor_asyncio import AsyncIOMotorClient
-
 from utils.logger_config import setup_logger
-
-
-DOCUMENT_MODELS = [
-    Agency,
-    StopTime,
-    CalendarDate,
-    Route,
-    Stop,
-    Trip,
-    Shape,
-    TripInstance,
-    FeedInfo,
-]
 
 
 async def run_gtfs_static_pipelines(
@@ -55,44 +28,52 @@ async def run_gtfs_static_pipelines(
     logger: logging.Logger = setup_logger("ingest_pipeline.static", logging.INFO),
 ):
 
-    client = AsyncIOMotorClient(connection_string)
+    db_manager = DatabaseManager(
+        connection_string=connection_string,
+        database_name=database_name,
+        logger=logger,
+    )
+
+    await db_manager.connect()
 
     if drop_collections:
-        try:
-            logger.info("Dropping existing collections...")
-            for collection in DOCUMENT_MODELS:
-                await client[database_name][collection.Settings.name].drop()
-            logger.info("Existing collections dropped.")
-        except Exception as e:
-            logger.error(f"Failed to drop existing collections: {e}", exc_info=True)
-            return
-
-    await init_beanie(
-        database=client.gtfs_data,
-        document_models=DOCUMENT_MODELS,
-    )
+        await db_manager.drop_collections()
 
     async with GTFSArchiveSource(gtfs_url).materialize() as source_info:
         tmpdir = source_info.path
 
-        agency_pipeline = build_agency_pipeline(
-            tmpdir / "agency.txt", agency_id, Agency
-        )
+        agency_pipeline = build_agency_pipeline(tmpdir / "agency.txt", agency_id)
         feed_info_pipeline = build_feed_info_pipeline(
-            tmpdir / "feed_info.txt", agency_id, source_info.hash, FeedInfo
+            tmpdir / "feed_info.txt", agency_id, source_info.hash
         )
         calendar_dates_pipeline = build_calendar_dates_pipeline(
-            tmpdir / "calendar_dates.txt", agency_id, CalendarDate
+            tmpdir / "calendar_dates.txt",
+            agency_id,
         )
-        routes_pipeline = build_routes_pipeline(tmpdir / "routes.txt", agency_id, Route)
-        stops_pipeline = build_stops_pipeline(tmpdir / "stops.txt", agency_id, Stop)
-        trips_pipeline = build_trips_pipeline(tmpdir / "trips.txt", agency_id, Trip)
+        routes_pipeline = build_routes_pipeline(
+            tmpdir / "routes.txt",
+            agency_id,
+        )
+        stops_pipeline = build_stops_pipeline(
+            tmpdir / "stops.txt",
+            agency_id,
+        )
+        trips_pipeline = build_trips_pipeline(
+            tmpdir / "trips.txt",
+            agency_id,
+        )
         stop_times_pipeline = build_stop_times_pipeline(
-            tmpdir / "stop_times.txt", agency_id, StopTime
+            tmpdir / "stop_times.txt",
+            agency_id,
         )
-        shapes_pipeline = build_shapes_pipeline(tmpdir / "shapes.txt", agency_id, Shape)
+        shapes_pipeline = build_shapes_pipeline(
+            tmpdir / "shapes.txt",
+            agency_id,
+        )
 
-        trip_instances_pipeline = build_trip_instances_pipeline(agency_id, TripInstance)
+        trip_instances_pipeline = build_trip_instances_pipeline(
+            agency_id,
+        )
 
         await asyncio.gather(
             agency_pipeline.run(),

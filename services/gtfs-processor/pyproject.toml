@@ -16,3 +16,13 @@ dependencies = [
     "requests>=2.32.3",
     "types-pytz>=2025.2.0.20250516",
 ]
+
+[tool]
+
+[tool.pyrefly]
+project-includes = ["**/*"]
+project-excludes = [
+    "**/node_modules",
+    "**/__pycache__",
+    '**/*venv/**\*',
+]

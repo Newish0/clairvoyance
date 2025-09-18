@@ -4,6 +4,7 @@ import json
 import sys
 from typing import List, Dict, Any, Union
 
+from ingest_pipeline.realtime import run_gtfs_realtime_pipelines
 from ingest_pipeline.static import run_gtfs_static_pipelines
 
 # --- Helper Functions for Data Loading ---
@@ -163,7 +164,6 @@ def process_realtime_data(
     print(f"  Connection String: {connection_string}")
     print(f"  Database Name: {database_name}")
     print(f"  Drop Collections: {drop_collections}")
-    print(f"  Agency ID: {agency_id}")
 
     if gtfs_config_path:
         print(f"  GTFS Config (Realtime): {gtfs_config_path}")
@@ -177,8 +177,15 @@ def process_realtime_data(
             sys.exit(1)
     elif gtfs_urls:
         print(f"  GTFS URLs (Realtime): {gtfs_urls}")
-        # TODO: Add your realtime data processing logic using gtfs_urls
-        exit("No implementation for realtime GTFS URLs yet.")
+        asyncio.run(
+            run_gtfs_realtime_pipelines(
+                connection_string=connection_string,
+                database_name=database_name,
+                drop_collections=drop_collections,
+                agency_id=agency_id,
+                gtfs_urls=gtfs_urls,
+            )
+        )
 
     # Placeholder for actual realtime data processing
     print("  Realtime data processed successfully (placeholder).")
@@ -202,8 +209,8 @@ def execute_command(args: argparse.Namespace) -> None:
             connection_string=args.connection_string,
             database_name=args.database_name,
             drop_collections=args.drop_collections,
-            agency_id=args.agency_id,
             gtfs_config_path=args.gtfs_config,
+            agency_id=args.agency_id,
             gtfs_urls=args.gtfs_urls,
         )
     else:
