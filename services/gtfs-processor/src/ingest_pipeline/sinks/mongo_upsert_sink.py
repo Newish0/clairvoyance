@@ -1,12 +1,11 @@
 import asyncio
-from types import CoroutineType
-from typing import AsyncIterator, Any, List
+from typing import AsyncIterator, List
 
-from pymongo.collection import Collection
+from beanie import Document
 from pymongo import UpdateOne
+from pymongo.results import BulkWriteResult
 
 from ingest_pipeline.core.types import Context, Sink
-from beanie import Document
 
 
 class MongoUpsertSink(Sink[UpdateOne]):
@@ -17,13 +16,13 @@ class MongoUpsertSink(Sink[UpdateOne]):
 
     def __init__(self, document: Document, batch_size: int = 1000):
         self.batch_size = batch_size
-        self.collection = document.get_motor_collection()
+        self.collection = document.get_pymongo_collection()
 
-    async def consume(self, context: Context, items: AsyncIterator[UpdateOne]) -> None:
+    async def consume(self, context: Context, inputs: AsyncIterator[UpdateOne]) -> None:
         buffer: List[UpdateOne] = []
         buffer_lock = asyncio.Lock()
 
-        async for op in items:
+        async for op in inputs:
             buffer.append(op)
             if len(buffer) >= self.batch_size:
                 async with buffer_lock:
@@ -37,5 +36,4 @@ class MongoUpsertSink(Sink[UpdateOne]):
     async def _flush(self, ops: List[UpdateOne]) -> None:
         if not ops:
             return
-        # Offload blocking I/O to a thread pool
-        await asyncio.to_thread(self.collection.bulk_write, ops, ordered=False)
+        await self.collection.bulk_write(ops, ordered=False)

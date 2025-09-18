@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Iterable, List
+from typing import Iterable
 
 from database.database_manager import DatabaseManager
 from ingest_pipeline.pipelines.gtfs.trip_updates_pipeline import (

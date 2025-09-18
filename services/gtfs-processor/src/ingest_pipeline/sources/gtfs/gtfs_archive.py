@@ -1,7 +1,11 @@
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import hashlib
-import tempfile, shutil, aiohttp, zipfile, pathlib
+import tempfile
+import shutil
+import aiohttp
+import zipfile
+import pathlib
 from typing import AsyncIterator
 
 
@@ -12,6 +16,8 @@ class SourceInfo:
 
 
 class GTFSArchiveSource:
+    tmpdir: pathlib.Path | None
+
     def __init__(self, url: str):
         self.url = url
         self.tmpdir = None

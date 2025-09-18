@@ -11,7 +11,8 @@ from ingest_pipeline.static import run_gtfs_static_pipelines
 
 
 def load_json_config(file_path: str) -> Dict[str, Any]:
-    pass
+    # TODO: Implement actual JSON config loading logic
+    return {}
 
 
 # --- Argument Parsing Logic ---

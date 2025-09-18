@@ -32,7 +32,6 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
     async def run(
         self, context: Context, inputs: AsyncIterator[ParsedEntity]
     ) -> AsyncIterator[UpdateOne]:
-
         async for parsed_entity in inputs:
             entity = parsed_entity.entity
             timestamp = parsed_entity.timestamp
@@ -44,7 +43,7 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             tu = entity.trip_update
 
             # TODO: Validating trip descriptor and trip_to_model SHOULD be done in
-            # a generalized reusable mapping (transformer) stage. 
+            # a generalized reusable mapping (transformer) stage.
             if not (
                 tu.HasField("trip")
                 and tu.trip.HasField("trip_id")

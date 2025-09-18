@@ -1,9 +1,8 @@
-from typing import Any, AsyncIterator, Dict
+from typing import AsyncIterator, Dict
 from ingest_pipeline.core.errors import ErrorPolicy
 from models.mongo_schemas import Agency
 from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
-from beanie.odm.operators.update.general import Set
 
 
 class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
@@ -17,9 +16,9 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
         self.agency_id = agency_id
 
     async def run(
-        self, context: Context, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             try:
                 agency_doc = Agency(
                     agency_id=self.agency_id,
@@ -48,7 +47,7 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"agency_mapper.skipped")
+                        context.telemetry.incr("agency_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

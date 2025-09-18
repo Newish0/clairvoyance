@@ -4,7 +4,6 @@ from models.enums import PickupDropOff, Timepoint
 from models.mongo_schemas import StopTime
 from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
-from beanie.odm.operators.update.general import Set
 
 
 class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
@@ -19,20 +18,18 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
         "1": PickupDropOff.NO_PICKUP_OR_DROP_OFF,
         "2": PickupDropOff.PHONE_AGENCY,
         "3": PickupDropOff.COORDINATE_WITH_DRIVER,
+        None: None,
     }
 
-    __TIMEPOINT_MAPPING = {
-        "0": Timepoint.APPROXIMATE,
-        "1": Timepoint.EXACT,
-    }
+    __TIMEPOINT_MAPPING = {"0": Timepoint.APPROXIMATE, "1": Timepoint.EXACT, None: None}
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
     async def run(
-        self, context: Context, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             try:
                 stop_sequence_raw = row.get("stop_sequence")
                 stop_sequence = (
@@ -82,7 +79,7 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"stop_time_mapper.skipped")
+                        context.telemetry.incr("stop_time_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

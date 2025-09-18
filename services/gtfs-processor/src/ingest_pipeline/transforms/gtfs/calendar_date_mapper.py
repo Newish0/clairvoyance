@@ -4,7 +4,6 @@ from models.enums import CalendarExceptionType
 from models.mongo_schemas import CalendarDate
 from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
-from beanie.odm.operators.update.general import Set
 
 
 class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
@@ -17,23 +16,26 @@ class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
     __EXCEPTION_MAPPING = {
         "1": CalendarExceptionType.ADDED,
         "2": CalendarExceptionType.REMOVED,
+        None: None,
     }
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
     async def run(
-        self, context: Context, items: AsyncIterator[Dict[str, str]]
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             try:
                 calendar_date_doc = CalendarDate(
                     agency_id=self.agency_id,
                     service_id=row.get("service_id"),
                     date=row.get("date"),
-                    exception_type=self.__EXCEPTION_MAPPING.get(row.get("exception_type")),
+                    exception_type=self.__EXCEPTION_MAPPING.get(
+                        row.get("exception_type"),
+                    ),
                 )
-                
+
                 await calendar_date_doc.validate_self()
 
                 yield UpdateOne(
@@ -50,7 +52,7 @@ class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"calendar_date_mapper.skipped")
+                        context.telemetry.incr("calendar_date_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

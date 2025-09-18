@@ -1,7 +1,11 @@
-from typing import AsyncIterator, Dict, Any, List, Tuple
+from typing import AsyncIterator, List, Tuple
+
+from bson import ObjectId
+from pymongo import UpdateOne
+
 from ingest_pipeline.core.errors import ErrorPolicy
+from ingest_pipeline.core.types import Context, Transformer
 from models.enums import (
-    Direction,
     StopTimeUpdateScheduleRelationship,
     TripInstanceState,
 )
@@ -10,15 +14,12 @@ from models.mongo_schemas import (
     CalendarDate,
     Route,
     Shape,
+    StopTime,
     StopTimeInstance,
     Trip,
-    StopTime,
     TripInstance,
 )
-from pymongo import UpdateOne
-from ingest_pipeline.core.types import Context, Transformer
 from utils.datetime import convert_to_datetime
-from bson import ObjectId
 
 
 class TripInstanceMapper(
@@ -38,11 +39,11 @@ class TripInstanceMapper(
     async def run(
         self,
         context: Context,
-        items: AsyncIterator[
+        inputs: AsyncIterator[
             Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
         ],
     ) -> AsyncIterator[UpdateOne]:
-        async for row in items:
+        async for row in inputs:
             agency, calendar_date, trip, stop_times, route, shape = row
             try:
                 stop_time_infos = [
@@ -118,7 +119,7 @@ class TripInstanceMapper(
                     case ErrorPolicy.FAIL_FAST:
                         raise e
                     case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr(f"trip_instance_mapper.skipped")
+                        context.telemetry.incr("trip_instance_mapper.skipped")
                         context.logger.error(e)
                         continue
                     case _:

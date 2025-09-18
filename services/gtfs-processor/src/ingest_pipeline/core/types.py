@@ -3,8 +3,6 @@ from typing import (
     Any,
     AsyncIterator,
     Generic,
-    List,
-    Optional,
     Protocol,
     Type,
     TypeVar,
@@ -43,6 +41,7 @@ class Source(Protocol[T]):
 
     async def stream(self, context: Context) -> AsyncIterator[T]:
         """Yield items and then return."""
+        yield  # type: ignore
 
 
 class Transformer(Protocol, Generic[T, U]):
@@ -53,6 +52,7 @@ class Transformer(Protocol, Generic[T, U]):
 
     async def run(self, context: Context, inputs: AsyncIterator[T]) -> AsyncIterator[U]:
         """Consume async iterator of T, produce async iterator of U."""
+        yield  # type: ignore
 
 
 class Sink(Protocol[T]):
@@ -62,6 +62,7 @@ class Sink(Protocol[T]):
 
     async def consume(self, context: Context, inputs: AsyncIterator[T]) -> None:
         """Consume an async iterator until exhaustion."""
+        ...
 
 
 @dataclass
