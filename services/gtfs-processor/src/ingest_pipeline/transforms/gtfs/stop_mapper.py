@@ -13,6 +13,9 @@ class StopMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: Mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     __LOCATION_TYPE_MAPPING = {
         "0": LocationType.STOP_OR_PLATFORM,
         "1": LocationType.STATION,
@@ -49,9 +52,11 @@ class StopMapper(Transformer[Dict[str, str], UpdateOne]):
                     else None
                 )
 
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 stop_doc = Stop(
                     agency_id=self.agency_id,
-                    stop_id=row.get("stop_id"),
+                    stop_id=row.get("stop_id"),  # type: ignore
                     stop_code=row.get("stop_code"),
                     stop_name=row.get("stop_name"),
                     stop_desc=row.get("stop_desc"),

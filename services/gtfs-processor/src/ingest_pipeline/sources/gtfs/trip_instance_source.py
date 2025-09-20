@@ -23,6 +23,10 @@ class TripInstanceSource(
     in the database.
     """
 
+    output_type: type[
+        Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
+    ] = Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
+
     def __init__(
         self,
         agency_id: str,

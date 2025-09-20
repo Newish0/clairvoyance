@@ -1,5 +1,6 @@
 import asyncio
-from typing import Any, AsyncIterator, Dict, List, Optional, Type
+from typing import Any, AsyncIterator, Dict, Optional
+
 from ingest_pipeline.core.errors import ErrorPolicy
 from ingest_pipeline.core.telemetry import SimpleTelemetry
 from ingest_pipeline.core.types import (
@@ -11,7 +12,6 @@ from ingest_pipeline.core.types import (
     Transformer,
 )
 from utils.logger_config import setup_logger
-
 
 """A sequence number for auto generated orchestrator names."""
 orchestrator_seq = 0
@@ -44,28 +44,24 @@ class Orchestrator:
         # Validate types at construction time
         self._validate_stage_io()
 
-    def _get_output_type(self, idx: int) -> Type[Any]:
+    def _get_output_type(self, idx: int) -> type[Any]:
         s = self.stages[idx].stage
         if hasattr(s, "output_type"):
             return getattr(s, "output_type")
-        return Any
+        return type[Any]
 
-    def _get_input_type(self, idx: int) -> Type[Any]:
+    def _get_input_type(self, idx: int) -> type[Any]:
         s = self.stages[idx].stage
         if hasattr(s, "input_type"):
             return getattr(s, "input_type")
-        return Any
+        return type[Any]
 
-    def _is_compatible(self, output_t: Type[Any], input_t: Type[Any]) -> bool:
-        # Conservative runtime compatibility check:
-        # - If either side is Any -> accept
-        # - Else try issubclass(output_t, input_t)
+    def _is_compatible(self, output_t: type[Any], input_t: type[Any]) -> bool:
         if output_t is Any or input_t is Any:
             return True
         try:
-            return issubclass(output_t, input_t)
+            return output_t == input_t or issubclass(output_t, input_t)
         except Exception:
-            # If either is not a class (typing constructs), we can't be certain -> allow but log
             return False
 
     def _validate_stage_io(self) -> None:
@@ -77,7 +73,7 @@ class Orchestrator:
             if not ok:
                 msg = (
                     f"Type mismatch between stage {i} ({self.stages[i].name}) "
-                    f"output_type={out_t} and stage {i+1} ({self.stages[i+1].name}) "
+                    f"output_type={out_t} and stage {i + 1} ({self.stages[i + 1].name}) "
                     f"input_type={in_t}. Set concrete .input_type/.output_type or use Any."
                 )
                 self._logger.error(msg)
@@ -115,6 +111,9 @@ class Orchestrator:
 
         # worker factories
         async def _source_worker(spec: StageSpec, out_q: asyncio.Queue) -> None:
+            if not isinstance(spec.stage, Source):
+                raise TypeError(f"Stage {spec.name} is not a Source")
+
             src: Source = spec.stage
             try:
                 async for item in src.stream(context):
@@ -134,6 +133,9 @@ class Orchestrator:
         async def _transform_worker(
             spec: StageSpec, in_q: asyncio.Queue, out_q: asyncio.Queue
         ) -> None:
+            if not isinstance(spec.stage, Transformer):
+                raise TypeError(f"Stage {spec.name} is not a Transformer")
+
             transformer: Transformer = spec.stage
             # Each worker gets its own queue reader that competes for items.
             try:
@@ -150,6 +152,9 @@ class Orchestrator:
                     fatal_event.set()
 
         async def _sink_worker(spec: StageSpec, in_q: asyncio.Queue) -> None:
+            if not isinstance(spec.stage, Sink):
+                raise TypeError(f"Stage {spec.name} is not a Sink")
+
             sink: Sink = spec.stage
             try:
                 await sink.consume(context, _queue_reader(in_q))

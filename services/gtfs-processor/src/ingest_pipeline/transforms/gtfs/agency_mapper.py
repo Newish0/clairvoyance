@@ -12,6 +12,9 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
@@ -20,12 +23,14 @@ class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
     ) -> AsyncIterator[UpdateOne]:
         async for row in inputs:
             try:
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 agency_doc = Agency(
                     agency_id=self.agency_id,
-                    source_agency_id=row.get("agency_id"),
-                    agency_name=row.get("agency_name"),
-                    agency_url=row.get("agency_url"),
-                    agency_timezone=row.get("agency_timezone"),
+                    source_agency_id=row.get("agency_id"),  # type: ignore
+                    agency_name=row.get("agency_name"),  # type: ignore
+                    agency_url=row.get("agency_url"),  # type: ignore
+                    agency_timezone=row.get("agency_timezone"),  # type: ignore
                     agency_lang=row.get("agency_lang"),
                     agency_phone=row.get("agency_phone"),
                     agency_fare_url=row.get("agency_fare_url"),

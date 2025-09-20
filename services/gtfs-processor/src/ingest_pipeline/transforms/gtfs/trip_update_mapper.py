@@ -1,25 +1,23 @@
-from dataclasses import dataclass
-from typing import AsyncIterator, Type
+from typing import AsyncIterator
 
 from pymongo import UpdateOne
-from ingest_pipeline.core.errors import ErrorPolicy
+
+from ingest_pipeline.core.types import Context, Transformer
 from ingest_pipeline.transforms.gtfs.gtfs_realtime_protobuf_mapper import ParsedEntity
 from ingest_pipeline.transforms.gtfs.proto_to_model import (
     intermediate_stop_time_update_to_model,
     stop_time_update_to_intermediate_model,
     trip_to_model,
 )
-from lib import gtfs_realtime_pb2 as pb
-from ingest_pipeline.core.types import Context, Transformer
-from models.enums import TripDescriptorScheduleRelationship, TripInstanceState
+from models.enums import TripDescriptorScheduleRelationship
 from models.mongo_schemas import Agency, TripInstance
 
 
 class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
     """ """
 
-    input_type: Type[ParsedEntity] = ParsedEntity
-    output_type: Type[UpdateOne] = UpdateOne
+    input_type: type[ParsedEntity] = ParsedEntity
+    output_type: type[UpdateOne] = UpdateOne
 
     def __init__(self):
         pass

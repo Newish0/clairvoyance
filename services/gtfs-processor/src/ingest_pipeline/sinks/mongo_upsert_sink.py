@@ -3,7 +3,6 @@ from typing import AsyncIterator, List
 
 from beanie import Document
 from pymongo import UpdateOne
-from pymongo.results import BulkWriteResult
 
 from ingest_pipeline.core.types import Context, Sink
 
@@ -14,7 +13,9 @@ class MongoUpsertSink(Sink[UpdateOne]):
     Input: Motor's update one operation UpdateOne
     """
 
-    def __init__(self, document: Document, batch_size: int = 1000):
+    input_type: type[UpdateOne] = UpdateOne
+
+    def __init__(self, document: type[Document], batch_size: int = 1000):
         self.batch_size = batch_size
         self.collection = document.get_pymongo_collection()
 

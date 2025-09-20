@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import AsyncIterator, Type
+from typing import AsyncIterator
 from ingest_pipeline.core.errors import ErrorPolicy
 from lib import gtfs_realtime_pb2 as pb
 from ingest_pipeline.core.types import Context, Transformer
@@ -14,8 +14,8 @@ class ParsedEntity:
 class GTFSRealtimeProtobufDecoder(Transformer[bytes, ParsedEntity]):
     """ """
 
-    input_type: Type[bytes] = bytes
-    output_type: Type[ParsedEntity] = ParsedEntity
+    input_type: type[bytes] = bytes
+    output_type: type[ParsedEntity] = ParsedEntity
 
     __ACCEPTED_VERSIONS = ["1.0", "2.0"]
 

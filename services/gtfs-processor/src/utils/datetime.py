@@ -55,7 +55,7 @@ def convert_to_datetime(
     time_str: str,
     tz_str: str = "UTC",
     logger: Optional[logging.Logger] = None,
-) -> datetime:
+) -> datetime | None:
     """
     GTFS "Time" is defined as follows:
     Time in the HH:MM:SS format (H:MM:SS is also accepted).

@@ -12,6 +12,9 @@ class FeedInfoMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: Mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     def __init__(self, agency_id: str, feed_hash: str):
         self.agency_id = agency_id
         self.feed_hash = feed_hash

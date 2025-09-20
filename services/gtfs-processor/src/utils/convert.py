@@ -1,6 +1,3 @@
-from typing import TypeVar
-
-
 def safe_float(value):
     """Safely convert value to float, returning None if conversion fails."""
     if value is None or value == "":

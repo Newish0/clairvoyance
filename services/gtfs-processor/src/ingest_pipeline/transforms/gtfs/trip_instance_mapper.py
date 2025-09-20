@@ -33,6 +33,11 @@ class TripInstanceMapper(
     Output: pymongo UpdateOne
     """
 
+    input_type: type[
+        Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
+    ] = Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
+    output_type: type[UpdateOne] = UpdateOne
+
     def __init__(self):
         pass
 
@@ -46,9 +51,11 @@ class TripInstanceMapper(
         async for row in inputs:
             agency, calendar_date, trip, stop_times, route, shape = row
             try:
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the parent model (which includes this model) immediately after.
                 stop_time_infos = [
                     StopTimeInstance(
-                        stop_id=stop_time.stop_id,
+                        stop_id=stop_time.stop_id,  # type: ignore
                         stop_headsign=stop_time.stop_headsign,
                         pickup_type=stop_time.pickup_type,
                         drop_off_type=stop_time.drop_off_type,
@@ -59,13 +66,13 @@ class TripInstanceMapper(
                             stop_time.arrival_time,
                             agency.agency_timezone,
                             context.logger,
-                        ),
+                        ),  # type: ignore
                         departure_datetime=convert_to_datetime(
                             calendar_date.date,
                             stop_time.departure_time,
                             agency.agency_timezone,
                             context.logger,
-                        ),
+                        ),  # type: ignore
                         schedule_relationship=StopTimeUpdateScheduleRelationship.SCHEDULED,
                     )
                     for stop_time in stop_times
@@ -82,11 +89,12 @@ class TripInstanceMapper(
                         stop_times[0].arrival_time,
                         agency.agency_timezone,
                         context.logger,
-                    ),
+                    ),  # type: ignore
                     stop_times=stop_time_infos,
-                    trip=ObjectId(trip.id.binary),
-                    route=ObjectId(route.id.binary),
-                    shape=ObjectId(shape.id.binary),
+                    # Static type checkers being stupid...
+                    trip=trip,  # type: ignore
+                    route=route,  # type: ignore
+                    shape=shape,  # type: ignore
                 )
 
                 await trip_instance_doc.validate_self()
@@ -105,10 +113,10 @@ class TripInstanceMapper(
                     {
                         "$set": {
                             **trip_instance_doc.model_dump(exclude={"id"}),
-                            # Do explicit linking
-                            "trip": ObjectId(trip.id.binary),
-                            "route": ObjectId(route.id.binary),
-                            "shape": ObjectId(shape.id.binary),
+                            # Do explicit linking... and static type checkers being stupid...
+                            "trip": ObjectId(trip.id.binary),  # type: ignore
+                            "route": ObjectId(route.id.binary),  # type: ignore
+                            "shape": ObjectId(shape.id.binary),  # type: ignore
                         }
                     },
                     upsert=True,

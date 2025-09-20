@@ -13,6 +13,9 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: pymongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     __DIRECTION_ID_MAPPING = {
         "0": Direction.OUTBOUND,
         "1": Direction.INBOUND,
@@ -27,11 +30,13 @@ class TripMapper(Transformer[Dict[str, str], UpdateOne]):
     ) -> AsyncIterator[UpdateOne]:
         async for row in inputs:
             try:
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 trip_doc = Trip(
                     agency_id=self.agency_id,
-                    trip_id=row.get("trip_id"),
-                    route_id=row.get("route_id"),
-                    service_id=row.get("service_id"),
+                    trip_id=row.get("trip_id"),  # type: ignore
+                    route_id=row.get("route_id"),  # type: ignore
+                    service_id=row.get("service_id"),  # type: ignore
                     trip_headsign=row.get("trip_headsign"),
                     trip_short_name=row.get("trip_short_name"),
                     direction_id=self.__DIRECTION_ID_MAPPING.get(

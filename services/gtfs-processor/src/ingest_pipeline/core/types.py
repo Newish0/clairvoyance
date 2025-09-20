@@ -1,10 +1,10 @@
+from typing import runtime_checkable
 from dataclasses import dataclass
 from typing import (
     Any,
     AsyncIterator,
     Generic,
     Protocol,
-    Type,
     TypeVar,
     Union,
 )
@@ -34,31 +34,34 @@ class Context:
     error_policy: ErrorPolicy
 
 
+@runtime_checkable
 class Source(Protocol[T]):
     """Produces items of type T. Implementations should set .output_type."""
 
-    output_type: Type[T]  # concrete Python type (or typing.Any)
+    output_type: type[T]  # concrete Python type (or typing.Any)
 
     async def stream(self, context: Context) -> AsyncIterator[T]:
         """Yield items and then return."""
         yield  # type: ignore
 
 
+@runtime_checkable
 class Transformer(Protocol, Generic[T, U]):
     """Consumes T, yields U. Implementations should set .input_type and .output_type."""
 
-    input_type: Type[T]
-    output_type: Type[U]
+    input_type: type[T]
+    output_type: type[U]
 
     async def run(self, context: Context, inputs: AsyncIterator[T]) -> AsyncIterator[U]:
         """Consume async iterator of T, produce async iterator of U."""
         yield  # type: ignore
 
 
+@runtime_checkable
 class Sink(Protocol[T]):
     """Consume items of type T and persist them. Set .input_type on implementation."""
 
-    input_type: Type[T]
+    input_type: type[T]
 
     async def consume(self, context: Context, inputs: AsyncIterator[T]) -> None:
         """Consume an async iterator until exhaustion."""

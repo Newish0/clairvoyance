@@ -276,7 +276,7 @@ class Shape(Document):
     geometry: LineStringGeometry
 
     # Store the sequence of distances traveled, parallel to the geometry coordinates
-    distances_traveled: Optional[List[Optional[float]]] = (
+    distances_traveled: Optional[List[float]] = (
         None  # Array of distances corresponding to each point
     )
 

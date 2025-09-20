@@ -13,6 +13,9 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: Mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     __PICKUP_DROP_OFF_MAPPING = {
         "0": PickupDropOff.REGULAR,
         "1": PickupDropOff.NO_PICKUP_OR_DROP_OFF,
@@ -45,13 +48,15 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
                     else None
                 )
 
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 stop_time = StopTime(
                     agency_id=self.agency_id,
-                    trip_id=row.get("trip_id"),
-                    arrival_time=row.get("arrival_time"),
-                    departure_time=row.get("departure_time"),
+                    trip_id=row.get("trip_id"),  # type: ignore
+                    arrival_time=row.get("arrival_time"),  # type: ignore
+                    departure_time=row.get("departure_time"),  # type: ignore
                     stop_id=row.get("stop_id"),
-                    stop_sequence=stop_sequence,
+                    stop_sequence=stop_sequence,  # type: ignore
                     stop_headsign=row.get("stop_headsign"),
                     pickup_type=self.__PICKUP_DROP_OFF_MAPPING.get(
                         row.get("pickup_type")
@@ -59,7 +64,7 @@ class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
                     drop_off_type=self.__PICKUP_DROP_OFF_MAPPING.get(
                         row.get("drop_off_type")
                     ),
-                    timepoint=self.__TIMEPOINT_MAPPING.get(row.get("timepoint")),
+                    timepoint=self.__TIMEPOINT_MAPPING.get(row.get("timepoint")),  # type: ignore
                     shape_dist_traveled=shape_dist_traveled,
                 )
 

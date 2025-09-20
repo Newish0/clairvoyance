@@ -15,6 +15,8 @@ class LocalFileSource(Source[Path]):
     to a decoder stage (CSV, JSON, etc.).
     """
 
+    output_type: type[Path] = Path
+
     def __init__(self, files: Union[PathLike, List[PathLike]]):
         if isinstance(files, (str, Path)):
             files = [files]

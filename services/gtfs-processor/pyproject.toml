@@ -10,6 +10,7 @@ dependencies = [
     "cachetools>=6.2.0",
     "jsonschema>=4.24.0",
     "protobuf>=6.31.0",
+    "pydantic>=2.11.9",
     "pytz>=2025.2",
     "requests>=2.32.3",
     "types-pytz>=2025.2.0.20250516",
