@@ -1,7 +1,7 @@
 import asyncio
 import csv
 from pathlib import Path
-from typing import AsyncIterator, Dict, Type
+from typing import AsyncIterator, Dict
 
 from ingest_pipeline.core.types import Context, Transformer
 
@@ -16,8 +16,8 @@ class CSVDecoder(Transformer[Path, Dict[str, str]]):
     of arbitrarily large CSV files.
     """
 
-    input_type: Type[Path] = Path
-    output_type: Type[Dict[str, str]] = Dict[str, str]
+    input_type: type[Path] = Path
+    output_type: type[Dict[str, str]] = Dict[str, str]
 
     def __init__(self, queue_size: int = 1000):
         self.queue_size = queue_size

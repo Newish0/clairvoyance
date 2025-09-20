@@ -35,7 +35,7 @@ class DatabaseManager:
         self,
         connection_string: str,
         database_name: str,
-        document_models: List[Document] = DOCUMENT_MODELS,
+        document_models: List[type[Document]] = DOCUMENT_MODELS,
         logger: logging.Logger = setup_logger("database_manager", logging.INFO),
     ):
         self.connection_string = connection_string
@@ -77,7 +77,9 @@ class DatabaseManager:
             self.logger.info("All specified collections dropped.")
 
             # Recreate collections and indexes
-            self.logger.info("Recreating collections and indexes for document models...")
+            self.logger.info(
+                "Recreating collections and indexes for document models..."
+            )
             await init_beanie(
                 database=self.client[self.database_name],
                 document_models=self.document_models,

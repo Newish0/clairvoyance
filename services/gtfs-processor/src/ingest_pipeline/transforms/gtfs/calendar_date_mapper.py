@@ -13,6 +13,9 @@ class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: Mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     __EXCEPTION_MAPPING = {
         "1": CalendarExceptionType.ADDED,
         "2": CalendarExceptionType.REMOVED,
@@ -27,13 +30,15 @@ class CalendarDateMapper(Transformer[Dict[str, str], UpdateOne]):
     ) -> AsyncIterator[UpdateOne]:
         async for row in inputs:
             try:
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 calendar_date_doc = CalendarDate(
                     agency_id=self.agency_id,
-                    service_id=row.get("service_id"),
-                    date=row.get("date"),
+                    service_id=row.get("service_id"),  # type: ignore
+                    date=row.get("date"),  # type: ignore
                     exception_type=self.__EXCEPTION_MAPPING.get(
                         row.get("exception_type"),
-                    ),
+                    ),  # type: ignore
                 )
 
                 await calendar_date_doc.validate_self()

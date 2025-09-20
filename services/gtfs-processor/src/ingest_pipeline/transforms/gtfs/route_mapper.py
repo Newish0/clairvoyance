@@ -13,6 +13,9 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: Mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     __ROUTE_TYPE_MAPPING = {
         "0": RouteType.TRAM,
         "1": RouteType.SUBWAY,
@@ -35,12 +38,14 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
     ) -> AsyncIterator[UpdateOne]:
         async for row in inputs:
             try:
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 route_doc = Route(
                     agency_id=self.agency_id,
-                    route_id=row.get("route_id"),
+                    route_id=row.get("route_id"),  # type: ignore
                     route_short_name=row.get("route_short_name"),
                     route_long_name=row.get("route_long_name"),
-                    route_type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),
+                    route_type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),  # type: ignore
                     route_color=row.get("route_color"),
                     route_text_color=row.get("route_text_color"),
                 )

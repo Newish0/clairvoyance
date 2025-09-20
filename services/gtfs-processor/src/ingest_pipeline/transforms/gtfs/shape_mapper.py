@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Dict, Tuple, cast
+from typing import AsyncIterator, Dict, List, cast
 
 from pymongo import UpdateOne
 
@@ -17,9 +17,12 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
     Output: Mongo UpdateOne
     """
 
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
     @dataclass
     class __TmpShapeInfo:
-        geometry: Dict[int, Tuple[float, float]] = field(default_factory=dict)
+        geometry: Dict[int, List[float]] = field(default_factory=dict)
         distances_traveled: Dict[int, float] = field(default_factory=dict)
 
     __tmp_shapes: Dict[str, __TmpShapeInfo] = defaultdict(__TmpShapeInfo)
@@ -38,21 +41,25 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
                 distances_traveled = safe_float(row.get("shape_dist_traveled"))
                 pt_sequence = safe_int(row.get("shape_pt_sequence"))
 
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
                 validation_shape_doc = Shape(
                     agency_id=self.agency_id,
-                    shape_id=shape_id,
-                    geometry=LineStringGeometry(coordinates=[(pt_lon, pt_lat)]),
-                    distances_traveled=[distances_traveled],
+                    shape_id=shape_id,  # type: ignore
+                    geometry=LineStringGeometry(coordinates=[(pt_lon, pt_lat)]),  # type: ignore
+                    distances_traveled=[distances_traveled]
+                    if distances_traveled is not None
+                    else None,
                 )
 
                 await validation_shape_doc.validate_self()
 
                 # Model validation asserts values are not None
                 tmp_shape = self.__tmp_shapes[validation_shape_doc.shape_id]
-                tmp_shape.geometry[cast(int, pt_sequence)] = (
+                tmp_shape.geometry[cast(int, pt_sequence)] = [
                     cast(float, pt_lon),
                     cast(float, pt_lat),
-                )
+                ]
                 tmp_shape.distances_traveled[cast(int, pt_sequence)] = cast(
                     float, distances_traveled
                 )
@@ -97,10 +104,10 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
                 if len(tmp_shape.geometry) > 1
                 else [
                     tmp_shape.geometry[0],
-                    (
+                    [
                         tmp_shape.geometry[0][0] + 0.00001,
                         tmp_shape.geometry[0][1] + 0.00001,
-                    ),
+                    ],
                 ]
             )
             distances_traveled = (
