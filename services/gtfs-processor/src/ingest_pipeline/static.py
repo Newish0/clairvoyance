@@ -25,8 +25,9 @@ async def run_gtfs_static_pipelines(
     agency_id: str,
     gtfs_url: str,
     drop_collections: bool = False,
-    logger: logging.Logger = setup_logger("ingest_pipeline.static", logging.INFO),
+    log_level: int = logging.INFO,
 ):
+    logger = logging.Logger = setup_logger("ingest_pipeline.static", log_level)
 
     db_manager = DatabaseManager(
         connection_string=connection_string,
@@ -42,37 +43,33 @@ async def run_gtfs_static_pipelines(
     async with GTFSArchiveSource(gtfs_url).materialize() as source_info:
         tmpdir = source_info.path
 
-        agency_pipeline = build_agency_pipeline(tmpdir / "agency.txt", agency_id)
+        agency_pipeline = build_agency_pipeline(
+            tmpdir / "agency.txt", agency_id, log_level=log_level
+        )
         feed_info_pipeline = build_feed_info_pipeline(
-            tmpdir / "feed_info.txt", agency_id, source_info.hash
+            tmpdir / "feed_info.txt", agency_id, source_info.hash, log_level=log_level
         )
         calendar_dates_pipeline = build_calendar_dates_pipeline(
-            tmpdir / "calendar_dates.txt",
-            agency_id,
+            tmpdir / "calendar_dates.txt", agency_id, log_level=log_level
         )
         routes_pipeline = build_routes_pipeline(
-            tmpdir / "routes.txt",
-            agency_id,
+            tmpdir / "routes.txt", agency_id, log_level=log_level
         )
         stops_pipeline = build_stops_pipeline(
-            tmpdir / "stops.txt",
-            agency_id,
+            tmpdir / "stops.txt", agency_id, log_level=log_level
         )
         trips_pipeline = build_trips_pipeline(
-            tmpdir / "trips.txt",
-            agency_id,
+            tmpdir / "trips.txt", agency_id, log_level=log_level
         )
         stop_times_pipeline = build_stop_times_pipeline(
-            tmpdir / "stop_times.txt",
-            agency_id,
+            tmpdir / "stop_times.txt", agency_id, log_level=log_level
         )
         shapes_pipeline = build_shapes_pipeline(
-            tmpdir / "shapes.txt",
-            agency_id,
+            tmpdir / "shapes.txt", agency_id, log_level=log_level
         )
 
         trip_instances_pipeline = build_trip_instances_pipeline(
-            agency_id,
+            agency_id, log_level=log_level
         )
 
         await asyncio.gather(

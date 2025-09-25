@@ -16,8 +16,11 @@ async def run_gtfs_realtime_pipelines(
     agency_id: str,
     gtfs_urls: Iterable[str],
     drop_collections: bool = False,
-    logger: logging.Logger = setup_logger("ingest_pipeline.realtime", logging.INFO),
+    log_level: int = logging.INFO,
 ):
+    logger = setup_logger("ingest_pipeline.realtime", log_level)
+
+    print("CREATING LOGGER WITH LEVEL:", logger.level)
 
     db_manager = DatabaseManager(
         connection_string=connection_string,
@@ -35,7 +38,9 @@ async def run_gtfs_realtime_pipelines(
             data = source_info.data
             data_hash = source_info.hash
 
-            trip_updates_pipeline = build_trip_updates_pipeline(data, agency_id)
+            trip_updates_pipeline = build_trip_updates_pipeline(
+                data, agency_id, log_level=log_level
+            )
 
             await asyncio.gather(
                 trip_updates_pipeline.run(),

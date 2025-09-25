@@ -123,12 +123,4 @@ class TripInstanceMapper(
                 )
 
             except Exception as e:
-                match context.error_policy:
-                    case ErrorPolicy.FAIL_FAST:
-                        raise e
-                    case ErrorPolicy.SKIP_RECORD:
-                        context.telemetry.incr("trip_instance_mapper.skipped")
-                        context.logger.error(e)
-                        continue
-                    case _:
-                        raise e
+                context.handle_error(e, "trip_instance_mapper.error")

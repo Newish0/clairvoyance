@@ -37,7 +37,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         agency = await Agency.find_one(Agency.agency_id == self.agency_id)
 
         if not agency:
-            # TODO: Error or log here based on strategy
+            context.handle_error(
+                Exception(f"Agency {self.agency_id} not found"),
+                "trip_update_mapper.error.agency_not_found",
+            )
             return
 
         async for parsed_entity in inputs:
@@ -53,7 +56,11 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             tu = entity.trip_update
 
             if not self._has_required_trip_fields(tu):
-                continue  # TODO: Error or log here based on strategy
+                context.handle_error(
+                    Exception("Missing required trip fields"),
+                    "trip_update_mapper.error.missing_fields",
+                )
+                continue
 
             trip_descriptor = trip_descriptor_to_model(tu.trip)
 
@@ -70,7 +77,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
                 != TripDescriptorScheduleRelationship.NEW
             ):
                 # If we don't have a matching trip instance, and this trip update is not for a new trip, skip it.
-                # TODO: Error or log here based on strategy
+                context.handle_error(
+                    Exception("TripInstance not found for non-new trip update"),
+                    "trip_update_mapper.error.trip_instance_not_found",
+                )
                 continue
 
             stop_times = [
@@ -92,8 +102,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
 
             stop_times.sort(key=lambda x: x[0] if x[0] is not None else float("inf"))
 
-            print(
-                f"Processed Trip Update for trip_id: {trip_descriptor.trip_id}, start_date: {trip_descriptor.start_date}, start_time: {trip_descriptor.start_time}"
+            context.logger.debug(
+                f"Processed Trip Update for agency: {self.agency_id}, trip_id: {trip_descriptor.trip_id}, start_date: {trip_descriptor.start_date}, start_time: {trip_descriptor.start_time}"
             )
 
             if not trip_instance:
@@ -122,6 +132,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
 
                 await trip_instance.validate_self()
 
+                context.logger.debug(
+                    f"Creating new TripInstance for agency_id: {self.agency_id}, trip_id: {trip_descriptor.trip_id}, start_date: {trip_descriptor.start_date}, start_time: {trip_descriptor.start_time}"
+                )
+
                 yield UpdateOne(
                     {
                         "agency_id": self.agency_id,
@@ -142,6 +156,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             else:
                 trip_instance.state = TripInstanceState.DIRTY
                 trip_instance.stop_times = [sti for _, sti in stop_times]
+
+                context.logger.debug(
+                    f"Creating update to TripInstance for agency_id: {self.agency_id}, trip_id: {trip_descriptor.trip_id}, start_date: {trip_descriptor.start_date}, start_time: {trip_descriptor.start_time}"
+                )
 
                 yield UpdateOne(
                     {

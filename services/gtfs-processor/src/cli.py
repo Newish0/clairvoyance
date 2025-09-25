@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import logging
 import sys
 from typing import List, Dict, Any, Union
 
@@ -47,6 +48,12 @@ def parse_arguments() -> argparse.Namespace:
         "--drop_collections",
         action="store_true",
         help="Drop existing collections before importing data.",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable debug logging (verbose output).",
     )
 
     # Subparsers for different commands
@@ -114,6 +121,7 @@ def process_static_data(
     agency_id: str,
     gtfs_config_path: Union[str, None],
     gtfs_url: Union[str, None],
+    log_level: int,
 ) -> None:
     """
     Handles the 'static' command logic.
@@ -123,6 +131,7 @@ def process_static_data(
     print(f"  Database Name: {database_name}")
     print(f"  Drop Collections: {drop_collections}")
     print(f"  Agency ID: {agency_id}")
+    print(f"  Log Level: {'DEBUG' if log_level == logging.DEBUG else 'INFO'}")
 
     if gtfs_config_path:
         print(f"  GTFS Config (Static): {gtfs_config_path}")
@@ -143,6 +152,7 @@ def process_static_data(
                 drop_collections=drop_collections,
                 agency_id=agency_id,
                 gtfs_url=gtfs_url,
+                log_level=log_level,
             )
         )
 
@@ -157,6 +167,7 @@ def process_realtime_data(
     agency_id: str,
     gtfs_config_path: Union[str, None],
     gtfs_urls: Union[List[str], None],
+    log_level: int,
 ) -> None:
     """
     Handles the 'realtime' command logic.
@@ -165,6 +176,7 @@ def process_realtime_data(
     print(f"  Connection String: {connection_string}")
     print(f"  Database Name: {database_name}")
     print(f"  Drop Collections: {drop_collections}")
+    print(f"  Log Level: {'DEBUG' if log_level == logging.DEBUG else 'INFO'}")
 
     if gtfs_config_path:
         print(f"  GTFS Config (Realtime): {gtfs_config_path}")
@@ -185,6 +197,7 @@ def process_realtime_data(
                 drop_collections=drop_collections,
                 agency_id=agency_id,
                 gtfs_urls=gtfs_urls,
+                log_level=log_level,
             )
         )
 
@@ -196,6 +209,9 @@ def execute_command(args: argparse.Namespace) -> None:
     """
     Dispatches to the correct command processing function based on parsed arguments.
     """
+    # Set log level based on verbose flag
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+
     if args.command == "static":
         process_static_data(
             connection_string=args.connection_string,
@@ -204,6 +220,7 @@ def execute_command(args: argparse.Namespace) -> None:
             agency_id=args.agency_id,
             gtfs_config_path=args.gtfs_config,
             gtfs_url=args.gtfs_url,
+            log_level=log_level,
         )
     elif args.command == "realtime":
         process_realtime_data(
@@ -213,6 +230,7 @@ def execute_command(args: argparse.Namespace) -> None:
             gtfs_config_path=args.gtfs_config,
             agency_id=args.agency_id,
             gtfs_urls=args.gtfs_urls,
+            log_level=log_level,
         )
     else:
         # This case should ideally not be reached due to required=True on subparsers
