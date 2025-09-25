@@ -11,7 +11,13 @@ class PassThroughSource(Source[T]):
     now generic over the data type T.
     """
 
-    def __init__(self, data: Union[T, List[T]]):
+    output_type: type
+
+    data: List[T]
+
+    def __init__(self, data: Union[T, List[T]], output_type: type[T] = type):
+        self.output_type = output_type
+
         if isinstance(data, list):
             self.data = data
         else:

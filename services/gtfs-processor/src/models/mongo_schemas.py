@@ -9,7 +9,7 @@ from typing import List, Optional
 
 
 from beanie import Document, Link
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import pymongo
 
 from models.enums import (
@@ -404,8 +404,8 @@ class StopTimeInstance(BaseModel):
     timepoint: Timepoint
     shape_dist_traveled: Optional[float] = None
 
-    arrival_datetime: datetime
-    departure_datetime: datetime
+    arrival_datetime: Optional[datetime] = None
+    departure_datetime: Optional[datetime] = None
 
     predicted_arrival_datetime: Optional[datetime] = None
     predicted_departure_datetime: Optional[datetime] = None
@@ -416,6 +416,15 @@ class StopTimeInstance(BaseModel):
     schedule_relationship: Optional[StopTimeUpdateScheduleRelationship] = (
         StopTimeUpdateScheduleRelationship.SCHEDULED
     )
+
+    @model_validator(mode="after")
+    def validate_datetime(self) -> "StopTimeInstance":
+        """One of arrival_datetime or departure_datetime must be set."""
+        if self.arrival_datetime is None and self.departure_datetime is None:
+            raise ValueError(
+                "At least one of arrival_datetime or departure_datetime must be set"
+            )
+        return self
 
 
 class TripInstance(Document):
@@ -432,7 +441,7 @@ class TripInstance(Document):
 
     trip: Link[Trip]
     route: Link[Route]
-    shape: Link[Shape]
+    shape: Optional[Link[Shape]] = None
     vehicle: Optional[Link[Vehicle]] = None
     positions: List[Link[VehiclePosition]] = Field(default_factory=list)
 
