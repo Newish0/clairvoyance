@@ -5,15 +5,15 @@ from ingest_pipeline.transforms.gtfs.gtfs_realtime_protobuf_mapper import (
     GTFSRealtimeProtobufDecoder,
 )
 from ingest_pipeline.sinks.mongo_upsert_sink import MongoUpsertSink
-from ingest_pipeline.transforms.gtfs.trip_update_mapper import TripUpdateMapper
+from ingest_pipeline.transforms.gtfs.realtime.trip_update_mapper import TripUpdateMapper
 from models.mongo_schemas import TripInstance
 
 
 def build_trip_updates_pipeline(protobuf, agency_id):
     stages = [
-        StageSpec("trip_update_source", PassThroughSource(protobuf)),
+        StageSpec("trip_update_source", PassThroughSource(protobuf, bytes)),
         StageSpec("protobuf", GTFSRealtimeProtobufDecoder()),
-        StageSpec("mapper", TripUpdateMapper()),
+        StageSpec("mapper", TripUpdateMapper(agency_id)),
         StageSpec("mongo", MongoUpsertSink(TripInstance)),
     ]
     return Orchestrator(stages)
