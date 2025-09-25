@@ -12,6 +12,7 @@ from ingest_pipeline.core.types import (
     Transformer,
 )
 from utils.logger_config import setup_logger
+import logging
 
 """A sequence number for auto generated orchestrator names."""
 orchestrator_seq = 0
@@ -26,13 +27,13 @@ class Orchestrator:
         telemetry: Optional[Telemetry] = None,
         error_policy: ErrorPolicy = ErrorPolicy.SKIP_RECORD,
         name: Optional[str] = None,
+        log_level: int = logging.INFO,
     ):
         if len(stages) < 2:
             raise ValueError("pipeline must contain at least a source and a sink")
         self.stages = stages
         self.telemetry = telemetry or SimpleTelemetry()
         self.error_policy = error_policy
-        self._logger = setup_logger("orchestrator")
 
         if not name:
             global orchestrator_seq
@@ -40,6 +41,8 @@ class Orchestrator:
             self.name = f"{orchestrator_seq}"
         else:
             self.name = name
+
+        self._logger = setup_logger(f"orchestrator {self.name}", log_level)
 
         # Validate types at construction time
         self._validate_stage_io()

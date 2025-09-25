@@ -33,6 +33,21 @@ class Context:
     telemetry: Telemetry
     error_policy: ErrorPolicy
 
+    def handle_error(
+        self,
+        e: Exception,
+        telemetry_metric: str = "ingest_pipeline.error",
+    ):
+        match self.error_policy:
+            case ErrorPolicy.FAIL_FAST:
+                raise e
+            case ErrorPolicy.SKIP_RECORD:
+                self.telemetry.incr(telemetry_metric)
+                self.logger.error(e)
+                return
+            case _:
+                raise e
+
 
 @runtime_checkable
 class Source(Protocol[T]):
