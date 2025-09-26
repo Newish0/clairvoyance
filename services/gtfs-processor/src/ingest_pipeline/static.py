@@ -25,6 +25,7 @@ async def run_gtfs_static_pipelines(
     agency_id: str,
     gtfs_url: str,
     drop_collections: bool = False,
+    realize_instances: bool = False,
     log_level: int = logging.INFO,
 ):
     logger = setup_logger("ingest_pipeline.static", log_level)
@@ -83,5 +84,6 @@ async def run_gtfs_static_pipelines(
             shapes_pipeline.run(),
         )
 
+    if realize_instances:
         # Must run after GTFS ingest from zip is complete.
         await trip_instances_pipeline.run()

@@ -8,9 +8,14 @@ from ingest_pipeline.transforms.gtfs.trip_instance_mapper import TripInstanceMap
 from models.mongo_schemas import TripInstance
 
 
-def build_trip_instances_pipeline(agency_id, log_level=logging.INFO):
+def build_trip_instances_pipeline(
+    agency_id, min_date, max_date, log_level=logging.INFO
+):
     stages = [
-        StageSpec("trip_instances_source", TripInstanceSource(agency_id)),
+        StageSpec(
+            "trip_instances_source",
+            TripInstanceSource(agency_id, min_date=min_date, max_date=max_date),
+        ),
         StageSpec("mapper", TripInstanceMapper(), parallelism=2),
         StageSpec("mongo", MongoUpsertSink(TripInstance)),
     ]
