@@ -5,6 +5,7 @@ import models.mongo_schemas as ms
 from lib import gtfs_realtime_pb2 as pb
 from utils.datetime import localize_unix_time
 
+# Mapping dictionaries
 _TRIP_DESCRIPTOR_SCHEDULE_RELATIONSHIP_MAP = {
     pb.TripDescriptor.ScheduleRelationship.SCHEDULED: ms.TripDescriptorScheduleRelationship.SCHEDULED,
     pb.TripDescriptor.ScheduleRelationship.ADDED: ms.TripDescriptorScheduleRelationship.ADDED,
@@ -55,6 +56,8 @@ _PICKUP_DROP_OFF_MAP = {
 
 @dataclass(frozen=True)
 class ParsedStopTimeUpdate:
+    """Parsed and normalized stop time update data."""
+
     stop_id: Optional[str]
     stop_sequence: Optional[int]
     scheduled_arrival_time: Optional[int]
@@ -80,25 +83,60 @@ def _extract_core_trip_id(gtfs_rt_trip_id: str) -> str:
 
 
 def trip_descriptor_to_model(trip: pb.TripDescriptor) -> ms.TripDescriptor:
-    trip_id = _extract_core_trip_id(trip.trip_id) if trip.HasField("trip_id") else None
-    start_date: str | None = getattr(trip, "start_date", None)
-    start_time: str | None = getattr(trip, "start_time", None)
-    schedule_relationship: pb.TripDescriptor.ScheduleRelationship | None = getattr(
-        trip, "schedule_relationship", None
-    )
-    route_id: str | None = getattr(trip, "route_id", None)
-    direction_id: int | None = getattr(trip, "direction_id", None)
-
+    """Convert protobuf TripDescriptor to model TripDescriptor."""
     return ms.TripDescriptor(
-        trip_id=trip_id,
-        start_time=start_time,
-        start_date=start_date,
-        route_id=route_id,
-        direction_id=_DIRECTION_ID_MAP.get(direction_id, None),
+        trip_id=_extract_core_trip_id(trip.trip_id)
+        if trip.HasField("trip_id")
+        else None,
+        start_time=getattr(trip, "start_time", None),
+        start_date=getattr(trip, "start_date", None),
+        route_id=getattr(trip, "route_id", None),
+        direction_id=_DIRECTION_ID_MAP.get(getattr(trip, "direction_id", None), None),
         schedule_relationship=_TRIP_DESCRIPTOR_SCHEDULE_RELATIONSHIP_MAP.get(
-            schedule_relationship, None
+            getattr(trip, "schedule_relationship", None), None
         ),
     )
+
+
+def _clean_time_value(value: int | None) -> int | None:
+    """Convert 0 or missing values to None."""
+    return None if value in (0, None) else value
+
+
+def _normalize_times(
+    scheduled_time: int | None,
+    time: int | None,
+    delay: int | None,
+    fallback_scheduled_time: int | None = None,
+) -> tuple[int | None, int | None, int | None]:
+    """
+    Fill the 3 fields scheduled_time, time, delay based on the other two.
+    May not be able to fill all three if missing 2 of the 3.
+    0 values are treated as None.
+    """
+    scheduled_time = _clean_time_value(scheduled_time) or fallback_scheduled_time
+    time = _clean_time_value(time)
+    # NOTE: 0 seconds delay is a valid value, so don't clean it
+
+    if time is not None and delay is not None and scheduled_time is None:
+        scheduled_time = time - delay
+    elif time is not None and scheduled_time is not None and delay is None:
+        delay = time - scheduled_time
+    elif scheduled_time is not None and delay is not None and time is None:
+        time = scheduled_time + delay
+
+    return scheduled_time, time, delay
+
+
+def _extract_time_fields(
+    time_event, existing_time: Optional[int] = None
+) -> tuple[int | None, int | None, int | None]:
+    """Extract and normalize time fields from arrival/departure event."""
+    scheduled_time = getattr(time_event, "scheduled_time", None)
+    time = getattr(time_event, "time", None)
+    delay = getattr(time_event, "delay", None)
+
+    return _normalize_times(scheduled_time, time, delay, existing_time)
 
 
 def _parse_stop_time_update(
@@ -106,65 +144,24 @@ def _parse_stop_time_update(
     existing_arrival_time: Optional[int] = None,
     existing_departure_time: Optional[int] = None,
 ) -> ParsedStopTimeUpdate:
-    def clean(value: int | None) -> int | None:
-        """Convert 0 or missing values to None."""
-        return None if value in (0, None) else value
+    """Parse protobuf StopTimeUpdate into normalized data structure."""
 
-    def normalize_times(
-        scheduled_time: int | None,
-        time: int | None,
-        delay: int | None,
-        fallback_scheduled_time: int | None = None,
-    ):
-        """
-        Try to fill the 3 fields scheduled_time, time, delay based on the other two.
-        May not be able to fill all three if missing 2 of the 3.
-        0 values are treated as None.
-        """
-        scheduled_time = clean(scheduled_time) or fallback_scheduled_time
-        time = clean(time)
-        delay = delay  # NOTE: 0 seconds delay is a valid value
-
-        if time is not None and delay is not None and scheduled_time is None:
-            scheduled_time = time - delay
-        elif time is not None and scheduled_time is not None and delay is None:
-            delay = time - scheduled_time
-        elif scheduled_time is not None and delay is not None and time is None:
-            time = scheduled_time + delay
-
-        return scheduled_time, time, delay
-
-    stop_sequence: int | None = getattr(stop_time_update, "stop_sequence", None)
-    stop_id: str | None = getattr(stop_time_update, "stop_id", None)
-    schedule_relationship: pb.TripUpdate.StopTimeUpdate.ScheduleRelationship | None = (
-        getattr(stop_time_update, "schedule_relationship", None)
-    )
-
-    # Arrival
-    arrival_time = getattr(stop_time_update.arrival, "time", None)
-    scheduled_arrival_time = getattr(stop_time_update.arrival, "scheduled_time", None)
-    arrival_delay = getattr(stop_time_update.arrival, "delay", None)
-
-    scheduled_arrival_time, arrival_time, arrival_delay = normalize_times(
-        scheduled_arrival_time, arrival_time, arrival_delay, existing_arrival_time
-    )
-
-    # Departure
-    departure_time = getattr(stop_time_update.departure, "time", None)
-    scheduled_departure_time = getattr(
-        stop_time_update.departure, "scheduled_time", None
-    )
-    departure_delay = getattr(stop_time_update.departure, "delay", None)
-
-    scheduled_departure_time, departure_time, departure_delay = normalize_times(
-        scheduled_departure_time,
-        departure_time,
-        departure_delay,
-        existing_departure_time,
-    )
-
-    departure_occupancy_status: pb.VehiclePosition.OccupancyStatus | None = getattr(
+    # Extract basic fields
+    stop_sequence = getattr(stop_time_update, "stop_sequence", None)
+    stop_id = getattr(stop_time_update, "stop_id", None)
+    schedule_relationship = getattr(stop_time_update, "schedule_relationship", None)
+    departure_occupancy_status = getattr(
         stop_time_update, "departure_occupancy_status", None
+    )
+
+    # Extract and normalize arrival times
+    scheduled_arrival_time, arrival_time, arrival_delay = _extract_time_fields(
+        stop_time_update.arrival, existing_arrival_time
+    )
+
+    # Extract and normalize departure times
+    scheduled_departure_time, departure_time, departure_delay = _extract_time_fields(
+        stop_time_update.departure, existing_departure_time
     )
 
     return ParsedStopTimeUpdate(
@@ -187,64 +184,59 @@ def _parse_stop_time_update(
     )
 
 
-def stop_time_update_to_model(
+def _create_new_stop_time_instance(
     stop_time_update: pb.TripUpdate.StopTimeUpdate,
+    parsed_stu: ParsedStopTimeUpdate,
     agency_timezone: str,
-    existing_sti: Optional[ms.StopTimeInstance],
-) -> tuple[Optional[int], ms.StopTimeInstance]:
-    """Convert intermediate stop time updates into a StopTimeUpdate model."""
-
-    parsed_stu = _parse_stop_time_update(
-        stop_time_update,
-        existing_arrival_time=int(existing_sti.arrival_datetime.timestamp())
-        if existing_sti and existing_sti.arrival_datetime
+) -> ms.StopTimeInstance:
+    """Create a new StopTimeInstance from parsed data."""
+    return ms.StopTimeInstance(
+        stop_id=stop_time_update.stop_id,
+        stop_headsign=stop_time_update.stop_time_properties.stop_headsign,
+        pickup_type=_PICKUP_DROP_OFF_MAP.get(
+            stop_time_update.stop_time_properties.pickup_type
+        ),
+        drop_off_type=_PICKUP_DROP_OFF_MAP.get(
+            stop_time_update.stop_time_properties.drop_off_type
+        ),
+        timepoint=ms.Timepoint.EXACT,
+        shape_dist_traveled=None,
+        arrival_datetime=localize_unix_time(
+            parsed_stu.scheduled_arrival_time,  # type: ignore
+            agency_timezone,
+        ),
+        predicted_arrival_datetime=localize_unix_time(
+            parsed_stu.arrival_time, agency_timezone
+        )
+        if parsed_stu.arrival_time
         else None,
-        existing_departure_time=int(existing_sti.departure_datetime.timestamp())
-        if existing_sti and existing_sti.departure_datetime
+        predicted_arrival_uncertainty=parsed_stu.arrival_uncertainty,
+        departure_datetime=localize_unix_time(
+            parsed_stu.scheduled_departure_time,  # type: ignore
+            agency_timezone,
+        ),
+        predicted_departure_datetime=localize_unix_time(
+            parsed_stu.departure_time, agency_timezone
+        )
+        if parsed_stu.departure_time
         else None,
+        predicted_departure_uncertainty=parsed_stu.departure_uncertainty,
+        schedule_relationship=parsed_stu.schedule_relationship,
     )
 
-    if existing_sti is None:
-        # This is a new stop time instance
-        new_sti = ms.StopTimeInstance(
-            stop_id=stop_time_update.stop_id,
-            stop_headsign=stop_time_update.stop_time_properties.stop_headsign,
-            pickup_type=_PICKUP_DROP_OFF_MAP.get(
-                stop_time_update.stop_time_properties.pickup_type
-            ),
-            drop_off_type=_PICKUP_DROP_OFF_MAP.get(
-                stop_time_update.stop_time_properties.drop_off_type
-            ),
-            timepoint=ms.Timepoint.EXACT,
-            shape_dist_traveled=None,
-            arrival_datetime=localize_unix_time(
-                parsed_stu.scheduled_arrival_time,  # type: ignore
-                agency_timezone,
-            ),
-            predicted_arrival_datetime=localize_unix_time(
-                parsed_stu.arrival_time, agency_timezone
-            )
-            if parsed_stu.arrival_time
-            else None,
-            predicted_arrival_uncertainty=parsed_stu.arrival_uncertainty,
-            departure_datetime=localize_unix_time(
-                parsed_stu.scheduled_departure_time,  # type: ignore
-                agency_timezone,
-            ),
-            predicted_departure_datetime=localize_unix_time(
-                parsed_stu.departure_time, agency_timezone
-            )
-            if parsed_stu.departure_time
-            else None,
-            predicted_departure_uncertainty=parsed_stu.departure_uncertainty,
-            schedule_relationship=parsed_stu.schedule_relationship,
-        )
 
-        return (parsed_stu.stop_sequence, new_sti)
+def _update_existing_stop_time_instance(
+    existing_sti: ms.StopTimeInstance,
+    parsed_stu: ParsedStopTimeUpdate,
+    agency_timezone: str,
+) -> None:
+    """Update existing StopTimeInstance with new data."""
 
+    # Update schedule relationship
     if parsed_stu.schedule_relationship is not None:
         existing_sti.schedule_relationship = parsed_stu.schedule_relationship
 
+    # Update arrival times
     if parsed_stu.scheduled_arrival_time is not None:
         existing_sti.arrival_datetime = localize_unix_time(
             parsed_stu.scheduled_arrival_time, agency_timezone
@@ -258,6 +250,7 @@ def stop_time_update_to_model(
     if parsed_stu.arrival_uncertainty is not None:
         existing_sti.predicted_arrival_uncertainty = parsed_stu.arrival_uncertainty
 
+    # Update departure times
     if parsed_stu.scheduled_departure_time is not None:
         existing_sti.departure_datetime = localize_unix_time(
             parsed_stu.scheduled_departure_time, agency_timezone
@@ -271,4 +264,44 @@ def stop_time_update_to_model(
     if parsed_stu.departure_uncertainty is not None:
         existing_sti.predicted_departure_uncertainty = parsed_stu.departure_uncertainty
 
-    return (parsed_stu.stop_sequence, existing_sti)
+
+def stop_time_update_to_model(
+    stop_time_update: pb.TripUpdate.StopTimeUpdate,
+    agency_timezone: str,
+    existing_sti: Optional[ms.StopTimeInstance],
+    existing_stop_sequence: Optional[int] = None,
+) -> tuple[Optional[int], ms.StopTimeInstance]:
+    """Convert protobuf StopTimeUpdate into a StopTimeInstance model."""
+
+    # Extract existing times for normalization
+    existing_arrival_time = (
+        int(existing_sti.arrival_datetime.timestamp())
+        if existing_sti and existing_sti.arrival_datetime
+        else None
+    )
+    existing_departure_time = (
+        int(existing_sti.departure_datetime.timestamp())
+        if existing_sti and existing_sti.departure_datetime
+        else None
+    )
+
+    parsed_stu = _parse_stop_time_update(
+        stop_time_update, existing_arrival_time, existing_departure_time
+    )
+
+    new_seq = (
+        parsed_stu.stop_sequence
+        if parsed_stu.stop_sequence is not None
+        else existing_stop_sequence
+    )
+
+    if existing_sti is None:
+        # Create new stop time instance
+        new_sti = _create_new_stop_time_instance(
+            stop_time_update, parsed_stu, agency_timezone
+        )
+        return (new_seq, new_sti)
+    else:
+        # Update existing stop time instance
+        _update_existing_stop_time_instance(existing_sti, parsed_stu, agency_timezone)
+        return (new_seq, existing_sti)
