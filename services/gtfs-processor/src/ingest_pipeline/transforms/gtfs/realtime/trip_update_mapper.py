@@ -12,10 +12,10 @@ from ingest_pipeline.transforms.gtfs.realtime.proto_to_model import (
 from models.enums import TripDescriptorScheduleRelationship
 from models.mongo_schemas import (
     Agency,
+    StopTimeInstance,
     TripInstance,
     TripInstanceState,
     Trip,
-    Shape,
     Route,
 )
 
@@ -138,9 +138,9 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
 
     def _process_stop_time_updates(
         self, trip_update, agency: Agency, trip_instance: TripInstance | None
-    ) -> list:
+    ) -> list[StopTimeInstance]:
         """Process all stop time updates and return sorted list."""
-        stop_times = []
+        stop_times_with_seq: list[tuple[int | None, StopTimeInstance]] = []
         for stu in trip_update.stop_time_update:
             seq, existing_sti = None, None
             if trip_instance is not None:
@@ -148,10 +148,14 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             stop_time = stop_time_update_to_model(
                 stu, agency.agency_timezone, existing_sti, seq
             )
-            stop_times.append((seq, stop_time))
+            stop_times_with_seq.append(stop_time)
 
         # Sort by stop sequence, putting None values at the end
-        stop_times.sort(key=lambda x: x[0] if x[0] is not None else float("inf"))
+        stop_times_with_seq.sort(
+            key=lambda x: x[0] if x[0] is not None else float("inf")
+        )
+
+        stop_times = [sti for _, sti in stop_times_with_seq]
         return stop_times
 
     def _find_existing_stop_time(self, stu, trip_instance: TripInstance):
@@ -171,7 +175,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         )
 
     async def _create_new_trip_instance_update(
-        self, context: Context, trip_descriptor, stop_times
+        self,
+        context: Context,
+        trip_descriptor,
+        stop_times: list[StopTimeInstance],
     ) -> UpdateOne | None:
         """Create update operation for new trip instance."""
         trip, route = await self._get_trip_and_route(context, trip_descriptor)
@@ -184,8 +191,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             start_date=trip_descriptor.start_date,  # type: ignore
             start_time=trip_descriptor.start_time,  # type: ignore
             state=TripInstanceState.DIRTY,
-            start_datetime=stop_times[0][1].arrival_datetime,  # type: ignore
-            stop_times=[sti for _, sti in stop_times],
+            start_datetime=stop_times[0].arrival_datetime,  # type: ignore
+            stop_times=stop_times,
             route=route,  # type: ignore
             trip=trip,  # type: ignore
         )
@@ -198,6 +205,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             f"start_date: {trip_descriptor.start_date}, "
             f"start_time: {trip_descriptor.start_time}"
         )
+
+        # TODO: May need to handle shape assignment (link) once shapes are in RT data.
 
         return UpdateOne(
             self._build_trip_filter(trip_descriptor),
@@ -214,11 +223,15 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         )
 
     def _create_existing_trip_instance_update(
-        self, context: Context, trip_descriptor, trip_instance: TripInstance, stop_times
+        self,
+        context: Context,
+        trip_descriptor,
+        trip_instance: TripInstance,
+        stop_times: list[StopTimeInstance],
     ) -> UpdateOne:
         """Create update operation for existing trip instance."""
         trip_instance.state = TripInstanceState.DIRTY
-        trip_instance.stop_times = [sti for _, sti in stop_times]
+        trip_instance.stop_times = stop_times
 
         context.logger.debug(
             f"Creating update to TripInstance for agency_id: {self.agency_id}, "
