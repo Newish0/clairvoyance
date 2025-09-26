@@ -30,9 +30,9 @@ class TripInstanceSource(
     def __init__(
         self,
         agency_id: str,
+        min_date: str,
+        max_date: str,
         cache_size: int = 1000,
-        min_date: str = "00000101",
-        max_date: str = "99991231",
     ):
         self.agency_id = agency_id
         self.min_date = min_date
