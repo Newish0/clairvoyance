@@ -185,12 +185,19 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         if not trip or not route:
             return None  # Error already handled in _get_trip_and_route; return None to indicate a skip
 
+        state = TripInstanceState.DIRTY
+        if (
+            trip_descriptor.schedule_relationship
+            == TripDescriptorScheduleRelationship.CANCELED
+        ):
+            state = TripInstanceState.REMOVED
+
         trip_instance = TripInstance(
             agency_id=self.agency_id,
             trip_id=trip_descriptor.trip_id,  # type: ignore
             start_date=trip_descriptor.start_date,  # type: ignore
             start_time=trip_descriptor.start_time,  # type: ignore
-            state=TripInstanceState.DIRTY,
+            state=state,
             start_datetime=stop_times[0].arrival_datetime,  # type: ignore
             stop_times=stop_times,
             route=route,  # type: ignore
@@ -230,7 +237,14 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         stop_times: list[StopTimeInstance],
     ) -> UpdateOne:
         """Create update operation for existing trip instance."""
-        trip_instance.state = TripInstanceState.DIRTY
+        new_state = TripInstanceState.DIRTY
+        if (
+            trip_descriptor.schedule_relationship
+            == TripDescriptorScheduleRelationship.CANCELED
+        ):
+            new_state = TripInstanceState.REMOVED
+
+        trip_instance.state = new_state
         trip_instance.stop_times = stop_times
 
         context.logger.debug(
