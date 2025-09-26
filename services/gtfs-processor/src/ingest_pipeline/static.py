@@ -27,7 +27,7 @@ async def run_gtfs_static_pipelines(
     drop_collections: bool = False,
     log_level: int = logging.INFO,
 ):
-    logger = logging.Logger = setup_logger("ingest_pipeline.static", log_level)
+    logger = setup_logger("ingest_pipeline.static", log_level)
 
     db_manager = DatabaseManager(
         connection_string=connection_string,

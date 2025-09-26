@@ -20,8 +20,6 @@ async def run_gtfs_realtime_pipelines(
 ):
     logger = setup_logger("ingest_pipeline.realtime", log_level)
 
-    print("CREATING LOGGER WITH LEVEL:", logger.level)
-
     db_manager = DatabaseManager(
         connection_string=connection_string,
         database_name=database_name,
