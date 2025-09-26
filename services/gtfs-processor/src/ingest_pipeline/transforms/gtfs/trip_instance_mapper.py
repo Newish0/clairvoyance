@@ -18,6 +18,7 @@ from models.mongo_schemas import (
     StopTimeInstance,
     Trip,
     TripInstance,
+    CalendarExceptionType,
 )
 from utils.datetime import convert_to_datetime
 
@@ -78,12 +79,16 @@ class TripInstanceMapper(
                     for stop_time in stop_times
                 ]
 
+                state = TripInstanceState.PRISTINE
+                if calendar_date.exception_type == CalendarExceptionType.REMOVED:
+                    state = TripInstanceState.REMOVED
+
                 trip_instance_doc = TripInstance(
                     agency_id=agency.agency_id,
                     trip_id=trip.trip_id,
                     start_date=calendar_date.date,
                     start_time=stop_times[0].arrival_time,
-                    state=TripInstanceState.PRISTINE,
+                    state=state,
                     start_datetime=convert_to_datetime(
                         calendar_date.date,
                         stop_times[0].arrival_time,
@@ -105,6 +110,7 @@ class TripInstanceMapper(
                         "trip_id": trip_instance_doc.trip_id,
                         "start_date": trip_instance_doc.start_date,
                         "start_time": trip_instance_doc.start_time,
+                        # Check to make sure we only update PRISTINE documents
                         "$or": [
                             {"state": TripInstanceState.PRISTINE},
                             {"state": {"$exists": False}},
