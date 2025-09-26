@@ -92,15 +92,6 @@ def convert_to_datetime(
             service_midnight + timedelta(hours=h, minutes=m, seconds=s)
         )
 
-        if logger:
-            logger.debug(
-                "Converted %s %s %s -> %s",
-                date_str,
-                time_str,
-                tz_str,
-                result.isoformat(),
-            )
-
         return result
     except Exception as e:
         if logger:

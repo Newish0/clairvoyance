@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 
 # Create logs directory if it doesn't exist
