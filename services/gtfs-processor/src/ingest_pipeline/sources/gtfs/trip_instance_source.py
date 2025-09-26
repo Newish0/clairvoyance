@@ -31,8 +31,12 @@ class TripInstanceSource(
         self,
         agency_id: str,
         cache_size: int = 1000,
+        min_date: str = "00000101",
+        max_date: str = "99991231",
     ):
         self.agency_id = agency_id
+        self.min_date = min_date
+        self.max_date = max_date
 
         self._route_cache: LRUCache = LRUCache(maxsize=cache_size)
         self._shape_cache: LRUCache = LRUCache(maxsize=cache_size)
@@ -93,12 +97,14 @@ class TripInstanceSource(
     ) -> AsyncIterator[Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]]:
         agency = await Agency.find_one(Agency.agency_id == self.agency_id)
 
-        async for trip in Trip.find(
-            Trip.agency_id == self.agency_id,
+        async for calendar_date in CalendarDate.find(
+            CalendarDate.agency_id == self.agency_id,
+            CalendarDate.date >= self.min_date,
+            CalendarDate.date <= self.max_date,
         ):
-            async for calendar_date in CalendarDate.find(
-                CalendarDate.agency_id == self.agency_id,
-                CalendarDate.service_id == trip.service_id,
+            async for trip in Trip.find(
+                Trip.agency_id == self.agency_id,
+                Trip.service_id == calendar_date.service_id,
             ):
                 # Use cached queries
                 stop_times = await self._get_stop_times_cached(trip.trip_id)
