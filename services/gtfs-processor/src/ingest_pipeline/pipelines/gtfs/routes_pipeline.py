@@ -11,9 +11,9 @@ from models.mongo_schemas import Route
 
 def build_routes_pipeline(file_path, agency_id, log_level=logging.INFO):
     stages = [
-        StageSpec("files", LocalFileSource(file_path)),
-        StageSpec("csv", CSVDecoder()),
-        StageSpec("mapper", RouteMapper(agency_id)),
-        StageSpec("mongo", MongoUpsertSink(Route)),
+        StageSpec("file_source", LocalFileSource(file_path)),
+        StageSpec("csv_decoder", CSVDecoder()),
+        StageSpec("route_mapper", RouteMapper(agency_id)),
+        StageSpec("mongo_sink", MongoUpsertSink(Route)),
     ]
-    return Orchestrator(stages, log_level=log_level)
+    return Orchestrator(stages, log_level=log_level, name="routes_pipeline")

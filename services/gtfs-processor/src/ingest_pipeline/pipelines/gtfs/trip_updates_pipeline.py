@@ -14,8 +14,8 @@ from models.mongo_schemas import TripInstance
 def build_trip_updates_pipeline(protobuf, agency_id, log_level=logging.INFO):
     stages = [
         StageSpec("trip_update_source", PassThroughSource(protobuf, bytes)),
-        StageSpec("protobuf", GTFSRealtimeProtobufDecoder()),
-        StageSpec("mapper", TripUpdateMapper(agency_id)),
-        StageSpec("mongo", MongoUpsertSink(TripInstance)),
+        StageSpec("protobuf_decoder", GTFSRealtimeProtobufDecoder()),
+        StageSpec("trip_update_mapper", TripUpdateMapper(agency_id)),
+        StageSpec("mongo_sink", MongoUpsertSink(TripInstance)),
     ]
-    return Orchestrator(stages, log_level=log_level)
+    return Orchestrator(stages, log_level=log_level, name="trip_updates_pipeline")
