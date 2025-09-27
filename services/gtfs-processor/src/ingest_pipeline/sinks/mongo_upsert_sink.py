@@ -3,6 +3,7 @@ from typing import AsyncIterator, List
 
 from beanie import Document
 from pymongo import UpdateOne
+from pymongo.results import BulkWriteResult
 
 from ingest_pipeline.core.types import Context, Sink
 
@@ -29,12 +30,34 @@ class MongoUpsertSink(Sink[UpdateOne]):
                 async with buffer_lock:
                     ops_to_flush = buffer.copy()
                     buffer.clear()
-                await self._flush(ops_to_flush)
+                write_result = await self._flush(ops_to_flush)
+                self._write_result_telemetry(write_result, context)
 
         if buffer:
-            await self._flush(buffer)
+            write_result = await self._flush(buffer)
+            self._write_result_telemetry(write_result, context)
 
-    async def _flush(self, ops: List[UpdateOne]) -> None:
+    async def _flush(self, ops: List[UpdateOne]):
         if not ops:
             return
-        await self.collection.bulk_write(ops, ordered=False)
+        return await self.collection.bulk_write(ops, ordered=False)
+
+    def _write_result_telemetry(
+        self, write_result: BulkWriteResult | None, context: Context
+    ):
+        if write_result:
+            context.telemetry.incr(
+                "mongo_upsert_sink.matched_count", write_result.matched_count
+            )
+            context.telemetry.incr(
+                "mongo_upsert_sink.modified_count", write_result.modified_count
+            )
+            context.telemetry.incr(
+                "mongo_upsert_sink.upserted_count", write_result.upserted_count
+            )
+            context.telemetry.incr(
+                "mongo_upsert_sink.inserted_count", write_result.inserted_count
+            )
+            context.telemetry.incr(
+                "mongo_upsert_sink.deleted_count", write_result.deleted_count
+            )

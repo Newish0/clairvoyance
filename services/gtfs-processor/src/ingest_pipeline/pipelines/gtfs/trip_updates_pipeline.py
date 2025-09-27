@@ -16,6 +16,6 @@ def build_trip_updates_pipeline(protobuf, agency_id, log_level=logging.INFO):
         StageSpec("trip_update_source", PassThroughSource(protobuf, bytes)),
         StageSpec("protobuf_decoder", GTFSRealtimeProtobufDecoder()),
         StageSpec("trip_update_mapper", TripUpdateMapper(agency_id)),
-        StageSpec("mongo_sink", MongoUpsertSink(TripInstance)),
+        StageSpec("mongo_upsert_sink", MongoUpsertSink(TripInstance)),
     ]
     return Orchestrator(stages, log_level=log_level, name="trip_updates_pipeline")

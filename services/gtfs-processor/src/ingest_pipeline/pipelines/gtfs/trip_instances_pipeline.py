@@ -17,6 +17,6 @@ def build_trip_instances_pipeline(
             TripInstanceSource(agency_id, min_date=min_date, max_date=max_date),
         ),
         StageSpec("trip_instance_mapper", TripInstanceMapper(), parallelism=2),
-        StageSpec("mongo_sink", MongoUpsertSink(TripInstance)),
+        StageSpec("mongo_upsert_sink", MongoUpsertSink(TripInstance)),
     ]
     return Orchestrator(stages, log_level=log_level, name="trip_instances_pipeline")
