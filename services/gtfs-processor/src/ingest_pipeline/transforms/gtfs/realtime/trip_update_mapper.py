@@ -1,7 +1,7 @@
 from typing import AsyncIterator
 
 from pymongo import UpdateOne
-from bson import ObjectId
+from bson import DBRef
 
 from ingest_pipeline.core.types import Context, Transformer
 from ingest_pipeline.transforms.gtfs.gtfs_realtime_protobuf_mapper import ParsedEntity
@@ -231,8 +231,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
                     **trip_instance.model_dump(
                         exclude={"id", "route", "trip", "shape"}
                     ),
-                    "trip": ObjectId(trip.id.binary),  # type: ignore
-                    "route": ObjectId(route.id.binary),  # type: ignore
+                    "trip": DBRef(collection=Trip.Settings.name, id=trip.id),
+                    "route": DBRef(collection=Route.Settings.name, id=route.id),
                 }
             },
             upsert=True,
