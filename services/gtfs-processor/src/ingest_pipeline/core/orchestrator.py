@@ -39,7 +39,7 @@ class Orchestrator:
         else:
             self.name = name
 
-        self._logger = setup_logger(f"orchestrator {self.name}", log_level)
+        self._logger = setup_logger(f"orchestrator_{self.name}", log_level)
 
         self.stages = stages
         self.telemetry = telemetry or SimpleTelemetry(self._logger)
