@@ -19,6 +19,6 @@ def build_calendar_dates_pipeline(
         StageSpec("file_source", LocalFileSource(file_path)),
         StageSpec("csv_decoder", CSVDecoder()),
         StageSpec("calendar_date_mapper", CalendarDateMapper(agency_id)),
-        StageSpec("mongo_sink", MongoUpsertSink(CalendarDate)),
+        StageSpec("mongo_upsert_sink", MongoUpsertSink(CalendarDate)),
     ]
     return Orchestrator(stages, log_level=log_level, name="calendar_dates_pipeline")

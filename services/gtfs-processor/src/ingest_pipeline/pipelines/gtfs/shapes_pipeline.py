@@ -18,6 +18,6 @@ def build_shapes_pipeline(
         StageSpec("file_source", LocalFileSource(file_path)),
         StageSpec("csv_decoder", CSVDecoder()),
         StageSpec("shape_mapper", ShapeMapper(agency_id)),
-        StageSpec("mongo_sink", MongoUpsertSink(Shape)),
+        StageSpec("mongo_upsert_sink", MongoUpsertSink(Shape)),
     ]
     return Orchestrator(stages, log_level=log_level, name="shapes_pipeline")

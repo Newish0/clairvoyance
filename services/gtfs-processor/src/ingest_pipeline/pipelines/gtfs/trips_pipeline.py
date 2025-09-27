@@ -14,6 +14,6 @@ def build_trips_pipeline(file_path, agency_id, log_level=logging.INFO):
         StageSpec("file_source", LocalFileSource(file_path)),
         StageSpec("csv_decoder", CSVDecoder()),
         StageSpec("trip_mapper", TripMapper(agency_id)),
-        StageSpec("mongo_sink", MongoUpsertSink(Trip)),
+        StageSpec("mongo_upsert_sink", MongoUpsertSink(Trip)),
     ]
     return Orchestrator(stages, log_level=log_level, name="trips_pipeline")

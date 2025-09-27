@@ -18,6 +18,6 @@ def build_stops_pipeline(
         StageSpec("file_source", LocalFileSource(file_path)),
         StageSpec("csv_decoder", CSVDecoder()),
         StageSpec("stop_mapper", StopMapper(agency_id)),
-        StageSpec("mongo_sink", MongoUpsertSink(Stop)),
+        StageSpec("mongo_upsert_sink", MongoUpsertSink(Stop)),
     ]
     return Orchestrator(stages, log_level=log_level, name="stops_pipeline")
