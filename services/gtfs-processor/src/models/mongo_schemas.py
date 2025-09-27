@@ -313,7 +313,6 @@ class VehiclePosition(Document):
     vehicle_id: str
     timestamp: datetime = Field(default_factory=_now_utc)
 
-    trip: Optional[TripDescriptor]
     stop_id: Optional[str]
     current_stop_sequence: Optional[int]
     current_status: Optional[VehicleStopStatus]
@@ -327,6 +326,8 @@ class VehiclePosition(Document):
     speed: Optional[float]  # meters per second
 
     ingested_at: datetime = Field(default_factory=_now_utc)
+
+    trip: Optional[Link["TripInstance"]] = None
 
     class Settings:
         name = "vehicle_positions"
@@ -350,7 +351,7 @@ class Vehicle(Document):
     license_plate: Optional[str] = None
     wheelchair_accessible: Optional[WheelchairBoarding] = None
 
-    positions: List[Link[VehiclePosition]]
+    positions: List[Link[VehiclePosition]] = Field(default_factory=list)
 
     class Settings:
         name = "vehicles"
@@ -428,10 +429,15 @@ class StopTimeInstance(BaseModel):
 
 
 class TripInstance(Document):
+    # Main identifying fields
     agency_id: str
-    trip_id: str
+    trip_id: str  # Trip ID or <Route ID>#<Direction ID> for frequency-based trips
     start_date: str  # YYYYMMDD
     start_time: str  # HH:MM:SS (Scheduled start time)
+
+    # Alternative queryable fields for GTFS RT trip descriptor
+    route_id: str
+    direction_id: Optional[Direction] = None
 
     state: TripInstanceState = TripInstanceState.PRISTINE
 
@@ -457,6 +463,17 @@ class TripInstance(Document):
                 ],
                 unique=True,
                 name="trip_instance_unique_idx",
+            ),
+            # This index need not to be unique as long as an trip_id is provided (which always is).
+            pymongo.IndexModel(
+                [
+                    ("agency_id", pymongo.ASCENDING),
+                    ("route_id", pymongo.ASCENDING),
+                    ("direction_id", pymongo.ASCENDING),
+                    ("start_date", pymongo.ASCENDING),
+                    ("start_time", pymongo.ASCENDING),
+                ],
+                name="trip_instance_alternate_idx",
             ),
             pymongo.IndexModel(
                 [("state", pymongo.ASCENDING)],

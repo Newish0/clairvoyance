@@ -88,6 +88,8 @@ class TripInstanceMapper(
                     trip_id=trip.trip_id,
                     start_date=calendar_date.date,
                     start_time=stop_times[0].arrival_time,
+                    route_id=route.route_id,
+                    direction_id=trip.direction_id,
                     state=state,
                     start_datetime=convert_to_datetime(
                         calendar_date.date,
