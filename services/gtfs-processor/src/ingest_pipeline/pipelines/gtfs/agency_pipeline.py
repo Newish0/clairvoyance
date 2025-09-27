@@ -15,9 +15,9 @@ def build_agency_pipeline(
     log_level=logging.INFO,
 ):
     stages = [
-        StageSpec("files", LocalFileSource(file_path)),
-        StageSpec("csv", CSVDecoder()),
-        StageSpec("mapper", AgencyMapper(agency_id)),
-        StageSpec("mongo", MongoUpsertSink(Agency)),
+        StageSpec("file_source", LocalFileSource(file_path)),
+        StageSpec("csv_decoder", CSVDecoder()),
+        StageSpec("agency_mapper", AgencyMapper(agency_id)),
+        StageSpec("mongo_sink", MongoUpsertSink(Agency)),
     ]
-    return Orchestrator(stages, log_level=log_level)
+    return Orchestrator(stages, log_level=log_level, name="agency_pipeline")

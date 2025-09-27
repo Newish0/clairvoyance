@@ -11,9 +11,9 @@ from models.mongo_schemas import Trip
 
 def build_trips_pipeline(file_path, agency_id, log_level=logging.INFO):
     stages = [
-        StageSpec("files", LocalFileSource(file_path)),
-        StageSpec("csv", CSVDecoder()),
-        StageSpec("mapper", TripMapper(agency_id)),
-        StageSpec("mongo", MongoUpsertSink(Trip)),
+        StageSpec("file_source", LocalFileSource(file_path)),
+        StageSpec("csv_decoder", CSVDecoder()),
+        StageSpec("trip_mapper", TripMapper(agency_id)),
+        StageSpec("mongo_sink", MongoUpsertSink(Trip)),
     ]
-    return Orchestrator(stages, log_level=log_level)
+    return Orchestrator(stages, log_level=log_level, name="trips_pipeline")

@@ -5,7 +5,7 @@ from ingest_pipeline.core.types import Telemetry
 
 class SimpleTelemetry(Telemetry):
     def __init__(self, logger: Optional[logging.Logger] = None):
-        self.logger = logger or logging.getLogger("typed_orchestrator")
+        self.logger = logger or logging.getLogger("simple_telemetry")
         self.counters: Dict[str, int] = {}
 
     def log(self, level: int, msg: str, /, **ctx: Any) -> None:

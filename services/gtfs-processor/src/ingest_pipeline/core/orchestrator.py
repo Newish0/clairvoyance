@@ -31,9 +31,6 @@ class Orchestrator:
     ):
         if len(stages) < 2:
             raise ValueError("pipeline must contain at least a source and a sink")
-        self.stages = stages
-        self.telemetry = telemetry or SimpleTelemetry()
-        self.error_policy = error_policy
 
         if not name:
             global orchestrator_seq
@@ -43,6 +40,10 @@ class Orchestrator:
             self.name = name
 
         self._logger = setup_logger(f"orchestrator {self.name}", log_level)
+
+        self.stages = stages
+        self.telemetry = telemetry or SimpleTelemetry(self._logger)
+        self.error_policy = error_policy
 
         # Validate types at construction time
         self._validate_stage_io()
@@ -256,4 +257,4 @@ class Orchestrator:
         fatal_wait_task.cancel()
         await asyncio.gather(*coordinator_tasks, return_exceptions=True)
         self._logger.info(f"Pipeline {self.name} completed successfully.")
-        self._logger.info(f"Pipeline {self.name} telemetry: {str(self.telemetry)}.")
+        self._logger.info(f"Pipeline {self.name} telemetry: \n{str(self.telemetry)}.")

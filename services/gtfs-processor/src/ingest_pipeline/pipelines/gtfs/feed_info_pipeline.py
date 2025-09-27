@@ -16,9 +16,9 @@ def build_feed_info_pipeline(
     log_level=logging.INFO,
 ):
     stages = [
-        StageSpec("files", LocalFileSource(file_path)),
-        StageSpec("csv", CSVDecoder()),
-        StageSpec("mapper", FeedInfoMapper(agency_id, feed_hash)),
-        StageSpec("mongo", MongoUpsertSink(FeedInfo)),
+        StageSpec("file_source", LocalFileSource(file_path)),
+        StageSpec("csv_decoder", CSVDecoder()),
+        StageSpec("feed_info_mapper", FeedInfoMapper(agency_id, feed_hash)),
+        StageSpec("mongo_sink", MongoUpsertSink(FeedInfo)),
     ]
-    return Orchestrator(stages, log_level=log_level)
+    return Orchestrator(stages, log_level=log_level, name="feed_info_pipeline")

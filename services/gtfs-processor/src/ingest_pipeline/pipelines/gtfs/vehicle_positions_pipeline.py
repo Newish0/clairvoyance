@@ -15,8 +15,8 @@ from ingest_pipeline.transforms.gtfs.realtime.vehicle_position_mapper import (
 def build_vehicle_positions_pipeline(protobuf, agency_id, log_level=logging.INFO):
     stages = [
         StageSpec("vehicle_position_source", PassThroughSource(protobuf, bytes)),
-        StageSpec("protobuf", GTFSRealtimeProtobufDecoder()),
-        StageSpec("mapper", VehiclePositionMapper(agency_id)),
-        StageSpec("mongo_async_fn", AsyncFunctionExecutorSink()),
+        StageSpec("protobuf_decoder", GTFSRealtimeProtobufDecoder()),
+        StageSpec("vehicle_position_mapper", VehiclePositionMapper(agency_id)),
+        StageSpec("mongo_async_fn_sink", AsyncFunctionExecutorSink()),
     ]
-    return Orchestrator(stages, log_level=log_level)
+    return Orchestrator(stages, log_level=log_level, name="vehicle_positions_pipeline")
