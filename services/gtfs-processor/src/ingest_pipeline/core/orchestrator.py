@@ -256,3 +256,4 @@ class Orchestrator:
         fatal_wait_task.cancel()
         await asyncio.gather(*coordinator_tasks, return_exceptions=True)
         self._logger.info(f"Pipeline {self.name} completed successfully.")
+        self._logger.info(f"Pipeline {self.name} telemetry: {str(self.telemetry)}.")
