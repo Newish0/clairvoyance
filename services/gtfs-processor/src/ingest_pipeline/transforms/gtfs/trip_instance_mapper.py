@@ -1,6 +1,6 @@
 from typing import AsyncIterator, List, Tuple
 
-from bson import ObjectId
+from bson import DBRef
 from pymongo import UpdateOne
 
 from ingest_pipeline.core.errors import ErrorPolicy
@@ -122,9 +122,9 @@ class TripInstanceMapper(
                         "$set": {
                             **trip_instance_doc.model_dump(exclude={"id"}),
                             # Do explicit linking... and static type checkers being stupid...
-                            "trip": ObjectId(trip.id.binary),  # type: ignore
-                            "route": ObjectId(route.id.binary),  # type: ignore
-                            "shape": ObjectId(shape.id.binary),  # type: ignore
+                            "trip": DBRef(collection=Trip.Settings.name, id=trip.id),  # type: ignore
+                            "route": DBRef(collection=Route.Settings.name, id=route.id),  # type: ignore
+                            "shape": DBRef(collection=Shape.Settings.name, id=shape.id),  # type: ignore
                         }
                     },
                     upsert=True,
