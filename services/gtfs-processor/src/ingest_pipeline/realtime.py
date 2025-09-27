@@ -40,9 +40,9 @@ async def run_gtfs_realtime_pipelines(
             data = source_info.data
             data_hash = source_info.hash
 
-            trip_updates_pipeline = build_trip_updates_pipeline(
-                data, agency_id, log_level=log_level
-            )
+            # trip_updates_pipeline = build_trip_updates_pipeline(
+            #     data, agency_id, log_level=log_level
+            # )
             vehicle_positions_pipeline = build_vehicle_positions_pipeline(
                 data, agency_id, log_level=log_level
             )
