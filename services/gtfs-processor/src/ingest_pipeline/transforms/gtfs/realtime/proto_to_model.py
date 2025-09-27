@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 import models.mongo_schemas as ms
@@ -50,6 +51,29 @@ _PICKUP_DROP_OFF_MAP = {
     pb.TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType.NONE: ms.PickupDropOff.NO_PICKUP_OR_DROP_OFF,
     pb.TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType.PHONE_AGENCY: ms.PickupDropOff.PHONE_AGENCY,
     pb.TripUpdate.StopTimeUpdate.StopTimeProperties.DropOffPickupType.COORDINATE_WITH_DRIVER: ms.PickupDropOff.COORDINATE_WITH_DRIVER,
+    None: None,
+}
+
+_WHEELCHAIR_BOARDING_MAP = {
+    pb.VehicleDescriptor.WheelchairAccessible.UNKNOWN: ms.WheelchairBoarding.NO_INFO,
+    pb.VehicleDescriptor.WheelchairAccessible.WHEELCHAIR_ACCESSIBLE: ms.WheelchairBoarding.ACCESSIBLE,
+    pb.VehicleDescriptor.WheelchairAccessible.WHEELCHAIR_INACCESSIBLE: ms.WheelchairBoarding.NOT_ACCESSIBLE,
+    None: None,
+}
+
+_VEHICLE_STOP_STATUS_MAP = {
+    pb.VehiclePosition.VehicleStopStatus.INCOMING_AT: ms.VehicleStopStatus.INCOMING_AT,
+    pb.VehiclePosition.VehicleStopStatus.STOPPED_AT: ms.VehicleStopStatus.STOPPED_AT,
+    pb.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO: ms.VehicleStopStatus.IN_TRANSIT_TO,
+    None: None,
+}
+
+_CONGESTION_LEVEL_MAP = {
+    pb.VehiclePosition.CongestionLevel.UNKNOWN_CONGESTION_LEVEL: ms.CongestionLevel.UNKNOWN_CONGESTION_LEVEL,
+    pb.VehiclePosition.CongestionLevel.RUNNING_SMOOTHLY: ms.CongestionLevel.RUNNING_SMOOTHLY,
+    pb.VehiclePosition.CongestionLevel.STOP_AND_GO: ms.CongestionLevel.STOP_AND_GO,
+    pb.VehiclePosition.CongestionLevel.CONGESTION: ms.CongestionLevel.CONGESTION,
+    pb.VehiclePosition.CongestionLevel.SEVERE_CONGESTION: ms.CongestionLevel.SEVERE_CONGESTION,
     None: None,
 }
 
@@ -305,3 +329,59 @@ def stop_time_update_to_model(
         # Update existing stop time instance
         _update_existing_stop_time_instance(existing_sti, parsed_stu, agency_timezone)
         return (new_seq, existing_sti)
+
+
+def vehicle_descriptor_to_model(
+    vehicle: pb.VehicleDescriptor,
+    agency_id: str,
+) -> ms.Vehicle:
+    """Convert protobuf VehicleDescriptor to model Vehicle."""
+    return ms.Vehicle(
+        agency_id=agency_id,
+        vehicle_id=getattr(vehicle, "id", ""),
+        label=getattr(vehicle, "label", None),
+        license_plate=getattr(vehicle, "license_plate", None),
+        wheelchair_accessible=_WHEELCHAIR_BOARDING_MAP.get(
+            getattr(vehicle, "wheelchair_accessible", None)
+        ),
+        positions=[],
+    )
+
+
+def vehicle_position_to_model(
+    vehicle_position: pb.VehiclePosition,
+    trip: ms.TripInstance | None,
+    timestamp: datetime,
+    agency_id: str,
+) -> ms.VehiclePosition:
+    """Convert protobuf VehiclePosition to model VehiclePosition."""
+    position = getattr(vehicle_position, "position", None)
+    latitude = getattr(position, "latitude", None) if position else None
+    longitude = getattr(position, "longitude", None) if position else None
+    bearing = getattr(position, "bearing", None) if position else None
+    odometer = getattr(position, "odometer", None) if position else None
+    speed = getattr(position, "speed", None) if position else None
+
+    return ms.VehiclePosition(
+        agency_id=agency_id,
+        vehicle_id=vehicle_position.vehicle.id,
+        timestamp=timestamp,
+        stop_id=getattr(vehicle_position, "stop_id", None),
+        current_stop_sequence=getattr(vehicle_position, "current_stop_sequence", None),
+        current_status=_VEHICLE_STOP_STATUS_MAP.get(
+            getattr(vehicle_position, "stop_status", None)
+        ),
+        congestion_level=_CONGESTION_LEVEL_MAP.get(
+            getattr(vehicle_position, "congestion_level", None),
+        ),
+        occupancy_status=_OCCUPANCY_STATUS_MAP.get(
+            getattr(vehicle_position, "occupancy_status", None)
+        ),
+        occupancy_percentage=getattr(vehicle_position, "occupancy_percentage", None),
+        latitude=latitude,
+        longitude=longitude,
+        bearing=bearing,
+        odometer=odometer,
+        speed=speed,
+        trip=trip,  # type: ignore
+    )

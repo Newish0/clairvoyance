@@ -18,6 +18,7 @@ from models.mongo_schemas import (
     Trip,
     Route,
 )
+from beanie.operators import Or, And
 
 
 class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
@@ -34,10 +35,14 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
     ) -> AsyncIterator[UpdateOne]:
         agency = await self._get_agency(context)
         if not agency:
+            context.handle_error(
+                Exception(f"Agency {self.agency_id} not found"),
+                "trip_update_mapper.error.agency_not_found",
+            )
             return
 
         async for parsed_entity in inputs:
-            if not self._is_trip_update_entity(parsed_entity.entity):
+            if not self._has_trip_update_message(parsed_entity.entity):
                 continue
 
             try:
@@ -54,15 +59,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
     async def _get_agency(self, context: Context) -> Agency | None:
         """Get agency by ID with error handling."""
         agency = await Agency.find_one(Agency.agency_id == self.agency_id)
-        if not agency:
-            context.handle_error(
-                Exception(f"Agency {self.agency_id} not found"),
-                "trip_update_mapper.error.agency_not_found",
-            )
         return agency
 
-    def _is_trip_update_entity(self, entity) -> bool:
-        """Check if entity is a trip update."""
+    def _has_trip_update_message(self, entity) -> bool:
+        """Check if entity has a trip update."""
         return entity.HasField("trip_update")
 
     async def _process_trip_update(
@@ -118,6 +118,13 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             TripInstance.trip_id == trip_descriptor.trip_id,
             TripInstance.start_date == trip_descriptor.start_date,
             TripInstance.start_time == trip_descriptor.start_time,
+            Or(
+                TripInstance.trip_id == trip_descriptor.trip_id,
+                And(
+                    TripInstance.route_id == trip_descriptor.route_id,
+                    TripInstance.direction_id == trip_descriptor.direction_id,
+                ),
+            ),
         )
 
     def _should_process_trip_update(
@@ -197,6 +204,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             trip_id=trip_descriptor.trip_id,  # type: ignore
             start_date=trip_descriptor.start_date,  # type: ignore
             start_time=trip_descriptor.start_time,  # type: ignore
+            route_id=route.route_id,
+            direction_id=trip.direction_id,
             state=state,
             start_datetime=stop_times[0].arrival_datetime,  # type: ignore
             stop_times=stop_times,
