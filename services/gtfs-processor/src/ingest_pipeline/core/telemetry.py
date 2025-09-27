@@ -20,3 +20,18 @@ class SimpleTelemetry(Telemetry):
     def gauge(self, name: str, value: float) -> None:
         # no-op in simple telemetry
         pass
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        lines = [
+            "SimpleTelemetry:",
+            f"  Logger: {self.logger.name}",
+            f"  Counters: {len(self.counters)}",
+        ]
+
+        if self.counters:
+            lines.append("  Counter values:")
+            for name, value in sorted(self.counters.items()):
+                lines.append(f"    {name}: {value}")
+
+        return "\n".join(lines)
