@@ -26,8 +26,6 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
     input_type: type[ParsedEntity] = ParsedEntity
     output_type: Callable[[], Awaitable] = type(Callable[[], Awaitable])
 
-    _WHEELCHAIR_BOARDING_MAP = {}
-
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
@@ -40,6 +38,7 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
                 Exception(f"Agency {self.agency_id} not found"),
                 "vehicle_position_mapper.error.agency_not_found",
             )
+            context.telemetry.incr("vehicle_position_mapper.error.agency_not_found")
             return
 
         async for parsed_entity in inputs:
@@ -57,6 +56,9 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
             except Exception as e:
                 context.handle_error(
                     e, "vehicle_position_mapper.error.processing_failed"
+                )
+                context.telemetry.incr(
+                    "vehicle_position_mapper.error.processing_failed"
                 )
 
     async def _get_agency(self, context: Context) -> Agency | None:
@@ -81,52 +83,121 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
         entity_timestamp = parsed_entity.timestamp
         vehicle = entity.vehicle
 
-        timestamp = localize_unix_time(
-            vehicle.timestamp if vehicle.HasField("timestamp") else entity_timestamp,
-            agency.agency_timezone,
-        )
-
+        timestamp = self._get_localized_timestamp(vehicle, entity_timestamp, agency)
         existing_vehicle_position = await self._find_existing_vehicle_position(
             vehicle.vehicle.id, timestamp
         )
 
-        print("PROCESSING VEHICLE POSITION")
-
-        # Don't process if vehicle position already exists
-        if existing_vehicle_position is not None:
-            context.logger.debug(
-                f"Skipping duplicate vehicle position for vehicle_id={vehicle.vehicle.id} at {timestamp} as it already exists."
-            )
-            context.telemetry.incr("vehicle_position_mapper.skipped_duplicate")
+        if not self._should_process_vehicle_position(
+            context, existing_vehicle_position, vehicle.vehicle.id, timestamp
+        ):
             return None
 
-        trip_descriptor = (
-            trip_descriptor_to_model(vehicle.trip) if vehicle.HasField("trip") else None
-        )
-        trip_instance = (
-            await self._find_existing_trip_instance(trip_descriptor)
-            if trip_descriptor
-            else None
-        )
-        vehicle_doc = None
-
-        if vehicle.HasField("vehicle"):
-            vehicle_doc = (
-                await self._find_existing_vehicle(vehicle.vehicle.id)
-            ) or vehicle_descriptor_to_model(vehicle.vehicle, self.agency_id)
+        trip_descriptor = self._get_trip_descriptor(vehicle)
+        trip_instance = await self._find_existing_trip_instance(trip_descriptor)
+        vehicle_doc = await self._get_or_create_vehicle_document(vehicle)
 
         vehicle_position = vehicle_position_to_model(
             vehicle, trip_instance, timestamp, self.agency_id
         )
 
-        if existing_vehicle_position and not self._has_position_change(
-            existing_vehicle_position, vehicle_position
+        if not self._has_meaningful_position_change(
+            context,
+            existing_vehicle_position,
+            vehicle_position,
+            vehicle.vehicle.id,
+            timestamp,
         ):
+            return None
+
+        self._log_vehicle_position_processing(
+            context,
+            vehicle.vehicle.id,
+            str(getattr(trip_instance, "id", "None")),
+            timestamp,
+        )
+
+        return self._create_update_function(
+            vehicle_position, vehicle_doc, trip_instance
+        )
+
+    def _get_localized_timestamp(
+        self, vehicle, entity_timestamp: int, agency: Agency
+    ) -> datetime:
+        """Get localized timestamp from vehicle or entity."""
+        timestamp = (
+            vehicle.timestamp if vehicle.HasField("timestamp") else entity_timestamp
+        )
+        return localize_unix_time(timestamp, agency.agency_timezone)
+
+    def _should_process_vehicle_position(
+        self,
+        context: Context,
+        existing_vehicle_position: VehiclePosition | None,
+        vehicle_id: str,
+        timestamp: datetime,
+    ) -> bool:
+        """Determine if vehicle position should be processed."""
+        if existing_vehicle_position is not None:
             context.logger.debug(
-                f"No meaningful change for vehicle position of vehicle_id={vehicle.vehicle.id} at {timestamp}; skipping update."
+                f"Skipping duplicate vehicle position for vehicle_id={vehicle_id} at {timestamp} as it already exists."
+            )
+            context.telemetry.incr("vehicle_position_mapper.skipped_duplicate")
+            return False
+        return True
+
+    def _get_trip_descriptor(self, vehicle):
+        """Extract trip descriptor from vehicle if present."""
+        return (
+            trip_descriptor_to_model(vehicle.trip) if vehicle.HasField("trip") else None
+        )
+
+    async def _get_or_create_vehicle_document(self, vehicle) -> Vehicle | None:
+        """Get existing vehicle document or create new one."""
+        if not vehicle.HasField("vehicle"):
+            return None
+
+        existing_vehicle = await self._find_existing_vehicle(vehicle.vehicle.id)
+        return existing_vehicle or vehicle_descriptor_to_model(
+            vehicle.vehicle, self.agency_id
+        )
+
+    def _has_meaningful_position_change(
+        self,
+        context: Context,
+        existing: VehiclePosition | None,
+        new: VehiclePosition,
+        vehicle_id: str,
+        timestamp: datetime,
+    ) -> bool:
+        """Check if there's a meaningful change in position."""
+        if existing and not self._has_position_change(existing, new):
+            context.logger.debug(
+                f"No meaningful change for vehicle position of vehicle_id={vehicle_id} at {timestamp}; skipping update."
             )
             context.telemetry.incr("vehicle_position_mapper.skipped_no_change")
-            return None
+            return False
+        return True
+
+    def _log_vehicle_position_processing(
+        self,
+        context: Context,
+        vehicle_id: str,
+        trip_instance_doc_id: str,
+        timestamp: datetime,
+    ):
+        """Log vehicle position processing details."""
+        context.logger.debug(
+            f"Processing vehicle position for agency_id={self.agency_id} vehicle_id={vehicle_id} with trip_instance_id={trip_instance_doc_id} at {timestamp}"
+        )
+
+    def _create_update_function(
+        self,
+        vehicle_position: VehiclePosition,
+        vehicle_doc: Vehicle | None,
+        trip_instance: TripInstance | None,
+    ) -> Callable[[], Awaitable[None]]:
+        """Create the update function to be executed."""
 
         async def update_fn():
             await vehicle_position.save()
@@ -143,6 +214,7 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
     def _has_position_change(
         self, existing: VehiclePosition, new: VehiclePosition
     ) -> bool:
+        """Check if position has changed meaningfully."""
         excluded_fields = {"id", "ingested_at", "timestamp", "trip"}
         return existing.model_dump(exclude=excluded_fields) != new.model_dump(
             exclude=excluded_fields
@@ -152,6 +224,10 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
         self, trip_descriptor
     ) -> TripInstance | None:
         """Find existing trip instance matching the descriptor."""
+
+        if not trip_descriptor:
+            return None
+
         return await TripInstance.find_one(
             TripInstance.agency_id == self.agency_id,
             TripInstance.trip_id == trip_descriptor.trip_id,
