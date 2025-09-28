@@ -38,7 +38,6 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
                 Exception(f"Agency {self.agency_id} not found"),
                 "vehicle_position_mapper.error.agency_not_found",
             )
-            context.telemetry.incr("vehicle_position_mapper.error.agency_not_found")
             return
 
         async for parsed_entity in inputs:
@@ -56,9 +55,6 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
             except Exception as e:
                 context.handle_error(
                     e, "vehicle_position_mapper.error.processing_failed"
-                )
-                context.telemetry.incr(
-                    "vehicle_position_mapper.error.processing_failed"
                 )
 
     async def _get_agency(self, context: Context) -> Agency | None:
