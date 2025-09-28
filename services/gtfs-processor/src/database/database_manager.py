@@ -75,7 +75,7 @@ class DatabaseManager:
         try:
             self.logger.info("Dropping existing collections for document models...")
             for model in self.document_models:
-                coll_name = model.Settings.name
+                coll_name = model.Settings.name  # type: ignore
                 await self.client[self.database_name][coll_name].drop()
                 self.logger.debug("Dropped collection: %s", coll_name)
             self.logger.info("All specified collections dropped.")

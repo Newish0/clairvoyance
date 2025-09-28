@@ -60,17 +60,6 @@ class StopTimeUpdateScheduleRelationship(StrEnum):
     UNSCHEDULED = "UNSCHEDULED"
 
 
-class TripDescriptorScheduleRelationship(StrEnum):
-    SCHEDULED = "SCHEDULED"
-    ADDED = "ADDED"
-    UNSCHEDULED = "UNSCHEDULED"
-    CANCELED = "CANCELED"
-    REPLACEMENT = "REPLACEMENT"
-    DUPLICATED = "DUPLICATED"
-    NEW = "NEW"
-    DELETED = "DELETED"
-
-
 class VehicleStopStatus(StrEnum):
     INCOMING_AT = "INCOMING_AT"
     STOPPED_AT = "STOPPED_AT"

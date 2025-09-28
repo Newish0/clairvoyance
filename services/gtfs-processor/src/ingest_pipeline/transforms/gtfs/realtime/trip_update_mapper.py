@@ -8,8 +8,9 @@ from ingest_pipeline.transforms.gtfs.gtfs_realtime_protobuf_mapper import Parsed
 from ingest_pipeline.transforms.gtfs.realtime.proto_to_model import (
     trip_descriptor_to_model,
     stop_time_update_to_model,
+    TripDescriptorScheduleRelationship,
 )
-from models.enums import TripDescriptorScheduleRelationship
+
 from models.mongo_schemas import (
     Agency,
     StopTimeInstance,
