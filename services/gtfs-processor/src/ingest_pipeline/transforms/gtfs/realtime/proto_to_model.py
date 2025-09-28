@@ -3,19 +3,33 @@ from datetime import datetime
 from typing import Optional
 
 import models.mongo_schemas as ms
+from enum import StrEnum
 from lib import gtfs_realtime_pb2 as pb
 from utils.datetime import localize_unix_time
+from pydantic import BaseModel
+
+
+class TripDescriptorScheduleRelationship(StrEnum):
+    SCHEDULED = "SCHEDULED"
+    ADDED = "ADDED"
+    UNSCHEDULED = "UNSCHEDULED"
+    CANCELED = "CANCELED"
+    REPLACEMENT = "REPLACEMENT"
+    DUPLICATED = "DUPLICATED"
+    NEW = "NEW"
+    DELETED = "DELETED"
+
 
 # Mapping dictionaries
 _TRIP_DESCRIPTOR_SCHEDULE_RELATIONSHIP_MAP = {
-    pb.TripDescriptor.ScheduleRelationship.SCHEDULED: ms.TripDescriptorScheduleRelationship.SCHEDULED,
-    pb.TripDescriptor.ScheduleRelationship.ADDED: ms.TripDescriptorScheduleRelationship.ADDED,
-    pb.TripDescriptor.ScheduleRelationship.UNSCHEDULED: ms.TripDescriptorScheduleRelationship.UNSCHEDULED,
-    pb.TripDescriptor.ScheduleRelationship.CANCELED: ms.TripDescriptorScheduleRelationship.CANCELED,
-    pb.TripDescriptor.ScheduleRelationship.REPLACEMENT: ms.TripDescriptorScheduleRelationship.REPLACEMENT,
-    pb.TripDescriptor.ScheduleRelationship.DUPLICATED: ms.TripDescriptorScheduleRelationship.DUPLICATED,
-    pb.TripDescriptor.ScheduleRelationship.DELETED: ms.TripDescriptorScheduleRelationship.DELETED,
-    pb.TripDescriptor.ScheduleRelationship.NEW: ms.TripDescriptorScheduleRelationship.NEW,
+    pb.TripDescriptor.ScheduleRelationship.SCHEDULED: TripDescriptorScheduleRelationship.SCHEDULED,
+    pb.TripDescriptor.ScheduleRelationship.ADDED: TripDescriptorScheduleRelationship.ADDED,
+    pb.TripDescriptor.ScheduleRelationship.UNSCHEDULED: TripDescriptorScheduleRelationship.UNSCHEDULED,
+    pb.TripDescriptor.ScheduleRelationship.CANCELED: TripDescriptorScheduleRelationship.CANCELED,
+    pb.TripDescriptor.ScheduleRelationship.REPLACEMENT: TripDescriptorScheduleRelationship.REPLACEMENT,
+    pb.TripDescriptor.ScheduleRelationship.DUPLICATED: TripDescriptorScheduleRelationship.DUPLICATED,
+    pb.TripDescriptor.ScheduleRelationship.DELETED: TripDescriptorScheduleRelationship.DELETED,
+    pb.TripDescriptor.ScheduleRelationship.NEW: TripDescriptorScheduleRelationship.NEW,
     None: None,
 }
 
@@ -78,6 +92,15 @@ _CONGESTION_LEVEL_MAP = {
 }
 
 
+class TripDescriptor(BaseModel):
+    trip_id: Optional[str] = None
+    start_time: Optional[str] = None
+    start_date: Optional[str] = None
+    route_id: Optional[str] = None
+    direction_id: Optional[ms.Direction] = None
+    schedule_relationship: Optional[TripDescriptorScheduleRelationship] = None
+
+
 @dataclass(frozen=True)
 class ParsedStopTimeUpdate:
     """Parsed and normalized stop time update data."""
@@ -106,9 +129,9 @@ def _extract_core_trip_id(gtfs_rt_trip_id: str) -> str:
     return gtfs_rt_trip_id.split("#")[0]
 
 
-def trip_descriptor_to_model(trip: pb.TripDescriptor) -> ms.TripDescriptor:
+def trip_descriptor_to_model(trip: pb.TripDescriptor) -> TripDescriptor:
     """Convert protobuf TripDescriptor to model TripDescriptor."""
-    return ms.TripDescriptor(
+    return TripDescriptor(
         trip_id=_extract_core_trip_id(trip.trip_id)
         if trip.HasField("trip_id")
         else None,

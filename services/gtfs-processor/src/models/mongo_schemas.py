@@ -25,7 +25,6 @@ from models.enums import (
     RouteType,
     StopTimeUpdateScheduleRelationship,
     Timepoint,
-    TripDescriptorScheduleRelationship,
     TripInstanceState,
     VehicleStopStatus,
     WheelchairBoarding,
@@ -299,13 +298,8 @@ class Shape(Document):
         ]
 
 
-class TripDescriptor(BaseModel):
-    trip_id: Optional[str] = None
-    start_time: Optional[str] = None
-    start_date: Optional[str] = None
-    route_id: Optional[str] = None
-    direction_id: Optional[Direction] = None
-    schedule_relationship: Optional[TripDescriptorScheduleRelationship] = None
+# NOTE: GTFS RT TripDescriptor directly maps to TripInstance.
+#       Therefore, we do not create and store separate TripDescriptor documents.
 
 
 class VehiclePosition(Document):
@@ -365,18 +359,17 @@ class Vehicle(Document):
 
 
 class AlertedEntity(BaseModel):
+    agency_id: Optional[str] = None
     route_id: Optional[str] = None
     route_type: Optional[RouteType] = None
     direction_id: Optional[Direction] = None
+    trip: Optional[Link["TripInstance"]] = None
     stop_id: Optional[str] = None
-    trip_id: Optional[str] = None
-    start_time: Optional[str] = None
-    start_date: Optional[str] = None
 
 
 class Alert(Document):
-    agency_id: str
-    alert_id: int
+    agency_id: str  # The agency issuing the alert
+    content_hash: str
 
     cause: AlertCause = AlertCause.UNKNOWN_CAUSE
     effect: AlertEffect = AlertEffect.UNKNOWN_EFFECT
@@ -388,10 +381,19 @@ class Alert(Document):
     ends_at: Optional[datetime] = None
     alerted_entities: List[AlertedEntity] = Field(default_factory=list)
 
-    ingested_at: datetime = Field(default_factory=_now_utc)
+    last_seen: datetime = Field(default_factory=_now_utc)
 
     class Settings:
         name = "alerts"
+        indexes = [
+            pymongo.IndexModel(
+                [
+                    ("content_hash", pymongo.ASCENDING),
+                ],
+                unique=True,
+                name="alert_unique_idx",
+            ),
+        ]
 
 
 # --- Models for derived data ---
