@@ -61,6 +61,7 @@ async def run_gtfs_realtime_pipelines(
 
                         # Skip if there's no change to data.
                         if last_data_hash == data_hash:
+                            logger.info("No new data, skipping...")
                             continue
                         last_data_hash = data_hash
 
