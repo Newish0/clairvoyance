@@ -3,13 +3,14 @@ import logging
 from typing import Iterable
 
 from database.database_manager import DatabaseManager
-from ingest_pipeline.pipelines.gtfs import vehicle_positions_pipeline
+from ingest_pipeline.pipelines.gtfs import alerts_pipeline, vehicle_positions_pipeline
 from ingest_pipeline.pipelines.gtfs.trip_updates_pipeline import (
     build_trip_updates_pipeline,
 )
 from ingest_pipeline.pipelines.gtfs.vehicle_positions_pipeline import (
     build_vehicle_positions_pipeline,
 )
+from ingest_pipeline.pipelines.gtfs.alerts_pipeline import build_alerts_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_protobuf import ProtobufSource
 from utils.logger_config import setup_logger
 
@@ -43,11 +44,15 @@ async def run_gtfs_realtime_pipelines(
             # trip_updates_pipeline = build_trip_updates_pipeline(
             #     data, agency_id, log_level=log_level
             # )
-            vehicle_positions_pipeline = build_vehicle_positions_pipeline(
+            # vehicle_positions_pipeline = build_vehicle_positions_pipeline(
+            #     data, agency_id, log_level=log_level
+            # )
+            alerts_pipeline = build_alerts_pipeline(
                 data, agency_id, log_level=log_level
             )
 
             await asyncio.gather(
                 # trip_updates_pipeline.run(),
-                vehicle_positions_pipeline.run(),
+                # vehicle_positions_pipeline.run(),
+                alerts_pipeline.run(),
             )

@@ -236,8 +236,8 @@ def process_realtime_data(
             )
         )
 
-    # Placeholder for actual realtime data processing
-    print("  Realtime data processed successfully (placeholder).")
+    print("-" * 40)
+    print("  Realtime data processed successfully.")
 
 
 def execute_command(args: argparse.Namespace) -> None:

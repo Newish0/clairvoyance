@@ -8,6 +8,10 @@ from lib import gtfs_realtime_pb2 as pb
 from utils.datetime import localize_unix_time
 from pydantic import BaseModel
 
+import hashlib
+import json
+from bson.dbref import DBRef
+
 
 class TripDescriptorScheduleRelationship(StrEnum):
     SCHEDULED = "SCHEDULED"
@@ -91,6 +95,59 @@ _CONGESTION_LEVEL_MAP = {
     None: None,
 }
 
+_ROUTE_TYPE_MAP = {
+    0: ms.RouteType.TRAM,
+    1: ms.RouteType.SUBWAY,
+    2: ms.RouteType.RAIL,
+    3: ms.RouteType.BUS,
+    4: ms.RouteType.FERRY,
+    5: ms.RouteType.CABLE_TRAM,
+    6: ms.RouteType.AERIAL_LIFT,
+    7: ms.RouteType.FUNICULAR,
+    11: ms.RouteType.TROLLEYBUS,
+    12: ms.RouteType.MONORAIL,
+    None: None,
+}
+
+_ALERT_CAUSE_MAP = {
+    pb.Alert.Cause.UNKNOWN_CAUSE: ms.AlertCause.UNKNOWN_CAUSE,
+    pb.Alert.Cause.OTHER_CAUSE: ms.AlertCause.OTHER_CAUSE,
+    pb.Alert.Cause.TECHNICAL_PROBLEM: ms.AlertCause.TECHNICAL_PROBLEM,
+    pb.Alert.Cause.STRIKE: ms.AlertCause.STRIKE,
+    pb.Alert.Cause.DEMONSTRATION: ms.AlertCause.DEMONSTRATION,
+    pb.Alert.Cause.ACCIDENT: ms.AlertCause.ACCIDENT,
+    pb.Alert.Cause.HOLIDAY: ms.AlertCause.HOLIDAY,
+    pb.Alert.Cause.WEATHER: ms.AlertCause.WEATHER,
+    pb.Alert.Cause.MAINTENANCE: ms.AlertCause.MAINTENANCE,
+    pb.Alert.Cause.CONSTRUCTION: ms.AlertCause.CONSTRUCTION,
+    pb.Alert.Cause.POLICE_ACTIVITY: ms.AlertCause.POLICE_ACTIVITY,
+    pb.Alert.Cause.MEDICAL_EMERGENCY: ms.AlertCause.MEDICAL_EMERGENCY,
+    None: None,
+}
+
+_ALERT_EFFECT_MAP = {
+    pb.Alert.Effect.NO_SERVICE: ms.AlertEffect.NO_SERVICE,
+    pb.Alert.Effect.REDUCED_SERVICE: ms.AlertEffect.REDUCED_SERVICE,
+    pb.Alert.Effect.SIGNIFICANT_DELAYS: ms.AlertEffect.SIGNIFICANT_DELAYS,
+    pb.Alert.Effect.DETOUR: ms.AlertEffect.DETOUR,
+    pb.Alert.Effect.ADDITIONAL_SERVICE: ms.AlertEffect.ADDITIONAL_SERVICE,
+    pb.Alert.Effect.MODIFIED_SERVICE: ms.AlertEffect.MODIFIED_SERVICE,
+    pb.Alert.Effect.OTHER_EFFECT: ms.AlertEffect.OTHER_EFFECT,
+    pb.Alert.Effect.UNKNOWN_EFFECT: ms.AlertEffect.UNKNOWN_EFFECT,
+    pb.Alert.Effect.STOP_MOVED: ms.AlertEffect.STOP_MOVED,
+    pb.Alert.Effect.NO_EFFECT: ms.AlertEffect.NO_EFFECT,
+    pb.Alert.Effect.ACCESSIBILITY_ISSUE: ms.AlertEffect.ACCESSIBILITY_ISSUE,
+    None: None,
+}
+
+_ALERT_SEVERITY_MAP = {
+    pb.Alert.SeverityLevel.UNKNOWN_SEVERITY: ms.AlertSeverity.UNKNOWN_SEVERITY,
+    pb.Alert.SeverityLevel.INFO: ms.AlertSeverity.INFO,
+    pb.Alert.SeverityLevel.WARNING: ms.AlertSeverity.WARNING,
+    pb.Alert.SeverityLevel.SEVERE: ms.AlertSeverity.SEVERE,
+    None: None,
+}
+
 
 class TripDescriptor(BaseModel):
     trip_id: Optional[str] = None
@@ -122,6 +179,47 @@ class ParsedStopTimeUpdate:
     departure_occupancy_status: ms.OccupancyStatus = (
         ms.OccupancyStatus.NO_DATA_AVAILABLE
     )
+
+
+def _make_canonical(obj):
+    """
+    Recursively convert dicts, lists, DBRefs into canonical form.
+    - Dicts: sort by keys
+    - Lists: order-insensitive (sorted after canonicalizing items)
+    - DBRef: convert to canonical dict
+    - BaseModel: convert to dict and canonicalize dict
+    - datetimes: convert to ISO format
+    """
+    if isinstance(obj, dict):
+        return {k: _make_canonical(v) for k, v in sorted(obj.items())}
+
+    elif isinstance(obj, list):
+        # Convert each item to canonical, then sort by JSON string to allow mixed types
+        canonical_list = [_make_canonical(v) for v in obj]
+        return sorted(canonical_list, key=lambda x: json.dumps(x, sort_keys=True))
+
+    elif isinstance(obj, DBRef):
+        return {
+            "$dbref": {
+                "collection": obj.collection,
+                "id": str(obj.id),  # ensure consistent string representation
+                "database": obj.database,
+            }
+        }
+    elif isinstance(obj, BaseModel) or issubclass(type(obj), BaseModel):
+        return _make_canonical(obj.model_dump())
+
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj
+
+
+def _dict_hash(d: dict, input_is_canonical=False) -> str:
+    """Return a MD5 hash of a deeply nested dict/list/DBRef structure (order-insensitive)."""
+    canonical = d if input_is_canonical else _make_canonical(d)
+    encoded = json.dumps(canonical, sort_keys=True).encode()
+    return hashlib.md5(encoded).hexdigest()
 
 
 def _extract_core_trip_id(gtfs_rt_trip_id: str) -> str:
@@ -407,4 +505,110 @@ def vehicle_position_to_model(
         odometer=odometer,
         speed=speed,
         trip=trip,  # type: ignore
+    )
+
+
+def time_range_to_model(time_range: pb.TimeRange, timezone: str) -> ms.TimeRange:
+    """Convert protobuf TimeRange to model TimeRange."""
+    start = _clean_time_value(getattr(time_range, "start", None))
+    end = _clean_time_value(getattr(time_range, "end", None))
+
+    return ms.TimeRange(
+        start=localize_unix_time(start, timezone) if start else None,
+        end=localize_unix_time(end, timezone) if end else None,
+    )
+
+
+def entity_selector_to_partial_model(
+    entity: pb.EntitySelector,
+    agency_id: str,
+) -> tuple[ms.EntitySelector, TripDescriptor | None]:
+    """Convert protobuf Alert.Entity to model AlertedEntity excluding trip. Trip is returned separately to link later."""
+    trip = trip_descriptor_to_model(entity.trip) if entity.HasField("trip") else None
+
+    return (
+        ms.EntitySelector(
+            agency_id=getattr(entity, "agency_id", agency_id),
+            route_id=getattr(entity, "route_id", None),
+            route_type=_ROUTE_TYPE_MAP.get(getattr(entity, "route_type", None)),
+            direction_id=_DIRECTION_ID_MAP.get(
+                getattr(entity, "direction_id", None), None
+            ),
+            stop_id=getattr(entity, "stop_id", None),
+            trip=None,
+        ),
+        trip,
+    )  # return trip separately to link later
+
+
+def _get_translated_string_safely(translated_string_field) -> list[ms.Translation]:
+    """
+    Generic function to safely extract translations from any TranslatedString field.
+
+    Args:
+        translated_string_field: A TranslatedString protobuf field
+
+    Returns:
+        List of dictionaries with 'language' and 'text' keys, or empty list if empty
+    """
+    if not translated_string_field or not translated_string_field.translation:
+        return []
+
+    translations: list[ms.Translation] = []
+    for translation in translated_string_field.translation:
+        translation_doc = ms.Translation(
+            language=translation.language if translation.language else "",
+            text=translation.text if translation.text else "",
+        )
+        translations.append(translation_doc)
+
+    return translations
+
+
+def alert_to_model(
+    alert: pb.Alert,
+    active_periods: list[ms.TimeRange],
+    informed_entities: list[ms.EntitySelector],
+    agency_id: str,
+    timestamp: datetime,
+) -> ms.Alert:
+    """Convert protobuf Alert to model Alert."""
+
+    alert_dict = {}
+
+    alert_dict["agency_id"] = agency_id
+    alert_dict["cause"] = _ALERT_CAUSE_MAP.get(getattr(alert, "cause", None))
+    alert_dict["effect"] = _ALERT_EFFECT_MAP.get(getattr(alert, "effect", None))
+
+    if alert.HasField("header_text"):
+        alert_dict["header_text"] = _get_translated_string_safely(alert.header_text)
+
+    if alert.HasField("description_text"):
+        alert_dict["description_text"] = _get_translated_string_safely(
+            alert.description_text
+        )
+
+    if alert.HasField("url"):
+        alert_dict["url"] = _get_translated_string_safely(alert.url)
+
+    alert_dict["severity_level"] = _ALERT_SEVERITY_MAP.get(
+        getattr(alert, "severity_level", None)
+    )
+    alert_dict["active_periods"] = active_periods
+    alert_dict["informed_entities"] = informed_entities
+
+    alert_dict_hash = _dict_hash(alert_dict)
+
+    return ms.Alert(
+        agency_id=alert_dict["agency_id"],
+        content_hash=alert_dict_hash,
+        cause=alert_dict["cause"],  # type: ignore
+        effect=alert_dict["effect"],  # type: ignore
+        header_text=alert_dict.get("header_text", []),
+        description_text=alert_dict.get("description_text", []),
+        url=alert_dict.get("url", []),
+        severity_level=alert_dict["severity_level"],  # type: ignore
+        active_periods=alert_dict["active_periods"],
+        informed_entities=alert_dict["informed_entities"],
+        last_seen=timestamp,
     )
