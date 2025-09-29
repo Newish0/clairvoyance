@@ -1,28 +1,22 @@
-from datetime import date
+from typing import AsyncIterator
 
+from beanie.operators import And, Or
 from bson import DBRef
+from pymongo import UpdateOne
+
 from ingest_pipeline.core.types import Context, Transformer
 from ingest_pipeline.transforms.gtfs.gtfs_realtime_protobuf_mapper import ParsedEntity
 from ingest_pipeline.transforms.gtfs.realtime.proto_to_model import (
     TripDescriptor,
-    entity_selector_to_partial_model,
-    trip_descriptor_to_model,
-    vehicle_descriptor_to_model,
-    vehicle_position_to_model,
-    time_range_to_model,
-    entity_selector_to_partial_model,
     alert_to_model,
+    entity_selector_to_partial_model,
+    time_range_to_model,
 )
-from pymongo import UpdateOne
-from typing import AsyncIterator
 from models.mongo_schemas import (
     Agency,
-    Alert,
     TripInstance,
 )
-from datetime import datetime
 from utils.datetime import localize_unix_time
-from beanie.operators import Or, And
 
 
 class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
@@ -99,7 +93,6 @@ class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
             entity_selector_to_partial_model(ie, agency.agency_id)
             for ie in alert.informed_entity
         ]
-
         informed_entities = []
         for pie, trip_desc in partial_informed_entities:
             trip: TripInstance | None = None
@@ -108,11 +101,16 @@ class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
                 pie.trip = trip  # type: ignore
             informed_entities.append(pie)
 
-        alert_doc = alert_to_model(
-            alert, active_periods, informed_entities, self.agency_id, timestamp
-        )
-        await alert_doc.validate_self()
+        try:
+            alert_doc = alert_to_model(
+                alert, active_periods, informed_entities, self.agency_id, timestamp
+            )
+            await alert_doc.validate_self()
+        except Exception as e:
+            context.handle_error(e, "alert_mapper.error.validation_failed")
+            return
 
+        # Assume informed entity trips are either None or TripInstance and convert to DBRef
         for ie in alert_doc.informed_entities:
             if ie.trip:
                 ie.trip = DBRef(TripInstance.Settings.name, ie.trip.id)  # type: ignore

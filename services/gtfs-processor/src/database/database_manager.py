@@ -1,6 +1,6 @@
 import logging
 from typing import List
-from pymongo import AsyncMongoClient, MongoClient
+from pymongo import AsyncMongoClient
 from beanie import init_beanie, Document
 from models.mongo_schemas import (
     Agency,
