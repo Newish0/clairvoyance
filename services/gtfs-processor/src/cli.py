@@ -74,13 +74,15 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     # Mutually exclusive group for GTFS source
-    gtfs_static_group = static_parser.add_mutually_exclusive_group(required=True)
-    gtfs_static_group.add_argument(
+    gtfs_static_data_src_group = static_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    gtfs_static_data_src_group.add_argument(
         "--gtfs_config",
         type=str,
         help="Path to a JSON configuration file for GTFS static data.",
     )
-    gtfs_static_group.add_argument(
+    gtfs_static_data_src_group.add_argument(
         "--gtfs_url", type=str, help="URL to a GTFS static data zip file."
     )
 
@@ -102,17 +104,26 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     # Mutually exclusive group for GTFS source
-    gtfs_realtime_group = realtime_parser.add_mutually_exclusive_group(required=True)
-    gtfs_realtime_group.add_argument(
+    gtfs_realtime_data_src_group = realtime_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    gtfs_realtime_data_src_group.add_argument(
         "--gtfs_config",
         type=str,
         help="Path to a JSON configuration file for GTFS realtime data.",
     )
-    gtfs_realtime_group.add_argument(
+    gtfs_realtime_data_src_group.add_argument(
         "--gtfs_urls",
         type=str,
         nargs="+",  # This allows it to accept one or more URLs
         help="One or more URLs to GTFS realtime data feeds.",
+    )
+
+    realtime_parser.add_argument(
+        "--poll",
+        type=int,
+        default=0,
+        help="Poll interval (in seconds) for GTFS realtime data. If 0, polling is disabled (runs once).",
     )
 
     # --- Realize Instances command ---
@@ -202,6 +213,7 @@ def process_realtime_data(
     agency_id: str,
     gtfs_config_path: Union[str, None],
     gtfs_urls: Union[List[str], None],
+    poll: int,
     log_level: int,
 ) -> None:
     """
@@ -232,6 +244,7 @@ def process_realtime_data(
                 drop_collections=drop_collections,
                 agency_id=agency_id,
                 gtfs_urls=gtfs_urls,
+                poll=poll,
                 log_level=log_level,
             )
         )
@@ -266,6 +279,7 @@ def execute_command(args: argparse.Namespace) -> None:
             gtfs_config_path=args.gtfs_config,
             agency_id=args.agency_id,
             gtfs_urls=args.gtfs_urls,
+            poll=args.poll,
             log_level=log_level,
         )
     elif args.command in ("realize_instances", "realize"):
