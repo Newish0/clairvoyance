@@ -14,6 +14,7 @@ from models.mongo_schemas import (
     TripInstance,
     Vehicle,
     VehiclePosition,
+    Alert,
 )
 from utils.logger_config import setup_logger
 
@@ -29,6 +30,7 @@ DOCUMENT_MODELS = [
     FeedInfo,
     Vehicle,
     VehiclePosition,
+    Alert,
 ]
 
 

@@ -358,7 +358,7 @@ class Vehicle(Document):
         ]
 
 
-class AlertedEntity(BaseModel):
+class EntitySelector(BaseModel):
     agency_id: Optional[str] = None
     route_id: Optional[str] = None
     route_type: Optional[RouteType] = None
@@ -367,19 +367,28 @@ class AlertedEntity(BaseModel):
     stop_id: Optional[str] = None
 
 
+class TimeRange(BaseModel):
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+
+
+class Translation(BaseModel):
+    language: str
+    text: str
+
+
 class Alert(Document):
     agency_id: str  # The agency issuing the alert
     content_hash: str
 
     cause: AlertCause = AlertCause.UNKNOWN_CAUSE
     effect: AlertEffect = AlertEffect.UNKNOWN_EFFECT
-    header_text: Optional[str] = None
-    description_text: Optional[str] = None
-    url: Optional[str] = None
+    header_text: List[Translation] = Field(default_factory=list)
+    description_text: List[Translation] = Field(default_factory=list)
+    url: List[Translation] = Field(default_factory=list)
     severity_level: AlertSeverity = AlertSeverity.UNKNOWN_SEVERITY
-    starts_at: Optional[datetime] = None
-    ends_at: Optional[datetime] = None
-    alerted_entities: List[AlertedEntity] = Field(default_factory=list)
+    active_periods: List[TimeRange] = Field(default_factory=list)
+    informed_entities: List[EntitySelector] = Field(default_factory=list)
 
     last_seen: datetime = Field(default_factory=_now_utc)
 
