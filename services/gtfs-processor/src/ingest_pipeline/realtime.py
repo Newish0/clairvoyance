@@ -26,7 +26,6 @@ async def run_gtfs_realtime_pipelines(
 ):
     logger = setup_logger("ingest_pipeline.realtime", log_level)
 
-    # Create shutdown event
     shutdown_event = asyncio.Event()
 
     def signal_handler(signum, frame):
