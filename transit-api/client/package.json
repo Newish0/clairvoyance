@@ -1,0 +1,14 @@
+{
+  "name": "transit-api-client",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@trpc/client": "^11.6.0"
+  }
+}
