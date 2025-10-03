@@ -1,4 +1,5 @@
 from typing import AsyncIterator, List, Tuple
+from datetime import datetime
 
 from bson import DBRef
 from pymongo import UpdateOne
@@ -98,6 +99,7 @@ class TripInstanceMapper(
                         context.logger,
                     ),  # type: ignore
                     stop_times=stop_time_infos,
+                    stop_times_updated_at=datetime.now(),
                     # Static type checkers being stupid...
                     trip=trip,  # type: ignore
                     route=route,  # type: ignore

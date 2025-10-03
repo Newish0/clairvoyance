@@ -16,6 +16,7 @@ from models.mongo_schemas import (
     TripInstance,
     Vehicle,
     VehiclePosition,
+    TripInstanceState
 )
 from utils.datetime import localize_unix_time
 
@@ -203,6 +204,8 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
             if trip_instance:
                 trip_instance.vehicle = vehicle_doc  # type: ignore
                 trip_instance.positions.append(vehicle_position)  # type: ignore
+                if trip_instance.state == TripInstanceState.PRISTINE:
+                    trip_instance.state = TripInstanceState.DIRTY
                 await trip_instance.save()
 
         return update_fn

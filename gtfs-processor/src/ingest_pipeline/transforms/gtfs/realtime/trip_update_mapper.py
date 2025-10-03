@@ -1,4 +1,5 @@
 from typing import AsyncIterator
+from datetime import datetime
 
 from pymongo import UpdateOne
 from bson import DBRef
@@ -210,6 +211,7 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             state=state,
             start_datetime=stop_times[0].arrival_datetime,  # type: ignore
             stop_times=stop_times,
+            stop_times_updated_at=datetime.now(),
             route=route,  # type: ignore
             trip=trip,  # type: ignore
         )
