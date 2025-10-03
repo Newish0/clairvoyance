@@ -455,6 +455,8 @@ class TripInstance(Document):
     start_datetime: datetime
 
     stop_times: List[StopTimeInstance]
+    
+    stop_times_updated_at: datetime = Field(default_factory=_now_utc)
 
     trip: Link[Trip]
     route: Link[Route]
