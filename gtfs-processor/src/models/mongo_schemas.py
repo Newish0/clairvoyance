@@ -197,7 +197,7 @@ class Trip(Document):
                 [("agency_id", pymongo.ASCENDING), ("trip_id", pymongo.ASCENDING)],
                 unique=True,
                 name="trip_unique_idx",
-            )
+            ),
         ]
 
 
@@ -334,7 +334,14 @@ class VehiclePosition(Document):
                 ],
                 unique=True,
                 name="vehicle_position_unique_idx",
-            )
+            ),
+            pymongo.IndexModel(
+                [
+                    ("_id", pymongo.ASCENDING),
+                    ("current_stop_sequence", pymongo.ASCENDING),
+                ],
+                name="position_lookup_idx",
+            ),
         ]
 
 
@@ -492,4 +499,53 @@ class TripInstance(Document):
                 [("state", pymongo.ASCENDING)],
                 name="state_idx",
             ),
+
+            
+            pymongo.IndexModel(
+                [
+                    ("stop_times.stop_id", pymongo.ASCENDING),
+                    ("start_datetime", pymongo.ASCENDING),
+                    ("state", pymongo.ASCENDING),
+                ],
+                name="stop_times_lookup_optimized_idx",
+            ),
+            
+            
+            pymongo.IndexModel(
+                [
+                    ("stop_times.stop_id", pymongo.ASCENDING),
+                    ("stop_times.departure_datetime", pymongo.ASCENDING),
+                ],
+                name="stop_times_departure_optimized_idx",
+            ),
+            
+           
+            pymongo.IndexModel(
+                [
+                    ("stop_times_updated_at", pymongo.DESCENDING),
+                    ("stop_times.stop_id", pymongo.ASCENDING),
+                ],
+                name="realtime_filtering_idx",
+            ),
+            
+            
+            pymongo.IndexModel(
+                [
+                    ("stop_times.stop_id", pymongo.ASCENDING),
+                    ("stop_times.stop_sequence", pymongo.ASCENDING),
+                ],
+                name="stop_sequence_idx",
+            ),
+            
+            
+            pymongo.IndexModel(
+                [("stop_times_updated_at", pymongo.DESCENDING)],
+                name="stop_times_updated_at_simple_idx",
+            ),
+            
+            pymongo.IndexModel(
+                [("positions", pymongo.ASCENDING)],
+                name="positions_array_idx",
+            ),
+          
         ]
