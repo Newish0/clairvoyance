@@ -3,7 +3,7 @@ import { DataRepository } from "./data-repository";
 export class ShapeRepository extends DataRepository {
     protected collectionName = "shapes" as const;
 
-    public async getGeoJson(agencyId: string, shapeId: string) {
+    public async findGeoJson(agencyId: string, shapeId: string) {
         const shape = await this.db
             .collection(this.collectionName)
             .findOne({ agency_id: agencyId, shape_id: shapeId });
