@@ -9,7 +9,9 @@ import type {
     Trip,
     VehiclePosition,
 } from "@root/gtfs-processor/shared/gtfs-db-types";
-import { WithId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
+import { StopRepository } from "./stop-repository";
+import { TransitDb } from "@/database/mongo";
 
 type ScoreWeight = {
     distance: number;
@@ -34,65 +36,163 @@ type NearbyTrip = {
     stop_time: WithId<StopTimeInstance> & { stop_name: string; distance: number };
 };
 
-//    {
-//     _id: "68de1eb2caf23f22f28155bb",
-//     agency_id: "BCT-48",
-//     trip_id: "11001518:10045676:10049350",
-//     start_time: "23:55:00",
-//     start_date: "20251001",
-//     direction_id: "INBOUND",
-//     positions: [],
-//     route_id: "26-VIC",
-//     shape: {
-//       $ref: "shapes",
-//       $id: "68d74c8c9e2567651578991f",
-//     },
-//     start_datetime: "2025-10-02T06:55:00.000Z",
-//     state: "DIRTY",
-//     stop_times: {
-//       stop_id: "100966",
-//       stop_headsign: "",
-//       pickup_type: "REGULAR",
-//       drop_off_type: "REGULAR",
-//       timepoint: "APPROXIMATE",
-//       shape_dist_traveled: 3742,
-//       arrival_datetime: "2025-10-02T14:01:00.000Z",
-//       departure_datetime: "2025-10-02T14:01:00.000Z",
-//       predicted_arrival_datetime: "2025-10-02T07:01:00.000Z",
-//       predicted_departure_datetime: "2025-10-02T07:01:00.000Z",
-//       predicted_arrival_uncertainty: 30,
-//       predicted_departure_uncertainty: 30,
-//       schedule_relationship: "SCHEDULED",
-//     },
-//     stop_times_updated_at: "2025-10-01T23:41:52.671Z",
-//     vehicle: null,
-//     trip_details: {
-//       _id: "68d74c899e256765157829c8",
-//       trip_id: "11001518:10045676:10049350",
-//       agency_id: "BCT-48",
-//       block_id: "10049350",
-//       direction_id: "INBOUND",
-//       id: null,
-//       route_id: "26-VIC",
-//       service_id: "4439",
-//       shape_id: "40061",
-//       trip_headsign: "Dockyard via McKenzie/Tillicum",
-//       trip_short_name: null,
-//     },
-//     route_details: {
-//       _id: "68d74c849e25676515772394",
-//       agency_id: "BCT-48",
-//       route_id: "26-VIC",
-//       route_color: "B06E0E",
-//       route_long_name: "UVic / Dockyard",
-//       route_short_name: "26",
-//       route_text_color: "FFFFFF",
-//       route_type: "BUS",
-//     },
-//   }
+type PositionChangeEvent = {
+    tripInstanceId: ObjectId;
+    latestPosition: VehiclePosition | null;
+};
 
 export class TripInstancesRepository extends DataRepository {
-    protected collectionName = "trip_instances";
+    protected collectionName = "trip_instances" as const;
+    private stopRepository: StopRepository;
+
+    constructor(db: TransitDb) {
+        super(db);
+
+        this.stopRepository = new StopRepository(db);
+    }
+
+    public async findById(tripInstanceId: string) {
+        return this.db
+            .collection(this.collectionName)
+            .findOne({ _id: new ObjectId(tripInstanceId) });
+    }
+
+    public async findNextAtStop({
+        stopId,
+        agencyId,
+        routeId,
+        directionId,
+        excludedTripInstanceIds = [],
+        limit = 5,
+        realtimeMaxAgeMs: realtimeMaxAge = FIVE_MIN_IN_MS,
+    }: {
+        stopId: string;
+        agencyId?: string;
+        routeId?: string;
+        directionId?: Direction;
+        excludedTripInstanceIds?: string[];
+        limit?: number;
+        realtimeMaxAgeMs?: number;
+    }) {
+        const now = new Date();
+        const realtimeThreshold = new Date(now.getTime() - realtimeMaxAge);
+        return this.db
+            .collection(this.collectionName)
+            .aggregate([
+                {
+                    $match: {
+                        agency_id: agencyId,
+                        ...(routeId ? { route_id: routeId } : {}),
+                        ...(directionId ? { direction_id: directionId } : {}),
+                        _id: { $nin: excludedTripInstanceIds.map((id) => new ObjectId(id)) },
+                        state: { $ne: TripInstanceState.REMOVED },
+                    },
+                },
+                // Populate the last known position for each trip
+                {
+                    $addFields: {
+                        latest_position_id: { $arrayElemAt: ["$positions.$id", -1] },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "vehicle_positions",
+                        localField: "latest_position_id",
+                        foreignField: "_id",
+                        as: "latest_position",
+                    },
+                },
+
+                // Lookup trip details
+                {
+                    $lookup: {
+                        from: "trips",
+                        localField: "trip.$id",
+                        foreignField: "_id",
+                        as: "trip_details",
+                    },
+                },
+
+                // Lookup route details
+                {
+                    $lookup: {
+                        from: "routes",
+                        localField: "route.$id",
+                        foreignField: "_id",
+                        as: "route_details",
+                    },
+                },
+
+                // Flatten the lookup arrays
+                {
+                    $addFields: {
+                        latest_position: { $arrayElemAt: ["$latest_position", 0] },
+                        trip_details: { $arrayElemAt: ["$trip_details", 0] },
+                        route_details: { $arrayElemAt: ["$route_details", 0] },
+                    },
+                },
+                {
+                    $match: {
+                        $or: [
+                            {
+                                stop_times: {
+                                    $elemMatch: {
+                                        stop_id: stopId,
+                                        $or: [
+                                            {
+                                                departure_datetime: { $gt: now },
+                                            },
+                                            {
+                                                predicted_departure_datetime: { $gt: now },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                            {
+                                stop_times_updated_at: { $gte: realtimeThreshold },
+                                stop_times: {
+                                    $elemMatch: {
+                                        stop_id: stopId,
+                                        stop_sequence: {
+                                            $gte: "$latest_position.current_stop_sequence",
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+
+                {
+                    $sort: {
+                        "stop_times.departure_datetime": 1,
+                    },
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        agency_id: 1,
+                        trip_id: 1,
+                        start_date: 1,
+                        start_time: 1,
+                        route_id: 1,
+                        direction_id: 1,
+                        state: 1,
+                        start_datetime: 1,
+                        stop_times: 1,
+                        stop_times_updated_at: 1,
+                        trip: "$trip_details",
+                        route: "$route_details",
+                        shape_object_id: "$shape.$id",
+                        vehicle: 1,
+                        latest_position: 1,
+                    },
+                },
+            ])
+            .limit(limit)
+            .toArray();
+    }
 
     /**
      * Fetches a list of scheduled trips that depart from nearby stops.
@@ -106,17 +206,17 @@ export class TripInstancesRepository extends DataRepository {
      * @param radius The radius of the area to search for nearby stops.
      * @param maxDate The maximum start datetime to include in the results. Defaults to 48 hours from the current time.
      * @param minDate The minimum start datetime to include in the results. Defaults to 12 hours ago.
-     * @param realtimeMaxAge The maximum age of the position updates to include in the results. Defaults to 5 minutes.
+     * @param realtimeMaxAgeMs The maximum age in milliseconds of the position updates to include in the results. Defaults to 5 minutes.
      * @param scoreWeight The weight of each score component in the final score. MUST SUM TO 1.
      * @returns A list of scheduled trips with stop names.
      */
-    public async fetchNearbyTrips(
+    public async findNearbyTrips(
         lat: number,
         lng: number,
         radius: number,
         maxDate = getHoursInFuture(36),
         minDate = getHoursInFuture(-12),
-        realtimeMaxAge = FIVE_MIN_IN_MS,
+        realtimeMaxAgeMs = FIVE_MIN_IN_MS,
         scoreWeight: ScoreWeight = { distance: 0.6, time: 0.4 }
     ) {
         // Validate score weight
@@ -124,33 +224,12 @@ export class TripInstancesRepository extends DataRepository {
             throw new Error("Score weight must sum to 1");
         }
 
-        const realtimeThreshold = new Date(Date.now() - realtimeMaxAge);
+        const realtimeThreshold = new Date(Date.now() - realtimeMaxAgeMs);
 
         // --- Step 1: Find nearby stops ---
         let stepStartTime = performance.now();
-        const nearbyStopsCursor = this.db.collection("stops").aggregate([
-            {
-                $geoNear: {
-                    near: { type: "Point", coordinates: [lng, lat] },
-                    distanceField: "distance",
-                    maxDistance: radius,
-                    spherical: true,
-                    query: {},
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    stop_id: 1,
-                    distance: 1,
-                    stop_name: 1,
-                },
-            },
-            {
-                $sort: { distance: 1 },
-            },
-        ]);
-        const nearbyStops = await nearbyStopsCursor.toArray();
+
+        const nearbyStops = await this.stopRepository.findNearbyStops(lat, lng, radius);
         console.log(`Step 1: Find nearby stops - ${performance.now() - stepStartTime} ms`);
 
         if (nearbyStops.length === 0) {
@@ -233,48 +312,44 @@ export class TripInstancesRepository extends DataRepository {
             {
                 $match: {
                     $or: [
-                        // Static schedule check: departure time is in the future
+                        // Static schedule check:
+                        //  - Stop time departure time is in the future
                         { "stop_times.departure_datetime": { $gt: now } },
-                        // Realtime check:
+
+                        // Realtime schedule check:
+                        //  - Predicted departure time is in the future
+                        { "stop_times.predicted_departure_datetime": { $gt: now } },
+
+                        // Realtime vehicle position check:
+                        //  1. Realtime data for where the vehicle is exists
+                        //  2. Data is fresh
+                        //  3. Trip hasn't passed the stop yet
                         {
                             $and: [
-                                // Realtime data exists and is fresh
+                                // Where the vehicle (in relation to the stop) is exists
                                 { "latest_position.current_stop_sequence": { $ne: null } },
+                                // Data is fresh
                                 { stop_times_updated_at: { $gte: realtimeThreshold } },
-                                // Realtime indicates trip hasn't passed the stop yet OR is currently at the stop
-                                // Use $expr for field-to-field comparisons within $match
                                 {
                                     $expr: {
-                                        // <<< Wrap the field comparison logic in $expr >>>
                                         $or: [
-                                            // Stop sequence is greater than current sequence
+                                            // Vehicle has not passed this stop
                                             {
                                                 $gt: [
                                                     "$stop_times.stop_sequence",
                                                     "$latest_position.current_stop_sequence",
                                                 ],
                                             },
-                                            // Stop sequence equals current sequence (vehicle is at/approaching this stop)
+                                            // Vehicle is currently at this stop
                                             {
-                                                $and: [
-                                                    {
-                                                        $eq: [
-                                                            "$stop_times.stop_sequence",
-                                                            "$latest_position.current_stop_sequence",
-                                                        ],
-                                                    },
-                                                    // Comparison to a literal (1) also works inside $expr
-                                                    {
-                                                        $gte: [
-                                                            "$latest_position.current_stop_sequence",
-                                                            1,
-                                                        ],
-                                                    },
+                                                $eq: [
+                                                    "$stop_times.stop_sequence",
+                                                    "$latest_position.current_stop_sequence",
                                                 ],
                                             },
                                         ],
                                     },
-                                }, // <<< End of $expr wrapper >>>
+                                },
                             ],
                         },
                     ],
@@ -381,5 +456,71 @@ export class TripInstancesRepository extends DataRepository {
         console.log(`Step 6: Format final output - ${performance.now() - stepStartTime} ms`);
 
         return groupedByRoute;
+    }
+
+    public async *watchLivePositions({
+        agencyId,
+        routeId,
+        directionId,
+        signal,
+    }: {
+        agencyId?: string;
+        routeId?: string;
+        directionId?: Direction;
+        signal?: AbortSignal;
+    }): AsyncGenerator<PositionChangeEvent> {
+        const pipeline = [
+            {
+                $match: {
+                    ...(agencyId ? { "fullDocument.agency_id": agencyId } : {}),
+                    ...(routeId ? { "fullDocument.route_id": routeId } : {}),
+                    ...(directionId ? { "fullDocument.direction_id": directionId } : {}),
+                    "updateDescription.updatedFields": {
+                        $regex: "^positions",
+                    },
+                },
+            },
+
+            {
+                $lookup: {
+                    from: "vehicle_positions",
+                    let: {
+                        latest_pos_id: {
+                            $arrayElemAt: ["$fullDocument.positions", -1],
+                        },
+                    },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$_id", "$$latest_pos_id"] },
+                            },
+                        },
+                    ],
+                    as: "latest_position",
+                },
+            },
+            {
+                $addFields: {
+                    latest_position: { $arrayElemAt: ["$latest_position", 0] },
+                },
+            },
+        ];
+
+        // TODO: Only one change stream at a time... we should singleton this. Then we can't close until all signals are aborted.
+        const changeStream = this.db.collection(this.collectionName).watch(pipeline, {});
+        signal?.addEventListener("abort", () => changeStream.close());
+
+        try {
+            for await (const change of changeStream) {
+                const changeWithLookup = change as any;
+
+                yield {
+                    tripInstanceId: changeWithLookup.documentKey._id,
+                    latestPosition: changeWithLookup.latest_position || null,
+                };
+            }
+        } catch (error) {
+            throw error;
+        }
     }
 }
