@@ -1,12 +1,12 @@
-import { OmitId, TransitDb } from "@/database/mongo";
-import { FIVE_MIN_IN_MS, getHoursInFuture } from "@/utils/datetime";
+import { OmitId, TransitDb } from "../database/mongo";
+import { FIVE_MIN_IN_MS, getHoursInFuture } from "../utils/datetime";
 import type {
     Route,
     StopTimeInstance,
     Trip,
     VehiclePosition,
-} from "@root/gtfs-processor/shared/gtfs-db-types";
-import { Direction, TripInstanceState } from "@root/gtfs-processor/shared/gtfs-db-types";
+} from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { Direction, TripInstanceState } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { DBRef, ObjectId, WithId } from "mongodb";
 import { DataRepository } from "./data-repository";
 import { StopRepository } from "./stop-repository";

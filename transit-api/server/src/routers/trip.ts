@@ -1,7 +1,7 @@
-import { TripInstancesRepository } from "@/repositories/trip-instance-repository";
+import { TripInstancesRepository } from "../repositories/trip-instance-repository";
 import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
-import { Direction } from "@root/gtfs-processor/shared/gtfs-db-types";
+import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export const tripRouter = router({
     get: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId }) => {

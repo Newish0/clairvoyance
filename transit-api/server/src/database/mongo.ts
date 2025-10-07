@@ -1,13 +1,13 @@
-import { MongoClient, Db, Collection, type Document } from "mongodb";
+import { Collection, Db, MongoClient } from "mongodb";
 
 import type {
+    Alert,
+    Route,
     Shape,
     Stop,
-    Route,
-    Alert,
     TripInstance,
     VehiclePosition,
-} from "@root/gtfs-processor/shared/gtfs-db-types";
+} from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export type OmitId<T> = Omit<T, "_id">;
 

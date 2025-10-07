@@ -1,4 +1,4 @@
-import { TransitDb } from "@/database/mongo";
+import { TransitDb } from "../database/mongo";
 
 export abstract class DataRepository {
     protected abstract readonly collectionName: string;

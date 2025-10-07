@@ -1,4 +1,4 @@
-import { ShapeRepository } from "@/repositories/shape-repository";
+import { ShapeRepository } from "../repositories/shape-repository";
 import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
 import { EventEmitter, on } from "events";

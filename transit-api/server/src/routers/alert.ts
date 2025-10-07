@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "@/trpc";
+import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
 
 const entitySelectionQuery = v.object({
