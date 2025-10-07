@@ -9,6 +9,7 @@
     "@trpc/server": "^11.6.0",
     "mongodb": "^6.20.0",
     "neverthrow": "^8.2.0",
+    "superjson": "^2.2.2",
     "valibot": "^1.1.0"
   },
   "devDependencies": {
