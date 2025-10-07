@@ -4,7 +4,17 @@ import { Context } from "./context";
  * Initialization of tRPC backend
  * Should be done only once per backend!
  */
-const t = initTRPC.context<Context>().create();
+const t = initTRPC.context<Context>().create({
+    sse: {
+        ping: {
+            enabled: true,
+            intervalMs: 3_000,
+        },
+        client: {
+            reconnectAfterInactivityMs: 5_000,
+        },
+    },
+});
 
 /**
  * Export reusable router and procedure helpers

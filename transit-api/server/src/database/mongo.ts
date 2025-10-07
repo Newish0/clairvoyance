@@ -6,6 +6,7 @@ import type {
     Route,
     Alert,
     TripInstance,
+    VehiclePosition,
 } from "@root/gtfs-processor/shared/gtfs-db-types";
 
 export type OmitId<T> = Omit<T, "_id">;
@@ -16,6 +17,7 @@ export interface TransitDb extends Db {
     collection<T extends Route>(name: "routes"): Collection<OmitId<T>>;
     collection<T extends TripInstance>(name: "trip_instances"): Collection<OmitId<T>>;
     collection<T extends Alert>(name: "alerts"): Collection<OmitId<T>>;
+    collection<T extends VehiclePosition>(name: "vehicle_positions"): Collection<OmitId<T>>;
 }
 
 export class DatabaseManager {
@@ -24,7 +26,7 @@ export class DatabaseManager {
     private client: MongoClient;
 
     private constructor(private connectionString: string, private dbName: string) {
-        this.client = new MongoClient(this.connectionString);
+        this.client = new MongoClient(this.connectionString, { directConnection: true });
     }
 
     private static getInstanceKey(connectionString: string, dbName: string) {

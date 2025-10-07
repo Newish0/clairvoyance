@@ -36,7 +36,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--connection_string",
         type=str,
-        default="mongodb://localhost:27017",
+        default="mongodb://localhost:27017?replicaSet=rs0",
         help="MongoDB connection string.",
     )
     parser.add_argument(

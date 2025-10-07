@@ -5,7 +5,8 @@ import {
     loggerLink,
     splitLink,
 } from "@trpc/client";
-import type { AppRouter } from "../server/src/index";
+import type { AppRouter } from "@server/index";
+import { EventSource } from "eventsource";
 
 const trpc = createTRPCClient<AppRouter>({
     links: [
@@ -15,6 +16,7 @@ const trpc = createTRPCClient<AppRouter>({
             condition: (op) => op.type === "subscription",
             true: httpSubscriptionLink({
                 url: "http://localhost:3000",
+                EventSource: EventSource,
             }),
             false: httpBatchLink({
                 url: "http://localhost:3000",
@@ -23,22 +25,32 @@ const trpc = createTRPCClient<AppRouter>({
     ],
 });
 
-trpc.trip.liveTripPositions.subscribe(
-    {},
-    {
-        onData(data) {
-            console.log(data);
-        },
-    }
-);
-
-await Bun.sleep(100000);
-
-// const result = await trpc.trip.getNearby.query({
-//     lat: 48.474515,
-//     lng: -123.354458,
-//     radius: 1000,
+// await new Promise((r) => {
+//     trpc.shape.testSubscription.subscribe("", {
+//         onData(data) {
+//             console.log(data);
+//             r(null);
+//         },
+//     });
 // });
+
+await new Promise((r) => {
+    trpc.trip.liveTripPositions.subscribe(
+        {},
+        {
+            onData(data) {
+                console.log(data);
+            },
+        }
+    );
+});
+
+const result = await trpc.trip.getNearby.query({
+    lat: 48.474515,
+    lng: -123.354458,
+    radius: 1000,
+});
+
 // // console.log(JSON.stringify(getObjectTypes(result), null, 2));
 // console.log(JSON.stringify(result, null, 2));
 

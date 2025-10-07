@@ -56,7 +56,7 @@ class DatabaseManager:
             return
 
         self.logger.info("Connecting to MongoDB...")
-        self.client = AsyncMongoClient(self.connection_string)
+        self.client = AsyncMongoClient(self.connection_string, directConnection=True)
         # Initialize beanie using the motor database object, so beanie models work.
         await init_beanie(
             database=self.client[self.database_name],
