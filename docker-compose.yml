@@ -74,6 +74,21 @@ services:
       - "27017:27017" # For debugging only
     networks:
       - gtfs-internal
+    command: >
+      bash -c "
+        mongod --replSet rs0 --bind_ip_all &
+        sleep 5 &&
+        mongosh --host localhost --eval '
+          try {
+            rs.status()
+          } catch (e) {
+            rs.initiate({
+              _id: \"rs0\",
+              members: [{ _id: 0, host: \"mongodb:27017\" }]
+            })
+          }'
+        wait
+      "
     healthcheck:
       test: |
         mongosh \

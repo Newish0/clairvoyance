@@ -1,17 +1,16 @@
+import { OmitId, TransitDb } from "@/database/mongo";
 import { FIVE_MIN_IN_MS, getHoursInFuture } from "@/utils/datetime";
-import { DataRepository } from "./data-repository";
-import { Direction, TripInstanceState } from "@root/gtfs-processor/shared/gtfs-db-types";
-import { isFpEqual } from "@/utils/compare";
-
 import type {
     Route,
     StopTimeInstance,
     Trip,
     VehiclePosition,
 } from "@root/gtfs-processor/shared/gtfs-db-types";
-import { ObjectId, WithId } from "mongodb";
+import { Direction, TripInstanceState } from "@root/gtfs-processor/shared/gtfs-db-types";
+import { DBRef, ObjectId, WithId } from "mongodb";
+import { DataRepository } from "./data-repository";
 import { StopRepository } from "./stop-repository";
-import { TransitDb } from "@/database/mongo";
+import { VehiclePositionRepository } from "./vehicle-position-repository";
 
 type ScoreWeight = {
     distance: number;
@@ -36,19 +35,21 @@ type NearbyTrip = {
     stop_time: WithId<StopTimeInstance> & { stop_name: string; distance: number };
 };
 
-type PositionChangeEvent = {
+type TripVehiclePositionEvent = {
+    latestPosition: WithId<OmitId<VehiclePosition>> | null;
     tripInstanceId: ObjectId;
-    latestPosition: VehiclePosition | null;
 };
 
 export class TripInstancesRepository extends DataRepository {
     protected collectionName = "trip_instances" as const;
     private stopRepository: StopRepository;
+    private vehiclePositionRepository: VehiclePositionRepository;
 
     constructor(db: TransitDb) {
         super(db);
 
         this.stopRepository = new StopRepository(db);
+        this.vehiclePositionRepository = new VehiclePositionRepository(db);
     }
 
     public async findById(tripInstanceId: string) {
@@ -223,6 +224,7 @@ export class TripInstancesRepository extends DataRepository {
         if (Object.values(scoreWeight).reduce((a, b) => a + b, 0) !== 1) {
             throw new Error("Score weight must sum to 1");
         }
+        console.log("findNearbyTrips");
 
         const realtimeThreshold = new Date(Date.now() - realtimeMaxAgeMs);
 
@@ -468,56 +470,37 @@ export class TripInstancesRepository extends DataRepository {
         routeId?: string;
         directionId?: Direction;
         signal?: AbortSignal;
-    }): AsyncGenerator<PositionChangeEvent> {
+    }): AsyncGenerator<TripVehiclePositionEvent> {
         const pipeline = [
             {
                 $match: {
                     ...(agencyId ? { "fullDocument.agency_id": agencyId } : {}),
                     ...(routeId ? { "fullDocument.route_id": routeId } : {}),
                     ...(directionId ? { "fullDocument.direction_id": directionId } : {}),
-                    "updateDescription.updatedFields": {
-                        $regex: "^positions",
-                    },
-                },
-            },
-
-            {
-                $lookup: {
-                    from: "vehicle_positions",
-                    let: {
-                        latest_pos_id: {
-                            $arrayElemAt: ["$fullDocument.positions", -1],
-                        },
-                    },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ["$_id", "$$latest_pos_id"] },
-                            },
-                        },
-                    ],
-                    as: "latest_position",
-                },
-            },
-            {
-                $addFields: {
-                    latest_position: { $arrayElemAt: ["$latest_position", 0] },
+                    "updateDescription.updatedFields.positions": { $exists: true },
                 },
             },
         ];
 
         // TODO: Only one change stream at a time... we should singleton this. Then we can't close until all signals are aborted.
-        const changeStream = this.db.collection(this.collectionName).watch(pipeline, {});
+        const changeStream = this.db.collection(this.collectionName).watch(pipeline);
         signal?.addEventListener("abort", () => changeStream.close());
 
         try {
             for await (const change of changeStream) {
-                const changeWithLookup = change as any;
+                const changeWithUpdate = change as any;
+                const latestPositionRef: DBRef =
+                    changeWithUpdate.updateDescription.updatedFields.positions.at(-1);
+
+                // TODO: Lookup latest position with position repo....
+                const latestPosition = await this.vehiclePositionRepository.findById(
+                    latestPositionRef.oid
+                );
 
                 yield {
-                    tripInstanceId: changeWithLookup.documentKey._id,
-                    latestPosition: changeWithLookup.latest_position || null,
-                };
+                    latestPosition,
+                    tripInstanceId: changeWithUpdate.documentKey._id,
+                } as const;
             }
         } catch (error) {
             throw error;

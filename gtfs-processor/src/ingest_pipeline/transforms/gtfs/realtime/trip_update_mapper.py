@@ -270,7 +270,7 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             self._build_trip_filter(trip_descriptor),
             {
                 "$set": trip_instance.model_dump(
-                    exclude={"id", "route", "trip", "shape"}
+                    exclude={"id", "route", "trip", "shape", "positions", "vehicle"}
                 )
             },
         )

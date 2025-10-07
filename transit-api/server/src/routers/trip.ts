@@ -60,7 +60,6 @@ export const tripRouter = router({
             })
         )
         .subscription(async function* ({ input, ctx, signal }) {
-            console.log("liveTripPositions");
             const repo = new TripInstancesRepository(ctx.db);
             for await (const trip of repo.watchLivePositions({
                 ...input,
