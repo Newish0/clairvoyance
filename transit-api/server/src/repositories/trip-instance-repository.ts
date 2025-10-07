@@ -2,15 +2,18 @@ import { OmitId, TransitDb } from "../database/mongo";
 import { FIVE_MIN_IN_MS, getHoursInFuture } from "../utils/datetime";
 import type {
     Route,
+    StopTime,
     StopTimeInstance,
     Trip,
     VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { Direction, TripInstanceState } from "../../../../gtfs-processor/shared/gtfs-db-types";
-import { DBRef, ObjectId, WithId } from "mongodb";
+import { DBRef, MongoAPIError, ObjectId, WithId } from "mongodb";
 import { DataRepository } from "./data-repository";
 import { StopRepository } from "./stop-repository";
 import { VehiclePositionRepository } from "./vehicle-position-repository";
+
+const CHANGESTREAM_CLOSED_ERROR = 234;
 
 type ScoreWeight = {
     distance: number;
@@ -39,6 +42,10 @@ type TripVehiclePositionEvent = {
     latestPosition: WithId<OmitId<VehiclePosition>> | null;
     tripInstanceId: ObjectId;
 };
+
+type TripStopTimeEvent = {
+    tripInstanceId: string;
+} & StopTimeInstance;
 
 export class TripInstancesRepository extends DataRepository {
     protected collectionName = "trip_instances" as const;
@@ -503,6 +510,61 @@ export class TripInstancesRepository extends DataRepository {
                 } as const;
             }
         } catch (error) {
+            if (error instanceof MongoAPIError && signal?.aborted) {
+                return;
+            }
+            
+            throw error;
+        }
+    }
+
+    public async *watchLiveStopTimes(
+        watchTripStops: {
+            tripInstanceId: string;
+            stopId: string;
+        }[],
+        signal?: AbortSignal
+    ): AsyncGenerator<TripStopTimeEvent> {
+        const pipeline = [
+            {
+                $match: {
+                    "documentKey._id": {
+                        $in: watchTripStops.map((item) => new ObjectId(item.tripInstanceId)),
+                    },
+                    "updateDescription.updatedFields.stop_times.stop_id": {
+                        $in: watchTripStops.map((item) => item.stopId),
+                    },
+                },
+            },
+        ];
+
+        // TODO: Only one change stream at a time... we should singleton this. Then we can't close until all signals are aborted.
+        const changeStream = this.db.collection(this.collectionName).watch(pipeline);
+        signal?.addEventListener("abort", () => changeStream.close());
+
+        try {
+            for await (const change of changeStream) {
+                const changeWithUpdate = change as any;
+                const stopTimes: StopTimeInstance[] =
+                    changeWithUpdate.updateDescription.updatedFields.stop_times;
+                const stopTime = stopTimes.find((st) =>
+                    watchTripStops.some((ts) => ts.stopId == st.stop_id)
+                );
+
+                if (!stopTime) {
+                    continue;
+                }
+
+                yield {
+                    ...stopTime,
+                    tripInstanceId: changeWithUpdate.documentKey._id,
+                } as const;
+            }
+        } catch (error) {
+            if (error instanceof MongoAPIError && signal?.aborted) {
+                return;
+            }
+
             throw error;
         }
     }
