@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@trpc/client": "^11.6.0",
-    "eventsource": "^4.0.0"
+    "eventsource": "^4.0.0",
+    "superjson": "^2.2.2"
   }
 }

@@ -5,8 +5,9 @@ import {
     loggerLink,
     splitLink,
 } from "@trpc/client";
-import type { AppRouter } from "../server/src/index";
 import { EventSource } from "eventsource";
+import superjson from "superjson";
+import type { AppRouter } from "../server/src/index";
 
 const trpc = createTRPCClient<AppRouter>({
     links: [
@@ -17,9 +18,11 @@ const trpc = createTRPCClient<AppRouter>({
             true: httpSubscriptionLink({
                 url: "http://localhost:3000",
                 EventSource: EventSource,
+                transformer: superjson,
             }),
             false: httpBatchLink({
                 url: "http://localhost:3000",
+                transformer: superjson,
             }),
         }),
     ],
@@ -48,7 +51,7 @@ await new Promise((r) => {
         [
             {
                 tripInstanceId: "68e21cc319d65847f3af09bf",
-                stopId: "100024",
+                stopId: "100731",
             },
         ],
         {
