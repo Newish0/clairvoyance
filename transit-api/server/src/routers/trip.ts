@@ -68,4 +68,20 @@ export const tripRouter = router({
                 yield trip;
             }
         }),
+
+    liveTripStopTime: publicProcedure
+        .input(
+            v.array(
+                v.object({
+                    tripInstanceId: v.string(),
+                    stopId: v.string(),
+                })
+            )
+        )
+        .subscription(async function* ({ input, ctx, signal }) {
+            const repo = new TripInstancesRepository(ctx.db);
+            for await (const trip of repo.watchLiveStopTimes(input, signal)) {
+                yield trip;
+            }
+        }),
 });
