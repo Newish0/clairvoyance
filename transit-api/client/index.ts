@@ -5,7 +5,7 @@ import {
     loggerLink,
     splitLink,
 } from "@trpc/client";
-import type { AppRouter } from "@server/index";
+import type { AppRouter } from "../server/src/index";
 import { EventSource } from "eventsource";
 
 const trpc = createTRPCClient<AppRouter>({
