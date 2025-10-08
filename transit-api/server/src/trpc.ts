@@ -6,7 +6,7 @@ import { Context } from "./context";
  * Should be done only once per backend!
  */
 const t = initTRPC.context<Context>().create({
-    transformer: superjson,
+    transformer: superjson, // TODO: Maybe use `devalue` instead
     sse: {
         ping: {
             enabled: true,

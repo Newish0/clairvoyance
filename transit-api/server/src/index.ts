@@ -33,7 +33,7 @@ const handler = (req: Request) =>
     });
 
 Bun.serve({
-    port: 3000,
+    port: 8000,
     fetch: handler,
 });
 

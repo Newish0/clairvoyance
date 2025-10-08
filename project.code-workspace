@@ -20,6 +20,10 @@
             "name": "Web App",
             "path": "./web-app"
         },
+        {
+            "name": "Transit App",
+            "path": "./transit-app"
+        },
     ],
     "settings": {
         "files.exclude": {
