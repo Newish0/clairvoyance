@@ -37,39 +37,39 @@ const trpc = createTRPCClient<AppRouter>({
 //     });
 // });
 
-await new Promise((r) => {
-    // trpc.trip.liveTripPositions.subscribe(
-    //     {},
-    //     {
-    //         onData(data) {
-    //             console.log(data);
-    //         },
-    //     }
-    // );
+// await new Promise((r) => {
+//     // trpc.trip.liveTripPositions.subscribe(
+//     //     {},
+//     //     {
+//     //         onData(data) {
+//     //             console.log(data);
+//     //         },
+//     //     }
+//     // );
 
-    trpc.trip.liveTripStopTime.subscribe(
-        [
-            {
-                tripInstanceId: "68e21cc319d65847f3af09bf",
-                stopId: "100731",
-            },
-        ],
-        {
-            onData(data) {
-                console.log(data);
-            },
-        }
-    );
-});
-
-// const result = await trpc.trip.getNearby.query({
-//     lat: 48.474515,
-//     lng: -123.354458,
-//     radius: 1000,
+//     trpc.trip.liveTripStopTime.subscribe(
+//         [
+//             {
+//                 tripInstanceId: "68e21cc319d65847f3af09bf",
+//                 stopId: "100731",
+//             },
+//         ],
+//         {
+//             onData(data) {
+//                 console.log(data);
+//             },
+//         }
+//     );
 // });
 
-// // console.log(JSON.stringify(getObjectTypes(result), null, 2));
-// console.log(JSON.stringify(result, null, 2));
+const result = await trpc.trip.getNearby.query({
+    lat: 48.474515,
+    lng: -123.354458,
+    radius: 1000,
+});
+
+// console.log(JSON.stringify(getObjectTypes(result), null, 2));
+console.log(JSON.stringify(result, null, 2));
 
 // function getObjectTypes(obj: any, typeObject: any = {}) {
 //     for (const key in obj) {

@@ -45,6 +45,7 @@ export class StopRepository extends DataRepository {
                     stop_id: 1,
                     distance: 1,
                     stop_name: 1,
+                    location: 1,
                 },
             },
             {
@@ -52,8 +53,13 @@ export class StopRepository extends DataRepository {
             },
         ]);
 
-        const nearbyStops: { _id: string; stop_id: string; distance: number; stop_name: string }[] =
-            (await nearbyStopsCursor.toArray()) as any;
+        const nearbyStops: {
+            _id: string;
+            stop_id: string;
+            distance: number;
+            stop_name: string;
+            location: { type: string; coordinates: [number, number] };
+        }[] = (await nearbyStopsCursor.toArray()) as any;
 
         return nearbyStops;
     }
