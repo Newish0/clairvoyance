@@ -1,61 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
+import { HomeMap } from "@/components/maps/home-map";
 import { Button } from "@/components/ui/button";
+import { SettingsIcon } from "lucide-react";
 
 export const Route = createFileRoute("/")({
-    component: App,
+    component: TransitApp,
 });
 
-function App() {
+function TransitApp() {
     return (
-        <div className="text-center">
-            <Accordion type="single" collapsible>
-                <AccordionItem value="item-1">
-                    <AccordionTrigger>Is it accessible?</AccordionTrigger>
-                    <AccordionContent>
-                        Yes. It adheres to the WAI-ARIA design pattern.
-                    </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="item-2">
-                    <AccordionTrigger>Is it accessible?</AccordionTrigger>
-                    <AccordionContent>
-                        Yes. It adheres to the WAI-ARIA design pattern.
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-            <Button>Button</Button>
-            {/* <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
-                <img
-                    src={logo}
-                    className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
-                    alt="logo"
-                />
-                <p>
-                    Edit <code>src/routes/index.tsx</code> and save to reload.
-                </p>
-                <a
-                    className="text-[#61dafb] hover:underline"
-                    href="https://reactjs.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Learn React
-                </a>
-                <a
-                    className="text-[#61dafb] hover:underline"
-                    href="https://tanstack.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Learn TanStack
-                </a>
-            </header> */}
+        <div className="h-[100dvh] w-[100dvw] relative">
+            <div className="w-full h-full absolute top-0 left-0">
+                <HomeMap />
+            </div>
+
+            <div className="relative">
+                <Button variant={"secondary"} size={"icon"} className="absolute top-4 right-4">
+                    <SettingsIcon />
+                </Button>
+            </div>
         </div>
     );
 }
