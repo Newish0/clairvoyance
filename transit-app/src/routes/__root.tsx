@@ -8,7 +8,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "../../../transit-api/server/src/index";
 
-import Header from "../components/Header";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export interface RouterAppContext {
     trpc: TRPCOptionsProxy<AppRouter>;
@@ -18,8 +18,10 @@ export interface RouterAppContext {
 export const Route = createRootRouteWithContext<RouterAppContext>()({
     component: () => (
         <>
-            <Header />
-            <Outlet />
+            <ThemeProvider defaultTheme="dark" storageKey="transit-app-ui-theme">
+                <Outlet />
+            </ThemeProvider>
+
             <TanStackDevtools
                 config={{
                     position: "bottom-right",
