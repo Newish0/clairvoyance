@@ -3,6 +3,7 @@ from typing import AsyncIterator
 from beanie.operators import And, Or
 from bson import DBRef
 from pymongo import UpdateOne
+from datetime import datetime, timezone
 
 from ingest_pipeline.core.types import Context, Transformer
 from ingest_pipeline.transforms.gtfs.gtfs_realtime_protobuf_mapper import ParsedEntity
@@ -16,7 +17,6 @@ from models.mongo_schemas import (
     Agency,
     TripInstance,
 )
-from utils.datetime import localize_unix_time
 
 
 class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
@@ -82,10 +82,10 @@ class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
         self, context: Context, parsed_entity: ParsedEntity, agency: Agency
     ) -> UpdateOne | None:
         alert = parsed_entity.entity.alert
-        timestamp = localize_unix_time(parsed_entity.timestamp, agency.agency_timezone)
+        timestamp = datetime.fromtimestamp(parsed_entity.timestamp, tz=timezone.utc) 
 
         active_periods = [
-            time_range_to_model(period, agency.agency_timezone)
+            time_range_to_model(period)
             for period in alert.active_period
         ]
 

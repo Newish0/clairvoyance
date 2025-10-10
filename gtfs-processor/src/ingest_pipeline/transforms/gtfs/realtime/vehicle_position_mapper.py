@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from beanie.operators import And, Or
@@ -18,7 +18,6 @@ from models.mongo_schemas import (
     VehiclePosition,
     TripInstanceState
 )
-from utils.datetime import localize_unix_time
 
 
 class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
@@ -125,7 +124,7 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
         timestamp = (
             vehicle.timestamp if vehicle.HasField("timestamp") else entity_timestamp
         )
-        return localize_unix_time(timestamp, agency.agency_timezone)
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc,)
 
     def _should_process_vehicle_position(
         self,
