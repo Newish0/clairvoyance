@@ -97,23 +97,3 @@ def convert_to_datetime(
         if logger:
             logger.error(f"Error converting time: {e}", exc_info=True)
         return None
-
-
-def localize_unix_time(unix_seconds: int, timezone_str: str) -> datetime:
-    """
-    Converts a Unix timestamp to a localized datetime object using pytz.
-
-    Returns:
-        A timezone-aware datetime object localized to the specified timezone.
-    """
-
-    dt_utc_naive = datetime.fromtimestamp(unix_seconds, tz=timezone.utc)
-
-    try:
-        target_tz = pytz.timezone(timezone_str)
-    except pytz.UnknownTimeZoneError:
-        raise ValueError(f"Unknown timezone: {timezone_str}")
-
-    localized_dt = dt_utc_naive.astimezone(target_tz)
-
-    return localized_dt

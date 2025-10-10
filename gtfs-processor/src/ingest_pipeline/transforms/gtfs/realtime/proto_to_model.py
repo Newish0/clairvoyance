@@ -1,16 +1,15 @@
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
-
-import models.mongo_schemas as ms
-from enum import StrEnum
-from lib import gtfs_realtime_pb2 as pb
-from utils.datetime import localize_unix_time
-from pydantic import BaseModel
-
 import hashlib
 import json
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import StrEnum
+from typing import Optional
+
 from bson.dbref import DBRef
+from pydantic import BaseModel
+
+import models.mongo_schemas as ms
+from lib import gtfs_realtime_pb2 as pb
 
 
 class TripDescriptorScheduleRelationship(StrEnum):
@@ -332,7 +331,6 @@ def _parse_stop_time_update(
 def _create_new_stop_time_instance(
     stop_time_update: pb.TripUpdate.StopTimeUpdate,
     parsed_stu: ParsedStopTimeUpdate,
-    agency_timezone: str,
 ) -> ms.StopTimeInstance:
     """Create a new StopTimeInstance from parsed data."""
     return ms.StopTimeInstance(
@@ -346,22 +344,22 @@ def _create_new_stop_time_instance(
         ),
         timepoint=ms.Timepoint.EXACT,
         shape_dist_traveled=None,
-        arrival_datetime=localize_unix_time(
+        arrival_datetime=datetime.fromtimestamp(
             parsed_stu.scheduled_arrival_time,  # type: ignore
-            agency_timezone,
+            tz=timezone.utc,
         ),
-        predicted_arrival_datetime=localize_unix_time(
-            parsed_stu.arrival_time, agency_timezone
+        predicted_arrival_datetime=datetime.fromtimestamp(
+            parsed_stu.arrival_time, tz=timezone.utc
         )
         if parsed_stu.arrival_time
         else None,
         predicted_arrival_uncertainty=parsed_stu.arrival_uncertainty,
-        departure_datetime=localize_unix_time(
+        departure_datetime=datetime.fromtimestamp(
             parsed_stu.scheduled_departure_time,  # type: ignore
-            agency_timezone,
+            tz=timezone.utc,
         ),
-        predicted_departure_datetime=localize_unix_time(
-            parsed_stu.departure_time, agency_timezone
+        predicted_departure_datetime=datetime.fromtimestamp(
+            parsed_stu.departure_time, tz=timezone.utc
         )
         if parsed_stu.departure_time
         else None,
@@ -373,7 +371,6 @@ def _create_new_stop_time_instance(
 def _update_existing_stop_time_instance(
     existing_sti: ms.StopTimeInstance,
     parsed_stu: ParsedStopTimeUpdate,
-    agency_timezone: str,
 ) -> None:
     """Update existing StopTimeInstance with new data."""
 
@@ -383,13 +380,15 @@ def _update_existing_stop_time_instance(
 
     # Update arrival times
     if parsed_stu.scheduled_arrival_time is not None:
-        existing_sti.arrival_datetime = localize_unix_time(
-            parsed_stu.scheduled_arrival_time, agency_timezone
+        existing_sti.arrival_datetime = datetime.fromtimestamp(
+            parsed_stu.scheduled_arrival_time,
+            tz=timezone.utc,
         )
 
     if parsed_stu.arrival_time is not None:
-        existing_sti.predicted_arrival_datetime = localize_unix_time(
-            parsed_stu.arrival_time, agency_timezone
+        existing_sti.predicted_arrival_datetime = datetime.fromtimestamp(
+            parsed_stu.arrival_time,
+            tz=timezone.utc,
         )
 
     if parsed_stu.arrival_uncertainty is not None:
@@ -397,13 +396,15 @@ def _update_existing_stop_time_instance(
 
     # Update departure times
     if parsed_stu.scheduled_departure_time is not None:
-        existing_sti.departure_datetime = localize_unix_time(
-            parsed_stu.scheduled_departure_time, agency_timezone
+        existing_sti.departure_datetime = datetime.fromtimestamp(
+            parsed_stu.scheduled_departure_time,
+            tz=timezone.utc,
         )
 
     if parsed_stu.departure_time is not None:
-        existing_sti.predicted_departure_datetime = localize_unix_time(
-            parsed_stu.departure_time, agency_timezone
+        existing_sti.predicted_departure_datetime = datetime.fromtimestamp(
+            parsed_stu.departure_time,
+            tz=timezone.utc,
         )
 
     if parsed_stu.departure_uncertainty is not None:
@@ -412,11 +413,20 @@ def _update_existing_stop_time_instance(
 
 def stop_time_update_to_model(
     stop_time_update: pb.TripUpdate.StopTimeUpdate,
-    agency_timezone: str,
     existing_sti: Optional[ms.StopTimeInstance],
-    existing_stop_sequence: Optional[int] = None,
-) -> tuple[Optional[int], ms.StopTimeInstance]:
+) -> tuple[int | None, ms.StopTimeInstance]:
     """Convert protobuf StopTimeUpdate into a StopTimeInstance model."""
+
+    # Ensure datetimes are in UTC (because Mongo stores them in UTC)
+    if existing_sti:
+        if existing_sti.arrival_datetime:
+            existing_sti.arrival_datetime = existing_sti.arrival_datetime.replace(
+                tzinfo=timezone.utc
+            )
+        if existing_sti.departure_datetime:
+            existing_sti.departure_datetime = existing_sti.departure_datetime.replace(
+                tzinfo=timezone.utc
+            )
 
     # Extract existing times for normalization
     existing_arrival_time = (
@@ -434,21 +444,15 @@ def stop_time_update_to_model(
         stop_time_update, existing_arrival_time, existing_departure_time
     )
 
-    new_seq = (
-        parsed_stu.stop_sequence
-        if parsed_stu.stop_sequence is not None
-        else existing_stop_sequence
-    )
+    new_seq = parsed_stu.stop_sequence
 
     if existing_sti is None:
         # Create new stop time instance
-        new_sti = _create_new_stop_time_instance(
-            stop_time_update, parsed_stu, agency_timezone
-        )
+        new_sti = _create_new_stop_time_instance(stop_time_update, parsed_stu)
         return (new_seq, new_sti)
     else:
         # Update existing stop time instance
-        _update_existing_stop_time_instance(existing_sti, parsed_stu, agency_timezone)
+        _update_existing_stop_time_instance(existing_sti, parsed_stu)
         return (new_seq, existing_sti)
 
 
@@ -508,14 +512,24 @@ def vehicle_position_to_model(
     )
 
 
-def time_range_to_model(time_range: pb.TimeRange, timezone: str) -> ms.TimeRange:
+def time_range_to_model(time_range: pb.TimeRange) -> ms.TimeRange:
     """Convert protobuf TimeRange to model TimeRange."""
     start = _clean_time_value(getattr(time_range, "start", None))
     end = _clean_time_value(getattr(time_range, "end", None))
 
     return ms.TimeRange(
-        start=localize_unix_time(start, timezone) if start else None,
-        end=localize_unix_time(end, timezone) if end else None,
+        start=datetime.fromtimestamp(
+            start,
+            tz=timezone.utc,
+        )
+        if start
+        else None,
+        end=datetime.fromtimestamp(
+            end,
+            tz=timezone.utc,
+        )
+        if end
+        else None,
     )
 
 

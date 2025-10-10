@@ -1,5 +1,5 @@
 from typing import AsyncIterator
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pymongo import UpdateOne
 from bson import DBRef
@@ -139,7 +139,9 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             != TripDescriptorScheduleRelationship.NEW
         ):
             context.handle_error(
-                Exception("TripInstance not found for non-new trip update"),
+                Exception(
+                    f"TripInstance not found for non-new trip update while looking for {trip_descriptor}"
+                ),
                 "trip_update_mapper.error.trip_instance_not_found",
             )
             return False
@@ -149,30 +151,59 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         self, trip_update, agency: Agency, trip_instance: TripInstance | None
     ) -> list[StopTimeInstance]:
         """Process all stop time updates and return sorted list."""
-        stop_times_with_seq: list[tuple[int | None, StopTimeInstance]] = []
+        # stop_times_with_seq: list[tuple[int | None, StopTimeInstance]] = []
+        # for stu in trip_update.stop_time_update:
+        #     seq, existing_sti = None, None
+        #     if trip_instance is not None:
+        #         seq, existing_sti = self._find_existing_stop_time(stu, trip_instance)
+        #     stop_time = stop_time_update_to_model(stu, existing_sti, seq)
+        #     stop_times_with_seq.append(stop_time)
+        existing_stop_times = (
+            trip_instance.stop_times if trip_instance is not None else []
+        )
+        new_stop_times_with_seq: list[tuple[int | None, StopTimeInstance]] = []
         for stu in trip_update.stop_time_update:
-            seq, existing_sti = None, None
-            if trip_instance is not None:
-                seq, existing_sti = self._find_existing_stop_time(stu, trip_instance)
-            stop_time = stop_time_update_to_model(
-                stu, agency.agency_timezone, existing_sti, seq
-            )
-            stop_times_with_seq.append(stop_time)
+            updated = False
+            for index, existing_stop_time in enumerate(existing_stop_times):
+                seq = index + 1
+                if existing_stop_time.stop_id == stu.stop_id:
+                    updated_seq, updated_stop_time = stop_time_update_to_model(
+                        stu, existing_stop_time
+                    )
+                    if updated_seq is None or updated_seq == seq:
+                        existing_stop_times[index] = updated_stop_time
+                        updated = True
+                        break
+                    else:
+                        raise Exception(
+                            f"Stop time sequence mismatch: {updated_seq} != {seq}"
+                        )
+            if not updated:
+                new_seq, new_stop_time = stop_time_update_to_model(stu, None)
+                new_stop_times_with_seq.append((new_seq, new_stop_time))
+
+        existing_stop_times_with_seq = [
+            (index + 1, existing_stop_time)
+            for index, existing_stop_time in enumerate(existing_stop_times)
+        ]
+        merged_stop_times_with_seq = (
+            existing_stop_times_with_seq + new_stop_times_with_seq
+        )
 
         # Sort by stop sequence, putting None values at the end
-        stop_times_with_seq.sort(
+        merged_stop_times_with_seq.sort(
             key=lambda x: x[0] if x[0] is not None else float("inf")
         )
 
-        stop_times = [sti for _, sti in stop_times_with_seq]
+        stop_times = [sti for _, sti in merged_stop_times_with_seq]
         return stop_times
 
-    def _find_existing_stop_time(self, stu, trip_instance: TripInstance):
-        """Find existing stop time for the given stop time update with index."""
-        for seq, stop_time in enumerate(trip_instance.stop_times):
-            if stop_time.stop_id == stu.stop_id:
-                return seq, stop_time
-        return None, None
+    # def _find_existing_stop_time(self, stu, trip_instance: TripInstance):
+    #     """Find existing stop time for the given stop time update with index."""
+    #     for seq, stop_time in enumerate(trip_instance.stop_times):
+    #         if stop_time.stop_id == stu.stop_id:
+    #             return seq, stop_time
+    #     return None, None
 
     def _log_trip_update_processing(self, context: Context, trip_descriptor):
         """Log trip update processing details."""
@@ -209,9 +240,10 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             route_id=route.route_id,
             direction_id=trip.direction_id,
             state=state,
-            start_datetime=stop_times[0].arrival_datetime,  # type: ignore
+            start_datetime=stop_times[0].arrival_datetime
+            or stop_times[0].departure_datetime,  # type: ignore
             stop_times=stop_times,
-            stop_times_updated_at=datetime.now(),
+            stop_times_updated_at=datetime.now(timezone.utc),
             route=route,  # type: ignore
             trip=trip,  # type: ignore
         )
@@ -258,6 +290,7 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
 
         trip_instance.state = new_state
         trip_instance.stop_times = stop_times
+        trip_instance.stop_times_updated_at = datetime.now(timezone.utc)
 
         context.logger.debug(
             f"Creating update to TripInstance for agency_id: {self.agency_id}, "
