@@ -99,7 +99,7 @@ export class TripInstancesRepository extends DataRepository {
                 // Populate the last known position for each trip
                 {
                     $addFields: {
-                        latest_position_id: { $arrayElemAt: ["$positions.$id", -1] },
+                        latest_position_id: { $arrayElemAt: ["$positions", -1] },
                     },
                 },
                 {
@@ -115,7 +115,7 @@ export class TripInstancesRepository extends DataRepository {
                 {
                     $lookup: {
                         from: "trips",
-                        localField: "trip.$id",
+                        localField: "trip",
                         foreignField: "_id",
                         as: "trip_details",
                     },
@@ -125,7 +125,7 @@ export class TripInstancesRepository extends DataRepository {
                 {
                     $lookup: {
                         from: "routes",
-                        localField: "route.$id",
+                        localField: "route",
                         foreignField: "_id",
                         as: "route_details",
                     },
@@ -192,7 +192,7 @@ export class TripInstancesRepository extends DataRepository {
                         stop_times_updated_at: 1,
                         trip: "$trip_details",
                         route: "$route_details",
-                        shape_object_id: "$shape.$id",
+                        shape: 1,
                         vehicle: 1,
                         latest_position: 1,
                     },
@@ -276,7 +276,7 @@ export class TripInstancesRepository extends DataRepository {
             // Populate the last known position for each trip
             {
                 $addFields: {
-                    latest_position_id: { $arrayElemAt: ["$positions.$id", -1] },
+                    latest_position_id: { $arrayElemAt: ["$positions", -1] },
                 },
             },
             {
@@ -292,7 +292,7 @@ export class TripInstancesRepository extends DataRepository {
             {
                 $lookup: {
                     from: "trips",
-                    localField: "trip.$id",
+                    localField: "trip",
                     foreignField: "_id",
                     as: "trip_details",
                 },
@@ -302,7 +302,7 @@ export class TripInstancesRepository extends DataRepository {
             {
                 $lookup: {
                     from: "routes",
-                    localField: "route.$id",
+                    localField: "route",
                     foreignField: "_id",
                     as: "route_details",
                 },
@@ -384,7 +384,7 @@ export class TripInstancesRepository extends DataRepository {
                     stop_times_updated_at: 1,
                     trip: "$trip_details",
                     route: "$route_details",
-                    shape_object_id: "$shape.$id",
+                    shape: 1,
                     vehicle: 1,
                     latest_position: 1,
                 },
@@ -496,12 +496,11 @@ export class TripInstancesRepository extends DataRepository {
         try {
             for await (const change of changeStream) {
                 const changeWithUpdate = change as any;
-                const latestPositionRef: DBRef =
+                const latestPositionObjectId =
                     changeWithUpdate.updateDescription.updatedFields.positions.at(-1);
 
-                // TODO: Lookup latest position with position repo....
                 const latestPosition = await this.vehiclePositionRepository.findById(
-                    latestPositionRef.oid
+                    latestPositionObjectId
                 );
 
                 yield {
@@ -513,7 +512,7 @@ export class TripInstancesRepository extends DataRepository {
             if (error instanceof MongoAPIError && signal?.aborted) {
                 return;
             }
-            
+
             throw error;
         }
     }
