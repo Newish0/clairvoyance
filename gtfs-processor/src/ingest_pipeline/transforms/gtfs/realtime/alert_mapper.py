@@ -1,7 +1,6 @@
 from typing import AsyncIterator
 
 from beanie.operators import And, Or
-from bson import DBRef
 from pymongo import UpdateOne
 from datetime import datetime, timezone
 
@@ -82,23 +81,28 @@ class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
         self, context: Context, parsed_entity: ParsedEntity, agency: Agency
     ) -> UpdateOne | None:
         alert = parsed_entity.entity.alert
-        timestamp = datetime.fromtimestamp(parsed_entity.timestamp, tz=timezone.utc) 
+        timestamp = datetime.fromtimestamp(parsed_entity.timestamp, tz=timezone.utc)
 
-        active_periods = [
-            time_range_to_model(period)
-            for period in alert.active_period
-        ]
+        active_periods = [time_range_to_model(period) for period in alert.active_period]
 
         partial_informed_entities = [
             entity_selector_to_partial_model(ie, agency.agency_id)
             for ie in alert.informed_entity
         ]
+
+        # Link trips: match descriptor to trip instance
         informed_entities = []
         for pie, trip_desc in partial_informed_entities:
-            trip: TripInstance | None = None
             if trip_desc is not None:
                 trip = await self._find_existing_trip_instance(trip_desc)
-                pie.trip = trip  # type: ignore
+                if trip is not None:
+                    pie.trip_instance = trip.id
+                else:
+                    context.logger.warning(
+                        f"Trip instance from descriptor {trip_desc} not found for alert. Skipping alert."
+                    )
+                    context.telemetry.incr("alerts.trip_not_found.skipped")
+                    continue
             informed_entities.append(pie)
 
         try:
@@ -110,12 +114,7 @@ class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
             context.handle_error(e, "alert_mapper.error.validation_failed")
             return
 
-        # Assume informed entity trips are either None or TripInstance and convert to DBRef
-        for ie in alert_doc.informed_entities:
-            if ie.trip:
-                ie.trip = DBRef(TripInstance.Settings.name, ie.trip.id)  # type: ignore
-
-        alert_doc_update_dict = alert_doc.model_dump(exclude={"id", "content_hash"})
+        alert_doc_update_dict = alert_doc.model_dump(exclude={"id"})
 
         update_op = UpdateOne(
             {"content_hash": alert_doc.content_hash},

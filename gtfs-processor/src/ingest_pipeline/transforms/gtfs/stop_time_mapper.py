@@ -6,6 +6,7 @@ from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
 
 
+
 class StopTimeMapper(Transformer[Dict[str, str], UpdateOne]):
     """
     Maps GTFS stop_times.txt rows (dict) into Mongo UpdateOne operations after validation through DB model.

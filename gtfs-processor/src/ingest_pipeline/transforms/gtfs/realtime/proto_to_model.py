@@ -475,7 +475,7 @@ def vehicle_descriptor_to_model(
 
 def vehicle_position_to_model(
     vehicle_position: pb.VehiclePosition,
-    trip: ms.TripInstance | None,
+    trip_instance: ms.TripInstance | None,
     timestamp: datetime,
     agency_id: str,
 ) -> ms.VehiclePosition:
@@ -508,7 +508,7 @@ def vehicle_position_to_model(
         bearing=bearing,
         odometer=odometer,
         speed=speed,
-        trip=trip,  # type: ignore
+        trip_instance=trip_instance.id if trip_instance else None,
     )
 
 
@@ -549,7 +549,7 @@ def entity_selector_to_partial_model(
                 getattr(entity, "direction_id", None), None
             ),
             stop_id=getattr(entity, "stop_id", None),
-            trip=None,
+            trip_instance=None,
         ),
         trip,
     )  # return trip separately to link later
