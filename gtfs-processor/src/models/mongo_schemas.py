@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 
-from beanie import Document, PydanticObjectId
+from beanie import Document, PydanticObjectId, View
 from pydantic import BaseModel, Field, field_validator, model_validator
 import pymongo
 
@@ -179,7 +179,7 @@ class Route(Document):
                 [("agency_id", pymongo.ASCENDING), ("route_id", pymongo.ASCENDING)],
                 unique=True,
                 name="route_unique_idx",
-            )
+            ),
         ]
 
 
@@ -262,7 +262,7 @@ class StopTime(Document):
                 ],
                 unique=True,
                 name="stop_time_unique_idx",
-            )
+            ),
         ]
 
 
@@ -544,5 +544,130 @@ class TripInstance(Document):
             pymongo.IndexModel(
                 [("positions", pymongo.ASCENDING)],
                 name="positions_array_idx",
+            ),
+        ]
+
+
+# --- Views ---
+
+
+class RoutesByStop(View):
+    """
+    View that aggregates routes by stop.
+    Provides efficient lookup of all routes passing through each stop.
+    """
+
+    stop: PydanticObjectId
+    routes: List[PydanticObjectId]
+    agency_id: str
+    stop_id: str
+
+    class Settings:
+        name = "routes_by_stop"
+        source = StopTime
+        pipeline = [
+            # Stage 1: Group by stop to get unique trip_ids per stop
+            # This dramatically reduces document count early in pipeline
+            {
+                "$group": {
+                    "_id": {"agency_id": "$agency_id", "stop_id": "$stop_id"},
+                    "trip_ids": {"$addToSet": "$trip_id"},
+                }
+            },
+            # Stage 2: Single lookup to get all trips and their routes at once
+            # Using $in with trip_ids array is much faster than multiple lookups
+            {
+                "$lookup": {
+                    "from": "trips",
+                    "let": {"agency_id": "$_id.agency_id", "trip_ids": "$trip_ids"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$agency_id", "$$agency_id"]},
+                                        {"$in": ["$trip_id", "$$trip_ids"]},
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "$group": {
+                                "_id": "$route_id",
+                                "agency_id": {"$first": "$agency_id"},
+                            }
+                        },
+                    ],
+                    "as": "route_ids",
+                }
+            },
+            # Stage 3: Single lookup for stop ObjectId
+            {
+                "$lookup": {
+                    "from": "stops",
+                    "let": {"agency_id": "$_id.agency_id", "stop_id": "$_id.stop_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$agency_id", "$$agency_id"]},
+                                        {"$eq": ["$stop_id", "$$stop_id"]},
+                                    ]
+                                }
+                            }
+                        },
+                        {"$project": {"_id": 1}},
+                    ],
+                    "as": "stop_info",
+                }
+            },
+            # Stage 4: Single lookup for all route ObjectIds at once
+            {
+                "$lookup": {
+                    "from": "routes",
+                    "let": {
+                        "agency_id": "$_id.agency_id",
+                        "route_ids": "$route_ids._id",
+                    },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$agency_id", "$$agency_id"]},
+                                        {"$in": ["$route_id", "$$route_ids"]},
+                                    ]
+                                }
+                            }
+                        },
+                        {"$project": {"_id": 1}},
+                    ],
+                    "as": "route_objects",
+                }
+            },
+            # Stage 5: Project final structure
+            {
+                "$project": {
+                    "_id": 0,
+                    "stop": {"$arrayElemAt": ["$stop_info._id", 0]},
+                    "routes": "$route_objects._id",
+                    "agency_id": "$_id.agency_id",
+                    "stop_id": "$_id.stop_id",
+                }
+            },
+            # Stage 6: Filter out documents where stop lookup failed
+            {"$match": {"stop": {"$ne": None}}},
+        ]
+
+        # Indexes for the view (MongoDB 5.3+)
+        indexes = [
+            pymongo.IndexModel(
+                [("stop", pymongo.ASCENDING)], unique=True, name="stop_object_id_idx"
+            ),
+            pymongo.IndexModel(
+                [("agency_id", pymongo.ASCENDING), ("stop_id", pymongo.ASCENDING)],
+                unique=True,
+                name="stop_lookup_idx",
             ),
         ]
