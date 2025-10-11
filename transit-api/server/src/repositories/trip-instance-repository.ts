@@ -209,24 +209,49 @@ export class TripInstancesRepository extends DataRepository {
      *          trips that depart within the next 36 hours and trips that have departed within
      *          the last 12 hours. It may not find all trips that depart from nearby stops by default.
      *
-     * @param lat The latitude of the center point to search.
-     * @param lng The longitude of the center point to search.
-     * @param radius The radius of the area to search for nearby stops.
-     * @param maxDate The maximum start datetime to include in the results. Defaults to 48 hours from the current time.
-     * @param minDate The minimum start datetime to include in the results. Defaults to 12 hours ago.
-     * @param realtimeMaxAgeMs The maximum age in milliseconds of the position updates to include in the results. Defaults to 5 minutes.
-     * @param scoreWeight The weight of each score component in the final score. MUST SUM TO 1.
+     * @param options Configuration object for the nearby trips search.
+     * @param options.lat The latitude of the center point to search.
+     * @param options.lng The longitude of the center point to search.
+     * @param options.radius The radius of the area to search for nearby stops (mutually exclusive with bbox).
+     * @param options.bbox Bounding box for the search area (mutually exclusive with radius).
+     * @param options.bbox.minLat The minimum latitude of the bounding box.
+     * @param options.bbox.maxLat The maximum latitude of the bounding box.
+     * @param options.bbox.minLng The minimum longitude of the bounding box.
+     * @param options.bbox.maxLng The maximum longitude of the bounding box.
+     * @param options.maxDate The maximum start datetime to include in the results. Defaults to 36 hours from the current time.
+     * @param options.minDate The minimum start datetime to include in the results. Defaults to 12 hours ago.
+     * @param options.realtimeMaxAgeMs The maximum age in milliseconds of the position updates to include in the results. Defaults to 5 minutes.
+     * @param options.scoreWeight The weight of each score component in the final score. MUST SUM TO 1. Defaults to { distance: 0.6, time: 0.4 }.
      * @returns A list of scheduled trips with stop names.
      */
-    public async findNearbyTrips(
-        lat: number,
-        lng: number,
-        radius: number,
+    public async findNearbyTrips({
+        lat,
+        lng,
         maxDate = getHoursInFuture(36),
         minDate = getHoursInFuture(-12),
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
-        scoreWeight: ScoreWeight = { distance: 0.6, time: 0.4 }
-    ) {
+        scoreWeight = { distance: 0.6, time: 0.4 },
+        ...rest
+    }: {
+        lat: number;
+        lng: number;
+        maxDate?: Date;
+        minDate?: Date;
+        realtimeMaxAgeMs?: number;
+        scoreWeight?: ScoreWeight;
+    } & (
+        | {
+              radius: number;
+          }
+        | {
+              bbox: {
+                  minLat: number;
+                  maxLat: number;
+                  minLng: number;
+                  maxLng: number;
+              };
+          }
+    )) {
         // Validate score weight
         if (Object.values(scoreWeight).reduce((a, b) => a + b, 0) !== 1) {
             throw new Error("Score weight must sum to 1");
@@ -238,7 +263,7 @@ export class TripInstancesRepository extends DataRepository {
         // --- Step 1: Find nearby stops ---
         let stepStartTime = performance.now();
 
-        const nearbyStops = await this.stopRepository.findNearbyStops(lat, lng, radius);
+        const nearbyStops = await this.stopRepository.findNearbyStops({ lat, lng, radius: 1500 });
         console.log(`Step 1: Find nearby stops - ${performance.now() - stepStartTime} ms`);
 
         if (nearbyStops.length === 0) {
