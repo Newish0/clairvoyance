@@ -35,7 +35,8 @@ class CSVDecoder(Transformer[Path, Dict[str, str]]):
                     ) as f:  # utf-8-sig handles BOM
                         reader = csv.DictReader(f)
                         for row in reader:
-                            asyncio.run_coroutine_threadsafe(queue.put(row), loop)
+                            future = asyncio.run_coroutine_threadsafe(queue.put(row), loop)
+                            future.result()  # CRITICAL: Wait for the put to complete
                     # Signal end of stream
                     asyncio.run_coroutine_threadsafe(queue.put(None), loop)
 
