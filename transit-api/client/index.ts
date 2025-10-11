@@ -37,30 +37,31 @@ const trpc = createTRPCClient<AppRouter>({
 //     });
 // });
 
-await new Promise((r) => {
-    trpc.trip.liveTripPositions.subscribe(
-        {},
-        {
-            onData(data) {
-                console.log(data);
-            },
-        }
-    );
+// await new Promise((r) => {
+//     // trpc.trip.liveTripPositions.subscribe(
+//     //     {},
+//     //     {
+//     //         onData(data) {
+//     //             console.log(data);
+//     //         },
+//     //     }
+//     // );
 
-    // trpc.trip.liveTripStopTime.subscribe(
-    //     [
-    //         {
-    //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
-    //             stopId: "100019",
-    //         },
-    //     ],
-    //     {
-    //         onData(data) {
-    //             console.log(data);
-    //         },
-    //     }
-    // );
-});
+//     // trpc.trip.liveTripStopTime.subscribe(
+//     //     [
+//     //         {
+//     //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
+//     //             stopId: "100019",
+//     //         },
+//     //     ],
+//     //     {
+//     //         onData(data) {
+//     //             console.log(data);
+//     //         },
+//     //     }
+//     // );
+// });
+
 
 const result = await trpc.trip.getNearby.query({
     lat: 48.474515,

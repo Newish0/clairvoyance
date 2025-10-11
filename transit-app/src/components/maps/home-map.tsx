@@ -3,11 +3,21 @@ import { trpc } from "@/main";
 import { useQuery } from "@tanstack/react-query";
 import { useThrottle } from "@uidotdev/usehooks";
 import { useCallback, useState } from "react";
-import { Marker, useMap, type ViewStateChangeEvent } from "react-map-gl/maplibre";
+import {
+    Marker,
+    useMap,
+    type LngLatBounds,
+    type ViewStateChangeEvent,
+} from "react-map-gl/maplibre";
 import type { inferProcedureOutput } from "@trpc/server";
 import type { AppRouter } from "../../../../transit-api/server/src";
+import type { MapLibreEvent } from "maplibre-gl";
 
-export const HomeMap = () => {
+export type HomeMapProps = {
+    onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
+};
+
+export const HomeMap: React.FC<HomeMapProps> = (props) => {
     const [viewState, setViewState] = useState({
         longitude: -123.35,
         latitude: 48.47,
@@ -24,10 +34,10 @@ export const HomeMap = () => {
             maxLng: 0,
         },
     });
-    const debouncedNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 1000);
+    const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 1000);
 
     const { data } = useQuery({
-        ...trpc.stop.getNearby.queryOptions(debouncedNearbyStopQueryParams),
+        ...trpc.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),
         enabled: viewState.zoom > 16,
     });
 
@@ -49,12 +59,21 @@ export const HomeMap = () => {
             });
 
             setViewState(evt.viewState);
+            props.onLocationChange?.(evt.viewState.latitude, evt.viewState.longitude, bounds);
         },
         [setNearbyStopQueryParams, setViewState]
     );
 
+    const handleLoad = useCallback(
+        (evt: MapLibreEvent) => {
+            const bounds = evt.target.getBounds();
+            props.onLocationChange?.(viewState.latitude, viewState.longitude, bounds);
+        },
+        [viewState]
+    );
+
     return (
-        <ProtoMap {...viewState} onMove={handleMove}>
+        <ProtoMap {...viewState} onMove={handleMove} onLoad={handleLoad}>
             <StopMarkers stops={data || []} />
         </ProtoMap>
     );
