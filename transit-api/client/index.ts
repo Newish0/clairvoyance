@@ -16,12 +16,12 @@ const trpc = createTRPCClient<AppRouter>({
             // uses the httpSubscriptionLink for subscriptions
             condition: (op) => op.type === "subscription",
             true: httpSubscriptionLink({
-                url: "http://localhost:3000",
+                url: "http://localhost:8000",
                 EventSource: EventSource,
                 transformer: superjson,
             }),
             false: httpBatchLink({
-                url: "http://localhost:3000",
+                url: "http://localhost:8000",
                 transformer: superjson,
             }),
         }),
@@ -37,30 +37,30 @@ const trpc = createTRPCClient<AppRouter>({
 //     });
 // });
 
-// await new Promise((r) => {
-//     // trpc.trip.liveTripPositions.subscribe(
-//     //     {},
-//     //     {
-//     //         onData(data) {
-//     //             console.log(data);
-//     //         },
-//     //     }
-//     // );
+await new Promise((r) => {
+    trpc.trip.liveTripPositions.subscribe(
+        {},
+        {
+            onData(data) {
+                console.log(data);
+            },
+        }
+    );
 
-//     trpc.trip.liveTripStopTime.subscribe(
-//         [
-//             {
-//                 tripInstanceId: "68e21cc319d65847f3af09bf",
-//                 stopId: "100731",
-//             },
-//         ],
-//         {
-//             onData(data) {
-//                 console.log(data);
-//             },
-//         }
-//     );
-// });
+    // trpc.trip.liveTripStopTime.subscribe(
+    //     [
+    //         {
+    //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
+    //             stopId: "100019",
+    //         },
+    //     ],
+    //     {
+    //         onData(data) {
+    //             console.log(data);
+    //         },
+    //     }
+    // );
+});
 
 const result = await trpc.trip.getNearby.query({
     lat: 48.474515,
