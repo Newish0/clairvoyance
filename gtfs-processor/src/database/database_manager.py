@@ -7,6 +7,7 @@ from models.mongo_schemas import (
     CalendarDate,
     FeedInfo,
     Route,
+    RoutesByStop,
     Shape,
     Stop,
     StopTime,
@@ -31,6 +32,7 @@ DOCUMENT_MODELS = [
     Vehicle,
     VehiclePosition,
     Alert,
+    RoutesByStop,
 ]
 
 
@@ -61,6 +63,7 @@ class DatabaseManager:
         await init_beanie(
             database=self.client[self.database_name],
             document_models=self.document_models,
+            recreate_views=True,
         )
         self.logger.info("Connected & init_beanie completed.")
 
@@ -89,6 +92,7 @@ class DatabaseManager:
             await init_beanie(
                 database=self.client[self.database_name],
                 document_models=self.document_models,
+                recreate_views=True,
             )
             self.logger.info("Collections and indexes recreated.")
         except Exception:
