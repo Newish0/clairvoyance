@@ -28,17 +28,43 @@ export class StopRepository extends DataRepository {
         } as const;
     }
 
-    public async findNearbyStops(lat: number, lng: number, radius: number) {
+    public async findNearbyStops(
+        params:
+            | { lat: number; lng: number } & (
+                  | { radius: number }
+                  | {
+                        bbox: {
+                            minLat: number;
+                            maxLat: number;
+                            minLng: number;
+                            maxLng: number;
+                        };
+                    }
+              )
+    ) {
         const nearbyStopsCursor = this.db.collection(this.collectionName).aggregate([
-            {
-                $geoNear: {
-                    near: { type: "Point", coordinates: [lng, lat] },
-                    distanceField: "distance",
-                    maxDistance: radius,
-                    spherical: true,
-                    query: {},
-                },
-            },
+            "radius" in params
+                ? {
+                      $geoNear: {
+                          near: { type: "Point", coordinates: [params.lng, params.lat] },
+                          distanceField: "distance",
+                          maxDistance: params.radius,
+                          spherical: true,
+                          query: {},
+                      },
+                  }
+                : {
+                      $match: {
+                          location: {
+                              $geoWithin: {
+                                  $box: [
+                                      [params.bbox.minLng, params.bbox.minLat], // southwest
+                                      [params.bbox.maxLng, params.bbox.maxLat], // northeast
+                                  ],
+                              },
+                          },
+                      },
+                  },
             {
                 $project: {
                     _id: 1,
