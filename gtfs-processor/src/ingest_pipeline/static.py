@@ -16,6 +16,7 @@ from ingest_pipeline.pipelines.gtfs.trip_instances_pipeline import (
 )
 from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
+from models.mongo_schemas import RoutesByStop
 from utils.logger_config import setup_logger
 
 
@@ -83,6 +84,14 @@ async def run_gtfs_static_pipelines(
             trips_pipeline.run(),
             shapes_pipeline.run(),
         )
+
+    # Refresh all materialized views
+    logger.info("Refreshing materialized views...")
+    try:
+        await RoutesByStop.materialize_view()
+        logger.info("Materialized views refreshed.")
+    except Exception as e:
+        logger.error("Failed to refresh materialized views: %s", e)
 
     if realize_instances:
         # Must run after GTFS ingest from zip is complete.
