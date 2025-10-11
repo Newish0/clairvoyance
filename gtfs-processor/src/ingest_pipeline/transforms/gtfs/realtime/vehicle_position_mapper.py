@@ -16,8 +16,10 @@ from models.mongo_schemas import (
     TripInstance,
     Vehicle,
     VehiclePosition,
-    TripInstanceState
+    TripInstanceState,
 )
+
+from lib import gtfs_realtime_pb2 as pb
 
 
 class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
@@ -62,7 +64,7 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
         agency = await Agency.find_one(Agency.agency_id == self.agency_id)
         return agency
 
-    def _has_vehicle_message(self, entity) -> bool:
+    def _has_vehicle_message(self, entity: pb.FeedEntity) -> bool:
         """Check if entity has a vehicle message."""
         return entity.HasField("vehicle")
 
@@ -124,7 +126,10 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
         timestamp = (
             vehicle.timestamp if vehicle.HasField("timestamp") else entity_timestamp
         )
-        return datetime.fromtimestamp(timestamp, tz=timezone.utc,)
+        return datetime.fromtimestamp(
+            timestamp,
+            tz=timezone.utc,
+        )
 
     def _should_process_vehicle_position(
         self,
@@ -142,13 +147,15 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
             return False
         return True
 
-    def _get_trip_descriptor(self, vehicle):
+    def _get_trip_descriptor(self, vehicle: pb.VehiclePosition):
         """Extract trip descriptor from vehicle if present."""
         return (
             trip_descriptor_to_model(vehicle.trip) if vehicle.HasField("trip") else None
         )
 
-    async def _get_or_create_vehicle_document(self, vehicle) -> Vehicle | None:
+    async def _get_or_create_vehicle_document(
+        self, vehicle: pb.VehiclePosition
+    ) -> Vehicle | None:
         """Get existing vehicle document or create new one."""
         if not vehicle.HasField("vehicle"):
             return None
@@ -196,13 +203,19 @@ class VehiclePositionMapper(Transformer[ParsedEntity, Callable[[], Awaitable]]):
         """Create the update function to be executed."""
 
         async def update_fn():
-            await vehicle_position.save()
-            if vehicle_doc:
-                vehicle_doc.positions.append(vehicle_position)  # type: ignore
+            await vehicle_position.save()  # Save to DB to obtain id
+
+            # Update (or insert) vehicle document
+            if vehicle_doc and vehicle_position.id is not None:
+                vehicle_doc.positions.append(vehicle_position.id)
                 await vehicle_doc.save()
+
+            # Update trip instance
             if trip_instance:
-                trip_instance.vehicle = vehicle_doc  # type: ignore
-                trip_instance.positions.append(vehicle_position)  # type: ignore
+                if vehicle_doc is not None:
+                    trip_instance.vehicle = vehicle_doc.id
+                if vehicle_position.id is not None:
+                    trip_instance.positions.append(vehicle_position.id)
                 if trip_instance.state == TripInstanceState.PRISTINE:
                     trip_instance.state = TripInstanceState.DIRTY
                 await trip_instance.save()

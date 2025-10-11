@@ -4,7 +4,7 @@ import { DatabaseManager } from "./database/mongo";
 
 const MONGO_CONNECTION_STRING =
     Bun.env.MONGO_CONNECTION_STRING || "mongodb://localhost:27017?replicaSet=rs0";
-const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "gtfs_data";
+const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "transit";
 
 export async function createContext(opts: FetchCreateContextFnOptions) {
     const dbManager = DatabaseManager.getInstance(MONGO_CONNECTION_STRING, MONGO_DB_NAME);

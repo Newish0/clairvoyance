@@ -1,14 +1,19 @@
 """
-IMPORTANT: The use of `Indexed()` is forbidden in Beanie in order for
-           `pydantic_to_ts` to work correctly. All indexes must be
-           defined in the Settings class of each model.
+IMPORTANT:
+1. The use of `Indexed()` is forbidden in Beanie in order for
+   `pydantic_to_ts` to work correctly. All indexes must be
+   defined in the Settings class of each model.
+
+2. The use of `Link()` is forbidden in Beanie because Beanie
+   uses DBRef for linking. We want to use ObjectId (implicit collection)
+   for referencing documents to better support cross stack DB access.
 """
 
 from datetime import datetime, timezone
 from typing import List, Optional
 
 
-from beanie import Document, Link
+from beanie import Document, PydanticObjectId
 from pydantic import BaseModel, Field, field_validator, model_validator
 import pymongo
 
@@ -321,7 +326,7 @@ class VehiclePosition(Document):
 
     ingested_at: datetime = Field(default_factory=_now_utc)
 
-    trip: Optional[Link["TripInstance"]] = None
+    trip_instance: Optional[PydanticObjectId] = None  # ObjectId of TripInstance
 
     class Settings:
         name = "vehicle_positions"
@@ -352,7 +357,9 @@ class Vehicle(Document):
     license_plate: Optional[str] = None
     wheelchair_accessible: Optional[WheelchairBoarding] = None
 
-    positions: List[Link[VehiclePosition]] = Field(default_factory=list)
+    positions: List[PydanticObjectId] = Field(
+        default_factory=list
+    )  # ObjectId of VehiclePosition
 
     class Settings:
         name = "vehicles"
@@ -370,7 +377,7 @@ class EntitySelector(BaseModel):
     route_id: Optional[str] = None
     route_type: Optional[RouteType] = None
     direction_id: Optional[Direction] = None
-    trip: Optional[Link["TripInstance"]] = None
+    trip_instance: Optional[PydanticObjectId] = None  # ObjectId of TripInstance
     stop_id: Optional[str] = None
 
 
@@ -462,14 +469,16 @@ class TripInstance(Document):
     start_datetime: datetime
 
     stop_times: List[StopTimeInstance]
-    
+
     stop_times_updated_at: datetime = Field(default_factory=_now_utc)
 
-    trip: Link[Trip]
-    route: Link[Route]
-    shape: Optional[Link[Shape]] = None
-    vehicle: Optional[Link[Vehicle]] = None
-    positions: List[Link[VehiclePosition]] = Field(default_factory=list)
+    trip: PydanticObjectId  # ObjectId of Trip
+    route: PydanticObjectId  # ObjectId of Route
+    shape: Optional[PydanticObjectId] = None  # ObjectId of Shape
+    vehicle: Optional[PydanticObjectId] = None  # ObjectId of Vehicle
+    positions: List[PydanticObjectId] = Field(
+        default_factory=list
+    )  # ObjectId of VehiclePosition
 
     class Settings:
         name = "trip_instances"
@@ -499,8 +508,6 @@ class TripInstance(Document):
                 [("state", pymongo.ASCENDING)],
                 name="state_idx",
             ),
-
-            
             pymongo.IndexModel(
                 [
                     ("stop_times.stop_id", pymongo.ASCENDING),
@@ -509,8 +516,6 @@ class TripInstance(Document):
                 ],
                 name="stop_times_lookup_optimized_idx",
             ),
-            
-            
             pymongo.IndexModel(
                 [
                     ("stop_times.stop_id", pymongo.ASCENDING),
@@ -518,8 +523,6 @@ class TripInstance(Document):
                 ],
                 name="stop_times_departure_optimized_idx",
             ),
-            
-           
             pymongo.IndexModel(
                 [
                     ("stop_times_updated_at", pymongo.DESCENDING),
@@ -527,8 +530,6 @@ class TripInstance(Document):
                 ],
                 name="realtime_filtering_idx",
             ),
-            
-            
             pymongo.IndexModel(
                 [
                     ("stop_times.stop_id", pymongo.ASCENDING),
@@ -536,16 +537,12 @@ class TripInstance(Document):
                 ],
                 name="stop_sequence_idx",
             ),
-            
-            
             pymongo.IndexModel(
                 [("stop_times_updated_at", pymongo.DESCENDING)],
                 name="stop_times_updated_at_simple_idx",
             ),
-            
             pymongo.IndexModel(
                 [("positions", pymongo.ASCENDING)],
                 name="positions_array_idx",
             ),
-          
         ]

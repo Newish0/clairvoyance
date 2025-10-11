@@ -234,9 +234,9 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
 
         trip_instance = TripInstance(
             agency_id=self.agency_id,
-            trip_id=trip_descriptor.trip_id,  # type: ignore
-            start_date=trip_descriptor.start_date,  # type: ignore
-            start_time=trip_descriptor.start_time,  # type: ignore
+            trip_id=trip_descriptor.trip_id,  
+            start_date=trip_descriptor.start_date, 
+            start_time=trip_descriptor.start_time,  
             route_id=route.route_id,
             direction_id=trip.direction_id,
             state=state,
@@ -244,8 +244,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             or stop_times[0].departure_datetime,  # type: ignore
             stop_times=stop_times,
             stop_times_updated_at=datetime.now(timezone.utc),
-            route=route,  # type: ignore
-            trip=trip,  # type: ignore
+            route=route.id if route else None, # type: ignore
+            trip=trip.id if trip else None, # type: ignore
         )
 
         await trip_instance.validate_self()

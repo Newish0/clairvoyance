@@ -42,7 +42,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--database_name",
         type=str,
-        default="gtfs_data",
+        default="transit",
         help="Name of the MongoDB database.",
     )
     parser.add_argument(

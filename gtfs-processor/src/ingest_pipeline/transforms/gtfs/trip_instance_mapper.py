@@ -1,10 +1,8 @@
 from typing import AsyncIterator, List, Tuple
 from datetime import datetime
 
-from bson import DBRef
 from pymongo import UpdateOne
 
-from ingest_pipeline.core.errors import ErrorPolicy
 from ingest_pipeline.core.types import Context, Transformer
 from models.enums import (
     StopTimeUpdateScheduleRelationship,
@@ -100,10 +98,10 @@ class TripInstanceMapper(
                     ),  # type: ignore
                     stop_times=stop_time_infos,
                     stop_times_updated_at=datetime.now(),
-                    # Static type checkers being stupid...
-                    trip=trip,  # type: ignore
-                    route=route,  # type: ignore
-                    shape=shape,  # type: ignore
+                    # We know the ID of these fields MUST exist.
+                    trip=trip.id,  # type: ignore
+                    route=route.id,  # type: ignore
+                    shape=shape.id,  # type: ignore
                 )
 
                 await trip_instance_doc.validate_self()
@@ -123,10 +121,6 @@ class TripInstanceMapper(
                     {
                         "$set": {
                             **trip_instance_doc.model_dump(exclude={"id"}),
-                            # Do explicit linking... and static type checkers being stupid...
-                            "trip": DBRef(collection=Trip.Settings.name, id=trip.id),  # type: ignore
-                            "route": DBRef(collection=Route.Settings.name, id=route.id),  # type: ignore
-                            "shape": DBRef(collection=Shape.Settings.name, id=shape.id),  # type: ignore
                         }
                     },
                     upsert=True,

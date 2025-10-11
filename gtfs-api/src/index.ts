@@ -13,7 +13,7 @@ import swagger from "@elysiajs/swagger";
 const port = Bun.env.PORT || 5888;
 const isDev = Bun.env.ENV === "development";
 const MONGO_CONNECTION_STRING = Bun.env.MONGO_CONNECTION_STRING || "mongodb://localhost:27017";
-const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "gtfs_data";
+const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "transit";
 
 await connectDB(MONGO_CONNECTION_STRING, MONGO_DB_NAME);
 
