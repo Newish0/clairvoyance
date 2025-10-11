@@ -19,23 +19,32 @@ export const stopRouter = router({
 
     getNearby: publicProcedure
         .input(
-            v.object({
-                lat: v.number(),
-                lng: v.number(),
-                radius: v.optional(
-                    v.pipe(
+            v.union([
+                v.object({
+                    lat: v.number(),
+                    lng: v.number(),
+                    radius: v.pipe(
                         v.number(),
                         v.minValue(100),
                         v.maxValue(5000),
                         v.description("Radius in meters")
                     ),
-                    1500
-                ),
-            })
+                }),
+                v.object({
+                    lat: v.number(),
+                    lng: v.number(),
+                    bbox: v.object({
+                        minLat: v.number(),
+                        maxLat: v.number(),
+                        minLng: v.number(),
+                        maxLng: v.number(),
+                    }),
+                }),
+            ])
         )
-        .query(async ({ input: { lat, lng, radius }, ctx }) => {
+        .query(async ({ input, ctx }) => {
             const stopRepo = new StopRepository(ctx.db);
-            const data = await stopRepo.findNearbyStops(lat, lng, radius);
+            const data = await stopRepo.findNearbyStops(input);
             return data;
         }),
 });

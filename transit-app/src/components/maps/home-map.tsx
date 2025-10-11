@@ -1,9 +1,11 @@
 import { ProtoMap } from "@/components/maps/proto-map";
 import { trpc } from "@/main";
 import { useQuery } from "@tanstack/react-query";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useThrottle } from "@uidotdev/usehooks";
+import { useCallback, useState } from "react";
 import { Marker, useMap, type ViewStateChangeEvent } from "react-map-gl/maplibre";
-import { useDebounce } from "@uidotdev/usehooks";
+import type { inferProcedureOutput } from "@trpc/server";
+import type { AppRouter } from "../../../../transit-api/server/src";
 
 export const HomeMap = () => {
     const [viewState, setViewState] = useState({
@@ -15,34 +17,68 @@ export const HomeMap = () => {
     const [nearbyStopQueryParams, setNearbyStopQueryParams] = useState({
         lat: viewState.latitude,
         lng: viewState.longitude,
-        radius: 1500,
+        bbox: {
+            minLat: 0,
+            maxLat: 0,
+            minLng: 0,
+            maxLng: 0,
+        },
     });
-    const debouncedNearbyStopQueryParams = useDebounce(nearbyStopQueryParams, 300);
+    const debouncedNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 1000);
 
     const { data } = useQuery({
         ...trpc.stop.getNearby.queryOptions(debouncedNearbyStopQueryParams),
-        enabled: viewState.zoom > 13,
+        enabled: viewState.zoom > 16,
     });
 
+    const handleMove = useCallback(
+        (evt: ViewStateChangeEvent) => {
+            const bounds = evt.target.getBounds();
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+
+            setNearbyStopQueryParams({
+                lat: evt.viewState.latitude,
+                lng: evt.viewState.longitude,
+                bbox: {
+                    minLat: sw.lat - 0.001,
+                    maxLat: ne.lat + 0.001,
+                    minLng: sw.lng - 0.001,
+                    maxLng: ne.lng + 0.001,
+                },
+            });
+
+            setViewState(evt.viewState);
+        },
+        [setNearbyStopQueryParams, setViewState]
+    );
+
     return (
-        <ProtoMap
-            {...viewState}
-            onMove={(evt) => setViewState(evt.viewState)}
-            onMoveEnd={() =>
-                setNearbyStopQueryParams({
-                    lat: viewState.latitude,
-                    lng: viewState.longitude,
-                    radius: Math.min((18 - viewState.zoom) * 100, 5000), // TODO: Use bbox instead
-                })
-            }
-        >
-            {data?.map((stop) => (
-                <Marker
-                    key={stop._id}
-                    longitude={stop.location.coordinates[0]}
-                    latitude={stop.location.coordinates[1]}
-                />
-            ))}
+        <ProtoMap {...viewState} onMove={handleMove}>
+            <StopMarkers stops={data || []} />
         </ProtoMap>
+    );
+};
+
+const StopMarkers: React.FC<{
+    stops: inferProcedureOutput<AppRouter["stop"]["getNearby"]>;
+}> = ({ stops }) => {
+    const { current: map } = useMap();
+
+    const isInBound = (coord: [number, number]) => map?.getBounds().contains(coord);
+
+    return (
+        <>
+            {stops.map(
+                (stop) =>
+                    isInBound(stop.location.coordinates) && (
+                        <Marker
+                            key={stop._id}
+                            longitude={stop.location.coordinates[0]}
+                            latitude={stop.location.coordinates[1]}
+                        />
+                    )
+            )}
+        </>
     );
 };
