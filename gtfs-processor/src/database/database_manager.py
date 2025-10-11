@@ -63,7 +63,6 @@ class DatabaseManager:
         await init_beanie(
             database=self.client[self.database_name],
             document_models=self.document_models,
-            recreate_views=True,
         )
         self.logger.info("Connected & init_beanie completed.")
 

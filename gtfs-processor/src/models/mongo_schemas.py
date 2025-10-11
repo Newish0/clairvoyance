@@ -180,6 +180,10 @@ class Route(Document):
                 unique=True,
                 name="route_unique_idx",
             ),
+            pymongo.IndexModel(
+                [("route_id", pymongo.ASCENDING)],
+                name="route_id_idx",
+            ),
         ]
 
 
@@ -202,6 +206,10 @@ class Trip(Document):
                 [("agency_id", pymongo.ASCENDING), ("trip_id", pymongo.ASCENDING)],
                 unique=True,
                 name="trip_unique_idx",
+            ),
+            pymongo.IndexModel(
+                [("trip_id", pymongo.ASCENDING)],
+                name="trip_id_idx",
             ),
         ]
 
@@ -228,6 +236,10 @@ class Stop(Document):
                 [("agency_id", pymongo.ASCENDING), ("stop_id", pymongo.ASCENDING)],
                 unique=True,
                 name="stop_unique_idx",
+            ),
+            pymongo.IndexModel(
+                [("stop_id", pymongo.ASCENDING)],
+                name="stop_id_idx",
             ),
             pymongo.IndexModel(
                 [
@@ -551,10 +563,12 @@ class TripInstance(Document):
 # --- Views ---
 
 
-class RoutesByStop(View):
+class RoutesByStop(Document):
     """
-    View that aggregates routes by stop.
+    *Materialized View* that aggregates routes by stop.
     Provides efficient lookup of all routes passing through each stop.
+
+    NOTE: We are emulating a materialize view using a regular collection because Beanie does not support it.
     """
 
     stop: PydanticObjectId
@@ -562,102 +576,127 @@ class RoutesByStop(View):
     agency_id: str
     stop_id: str
 
+    @classmethod
+    async def materialize_view(cls):
+        await cls.delete_all()
+        await cls.Settings.source.aggregate(cls.Settings.pipeline).to_list(length=None)
+
     class Settings:
         name = "routes_by_stop"
         source = StopTime
         pipeline = [
-            # Stage 1: Group by stop to get unique trip_ids per stop
-            # This dramatically reduces document count early in pipeline
+            # 1) Group stop-time rows into unique trip_id arrays per (agency, stop)
             {
                 "$group": {
                     "_id": {"agency_id": "$agency_id", "stop_id": "$stop_id"},
                     "trip_ids": {"$addToSet": "$trip_id"},
                 }
             },
-            # Stage 2: Single lookup to get all trips and their routes at once
-            # Using $in with trip_ids array is much faster than multiple lookups
+            # 2) Lookup trips using localField/foreignField (index-friendly)
+            #    (returns all trips whose trip_id is in trip_ids)
             {
                 "$lookup": {
                     "from": "trips",
-                    "let": {"agency_id": "$_id.agency_id", "trip_ids": "$trip_ids"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {"$eq": ["$agency_id", "$$agency_id"]},
-                                        {"$in": ["$trip_id", "$$trip_ids"]},
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "$group": {
-                                "_id": "$route_id",
-                                "agency_id": {"$first": "$agency_id"},
-                            }
-                        },
-                    ],
-                    "as": "route_ids",
+                    "localField": "trip_ids",
+                    "foreignField": "trip_id",
+                    "as": "trips_docs",
                 }
             },
-            # Stage 3: Single lookup for stop ObjectId
+            # 3) Keep only trips for the same agency (filter in-memory; arrays are small)
+            {
+                "$addFields": {
+                    "trips_docs": {
+                        "$filter": {
+                            "input": "$trips_docs",
+                            "as": "t",
+                            "cond": {"$eq": ["$$t.agency_id", "$_id.agency_id"]},
+                        }
+                    }
+                }
+            },
+            # 4) Extract unique route_id list from trips_docs
+            {
+                "$addFields": {
+                    "route_ids": {
+                        "$setUnion": [
+                            {
+                                "$map": {
+                                    "input": "$trips_docs",
+                                    "as": "t",
+                                    "in": "$$t.route_id",
+                                }
+                            },
+                            [],
+                        ]
+                    }
+                }
+            },
+            # 5) Lookup stop document(s) by stop_id (index-friendly); then filter by agency
             {
                 "$lookup": {
                     "from": "stops",
-                    "let": {"agency_id": "$_id.agency_id", "stop_id": "$_id.stop_id"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {"$eq": ["$agency_id", "$$agency_id"]},
-                                        {"$eq": ["$stop_id", "$$stop_id"]},
-                                    ]
-                                }
-                            }
-                        },
-                        {"$project": {"_id": 1}},
-                    ],
+                    "localField": "_id.stop_id",
+                    "foreignField": "stop_id",
                     "as": "stop_info",
                 }
             },
-            # Stage 4: Single lookup for all route ObjectIds at once
+            {
+                "$addFields": {
+                    "stop_info": {
+                        "$filter": {
+                            "input": "$stop_info",
+                            "as": "s",
+                            "cond": {"$eq": ["$$s.agency_id", "$_id.agency_id"]},
+                        }
+                    }
+                }
+            },
+            # 6) Extract the stop ObjectId (or drop if missing)
+            {"$addFields": {"stop": {"$arrayElemAt": ["$stop_info._id", 0]}}},
+            # 7) drop entries where the stop lookup failed
+            {"$match": {"stop": {"$ne": None}}},
+            # 8) Lookup route documents by route_id array (index-friendly)
             {
                 "$lookup": {
                     "from": "routes",
-                    "let": {
-                        "agency_id": "$_id.agency_id",
-                        "route_ids": "$route_ids._id",
-                    },
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {"$eq": ["$agency_id", "$$agency_id"]},
-                                        {"$in": ["$route_id", "$$route_ids"]},
-                                    ]
-                                }
-                            }
-                        },
-                        {"$project": {"_id": 1}},
-                    ],
+                    "localField": "route_ids",
+                    "foreignField": "route_id",
                     "as": "route_objects",
                 }
             },
-            # Stage 5: Project final structure
+            # 9) Keep only routes that belong to the same agency (filter in-memory)
+            {
+                "$addFields": {
+                    "route_objects": {
+                        "$filter": {
+                            "input": "$route_objects",
+                            "as": "r",
+                            "cond": {"$eq": ["$$r.agency_id", "$_id.agency_id"]},
+                        }
+                    }
+                }
+            },
+            # 10) Final projection: stop ObjectId, array of route ObjectIds, agency/stop id strings
             {
                 "$project": {
                     "_id": 0,
-                    "stop": {"$arrayElemAt": ["$stop_info._id", 0]},
-                    "routes": "$route_objects._id",
+                    "stop": "$stop",
+                    "routes": {
+                        "$map": {"input": "$route_objects", "as": "r", "in": "$$r._id"}
+                    },
                     "agency_id": "$_id.agency_id",
                     "stop_id": "$_id.stop_id",
                 }
             },
-            # Stage 6: Filter out documents where stop lookup failed
-            {"$match": {"stop": {"$ne": None}}},
+            # 11) Materialize the view
+            {
+                "$merge": {
+                    "into": "routes_by_stop",
+                    "on": ["agency_id", "stop_id"],
+                    "whenMatched": "replace",
+                    "whenNotMatched": "insert",
+                }
+            },
         ]
 
         # Indexes for the view (MongoDB 5.3+)
