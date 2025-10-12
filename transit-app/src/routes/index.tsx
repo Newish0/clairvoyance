@@ -7,6 +7,16 @@ import { useQuery } from "@tanstack/react-query";
 import { trpc } from "@/main";
 import { useCallback, useState } from "react";
 import { useThrottle } from "@uidotdev/usehooks";
+import { DepartureBoard } from "@/components/trip-info/departure-board";
+import {
+    ResponsiveModal,
+    ResponsiveModalContent,
+    ResponsiveModalDescription,
+    ResponsiveModalHeader,
+    ResponsiveModalTitle,
+    ResponsiveModalTrigger,
+} from "@/components/ui/responsible-dialog";
+import { AppSettings } from "@/components/app-settings";
 
 export const Route = createFileRoute("/")({
     component: TransitApp,
@@ -41,21 +51,33 @@ function TransitApp() {
         [setNearbyTripsQueryParams]
     );
 
-    console.log(JSON.stringify(nearbyTrips));
     return (
         <div className="h-[100dvh] w-[100dvw] relative">
             <div className="w-full h-full absolute top-0 left-0">
                 <HomeMap onLocationChange={handleLocationChange} />
             </div>
 
-            <Button variant={"secondary"} size={"icon"} className="absolute top-4 right-4">
-                <SettingsIcon />
-            </Button>
+            <ResponsiveModal>
+                <ResponsiveModalTrigger asChild>
+                    <Button variant={"secondary"} size={"icon"} className="absolute top-4 right-4">
+                        <SettingsIcon />
+                    </Button>
+                </ResponsiveModalTrigger>
+                <ResponsiveModalContent className="min-w-1/2 max-w-3xl">
+                    <ResponsiveModalHeader>
+                        <ResponsiveModalTitle>Settings</ResponsiveModalTitle>
+                        <ResponsiveModalDescription>
+                            Manage your preferences
+                        </ResponsiveModalDescription>
+                    </ResponsiveModalHeader>
+                    <div className="p-4 overflow-auto">
+                        <AppSettings />
+                    </div>
+                </ResponsiveModalContent>
+            </ResponsiveModal>
 
-            <div className="absolute top-0 left-0 h-full min-w-sm">
-                {Object.entries(nearbyTrips ?? {})?.map(([route, tripsByDirection]) =>
-                    JSON.stringify(route)
-                )}
+            <div className="absolute top-0 left-0 h-full w-sm  bg-primary-foreground">
+                <DepartureBoard departures={nearbyTrips || null} />
             </div>
         </div>
     );
