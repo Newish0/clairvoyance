@@ -477,13 +477,27 @@ export class TripInstancesRepository extends DataRepository {
         // --- Step 6: Format final output ---
         stepStartTime = performance.now();
 
+        // FIXME: We are grouping by route_id (does not include agency_id). So it is possible
+        // for different agencies to have the same route_id leading to problems...
+        // We should group by route_id + agency_id or do a Record of agency_id -> Record of route_id -> ...
         const groupedByRoute: Record<string, Record<string, NearbyTrip[]>> = {};
         for (const tripInstance of tripsWithStopInfo) {
             const routeId = tripInstance.route_id;
             const directionId = tripInstance.direction_id || Direction.INBOUND;
             groupedByRoute[routeId] = groupedByRoute[routeId] || {};
             groupedByRoute[routeId][directionId] = groupedByRoute[routeId][directionId] || [];
-            if (groupedByRoute[routeId][directionId].length < 3) {
+
+            // Always add the first trip instance (this is the best match; the next trip)
+            if (groupedByRoute[routeId][directionId].length < 1) {
+                groupedByRoute[routeId][directionId].push(tripInstance);
+            }
+            // Only add the next trip at the same stop of the best match
+            // Limit to 3 trips at the closest stop
+            else if (
+                groupedByRoute[routeId][directionId][0].stop_time.stop_id ===
+                    tripInstance.stop_time.stop_id &&
+                groupedByRoute[routeId][directionId].length < 3
+            ) {
                 groupedByRoute[routeId][directionId].push(tripInstance);
             }
         }
