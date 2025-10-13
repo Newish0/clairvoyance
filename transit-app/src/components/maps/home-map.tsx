@@ -38,7 +38,10 @@ export const HomeMap: React.FC<HomeMapProps> = (props) => {
 
     const { data } = useQuery({
         ...trpc.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),
+        staleTime: 0,
+        gcTime: 0,
         enabled: viewState.zoom > 16,
+        placeholderData: (prev) => (viewState.zoom > 16 ? prev : []), // prevent flickering
     });
 
     const handleMove = useCallback(

@@ -1,13 +1,15 @@
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { differenceInSeconds, type DateArg } from "date-fns";
 import { Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { TripTime } from "./depature-time";
-import RealTimeIndicator from "../ui/realtime-indicator";
+import { RealTimeIndicator } from "../ui/realtime-indicator";
+import { DepartureTime } from "./depature-time";
 
 export interface DepartureCardProps {
     routeId: string;
     routeShortName: string;
+    routeColor?: string | null;
+    routeTextColor?: string | null;
     tripInstanceId: string;
     tripHeadsign: string;
     stopId: string;
@@ -41,7 +43,18 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                 <div className="overflow-hidden">
                     <div className="flex items-center gap-2">
                         <div className="w-12 flex-shrink-0 flex justify-center">
-                            <Badge variant="secondary" className="text-sm font-bold">
+                            <Badge
+                                variant="secondary"
+                                className="text-sm font-bold"
+                                style={{
+                                    backgroundColor: props.routeColor
+                                        ? `#${props.routeColor}`
+                                        : undefined,
+                                    color: props.routeTextColor
+                                        ? `#${props.routeTextColor}`
+                                        : undefined,
+                                }}
+                            >
                                 {props.routeShortName}
                             </Badge>
                         </div>
@@ -68,12 +81,9 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                                 Drop Off Only
                             </Badge>
                         )}
-                        <pre className="text-[1px]">{JSON.stringify({ ...props })}</pre>
                         <Clock className="h-3 w-3" />
-                        <TripTime
-                            datetime={time || null}
-                            type={lastStopDropOffOnly ? "arrival" : "departure"}
-                        />
+
+                        <DepartureTime datetime={time || null} />
                     </div>
 
                     {delayInSeconds != null && <RealTimeIndicator delaySeconds={delayInSeconds} />}

@@ -1,32 +1,43 @@
 import { differenceInMinutes, format, type DateArg } from "date-fns";
+import { SlidingNumber } from "../ui/countdown";
+import { useEffect, useRef, useState } from "react";
 
 interface TripTimeProps {
     datetime: DateArg<Date> | null;
-    type?: "departure" | "arrival";
-
-    /** If given, use this instead of a negative datetime to determine if the trip has left/arrived */
-    hasLeftOrArrived?: boolean;
 }
 
 const ONE_HOUR_IN_MINUTES = 60;
 
-export const TripTime: React.FC<TripTimeProps> = (props) => {
+export const DepartureTime: React.FC<TripTimeProps> = (props) => {
     if (!props.datetime) {
         return <span className="text-xs">---</span>;
     }
 
-    const minutes = differenceInMinutes(props.datetime, new Date());
+    const [minutes, setMinutes] = useState(differenceInMinutes(props.datetime, new Date()));
+    const intervalId = useRef<ReturnType<typeof setInterval> | null>(null);
     // const departureDays = differenceInDays(props.datetime, new Date());
 
-    const hasLeftOrArrived = props.hasLeftOrArrived ?? minutes < 0;
+    useEffect(() => {
+        intervalId.current = setInterval(() => {
+            if (!props.datetime) {
+                return;
+            }
+            setMinutes(differenceInMinutes(props.datetime, new Date()));
+        }, 1000);
 
-    // Render logic based on conditions
-    if (hasLeftOrArrived && props.type === "departure") {
-        return <span className="text-xs font-bold">Left {Math.abs(minutes)} min ago </span>;
-    }
+        return () => {
+            if (intervalId.current) {
+                clearInterval(intervalId.current);
+            }
+        };
+    }, [props.datetime]);
 
-    if (hasLeftOrArrived && props.type === "arrival") {
-        return <span className="text-xs font-bold">Arrived {Math.abs(minutes)} min ago </span>;
+    if (minutes < 0) {
+        return (
+            <span className="text-xs font-bold flex items-end">
+                <SlidingNumber value={Math.abs(minutes)} direction={"up"} /> min ago
+            </span>
+        );
     }
 
     // if (minutes === 0) {
@@ -36,7 +47,9 @@ export const TripTime: React.FC<TripTimeProps> = (props) => {
     if (minutes < ONE_HOUR_IN_MINUTES) {
         return (
             <>
-                <span className="text-lg font-bold">{minutes}</span>
+                <span className="text-lg font-bold">
+                    <SlidingNumber value={Math.abs(minutes)} direction={"down"} />
+                </span>
                 <span className="text-xs">min</span>
             </>
         );

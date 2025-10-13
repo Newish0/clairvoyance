@@ -263,7 +263,7 @@ export class TripInstancesRepository extends DataRepository {
         // --- Step 1: Find nearby stops ---
         let stepStartTime = performance.now();
 
-        const nearbyStops = await this.stopRepository.findNearbyStops({ lat, lng, radius: 1500 });
+        const nearbyStops = await this.stopRepository.findNearbyStops({ lat, lng, ...rest });
         console.log(`Step 1: Find nearby stops - ${performance.now() - stepStartTime} ms`);
 
         if (nearbyStops.length === 0) {
