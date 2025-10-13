@@ -1,10 +1,4 @@
-import {
-    Carousel,
-    CarouselContent,
-    CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
-} from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import type { inferProcedureOutput } from "@trpc/server";
 import type { AppRouter } from "../../../../transit-api/server/src";
 import { DepartureCard } from "./departure-card";
@@ -28,11 +22,14 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
                         {/* TODO: Limit to the next trip until we figure out an elegant way of showing the next trip after the current */}
                         {tripInstances.slice(0, 1).map((tripInstance) => (
                             <DepartureCard
+                                key={tripInstance._id}
                                 routeId={tripInstance.route_id}
                                 routeShortName={
                                     tripInstance.route.route_short_name ||
                                     `Route ${tripInstance.route_id}`
                                 }
+                                routeColor={tripInstance.route.route_color}
+                                routeTextColor={tripInstance.route.route_text_color}
                                 tripInstanceId={tripInstance._id}
                                 tripHeadsign={
                                     tripInstance.trip.trip_headsign || "Trip " + tripInstance._id

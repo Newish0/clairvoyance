@@ -4,9 +4,10 @@ import * as v from "valibot";
 import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export const tripRouter = router({
-    get: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId }) => {
+    getById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId }) => {
         return tripInstanceId; // TODO
     }),
+
     getNearby: publicProcedure
         .input(
             v.union([
@@ -23,12 +24,19 @@ export const tripRouter = router({
                 v.object({
                     lat: v.number(),
                     lng: v.number(),
-                    bbox: v.object({
-                        minLat: v.number(),
-                        maxLat: v.number(),
-                        minLng: v.number(),
-                        maxLng: v.number(),
-                    }),
+                    bbox: v.pipe(
+                        v.object({
+                            minLat: v.number(),
+                            maxLat: v.number(),
+                            minLng: v.number(),
+                            maxLng: v.number(),
+                        }),
+                        v.check((bbox) => {
+                            const latDiff = bbox.maxLat - bbox.minLat;
+                            const lngDiff = bbox.maxLng - bbox.minLng;
+                            return latDiff <= 0.0301 && lngDiff <= 0.0301; // Account for floating point error
+                        }, "Bounding box must not exceed 0.03 degrees in any dimension")
+                    ),
                 }),
             ])
         )

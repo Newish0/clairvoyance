@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SettingsIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { trpc } from "@/main";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useThrottle } from "@uidotdev/usehooks";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
 import {
@@ -17,6 +17,7 @@ import {
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
 import { AppSettings } from "@/components/app-settings";
+import { limitBBox } from "@/utils/geo";
 
 export const Route = createFileRoute("/")({
     component: TransitApp,
@@ -30,9 +31,24 @@ function TransitApp() {
     });
     const throttledNearbyTripsQueryParams = useThrottle(nearbyTripsQueryParams, 1000);
 
-    const { data: nearbyTrips } = useQuery(
-        trpc.trip.getNearby.queryOptions(throttledNearbyTripsQueryParams)
-    );
+    const { data: nearbyTrips, refetch: refetchNearbyTrips } = useQuery({
+        ...trpc.trip.getNearby.queryOptions(throttledNearbyTripsQueryParams),
+        staleTime: 0,
+        gcTime: 0,
+        placeholderData: (prev) => prev, // prevent flickering
+    });
+    const nearbyTripsRefetchIntervalId = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        nearbyTripsRefetchIntervalId.current = setInterval(() => {
+            refetchNearbyTrips();
+        }, 60000);
+        return () => {
+            if (nearbyTripsRefetchIntervalId.current) {
+                clearInterval(nearbyTripsRefetchIntervalId.current);
+            }
+        };
+    }, [nearbyTripsRefetchIntervalId, refetchNearbyTrips]);
 
     const handleLocationChange: NonNullable<HomeMapProps["onLocationChange"]> = useCallback(
         (lat, lng, viewBounds) => {
@@ -40,12 +56,15 @@ function TransitApp() {
                 ...prev,
                 lat,
                 lng,
-                bbox: {
-                    minLat: viewBounds.getSouthWest().lat,
-                    maxLat: viewBounds.getNorthEast().lat,
-                    minLng: viewBounds.getSouthWest().lng,
-                    maxLng: viewBounds.getNorthEast().lng,
-                },
+                bbox: limitBBox(
+                    {
+                        minLat: viewBounds.getSouthWest().lat,
+                        maxLat: viewBounds.getNorthEast().lat,
+                        minLng: viewBounds.getSouthWest().lng,
+                        maxLng: viewBounds.getNorthEast().lng,
+                    },
+                    0.03
+                ),
             }));
         },
         [setNearbyTripsQueryParams]
@@ -76,7 +95,7 @@ function TransitApp() {
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
-            <div className="absolute top-0 left-0 h-full w-sm  bg-primary-foreground">
+            <div className="absolute top-[1rem] left-[1rem] max-h-[calc(100dvh-2rem)] w-sm p-2 overflow-auto rounded-md bg-primary-foreground/60 backdrop-blur-md">
                 <DepartureBoard departures={nearbyTrips || null} />
             </div>
         </div>
