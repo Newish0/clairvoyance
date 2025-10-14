@@ -3,6 +3,17 @@ import { DataRepository } from "./data-repository";
 export class StopRepository extends DataRepository {
     protected collectionName = "stops" as const;
 
+    public async findStop(agency_id: string, stop_id: string) {
+        return this.db.collection(this.collectionName).findOne({ agency_id, stop_id });
+    }
+
+    public async findAllStops(agencyId: string, stopIds: string[]) {
+        return this.db
+            .collection(this.collectionName)
+            .find({ agency_id: agencyId, stop_id: { $in: stopIds } })
+            .toArray();
+    }
+
     public async findGeoJson(agencyId: string, stopIds: string[]) {
         const stopCursor = this.db.collection(this.collectionName).find({
             agency_id: agencyId,

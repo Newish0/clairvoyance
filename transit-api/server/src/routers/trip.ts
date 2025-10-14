@@ -2,10 +2,23 @@ import { TripInstancesRepository } from "../repositories/trip-instance-repositor
 import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
 import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { RouteRepository } from "../repositories/route-repository";
+import { ShapeRepository } from "../repositories/shape-repository";
+import { TripRepository } from "../repositories/trip-repository";
 
 export const tripRouter = router({
-    getById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId }) => {
-        return tripInstanceId; // TODO
+    getFullById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId, ctx }) => {
+        const tripInstanceRepo = new TripInstancesRepository(ctx.db);
+        const tripRepo = new TripRepository(ctx.db);
+        const routeRepo = new RouteRepository(ctx.db);
+
+        const tripInstance = await tripInstanceRepo.findById(tripInstanceId);
+        if (!tripInstance) return null;
+
+        const trip = await tripRepo.findById(tripInstance.trip);
+        const route = await routeRepo.findById(tripInstance.route);
+
+        return { ...tripInstance, trip, route };
     }),
 
     getNearby: publicProcedure
@@ -50,7 +63,7 @@ export const tripRouter = router({
             v.object({
                 agencyId: v.string(),
                 routeId: v.string(),
-                directionId: v.enum(Direction),
+                directionId: v.optional(v.enum(Direction)),
                 stopId: v.string(),
                 excludedTripInstanceIds: v.optional(v.array(v.string())),
             })

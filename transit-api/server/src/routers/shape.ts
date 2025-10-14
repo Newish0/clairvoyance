@@ -12,13 +12,25 @@ setInterval(() => {
 export const shapeRouter = router({
     getGeoJson: publicProcedure
         .input(
-            v.object({
-                agencyId: v.string(),
-                shapeId: v.string(),
-            })
+            v.union([
+                v.object({
+                    agencyId: v.string(),
+                    shapeId: v.string(),
+                }),
+                v.object({
+                    shapeObjectId: v.string(),
+                }),
+            ])
         )
-        .query(async ({ input: { agencyId, shapeId }, ctx }) => {
+        .query(async ({ input, ctx }) => {
             const shapeRepo = new ShapeRepository(ctx.db);
+
+            if ("shapeObjectId" in input) {
+                const geoJson = await shapeRepo.findGeoJsonById(input.shapeObjectId);
+                return geoJson;
+            }
+
+            const { agencyId, shapeId } = input;
             const geoJson = await shapeRepo.findGeoJson(agencyId, shapeId);
             return geoJson;
         }),

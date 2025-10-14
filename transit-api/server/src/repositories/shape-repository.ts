@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { DataRepository } from "./data-repository";
 
 export class ShapeRepository extends DataRepository {
@@ -20,5 +21,11 @@ export class ShapeRepository extends DataRepository {
             },
             geometry: shape.geometry,
         } as const;
+    }
+
+    public async findGeoJsonById(shapeObjectId: string) {
+        return this.db
+            .collection(this.collectionName)
+            .findOne({ _id: new ObjectId(shapeObjectId) });
     }
 }

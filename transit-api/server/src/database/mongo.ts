@@ -5,6 +5,7 @@ import type {
     Route,
     Shape,
     Stop,
+    Trip,
     TripInstance,
     VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
@@ -15,6 +16,7 @@ export interface TransitDb extends Db {
     collection<T extends Shape>(name: "shapes"): Collection<OmitId<T>>;
     collection<T extends Stop>(name: "stops"): Collection<OmitId<T>>;
     collection<T extends Route>(name: "routes"): Collection<OmitId<T>>;
+    collection<T extends Trip>(name: "trips"): Collection<OmitId<T>>;
     collection<T extends TripInstance>(name: "trip_instances"): Collection<OmitId<T>>;
     collection<T extends Alert>(name: "alerts"): Collection<OmitId<T>>;
     collection<T extends VehiclePosition>(name: "vehicle_positions"): Collection<OmitId<T>>;
