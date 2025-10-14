@@ -4,8 +4,11 @@ import { differenceInSeconds, type DateArg } from "date-fns";
 import { Clock } from "lucide-react";
 import { RealTimeIndicator } from "../ui/realtime-indicator";
 import { DepartureTime } from "./depature-time";
+import { Link } from "@tanstack/react-router";
+import type { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export interface DepartureCardProps {
+    agencyId: string;
     routeId: string;
     routeShortName: string;
     routeColor?: string | null;
@@ -14,6 +17,7 @@ export interface DepartureCardProps {
     tripHeadsign: string;
     stopId: string;
     stopName: string;
+    direction?: Direction | null;
     scheduledArrivalTime?: DateArg<Date> | null;
     predictedArrivalTime?: DateArg<Date> | null;
     scheduledDepartureTime?: DateArg<Date> | null;
@@ -38,7 +42,16 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
 
     // TODO: Use real URL
     return (
-        <a href={`${import.meta.env.BASE_URL}app/next-trips/?${undefined}`}>
+        <Link
+            to="/nt"
+            search={{
+                agencyId: props.agencyId,
+                routeId: props.routeId,
+                stopId: props.stopId,
+                tripInstanceId: props.tripInstanceId,
+                directionId: props.direction || undefined,
+            }}
+        >
             <div className="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div className="overflow-hidden">
                     <div className="flex items-center gap-2">
@@ -97,6 +110,6 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                     )} */}
                 </div>
             </div>
-        </a>
+        </Link>
     );
 };

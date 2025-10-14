@@ -10,7 +10,7 @@ import { createHTTPServer } from "@trpc/server/adapters/standalone";
 
 const appRouter = router({
     shape: shapeRouter,
-    trip: tripRouter,
+    tripInstance: tripRouter,
     route: routeRouter,
     stop: stopRouter,
     alert: alertRouter,

@@ -32,7 +32,7 @@ function TransitApp() {
     const throttledNearbyTripsQueryParams = useThrottle(nearbyTripsQueryParams, 1000);
 
     const { data: nearbyTrips, refetch: refetchNearbyTrips } = useQuery({
-        ...trpc.trip.getNearby.queryOptions(throttledNearbyTripsQueryParams),
+        ...trpc.tripInstance.getNearby.queryOptions(throttledNearbyTripsQueryParams),
         staleTime: 0,
         gcTime: 0,
         placeholderData: (prev) => prev, // prevent flickering

@@ -1,8 +1,8 @@
 import { ObjectId } from "mongodb";
 import { DataRepository } from "./data-repository";
 
-export class RouteRepository extends DataRepository {
-    protected collectionName = "routes" as const;
+export class TripRepository extends DataRepository {
+    protected collectionName = "trips" as const;
 
     public async findById(routeObjectId: string) {
         return this.db

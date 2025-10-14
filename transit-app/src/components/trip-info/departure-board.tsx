@@ -6,7 +6,7 @@ import { DepartureCard } from "./departure-card";
 import { StopTimeUpdateScheduleRelationship } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 type DepartureBoardProps = {
-    departures: inferProcedureOutput<AppRouter["trip"]["getNearby"]>;
+    departures: inferProcedureOutput<AppRouter["tripInstance"]["getNearby"]>;
 };
 
 export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
@@ -23,6 +23,7 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
                         {tripInstances.slice(0, 1).map((tripInstance) => (
                             <DepartureCard
                                 key={tripInstance._id}
+                                agencyId={tripInstance.agency_id}
                                 routeId={tripInstance.route_id}
                                 routeShortName={
                                     tripInstance.route.route_short_name ||
@@ -36,6 +37,7 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
                                 }
                                 stopId={tripInstance.stop_time.stop_id}
                                 stopName={tripInstance.stop_time.stop_name}
+                                direction={tripInstance.trip.direction_id}
                                 scheduledArrivalTime={tripInstance.stop_time.arrival_datetime}
                                 predictedArrivalTime={
                                     tripInstance.stop_time.predicted_arrival_datetime

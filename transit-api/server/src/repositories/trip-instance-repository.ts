@@ -84,7 +84,7 @@ export class TripInstancesRepository extends DataRepository {
     }) {
         const now = new Date();
         const realtimeThreshold = new Date(now.getTime() - realtimeMaxAge);
-        return this.db
+        const tripInstances = await this.db
             .collection(this.collectionName)
             .aggregate([
                 {
@@ -200,6 +200,24 @@ export class TripInstancesRepository extends DataRepository {
             ])
             .limit(limit)
             .toArray();
+
+        return tripInstances as unknown as {
+            _id: string;
+            trip_id: string;
+            start_date: string;
+            start_time: string;
+            route_id: string;
+            direction_id: Direction;
+            state: TripInstanceState;
+            start_datetime: string;
+            stop_times: StopTimeInstance[];
+            stop_times_updated_at: string;
+            trip: WithId<Trip>;
+            route: WithId<Route>;
+            shape: string;
+            vehicle: string;
+            latest_position: WithId<VehiclePosition>;
+        }[];
     }
 
     /**

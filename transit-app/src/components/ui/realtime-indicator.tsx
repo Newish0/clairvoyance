@@ -22,6 +22,7 @@ export const RealTimeIndicator: React.FC<RealTimeIndicatorProps> = ({ delaySecon
     return (
         <Tooltip>
             <TooltipTrigger asChild>
+                {/* TODO: FIx tooltip trigger placement */}
                 <div>
                     <div
                         className={cn(
