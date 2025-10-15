@@ -92,6 +92,7 @@ function RouteComponent() {
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     agencyId={tripInstance?.agency_id ?? agencyId}
+                    atStopId={stopId}
                     stopIds={tripInstance?.stop_times.map((st) => st.stop_id) ?? []}
                     shapeObjectId={tripInstance?.shape ?? ""}
                 />
