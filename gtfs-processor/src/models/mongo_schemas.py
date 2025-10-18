@@ -10,10 +10,10 @@ IMPORTANT:
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 
-from beanie import Document, PydanticObjectId, View
+from beanie import Document, PydanticObjectId
 from pydantic import BaseModel, Field, field_validator, model_validator
 import pymongo
 
@@ -49,7 +49,7 @@ def _now_utc():
 class PointGeometry(BaseModel):
     """Represents a GeoJSON Point object."""
 
-    type: str = Field(default="Point", frozen=True)
+    type: Literal["Point"] = Field(default="Point", frozen=True)
     coordinates: List[float]  # [longitude, latitude]
 
     @field_validator("coordinates")
@@ -70,7 +70,7 @@ class PointGeometry(BaseModel):
 class LineStringGeometry(BaseModel):
     """Represents a GeoJSON LineString object."""
 
-    type: str = Field(default="LineString", frozen=True)
+    type: Literal["LineString"] = Field(default="LineString", frozen=True)
     coordinates: List[List[float]]  # Array of [longitude, latitude] pairs
 
     @field_validator("coordinates")

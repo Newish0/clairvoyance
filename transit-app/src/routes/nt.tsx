@@ -25,6 +25,7 @@ import { DepartureTime } from "@/components/trip-info/depature-time";
 import { RealTimeIndicator } from "@/components/ui/realtime-indicator";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ensureHexColorStartsWithHash } from "@/utils/css";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
@@ -87,14 +88,26 @@ function RouteComponent() {
         }
     }, [tripInstance, nextTripInstances]);
 
+    const atStopDistTraveled =
+        tripInstance?.stop_times.find((st) => st.stop_id === stopId)?.shape_dist_traveled ??
+        undefined;
+
     return (
         <div className="h-[100dvh] w-[100dvw] relative">
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     agencyId={tripInstance?.agency_id ?? agencyId}
                     atStopId={stopId}
+                    atStopDistTraveled={atStopDistTraveled}
                     stopIds={tripInstance?.stop_times.map((st) => st.stop_id) ?? []}
-                    shapeObjectId={tripInstance?.shape ?? ""}
+                    shapeObjectId={tripInstance?.shape ?? undefined}
+                    routeColor={
+                        ensureHexColorStartsWithHash(tripInstance?.route?.route_color) ?? undefined
+                    }
+                    routeTextColor={
+                        ensureHexColorStartsWithHash(tripInstance?.route?.route_text_color) ??
+                        undefined
+                    }
                 />
             </div>
 

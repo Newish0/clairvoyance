@@ -1,4 +1,5 @@
 import { DataRepository } from "./data-repository";
+import type { FeatureCollection } from "geojson";
 
 export class StopRepository extends DataRepository {
     protected collectionName = "stops" as const;
@@ -22,21 +23,23 @@ export class StopRepository extends DataRepository {
             },
         });
 
-        const features = await stopCursor
+        const features = (await stopCursor.toArray())
+            .filter((stop) => stop.location !== null)
             .map(
                 (stop) =>
                     ({
                         type: "Feature",
                         properties: { stopId: stop.stop_id },
-                        geometry: stop.location || null,
+                        geometry: stop.location!,
                     } as const)
-            )
-            .toArray();
+            );
 
-        return {
+        const geoJson: FeatureCollection = {
             type: "FeatureCollection",
             features,
-        } as const;
+        };
+
+        return geoJson;
     }
 
     public async findNearbyStops(
