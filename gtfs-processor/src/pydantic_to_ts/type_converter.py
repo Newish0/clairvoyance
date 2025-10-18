@@ -1,333 +1,438 @@
+"""
+pydantic_to_ts.py
+
+Generates TypeScript definitions from Pydantic (v2) models and Python Enums.
+
+Usage:
+    from pydantic_to_ts import generate_typescript_defs
+    generate_typescript_defs("my_project.models", "./frontend/types.d.ts")
+
+Notes:
+- Designed for Pydantic v2 (uses model_fields).
+- Maps beanie.odm.fields.PydanticObjectId -> string if available.
+- Emits WithObjectId<T> helper and an option to mark Document-like models as T & { _id: string }.
+"""
+
+from __future__ import annotations
+
 import importlib
 import inspect
+import json
 import os
-import typing
-import types  # Added for types.UnionType
-from enum import Enum
-from pydantic import BaseModel
-from pydantic.fields import FieldInfo
-from beanie.odm.fields import PydanticObjectId
-from datetime import datetime, date, time
-from uuid import UUID
+import re
 import sys
-import json  # For string escaping if needed, though not heavily used here
+import typing
+from datetime import date, datetime, time
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-# Helper to get Python version for typing compatibility
-PY_VERSION = sys.version_info[:2]  # (major, minor)
+# Try to import Pydantic and Beanie PydanticObjectId if available
+try:
+    from pydantic import BaseModel
+except Exception:
+    BaseModel = None  # type: ignore
 
+try:
+    from beanie.odm.fields import PydanticObjectId  # type: ignore
+except Exception:
+    # Fallback sentinel — we'll also detect by name
+    PydanticObjectId = None  # type: ignore
 
-_TS_HELPER_TYPES = """
+# Types for typing inspection
+try:
+    from typing import get_origin, get_args, Literal  # py3.8+ style
+except Exception:
+    # Fallback for older Python (shouldn't be needed in modern envs)
+    from typing_extensions import get_origin, get_args, Literal  # type: ignore
+
+# Regex for a valid JS identifier (simple)
+_JS_IDENTIFIER_RE = re.compile(r"^[A-Za-z_]\w*$")
+
+# Helper TypeScript snippet
+_TS_HELPER_TYPES = """// Helper: attach Mongo/Object _id as string if desired
 export type WithObjectId<T> = T & { _id: string };
 """
 
 
-def _is_optional(field_info: FieldInfo) -> bool:
-    """
-    Checks if a Pydantic field is optional.
-    In Pydantic V2, a field is optional if it's not required.
-    """
-    return not field_info.is_required()
+def _quote_field_if_needed(name: str) -> str:
+    """Return field name, quoted if it's not a valid JS identifier."""
+    if _JS_IDENTIFIER_RE.match(name):
+        return name
+    # Use json.dumps to correctly escape the name and produce a double-quoted string
+    return json.dumps(name)
 
 
-def _python_type_to_typescript_type(py_type: any, module_members: dict) -> str:
+def _is_optional_field(field_info) -> bool:
     """
-    Converts a Python type hint to its TypeScript equivalent.
-    `module_members` is a dictionary of names to objects in the processed module,
-    used to identify if a type is a known Pydantic model or Enum from that module.
+    Return True if the field should be optional in TypeScript.
+    Fields with a default *but not Optional[...] annotation* are NOT optional.
     """
-    origin = typing.get_origin(py_type)
-    args = typing.get_args(py_type)
+    try:
+        # For Pydantic v2
+        if hasattr(field_info, "is_required"):
+            if field_info.is_required():
+                return False
+            # If it has a default but annotation is not Optional, treat as required
+            ann = getattr(field_info, "annotation", None)
+            origin = typing.get_origin(ann)
+            if origin is typing.Union and type(None) in typing.get_args(ann):
+                return True
+            return False
+        # For older compatibility
+        if hasattr(field_info, "required"):
+            return not bool(field_info.required)
+    except Exception:
+        pass
+    return False
 
-    # 1. Handle Annotated: unwrap to get the base type
+
+def _py_type_to_ts(
+    py_type: Any, module_members: Dict[str, Any], seen: set[str] | None = None
+) -> str:
+    """
+    Convert a Python-typing annotation to a TypeScript type string.
+    - module_members: mapping of name->object for the processed module so we can map model names & enums.
+    - seen: names seen so far to avoid recursion loops when mapping forward refs.
+    """
+    if seen is None:
+        seen = set()
+
+    origin = get_origin(py_type)
+    args = get_args(py_type)
+
+    # Handle Annotated[...] -> unwrap
     if origin is typing.Annotated:
-        return _python_type_to_typescript_type(args[0], module_members)
+        if args:
+            return _py_type_to_ts(args[0], module_members, seen)
+        return "any"
 
-    # 2. Basic Python types to TypeScript
-    if py_type is int or py_type is float:
+    # Direct primitives
+    if py_type in (int, float):
         return "number"
-    if py_type is str:  # Keep str separate from UUID for clarity
-        return "string"
-    if py_type is UUID:  # UUID becomes string
+    if py_type is str:
         return "string"
     if py_type is bool:
         return "boolean"
+    if py_type is Any or py_type is typing.Any:
+        return "any"
     if py_type is type(None):
         return "null"
-    if py_type is datetime or py_type is date or py_type is time:
+    if py_type in (datetime, date, time):
+        # Represent as Date in TS; applications can parse ISO strings to Date objects
         return "Date"
-    if py_type is typing.Any:
-        return "any"
 
-    # 3. Specific known types like PydanticObjectId
-    if py_type is PydanticObjectId:  # Corrected check
+    # PydanticObjectId -> string: detection by identity or by name
+    if PydanticObjectId is not None and py_type is PydanticObjectId:
+        return "string"
+    if getattr(py_type, "__name__", None) == "PydanticObjectId":
         return "string"
 
-    # 4. Generic types (List, Dict, Union, Literal, etc.)
+    # Generic containers
     if origin:
-        if origin is list or origin is set:  # set also becomes array
+        # Lists / Sequence / Set -> array
+        if origin in (list, List, typing.List, tuple, typing.Sequence):
             if args:
-                return f"{_python_type_to_typescript_type(args[0], module_members)}[]"
+                # If it's a variable-length tuple like Tuple[T, ...] we treat as T[]
+                if origin in (tuple,):
+                    if len(args) == 2 and args[1] is Ellipsis:
+                        return f"{_py_type_to_ts(args[0], module_members, seen)}[]"
+                    # fixed-length tuple -> tuple type in TS
+                    inner = ", ".join(
+                        _py_type_to_ts(a, module_members, seen) for a in args
+                    )
+                    return f"[{inner}]"
+                return f"{_py_type_to_ts(args[0], module_members, seen)}[]"
             return "any[]"
-        if origin is dict:
-            if args and len(args) == 2:
-                key_type_py = args[0]
-                value_type_py = args[1]
 
-                ts_key_type_str = _python_type_to_typescript_type(
-                    key_type_py, module_members
-                )
-                ts_value_type_str = _python_type_to_typescript_type(
-                    value_type_py, module_members
-                )
-
-                # TS Record keys must be string, number, or symbol.
-                # If the Python key type translates to something else (e.g., an interface name for an Enum),
-                # default to 'string' as Pydantic dict keys are typically strings upon serialization.
-                if ts_key_type_str not in ["string", "number"] and not (
-                    '"' in ts_key_type_str
-                    or "'" in ts_key_type_str
-                    or "`" in ts_key_type_str
-                ):  # Crude check for string/number literals
-                    # This check means if ts_key_type_str is "MyEnum", it will be changed to "string".
-                    # If it was Literal['A' | 'B'], it would pass.
-                    actual_key_type_repr = getattr(
-                        key_type_py, "__name__", str(key_type_py)
-                    )
-                    print(
-                        f"Warning: Dictionary key type '{actual_key_type_repr}' (resolved to TS '{ts_key_type_str}') "
-                        f"is not directly usable as a TS Record key. Defaulting key to 'string'."
-                    )
-                    ts_key_type_str = "string"
-                return f"Record<{ts_key_type_str}, {ts_value_type_str}>"
-            return "Record<string, any>"
-        if origin is tuple:
+        # Set -> array (TS has Set but arrays are more common)
+        if origin in (set, typing.Set):
             if args:
-                if len(args) == 2 and args[1] is Ellipsis:  # Tuple[X, ...]
-                    return (
-                        f"{_python_type_to_typescript_type(args[0], module_members)}[]"
-                    )
+                return f"{_py_type_to_ts(args[0], module_members, seen)}[]"
+            return "any[]"
 
-                tuple_member_ts_types = [
-                    _python_type_to_typescript_type(arg, module_members) for arg in args
-                ]
-                return f"[{', '.join(tuple_member_ts_types)}]"
-            return "any[]"  # Empty tuple or unspecified
+        # Dict -> Record<K, V>
+        if origin in (dict, typing.Dict, typing.Mapping):
+            if args and len(args) == 2:
+                k_ts = _py_type_to_ts(args[0], module_members, seen)
+                v_ts = _py_type_to_ts(args[1], module_members, seen)
+                # TS record keys must be string | number | symbol — default to string if not valid
+                if k_ts not in ("string", "number") and not re.match(
+                    r"^['\"`].+['\"`]$", k_ts
+                ):
+                    # Common case: Python keys are strings -> ensure string
+                    k_ts = "string"
+                return f"Record<{k_ts}, {v_ts}>"
+            return "Record<string, any>"
 
-        # Improved Union handling
-        is_python_union = origin is typing.Union or (
-            PY_VERSION >= (3, 10) and origin is types.UnionType
+        # Union -> a | b | null
+        is_union = (
+            origin is typing.Union
+            or getattr(origin, "__origin__", None) is typing.Union
         )
-        if is_python_union:
-            non_none_args = [arg for arg in args if arg is not type(None)]
+        # In Py3.10, | union creates types.UnionType but get_origin handles it
+        if is_union:
+            union_args = args
+            # Flatten nested unions and map
+            mapped = []
+            contains_none = False
+            for a in union_args:
+                if a is type(None):
+                    contains_none = True
+                    continue
+                mapped.append(_py_type_to_ts(a, module_members, seen))
+            # Remove duplicates
+            mapped = list(dict.fromkeys(mapped))
+            if contains_none:
+                mapped.append("null")
+            if not mapped:
+                return "any"
+            return " | ".join(mapped)
 
-            if not non_none_args:  # Only NoneType in Union (e.g. Union[None])
-                return "null"
+        # Literal -> 'a' | 'b' | 3
+        try:
+            from typing import Literal as TypingLiteral
+        except Exception:
+            TypingLiteral = None
 
-            ts_types_for_union = [
-                _python_type_to_typescript_type(arg, module_members)
-                for arg in non_none_args
-            ]
-
-            if type(None) in args:  # If original Union included NoneType
-                if (
-                    "null" not in ts_types_for_union
-                ):  # Avoid duplicates like "string | null | null"
-                    ts_types_for_union.append("null")
-
-            # Remove duplicates and sort for consistent output
-            unique_sorted_ts_types = sorted(list(set(ts_types_for_union)))
-
-            if (
-                not unique_sorted_ts_types
-            ):  # Should not happen if non_none_args had items
-                return "any"  # Fallback
-
-            return " | ".join(unique_sorted_ts_types)
-
-        if origin is typing.Literal:
-            literal_values_ts = []
-            for arg_literal in args:
-                if isinstance(arg_literal, str):
-                    # Use json.dumps to correctly escape strings for TypeScript
-                    literal_values_ts.append(json.dumps(arg_literal))
-                elif isinstance(arg_literal, (int, float)):
-                    literal_values_ts.append(str(arg_literal))
-                elif isinstance(arg_literal, bool):
-                    literal_values_ts.append(str(arg_literal).lower())
+        if (
+            getattr(origin, "__name__", None) == "Literal"
+            or origin is typing.Literal
+            or origin is Literal
+        ):
+            literal_values = []
+            for lit in args:
+                if isinstance(lit, str):
+                    literal_values.append(json.dumps(lit))
+                elif isinstance(lit, bool):
+                    literal_values.append(str(lit).lower())
+                elif isinstance(lit, (int, float)):
+                    literal_values.append(str(lit))
                 else:
-                    print(
-                        f"Warning: Unsupported Literal value type {type(arg_literal)} for value '{arg_literal}'. Mapping to 'any' for this item."
-                    )
-                    literal_values_ts.append("any")
+                    # Unexpected literal
+                    literal_values.append(json.dumps(str(lit)))
+            # unique + stable
+            literal_values = list(dict.fromkeys(literal_values))
+            if not literal_values:
+                return "never"
+            return " | ".join(literal_values)
 
-            if not literal_values_ts:
-                return "never"  # An empty set of literals is `never` in TS
+    # ForwardRef (string) or string annotations
+    if isinstance(py_type, str):
+        # e.g. "OtherModel" -> just return OtherModel
+        return py_type
 
-            # Sort for consistent output, remove duplicates
-            unique_sorted_literals = sorted(list(set(literal_values_ts)))
-            return " | ".join(unique_sorted_literals)
-
-    # 5. Handle ForwardRef (string type hints)
-    if isinstance(py_type, typing.ForwardRef):
-        # For TypeScript, using the forward reference name directly is usually fine,
-        # as TS can resolve named types defined later or in other files (if imported).
+    # typing.ForwardRef in some versions
+    if hasattr(py_type, "__forward_arg__"):
         return py_type.__forward_arg__
 
-    # 6. Handle direct class types (Pydantic Models, Enums from the module)
+    # If it's a class, maybe it's a Pydantic model or an Enum
     if inspect.isclass(py_type):
-        # This is the key fix: ensure it's a model/enum from the *processed module*
-        # by checking identity against `module_members`.
-        if py_type.__name__ in module_members and py_type is module_members.get(
-            py_type.__name__
-        ):  # Ensure it's the exact object
-            if issubclass(py_type, BaseModel):
-                return py_type.__name__  # Use Model name for TS Interface
+        # If it's defined in the same module we're processing, reference by name
+        name = py_type.__name__
+        # Avoid infinite recursion: if we've already emitted the same name, use the name
+        if name in seen:
+            return name
+        # If it's a BaseModel subclass
+        try:
+            if BaseModel is not None and issubclass(py_type, BaseModel):
+                return name
+        except Exception:
+            pass
+        # If it's an Enum subclass
+        try:
             if issubclass(py_type, Enum):
-                return py_type.__name__  # Use Enum name for TS Enum
+                # Map to enum name (we'll emit the enum separately)
+                return name
+        except Exception:
+            pass
+        # If it's built-in class we didn't map earlier, try to map some common mappings
+        UUID = getattr(typing, "UUID", None)
+        if py_type is UUID:
+            return "string"
 
-    # 7. Default for unknown complex types
-    type_repr = getattr(py_type, "__name__", str(py_type))  # Get a representative name
-    print(
-        f"Warning: Unknown Python type '{type_repr}' (Origin: {origin}, Args: {args}). Mapping to 'any'."
-    )
+    # Fallback
+    type_repr = getattr(py_type, "__name__", str(py_type))
+    print(f"Warning: Unknown Python type '{type_repr}'; mapping to 'any'.")
     return "any"
 
 
-def _convert_pydantic_model_to_typescript(
-    model_cls: type[BaseModel], module_members: dict
-) -> str:
-    """Converts a Pydantic model to a TypeScript interface."""
-    ts_fields = []
-    model_name = model_cls.__name__
+def _convert_enum_to_ts(enum_cls: type[Enum]) -> str:
+    """Convert Python Enum to TypeScript enum preserving values (string/number)."""
+    name = enum_cls.__name__
+    members = []
+    for member in enum_cls:
+        val = member.value
+        if isinstance(val, str):
+            members.append(f"  {member.name} = {json.dumps(val)},")
+        elif isinstance(val, (int, float)):
+            members.append(f"  {member.name} = {val},")
+        else:
+            # Complex value; fallback to stringified value
+            print(
+                f"Warning: Enum {name}.{member.name} value type {type(val)}; stringifying."
+            )
+            members.append(f"  {member.name} = {json.dumps(str(val))},")
+    body = "\n".join(members)
+    return f"export enum {name} {{\n{body}\n}}"
 
-    if not hasattr(model_cls, "model_fields"):  # Pydantic V2 check
+
+def _convert_model_to_ts(
+    model_cls: type, module_members: Dict[str, Any], mark_with_object_id: bool
+) -> str:
+    """Convert a Pydantic BaseModel/Beanie Document to a TypeScript interface."""
+    name = model_cls.__name__
+
+    # Pydantic v2: model_fields holds FieldInfo-ish objects keyed by name
+    if not hasattr(model_cls, "model_fields"):
         print(
-            f"Warning: Model {model_name} does not have 'model_fields'. Skipping. "
-            f"(This suggests it might be a Pydantic V1 model or not a Pydantic model.)"
+            f"Skipping {name}: does not appear to be a Pydantic v2 BaseModel (missing model_fields)."
         )
         return ""
 
-    for field_name, field_info in model_cls.model_fields.items():
-        # Use serialization alias if present, otherwise Python field name
-        ts_field_name = field_info.alias or field_name
-        is_opt = _is_optional(
-            field_info
-        )  # Pydantic V2: checks field_info.is_required()
+    lines: List[str] = []
+    # Use model_fields to get annotations and alias info
+    for py_field_name, field_info in model_cls.model_fields.items():
+        # field_info is a ModelField (Pydantic) or similar; get alias if present
+        alias = getattr(field_info, "alias", None) or py_field_name
+        ts_name = _quote_field_if_needed(alias)
+        is_opt = _is_optional_field(field_info)
+        annotation = getattr(field_info, "annotation", None)
+        # Some Pydantic fields supply 'annotation' as typing.Any if absent
+        if annotation is None:
+            annotation = Any
+        ts_type = _py_type_to_ts(annotation, module_members, seen={name})
+        if is_opt and "null" not in ts_type:
+            ts_type = f"{ts_type} | null"
+        lines.append(f"  {ts_name}: {ts_type};")
 
-        # field_info.annotation should give the resolved type hint
-        ts_type = _python_type_to_typescript_type(field_info.annotation, module_members)
-
-        # Ensure TS field name is a valid identifier or quoted if needed
-        # (though typically Pydantic aliases are valid JS identifiers)
-        # For simplicity, this example assumes ts_field_name is valid.
-        # Production tools might add quoting for names with special characters.
-
-        ts_fields.append(f"  {ts_field_name}{'?' if is_opt else ''}: {ts_type};")
-
-    return f"export interface {model_name} {{\n" + "\n".join(ts_fields) + "\n}"
-
-
-def _convert_enum_to_typescript(enum_cls: type[Enum]) -> str:
-    """Converts a Python Enum to a TypeScript enum, preserving names and string/number values."""
-    enum_name = enum_cls.__name__
-    ts_members = []
-    for member in enum_cls:
-        if isinstance(member.value, str):
-            # Use json.dumps to correctly escape string values for TS
-            ts_members.append(f"  {member.name} = {json.dumps(member.value)},")
-        elif isinstance(member.value, (int, float)):
-            ts_members.append(f"  {member.name} = {member.value},")
-        else:
-            # Fallback for other complex value types (e.g., tuples, objects)
-            # For TS enums, values are typically strings or numbers.
-            # Emitting just the name might be best if value is complex, or warning.
-            print(
-                f"Warning: Enum '{enum_name}' member '{member.name}' has a complex value type: {type(member.value)}. "
-                f"In TypeScript, enum members are typically strings or numbers. "
-                f"Assigning its string representation: {json.dumps(str(member.value))}."
-            )
-            ts_members.append(f"  {member.name} = {json.dumps(str(member.value))},")
-
-    return f"export enum {enum_name} {{\n" + "\n".join(ts_members) + "\n}"
+    interface_body = "\n".join(lines)
+    if mark_with_object_id:
+        # We'll export the base interface and a WithObjectId variant
+        return f"export interface {name} {{\n{interface_body}\n}}\n\nexport type {name}WithId = WithObjectId<{name}>;"
+    else:
+        return f"export interface {name} {{\n{interface_body}\n}}"
 
 
-def generate_typescript_defs(module_path: str, output_ts_file: str) -> None:
+def generate_typescript_defs(
+    module_path: str, output_ts_file: str, mark_documents_with_id: bool = True
+) -> None:
     """
-    Generates TypeScript definitions from Pydantic models and Enums in a Python module.
+    Generate TypeScript definitions for Pydantic models and Enums found in module.
 
-    :param module_path: Dot-separated path to the Python module (e.g., "my_project.api.models").
-    :param output_ts_file: Path to the output TypeScript file (e.g., "./frontend/apiTypes.ts").
+    :param module_path: dot path to module, e.g. "my_app.models"
+    :param output_ts_file: where to write the resulting .ts/.d.ts file
+    :param mark_documents_with_id: if True, add WithObjectId<T> helper types for classes that are Beanie Document subclasses.
     """
     try:
         module = importlib.import_module(module_path)
-    except ImportError:
-        print(f"Error: Could not import module '{module_path}'.")
+    except Exception as exc:
+        print(f"Error importing module '{module_path}': {exc}")
         return
 
-    ts_outputs = []
+    module_members: Dict[str, Any] = {}
+    pyd_models: List[type] = []
+    enums: List[type] = []
+    documents: List[type] = []
 
-    # Collect all Pydantic models and Enums first.
-    # `module_members` will store all class objects found in the module's namespace,
-    # which is used by `_python_type_to_typescript_type` to resolve named types.
-    module_members = {}
-    pydantic_models = []
-    enums = []
-
+    # Gather members from the module
     for name, obj in inspect.getmembers(module):
         if inspect.isclass(obj):
-            module_members[name] = obj  # Store for type resolution
-            # We only want to generate definitions for models/enums defined in *this* module,
-            # or at least those explicitly chosen. For now, collect all found.
-            # A common refinement is to check `obj.__module__ == module.__name__`.
-            if issubclass(obj, BaseModel) and obj is not BaseModel:
-                pydantic_models.append(obj)
-            elif issubclass(obj, Enum) and obj is not Enum:
+            module_members[name] = obj
+
+    # Classify
+    for name, obj in list(module_members.items()):
+        try:
+            if (
+                BaseModel is not None
+                and inspect.isclass(obj)
+                and issubclass(obj, BaseModel)
+                and obj is not BaseModel
+            ):
+                pyd_models.append(obj)
+        except Exception:
+            pass
+        try:
+            if inspect.isclass(obj) and issubclass(obj, Enum) and obj is not Enum:
                 enums.append(obj)
+        except Exception:
+            pass
 
-    print(
-        f"Found {len(pydantic_models)} Pydantic models and {len(enums)} Enums in module '{module_path}' for potential conversion."
-    )
+        # Detect Beanie Document subclasses heuristically by name or base class if Beanie is available
+        try:
+            # If object has 'Settings' and 'Settings.name' it's probably a Beanie Document, but this is heuristic
+            if (
+                inspect.isclass(obj)
+                and hasattr(obj, "Settings")
+                and hasattr(obj, "model_fields")
+            ):
+                # We will treat any BaseModel subclass with Settings as a "document"
+                documents.append(obj)
+        except Exception:
+            pass
 
-    # Sort by name for consistent output order (optional, but helpful for diffs)
-    # For TS, order of interface/enum definition doesn't usually matter as much as for Zod schemas
-    # due to TS's type hoisting and resolution capabilities.
-    pydantic_models.sort(key=lambda x: x.__name__)
+    # Sort for stable output
     enums.sort(key=lambda x: x.__name__)
+    pyd_models.sort(key=lambda x: x.__name__)
 
-    # Generate TS for Enums first (often dependencies for models, good practice)
-    for enum_cls in enums:
-        ts_outputs.append(_convert_enum_to_typescript(enum_cls))
+    # Prepare output blocks
+    blocks: List[str] = []
 
-    # Generate TS for Pydantic Models
-    for model_cls in pydantic_models:
-        ts_outputs.append(
-            _convert_pydantic_model_to_typescript(model_cls, module_members)
-        )
-
-    # Basic header
-    header_comments = (
-        f"// Generated by pydantic-to-ts-converter\n"
-        f"// From Pydantic models in Python module: {module.__name__} (path: {module_path})\n"
-        f"// Timestamp: {datetime.now().isoformat()}\n\n"
+    header = (
+        f"// Generated by pydantic_to_ts\n"
+        f"// Source module: {module.__name__}\n"
+        f"// Generated at: {datetime.now().isoformat()}\n\n"
     )
+    blocks.append(header)
+    blocks.append(_TS_HELPER_TYPES)
 
-    final_ts_code = (
-        header_comments
-        + _TS_HELPER_TYPES  # If you have any global helper types
-        + "\n\n"
-        + "\n\n".join(
-            filter(None, ts_outputs)
-        )  # Filter out any empty strings from conversions
-    )
+    # Emit enums first (models may reference them)
+    for e in enums:
+        blocks.append(_convert_enum_to_ts(e))
 
-    output_directory = os.path.dirname(output_ts_file)
-    if output_directory and not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-        print(f"Created output directory: {output_directory}")
+    # Emit models
+    for m in pyd_models:
+        mark_id = False
+        if mark_documents_with_id:
+            # Determine if this model is a Document-like model (heuristic: Settings attr & Settings.name)
+            if hasattr(m, "Settings") and getattr(m.Settings, "name", None):
+                mark_id = True
+        blocks.append(_convert_model_to_ts(m, module_members, mark_id))
+
+    final_code = "\n\n".join(filter(None, blocks)) + "\n"
+
+    # Ensure output directory exists
+    out_dir = os.path.dirname(output_ts_file)
+    if out_dir and not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
 
     try:
         with open(output_ts_file, "w", encoding="utf-8") as f:
-            f.write(final_ts_code)
-        print(f"TypeScript definitions generated successfully at '{output_ts_file}'")
-    except IOError as e:
-        print(f"Error: Could not write to output file '{output_ts_file}': {e}")
+            f.write(final_code)
+        print(f"Wrote TypeScript definitions to: {output_ts_file}")
+    except Exception as exc:
+        print(f"Failed to write output file: {exc}")
+
+
+# If run as script -> simple CLI
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Generate TypeScript defs from Pydantic v2 models."
+    )
+    parser.add_argument(
+        "module", help="Python module path (dot-separated), e.g. 'myapp.models'"
+    )
+    parser.add_argument(
+        "out", help="Output TypeScript file path, e.g. ./src/types.d.ts"
+    )
+    parser.add_argument(
+        "--no-id",
+        action="store_true",
+        help="Do not add WithObjectId helper or WithId types for Document models.",
+    )
+    args = parser.parse_args()
+
+    generate_typescript_defs(
+        args.module, args.out, mark_documents_with_id=not args.no_id
+    )
