@@ -1,6 +1,6 @@
 import { createContext } from "./context";
 import { shapeRouter } from "./routers/shape";
-import { tripRouter } from "./routers/trip";
+import { tripInstanceRouter } from "./routers/trip-instance";
 import { routeRouter } from "./routers/route";
 import { stopRouter } from "./routers/stop";
 import { alertRouter } from "./routers/alert";
@@ -10,7 +10,7 @@ import { createHTTPServer } from "@trpc/server/adapters/standalone";
 
 const appRouter = router({
     shape: shapeRouter,
-    tripInstance: tripRouter,
+    tripInstance: tripInstanceRouter,
     route: routeRouter,
     stop: stopRouter,
     alert: alertRouter,

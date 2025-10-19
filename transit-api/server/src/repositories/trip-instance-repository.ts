@@ -8,7 +8,7 @@ import type {
     VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { Direction, TripInstanceState } from "../../../../gtfs-processor/shared/gtfs-db-types";
-import { DBRef, MongoAPIError, ObjectId, WithId } from "mongodb";
+import { Document, MongoAPIError, ObjectId, WithId } from "mongodb";
 import { DataRepository } from "./data-repository";
 import { StopRepository } from "./stop-repository";
 import { VehiclePositionRepository } from "./vehicle-position-repository";
@@ -529,32 +529,89 @@ export class TripInstancesRepository extends DataRepository {
         routeId,
         directionId,
         signal,
+        getInitialData = true,
     }: {
         agencyId?: string;
         routeId?: string;
         directionId?: Direction;
         signal?: AbortSignal;
+        getInitialData?: boolean;
     }): AsyncGenerator<TripVehiclePositionEvent> {
-        const pipeline = [
+        const pipeline: Document[] = [
             {
                 $match: {
-                    ...(agencyId ? { "fullDocument.agency_id": agencyId } : {}),
-                    ...(routeId ? { "fullDocument.route_id": routeId } : {}),
-                    ...(directionId ? { "fullDocument.direction_id": directionId } : {}),
-                    "updateDescription.updatedFields.positions": { $exists: true },
+                    operationType: "update",
+                    $or: [
+                        { "updateDescription.updatedFields.positions": { $exists: true } },
+                        { "updateDescription.truncatedArrays.field": "positions" },
+                    ],
                 },
             },
         ];
 
-        // TODO: Only one change stream at a time... we should singleton this. Then we can't close until all signals are aborted.
-        const changeStream = this.db.collection(this.collectionName).watch(pipeline);
+        // Add conditional stages only if filters are provided
+        if (agencyId || routeId || directionId) {
+            pipeline.push({
+                $match: {
+                    ...(agencyId ? { "fullDocument.agency_id": agencyId } : {}),
+                    ...(routeId ? { "fullDocument.route_id": routeId } : {}),
+                    ...(directionId ? { "fullDocument.direction_id": directionId } : {}),
+                },
+            });
+        }
+
+        if (getInitialData) {
+            // For performance reasons, the initial data is limited to trips that started less than 12 hours ago.
+            // If a trip that started more than 12 hours ago and is still active, it will show up when it is updated.
+            const mappedTripInstances = await this.db
+                .collection(this.collectionName)
+                .find({
+                    ...(agencyId ? { agency_id: agencyId } : {}),
+                    ...(routeId ? { route_id: routeId } : {}),
+                    ...(directionId ? { direction_id: directionId } : {}),
+                    start_datetime: { $gte: getHoursInFuture(-12), $lt: new Date() },
+                })
+                .map((tripInstance) => ({
+                    tripInstanceId: tripInstance._id,
+                    latestPosition: tripInstance.positions.at(-1),
+                }))
+                .toArray();
+            const tripVehicleEvents = await Promise.all(
+                mappedTripInstances.map(async ({ tripInstanceId, latestPosition }) => ({
+                    tripInstanceId,
+                    latestPosition: latestPosition
+                        ? await this.vehiclePositionRepository.findById(latestPosition)
+                        : null,
+                }))
+            );
+            const activeTripVehicleEvents = tripVehicleEvents.filter(
+                (tripVehicleEvent) =>
+                    tripVehicleEvent.latestPosition &&
+                    tripVehicleEvent.latestPosition.timestamp > getHoursInFuture(-0.0833333333) // 5 minutes
+            );
+
+            yield* activeTripVehicleEvents;
+        }
+
+        // TODO: we may only want 1 change stream per query.
+        const changeStream = this.db.collection(this.collectionName).watch(pipeline, {
+            fullDocument: "updateLookup",
+        });
+
         signal?.addEventListener("abort", () => changeStream.close());
 
         try {
             for await (const change of changeStream) {
-                const changeWithUpdate = change as any;
+                if (change.operationType !== "update") {
+                    continue;
+                }
+
                 const latestPositionObjectId =
-                    changeWithUpdate.updateDescription.updatedFields.positions.at(-1);
+                    change.updateDescription.updatedFields?.positions?.at(-1);
+
+                if (!latestPositionObjectId) {
+                    continue;
+                }
 
                 const latestPosition = await this.vehiclePositionRepository.findById(
                     latestPositionObjectId
@@ -562,7 +619,7 @@ export class TripInstancesRepository extends DataRepository {
 
                 yield {
                     latestPosition,
-                    tripInstanceId: changeWithUpdate.documentKey._id,
+                    tripInstanceId: change.documentKey._id,
                 } as const;
             }
         } catch (error) {

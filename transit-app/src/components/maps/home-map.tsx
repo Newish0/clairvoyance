@@ -12,6 +12,8 @@ import {
 import type { inferProcedureOutput } from "@trpc/server";
 import type { AppRouter } from "../../../../transit-api/server/src";
 import type { MapLibreEvent } from "maplibre-gl";
+import { BusIcon } from "lucide-react";
+import { Badge } from "../ui/badge";
 
 export type HomeMapProps = {
     onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
@@ -98,7 +100,11 @@ const StopMarkers: React.FC<{
                             key={stop._id}
                             longitude={stop.location.coordinates[0]}
                             latitude={stop.location.coordinates[1]}
-                        />
+                        >
+                            <Badge variant={"default"} className="p-0.5 w-9 h-9">
+                                <BusIcon className="w-9 h-9" size={36}/>
+                            </Badge>
+                        </Marker>
                     )
             )}
         </>
