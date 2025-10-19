@@ -1,6 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { z } from "zod";
-import { Direction } from "../../../gtfs-processor/shared/gtfs-db-types";
+import { AppSettings } from "@/components/app-settings";
+import { TripMap } from "@/components/maps/trip-map";
+import { DepartureTime } from "@/components/trip-info/depature-time";
+import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { RealTimeIndicator } from "@/components/ui/realtime-indicator";
 import {
     ResponsiveModal,
     ResponsiveModalContent,
@@ -9,23 +15,16 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
-import { AppSettings } from "@/components/app-settings";
-import { SettingsIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { TripMap } from "@/components/maps/trip-map";
-import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/main";
-import { Badge } from "@/components/ui/badge";
-import { useMemo } from "react";
-import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { differenceInSeconds, format } from "date-fns";
-import { DepartureTime } from "@/components/trip-info/depature-time";
-import { RealTimeIndicator } from "@/components/ui/realtime-indicator";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/main";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { differenceInSeconds, format } from "date-fns";
+import { SettingsIcon } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
+import { Direction } from "../../../gtfs-processor/shared/gtfs-db-types";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
@@ -96,7 +95,9 @@ function RouteComponent() {
         <div className="h-[100dvh] w-[100dvw] relative">
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
-                    agencyId={tripInstance?.agency_id ?? agencyId}
+                    agencyId={agencyId}
+                    routeId={routeId}
+                    direction={directionId}
                     atStopId={stopId}
                     atStopDistTraveled={atStopDistTraveled}
                     stopIds={tripInstance?.stop_times.map((st) => st.stop_id) ?? []}

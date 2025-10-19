@@ -37,40 +37,42 @@ const trpc = createTRPCClient<AppRouter>({
 //     });
 // });
 
-// await new Promise((r) => {
-//     // trpc.trip.liveTripPositions.subscribe(
-//     //     {},
-//     //     {
-//     //         onData(data) {
-//     //             console.log(data);
-//     //         },
-//     //     }
-//     // );
+await new Promise((r) => {
+    trpc.tripInstance.liveTripPositions.subscribe(
+        {
+            agencyId: "BCT-48",
+            routeId: "26-VIC",
+        },
+        {
+            onData(data) {
+                console.log(data);
+            },
+        }
+    );
 
-//     // trpc.trip.liveTripStopTime.subscribe(
-//     //     [
-//     //         {
-//     //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
-//     //             stopId: "100019",
-//     //         },
-//     //     ],
-//     //     {
-//     //         onData(data) {
-//     //             console.log(data);
-//     //         },
-//     //     }
-//     // );
-// });
-
-
-const result = await trpc.trip.getNearby.query({
-    lat: 48.474515,
-    lng: -123.354458,
-    radius: 1000,
+    // trpc.trip.liveTripStopTime.subscribe(
+    //     [
+    //         {
+    //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
+    //             stopId: "100019",
+    //         },
+    //     ],
+    //     {
+    //         onData(data) {
+    //             console.log(data);
+    //         },
+    //     }
+    // );
 });
 
-// console.log(JSON.stringify(getObjectTypes(result), null, 2));
-console.log(JSON.stringify(result, null, 2));
+// const result = await trpc.tripInstance.getNearby.query({
+//     lat: 48.474515,
+//     lng: -123.354458,
+//     radius: 1000,
+// });
+
+// // console.log(JSON.stringify(getObjectTypes(result), null, 2));
+// console.log(JSON.stringify(result, null, 2));
 
 // function getObjectTypes(obj: any, typeObject: any = {}) {
 //     for (const key in obj) {

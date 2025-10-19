@@ -4,11 +4,16 @@ import { useThemeColors } from "@/hooks/use-theme-colors";
 import { trpc } from "@/main";
 import { getMutedColor, withOpacity } from "@/utils/css";
 import { useQuery } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import React, { useCallback, useState } from "react";
 import { Layer, Source, type LayerProps, type ViewStateChangeEvent } from "react-map-gl/maplibre";
+import type { Direction, VehiclePosition } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { VehiclePositionMapMarker } from "./vehicle-map-marker";
 
 export type TripMapProps = {
     agencyId: string;
+    routeId: string;
+    direction?: Direction;
     atStopId: string;
     atStopDistTraveled?: number;
     routeColor?: string;
@@ -44,6 +49,13 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 agencyId={props.agencyId}
                 stopColor={props.routeColor}
                 stopBorderColor={props.routeTextColor}
+            />
+            <LiveVehiclesLayer
+                agencyId={props.agencyId}
+                routeId={props.routeId}
+                direction={props.direction}
+                routeColor={props.routeColor}
+                routeTextColor={props.routeTextColor}
             />
         </ProtoMap>
     );
@@ -201,5 +213,80 @@ const ShapesGeojsonLayer: React.FC<{
                 <Layer {...atAndAfterShapeLayerStyle} />
             </Source>
         </>
+    );
+};
+
+const LiveVehiclesLayer: React.FC<{
+    agencyId: string;
+    routeId: string;
+    routeColor?: string;
+    routeTextColor?: string;
+    direction?: Direction;
+}> = ({ agencyId, routeId, direction, routeColor, routeTextColor }) => {
+    const [positions, setPositions] = useState<Record<string, VehiclePosition | null>>({});
+    const subscription = useSubscription(
+        trpc.tripInstance.liveTripPositions.subscriptionOptions(
+            {
+                agencyId,
+                routeId,
+                directionId: direction,
+            },
+            {
+                onData: (data) => {
+                    console.log("onData", data);
+                    setPositions((prev) => ({
+                        ...prev,
+                        [data.tripInstanceId]: data.latestPosition,
+                    }));
+                },
+                onError: (error) => {
+                    console.error("onError", error);
+                },
+                onStarted: () => {
+                    console.log("onStarted");
+                },
+                onConnectionStateChange: (state) => {
+                    console.log("onConnectionStateChange", state);
+                },
+            }
+        )
+    );
+
+    // console.log("positions", positions);
+
+    return (
+        <>
+            {Object.entries(positions).map(
+                ([tripInstanceId, position]) =>
+                    position && (
+                        <LiveVehicleMarker
+                            key={tripInstanceId}
+                            routeColor={routeColor}
+                            routeTextColor={routeTextColor}
+                            position={position}
+                        />
+                    )
+            )}
+        </>
+    );
+};
+
+const LiveVehicleMarker: React.FC<{
+    routeColor?: string;
+    routeTextColor?: string;
+    position: VehiclePosition;
+}> = ({ position }) => {
+    const { latitude, longitude } = position;
+
+    if (!latitude || !longitude) {
+        return null;
+    }
+
+    return (
+        <VehiclePositionMapMarker
+            vehiclePosition={position}
+            longitude={longitude}
+            latitude={latitude}
+        />
     );
 };

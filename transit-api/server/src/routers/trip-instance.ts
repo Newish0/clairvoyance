@@ -1,12 +1,12 @@
-import { TripInstancesRepository } from "../repositories/trip-instance-repository";
-import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
 import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { RouteRepository } from "../repositories/route-repository";
-import { ShapeRepository } from "../repositories/shape-repository";
+import { TripInstancesRepository } from "../repositories/trip-instance-repository";
 import { TripRepository } from "../repositories/trip-repository";
+import { publicProcedure, router } from "../trpc";
+import { AsSuperjsonSerialized } from "../types/utils";
 
-export const tripRouter = router({
+export const tripInstanceRouter = router({
     getFullById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId, ctx }) => {
         const tripInstanceRepo = new TripInstancesRepository(ctx.db);
         const tripRepo = new TripRepository(ctx.db);
@@ -95,7 +95,7 @@ export const tripRouter = router({
                 ...input,
                 signal,
             })) {
-                yield trip;
+                yield trip as unknown as AsSuperjsonSerialized<typeof trip>;
             }
         }),
 
