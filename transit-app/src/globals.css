@@ -120,4 +120,16 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    ::-webkit-scrollbar {
+        @apply w-4;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-accent-foreground/10 rounded-full bg-clip-content border-transparent border-4;
+    }
+
+    ::-webkit-scrollbar-corner {
+        @apply hidden;
+    }
 }

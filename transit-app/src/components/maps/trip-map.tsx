@@ -56,6 +56,7 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 direction={props.direction}
                 routeColor={props.routeColor}
                 routeTextColor={props.routeTextColor}
+                atStopId={props.atStopId}
             />
         </ProtoMap>
     );
@@ -222,7 +223,8 @@ const LiveVehiclesLayer: React.FC<{
     routeColor?: string;
     routeTextColor?: string;
     direction?: Direction;
-}> = ({ agencyId, routeId, direction, routeColor, routeTextColor }) => {
+    atStopId?: string;
+}> = ({ agencyId, routeId, direction, routeColor, routeTextColor, atStopId }) => {
     const [positions, setPositions] = useState<Record<string, VehiclePosition | null>>({});
     const subscription = useSubscription(
         trpc.tripInstance.liveTripPositions.subscriptionOptions(
@@ -264,6 +266,7 @@ const LiveVehiclesLayer: React.FC<{
                             routeColor={routeColor}
                             routeTextColor={routeTextColor}
                             position={position}
+                            atStopId={atStopId}
                         />
                     )
             )}
@@ -275,7 +278,8 @@ const LiveVehicleMarker: React.FC<{
     routeColor?: string;
     routeTextColor?: string;
     position: VehiclePosition;
-}> = ({ position, routeColor, routeTextColor }) => {
+    atStopId?: string;
+}> = ({ position, routeColor, routeTextColor, atStopId }) => {
     const { latitude, longitude } = position;
 
     if (!latitude || !longitude) {
@@ -289,6 +293,7 @@ const LiveVehicleMarker: React.FC<{
             latitude={latitude}
             routeColor={routeColor}
             routeTextColor={routeTextColor}
+            atStopId={atStopId}
         />
     );
 };
