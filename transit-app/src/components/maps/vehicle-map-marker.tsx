@@ -9,6 +9,13 @@ import {
     OccupancyStatus,
     type VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import {
+    ResponsiveModal,
+    ResponsiveModalContent,
+    ResponsiveModalHeader,
+    ResponsiveModalTrigger,
+} from "../ui/responsible-dialog";
+import { VehiclePositionDetails } from "../trip-info/vehicle-position-details";
 
 function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
     const [, setTick] = useState(0);
@@ -57,6 +64,7 @@ function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
 /* --- VehiclePositionMapMarker (main) --- */
 interface VehiclePositionMapMarkerProps extends MarkerProps {
     vehiclePosition: VehiclePosition;
+    atStopId?: string;
     vehicleType?: "bus" | "train" | "tram" | "ferry" | "cable_car"; // TODO: use RouteType
     routeColor?: string; // Hex color for the route
     routeTextColor?: string; // Text color that contrasts with routeColor
@@ -65,6 +73,7 @@ interface VehiclePositionMapMarkerProps extends MarkerProps {
 
 export function VehiclePositionMapMarker({
     vehiclePosition: vp,
+    atStopId,
     vehicleType = "bus",
     routeColor = "var(--primary-foreground)",
     routeTextColor = "var(--primary)",
@@ -134,77 +143,84 @@ export function VehiclePositionMapMarker({
 
     return (
         <Marker {...markerProps}>
-            <button className="relative flex flex-col items-center cursor-pointer transition-transform hover:scale-110 active:scale-95">
-                <div
-                    className={cn(
-                        "bg-primary-foreground/60 backdrop-blur-sm",
-                        "shadow-xl relative flex h-12 w-12 items-center justify-center rounded-full",
-                        hasData ? "border-1" : "border-2"
-                    )}
-                    style={{
-                        border: hasData
-                            ? `1px solid rgba(255, 255, 255, 0.2)`
-                            : `2px dashed ${routeColor}`,
-                    }}
-                >
-                    {hasData && (
-                        <motion.div
-                            className="absolute inset-0 rounded-full overflow-hidden"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.5 }}
-                            transition={{ duration: 0.3 }}
+            <ResponsiveModal>
+                <ResponsiveModalTrigger asChild>
+                    <button className="relative flex flex-col items-center cursor-pointer transition-transform hover:scale-110 active:scale-95">
+                        <div
+                            className={cn(
+                                "bg-primary-foreground/60 backdrop-blur-sm",
+                                "shadow-xl relative flex h-12 w-12 items-center justify-center rounded-full",
+                                hasData ? "border-1" : "border-2"
+                            )}
+                            style={{
+                                border: hasData
+                                    ? `1px solid rgba(255, 255, 255, 0.2)`
+                                    : `2px dashed ${routeColor}`,
+                            }}
                         >
-                            <motion.div
-                                className="absolute inset-0 rounded-full"
+                            {hasData && (
+                                <motion.div
+                                    className="absolute inset-0 rounded-full overflow-hidden"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 0.5 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <motion.div
+                                        className="absolute inset-0 rounded-full"
+                                        style={{
+                                            background: routeColor,
+                                        }}
+                                        initial={{ y: "100%" }}
+                                        animate={{ y: `${100 - fillPercentage}%` }}
+                                        transition={{
+                                            duration: 0.8,
+                                            ease: [0.4, 0.0, 0.2, 1],
+                                            delay: 0.1,
+                                        }}
+                                    />
+                                </motion.div>
+                            )}
+
+                            <VehicleIcon
+                                className="relative z-10 drop-shadow-md dark:saturate-75 brightness-90"
+                                size={24}
                                 style={{
-                                    background: routeColor,
-                                }}
-                                initial={{ y: "100%" }}
-                                animate={{ y: `${100 - fillPercentage}%` }}
-                                transition={{
-                                    duration: 0.8,
-                                    ease: [0.4, 0.0, 0.2, 1],
-                                    delay: 0.1,
+                                    color: !hasData
+                                        ? routeColor
+                                        : fillPercentage > 60
+                                          ? routeTextColor
+                                          : routeColor,
                                 }}
                             />
-                        </motion.div>
-                    )}
 
-                    <VehicleIcon
-                        className="relative z-10 drop-shadow-md dark:saturate-75 brightness-90"
-                        size={24}
-                        style={{
-                            color: !hasData
-                                ? routeColor
-                                : fillPercentage > 60
-                                  ? routeTextColor
-                                  : routeColor,
-                        }}
-                    />
+                            {!isBoardable && (
+                                <motion.div
+                                    className="absolute inset-0 flex items-center justify-center"
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 0.3, delay: 0.4 }}
+                                >
+                                    <X
+                                        size={28}
+                                        strokeWidth={3}
+                                        style={{
+                                            color: routeTextColor,
+                                            filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))",
+                                        }}
+                                    />
+                                </motion.div>
+                            )}
+                        </div>
 
-                    {!isBoardable && (
-                        <motion.div
-                            className="absolute inset-0 flex items-center justify-center"
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ duration: 0.3, delay: 0.4 }}
-                        >
-                            <X
-                                size={28}
-                                strokeWidth={3}
-                                style={{
-                                    color: routeTextColor,
-                                    filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))",
-                                }}
-                            />
-                        </motion.div>
-                    )}
-                </div>
-
-                <div className="-translate-y-1/2">
-                    <FreshnessBadge timestamp={vp.timestamp} />
-                </div>
-            </button>
+                        <div className="-translate-y-1/2">
+                            <FreshnessBadge timestamp={vp.timestamp} />
+                        </div>
+                    </button>
+                </ResponsiveModalTrigger>
+                <ResponsiveModalContent className="min-w-1/2 max-w-3xl">
+                    <VehiclePositionDetails vehiclePosition={vp} atStopId={atStopId} className="border-0" />
+                </ResponsiveModalContent>
+            </ResponsiveModal>
         </Marker>
     );
 }
