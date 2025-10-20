@@ -217,8 +217,8 @@ export function VehiclePositionMapMarker({
                         </div>
                     </button>
                 </ResponsiveModalTrigger>
-                <ResponsiveModalContent className="min-w-1/2 max-w-3xl">
-                    <VehiclePositionDetails vehiclePosition={vp} atStopId={atStopId} className="border-0" />
+                <ResponsiveModalContent className="min-w-1/2 max-w-3xl bg-primary-foreground/60 backdrop-blur-md">
+                    <VehiclePositionDetails vehiclePosition={vp} atStopId={atStopId} className="border-0 bg-transparent" />
                 </ResponsiveModalContent>
             </ResponsiveModal>
         </Marker>
