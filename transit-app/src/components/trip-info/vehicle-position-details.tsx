@@ -170,7 +170,7 @@ export function VehiclePositionDetails({
             ? differenceInSeconds(stopTime.predicted_arrival_datetime, stopTime.arrival_datetime)
             : undefined;
     const realTimeDelay =
-        realTimeDelaySeconds !== undefined ? (realTimeDelaySeconds / 60).toFixed(0) : undefined;
+        realTimeDelaySeconds !== undefined ? Math.round(realTimeDelaySeconds / 60) : undefined;
 
     // TODO: Fetch vehicle info and use enum
     const isAccessible = "Not Accessible";
