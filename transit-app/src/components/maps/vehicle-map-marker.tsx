@@ -1,14 +1,14 @@
-import { Bus, Train, Drama as Tram, Ship, Cable, X } from "lucide-react";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { DateArg } from "date-fns";
+import { motion } from "framer-motion";
+import { BusFront, Cable, Ship, Train, Drama as Tram, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Marker, type MarkerProps } from "react-map-gl/maplibre";
 import {
     OccupancyStatus,
     type VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
-import { Marker, type MarkerProps } from "react-map-gl/maplibre";
-import type { DateArg } from "date-fns";
 
 function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
     const [, setTick] = useState(0);
@@ -45,7 +45,7 @@ function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
             <Badge
                 variant="outline"
                 className={cn(
-                    "bg-primary-foreground/60 text-[10px] font-medium px-2 py-0.5 leading-none rounded-full backdrop-blur-sm shadow-xl border-1 whitespace-nowrap"
+                    "bg-primary-foreground/60 text-[10px] text-muted-foreground font-medium px-2 py-0.5 leading-none rounded-full backdrop-blur-sm shadow-xl border-1 whitespace-nowrap"
                 )}
             >
                 {displayText}
@@ -57,7 +57,7 @@ function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
 /* --- VehiclePositionMapMarker (main) --- */
 interface VehiclePositionMapMarkerProps extends MarkerProps {
     vehiclePosition: VehiclePosition;
-    vehicleType?: "bus" | "train" | "tram" | "ferry" | "cable_car";
+    vehicleType?: "bus" | "train" | "tram" | "ferry" | "cable_car"; // TODO: use RouteType
     routeColor?: string; // Hex color for the route
     routeTextColor?: string; // Text color that contrasts with routeColor
     onClick?: () => void;
@@ -66,8 +66,8 @@ interface VehiclePositionMapMarkerProps extends MarkerProps {
 export function VehiclePositionMapMarker({
     vehiclePosition: vp,
     vehicleType = "bus",
-    routeColor = "#3b82f6",
-    routeTextColor = "#ffffff",
+    routeColor = "var(--primary-foreground)",
+    routeTextColor = "var(--primary)",
     ...markerProps
 }: VehiclePositionMapMarkerProps) {
     const getOccupancyState = (): {
@@ -125,7 +125,7 @@ export function VehiclePositionMapMarker({
     const { fillPercentage, hasData, isBoardable } = getOccupancyState();
 
     const VehicleIcon = {
-        bus: Bus,
+        bus: BusFront,
         train: Train,
         tram: Tram,
         ferry: Ship,
@@ -137,7 +137,8 @@ export function VehiclePositionMapMarker({
             <button className="relative flex flex-col items-center cursor-pointer transition-transform hover:scale-110 active:scale-95">
                 <div
                     className={cn(
-                        "bg-primary-foreground/60 shadow-xl backdrop-blur-sm relative flex h-12 w-12 items-center justify-center rounded-full",
+                        "bg-primary-foreground/60 backdrop-blur-sm",
+                        "shadow-xl relative flex h-12 w-12 items-center justify-center rounded-full",
                         hasData ? "border-1" : "border-2"
                     )}
                     style={{
@@ -150,7 +151,7 @@ export function VehiclePositionMapMarker({
                         <motion.div
                             className="absolute inset-0 rounded-full overflow-hidden"
                             initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.22 }}
+                            animate={{ opacity: 0.5 }}
                             transition={{ duration: 0.3 }}
                         >
                             <motion.div
@@ -170,14 +171,14 @@ export function VehiclePositionMapMarker({
                     )}
 
                     <VehicleIcon
-                        className="relative z-10 drop-shadow-md"
+                        className="relative z-10 drop-shadow-md dark:saturate-75 brightness-90"
                         size={24}
                         style={{
                             color: !hasData
                                 ? routeColor
                                 : fillPercentage > 60
                                   ? routeTextColor
-                                  : "var(--primary)",
+                                  : routeColor,
                         }}
                     />
 
