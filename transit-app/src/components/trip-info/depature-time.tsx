@@ -34,7 +34,7 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
 
     if (minutes < 0) {
         return (
-            <span className="text-xs font-bold flex items-end">
+            <span className="text-xs font-bold flex items-end text-nowrap gap-1">
                 <SlidingNumber value={Math.abs(minutes)} direction={"up"} /> min ago
             </span>
         );

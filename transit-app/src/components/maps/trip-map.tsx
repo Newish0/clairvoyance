@@ -275,7 +275,7 @@ const LiveVehicleMarker: React.FC<{
     routeColor?: string;
     routeTextColor?: string;
     position: VehiclePosition;
-}> = ({ position }) => {
+}> = ({ position, routeColor, routeTextColor }) => {
     const { latitude, longitude } = position;
 
     if (!latitude || !longitude) {
@@ -287,6 +287,8 @@ const LiveVehicleMarker: React.FC<{
             vehiclePosition={position}
             longitude={longitude}
             latitude={latitude}
+            routeColor={routeColor}
+            routeTextColor={routeTextColor}
         />
     );
 };
