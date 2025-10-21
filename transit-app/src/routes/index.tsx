@@ -1,13 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { AppSettings } from "@/components/app-settings";
 import { HomeMap, type HomeMapProps } from "@/components/maps/home-map";
-import { Button } from "@/components/ui/button";
-import { SettingsIcon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/main";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useThrottle } from "@uidotdev/usehooks";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
+import { Button } from "@/components/ui/button";
 import {
     ResponsiveModal,
     ResponsiveModalContent,
@@ -16,8 +12,12 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
-import { AppSettings } from "@/components/app-settings";
+import { trpc } from "@/main";
 import { limitBBox } from "@/utils/geo";
+import { useQuery } from "@tanstack/react-query";
+import { useThrottle } from "@uidotdev/usehooks";
+import { SettingsIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
     component: TransitApp,
