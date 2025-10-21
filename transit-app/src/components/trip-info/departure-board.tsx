@@ -16,14 +16,14 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
     const routes = Object.entries(props.departures);
 
     return (
-        <AnimatePresence>
+        <AnimatePresence mode="sync">
             {routes.map(([routeId, directionsRecord]) => (
                 <motion.div
                     key={routeId}
                     layout
-                    initial={{ opacity: 0.5, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0.5, scale: 0.9 }}
+                    // initial={{ opacity: 0.5, scale: 0.9 }}
+                    // animate={{ opacity: 1, scale: 1 }}
+                    // exit={{ opacity: 0.5, scale: 0.9 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 >
                     <Carousel>

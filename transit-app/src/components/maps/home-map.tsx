@@ -1,19 +1,23 @@
 import { ProtoMap } from "@/components/maps/proto-map";
 import { trpc } from "@/main";
 import { useQuery } from "@tanstack/react-query";
-import { useThrottle } from "@uidotdev/usehooks";
+import { useGeolocation, useThrottle } from "@uidotdev/usehooks";
 import { useCallback, useState } from "react";
 import {
     Marker,
     useMap,
     type LngLatBounds,
+    type MarkerDragEvent,
     type ViewStateChangeEvent,
 } from "react-map-gl/maplibre";
 import type { inferProcedureOutput } from "@trpc/server";
 import type { AppRouter } from "../../../../transit-api/server/src";
-import type { MapLibreEvent } from "maplibre-gl";
+import { LngLat, type MapLibreEvent } from "maplibre-gl";
 import { BusIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
+import { toast } from "sonner";
+import { LocationMarker } from "./location-marker";
+import { cn } from "@/lib/utils";
 
 export type HomeMapProps = {
     onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
@@ -80,6 +84,7 @@ export const HomeMap: React.FC<HomeMapProps> = (props) => {
     return (
         <ProtoMap {...viewState} onMove={handleMove} onLoad={handleLoad}>
             <StopMarkers stops={data || []} />
+            <UserMarker />
         </ProtoMap>
     );
 };
@@ -102,11 +107,98 @@ const StopMarkers: React.FC<{
                             latitude={stop.location.coordinates[1]}
                         >
                             <Badge variant={"default"} className="p-0.5 w-9 h-9">
-                                <BusIcon className="w-9 h-9" size={36}/>
+                                <BusIcon className="w-9 h-9" size={36} />
                             </Badge>
                         </Marker>
                     )
             )}
+        </>
+    );
+};
+
+const UserMarker: React.FC<{}> = ({}) => {
+    const { current: map } = useMap();
+    const state = useGeolocation({
+        enableHighAccuracy: true,
+    });
+    const [userSetLocation, setUserSetLocation] = useState<LngLat | null>(null);
+    const [isDraggingUserSetLocation, setIsDraggingUserSetLocation] = useState(false);
+
+    if (state.loading) {
+        return null;
+    }
+
+    if (state.error) {
+        console.error(state.error);
+        toast.error(`Error acquiring GPS location: ${state.error.message}`);
+        return null;
+    }
+
+    if (state.longitude === null || state.latitude === null) {
+        toast.error("Could not acquire GPS location");
+        return null;
+    }
+
+    const userLngLat =
+        state.longitude !== null && state.latitude !== null
+            ? new LngLat(state.longitude, state.latitude)
+            : null;
+
+    const handleMarkerDrag = (e: MarkerDragEvent) => {
+        const lngLat = e.lngLat;
+
+        if (userLngLat && lngLat.distanceTo(userLngLat) < 25) {
+            setUserSetLocation(userLngLat);
+            return;
+        }
+
+        setUserSetLocation(lngLat);
+        // map?.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: map.getZoom() });
+    };
+
+    const handleDragStart = () => {
+        setIsDraggingUserSetLocation(true);
+    };
+
+    const handleDragEnd = () => {
+        setIsDraggingUserSetLocation(false);
+    };
+
+    const userSetLocationToUserDistance =
+        userSetLocation && userLngLat ? userSetLocation.distanceTo(userLngLat) : null;
+
+    const isUserSetLocationActive = userSetLocation
+        ? userSetLocationToUserDistance && userSetLocationToUserDistance > 25
+        : false;
+
+    return (
+        <>
+            <Marker longitude={state.longitude} latitude={state.latitude}>
+                <div
+                    className={cn(
+                        "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110"
+                    )}
+                ></div>
+            </Marker>
+
+            <Marker
+                longitude={userSetLocation?.lng || state.longitude}
+                latitude={userSetLocation?.lat || state.latitude}
+                onDrag={handleMarkerDrag}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                draggable
+            >
+                <div
+                    className={cn(
+                        "w-6 h-6 rounded-full bg-fuchsia-400 border-4 border-white hover:scale-110 active:scale-120 active:-translate-y-1 active:shadow-4xl transition-opacity duration-300",
+                        isDraggingUserSetLocation || isUserSetLocationActive
+                            ? "opacity-100"
+                            : "opacity-0",
+                        "hover:opacity-100"
+                    )}
+                ></div>
+            </Marker>
         </>
     );
 };
