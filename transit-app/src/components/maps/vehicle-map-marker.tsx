@@ -9,13 +9,12 @@ import {
     OccupancyStatus,
     type VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { VehiclePositionDetails } from "../trip-info/vehicle-position-details";
 import {
     ResponsiveModal,
     ResponsiveModalContent,
-    ResponsiveModalHeader,
     ResponsiveModalTrigger,
 } from "../ui/responsible-dialog";
-import { VehiclePositionDetails } from "../trip-info/vehicle-position-details";
 
 function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
     const [, setTick] = useState(0);
@@ -101,32 +100,39 @@ export function VehiclePositionMapMarker({
         }
 
         let fillPercentage = 0;
+
+        switch (vp.occupancy_status) {
+            case OccupancyStatus.EMPTY:
+                fillPercentage = 0;
+                break;
+            case OccupancyStatus.MANY_SEATS_AVAILABLE:
+                fillPercentage = 25;
+                break;
+            case OccupancyStatus.FEW_SEATS_AVAILABLE:
+                fillPercentage = 50;
+                break;
+            case OccupancyStatus.STANDING_ROOM_ONLY:
+                fillPercentage = 75;
+                break;
+            case OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
+                fillPercentage = 90;
+                break;
+            case OccupancyStatus.FULL:
+                fillPercentage = 100;
+                break;
+        }
+
         if (hasPercentageData) {
-            fillPercentage = Math.min(100, Math.max(0, vp.occupancy_percentage!));
-        } else if (vp.occupancy_status) {
-            switch (vp.occupancy_status) {
-                case OccupancyStatus.EMPTY:
-                    fillPercentage = 0;
-                    break;
-                case OccupancyStatus.MANY_SEATS_AVAILABLE:
-                    fillPercentage = 25;
-                    break;
-                case OccupancyStatus.FEW_SEATS_AVAILABLE:
-                    fillPercentage = 50;
-                    break;
-                case OccupancyStatus.STANDING_ROOM_ONLY:
-                    fillPercentage = 75;
-                    break;
-                case OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
-                    fillPercentage = 90;
-                    break;
-                case OccupancyStatus.FULL:
-                    fillPercentage = 100;
-                    break;
+            const occupancyPercentage = Math.min(100, Math.max(0, vp.occupancy_percentage!));
+
+            // Ignore erroneous percentage data that deviates significantly from status's suggested value.
+            // This is because some agencies report both status and percentage, but the percentage is a dummy value or inaccurate.
+            if (Math.abs(occupancyPercentage - fillPercentage) < 25) {
+                fillPercentage = occupancyPercentage;
             }
         }
 
-        if (fillPercentage === 0 && hasStatusData) fillPercentage = 8;
+        if (fillPercentage === 0 && hasStatusData) fillPercentage = 10;
 
         return { fillPercentage, hasData: true, isBoardable: true };
     };
@@ -187,7 +193,7 @@ export function VehiclePositionMapMarker({
                                 style={{
                                     color: !hasData
                                         ? routeColor
-                                        : fillPercentage > 60
+                                        : fillPercentage > 65
                                           ? routeTextColor
                                           : routeColor,
                                 }}
@@ -218,7 +224,11 @@ export function VehiclePositionMapMarker({
                     </button>
                 </ResponsiveModalTrigger>
                 <ResponsiveModalContent className="min-w-1/2 max-w-3xl bg-primary-foreground/60 backdrop-blur-md">
-                    <VehiclePositionDetails vehiclePosition={vp} atStopId={atStopId} className="border-0 bg-transparent" />
+                    <VehiclePositionDetails
+                        vehiclePosition={vp}
+                        atStopId={atStopId}
+                        className="border-0 bg-transparent"
+                    />
                 </ResponsiveModalContent>
             </ResponsiveModal>
         </Marker>
