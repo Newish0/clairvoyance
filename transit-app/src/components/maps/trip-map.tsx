@@ -56,6 +56,8 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 direction={props.direction}
                 routeColor={props.routeColor}
                 routeTextColor={props.routeTextColor}
+                // routeColor={"var(--primary)"}
+                // routeTextColor={"var(--primary-foreground)"}
                 atStopId={props.atStopId}
             />
         </ProtoMap>

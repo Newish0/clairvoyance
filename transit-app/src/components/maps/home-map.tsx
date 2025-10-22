@@ -1,8 +1,12 @@
 import { ProtoMap } from "@/components/maps/proto-map";
+import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { useQuery } from "@tanstack/react-query";
+import type { inferProcedureOutput } from "@trpc/server";
 import { useGeolocation, useThrottle } from "@uidotdev/usehooks";
-import { useCallback, useState } from "react";
+import { BusIcon } from "lucide-react";
+import { LngLat, type MapLibreEvent } from "maplibre-gl";
+import { useCallback, useEffect, useState } from "react";
 import {
     Marker,
     useMap,
@@ -10,14 +14,9 @@ import {
     type MarkerDragEvent,
     type ViewStateChangeEvent,
 } from "react-map-gl/maplibre";
-import type { inferProcedureOutput } from "@trpc/server";
-import type { AppRouter } from "../../../../transit-api/server/src";
-import { LngLat, type MapLibreEvent } from "maplibre-gl";
-import { BusIcon } from "lucide-react";
-import { Badge } from "../ui/badge";
 import { toast } from "sonner";
-import { LocationMarker } from "./location-marker";
-import { cn } from "@/lib/utils";
+import type { AppRouter } from "../../../../transit-api/server/src";
+import { Badge } from "../ui/badge";
 
 export type HomeMapProps = {
     onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
@@ -121,23 +120,16 @@ const UserMarker: React.FC<{}> = ({}) => {
     const state = useGeolocation({
         enableHighAccuracy: true,
     });
-    const [userSetLocation, setUserSetLocation] = useState<LngLat | null>(null);
+    const [userSetLocation, setUserSetLocation] = useState<LngLat>(new LngLat(-123.35, 48.47));
     const [isDraggingUserSetLocation, setIsDraggingUserSetLocation] = useState(false);
 
-    if (state.loading) {
-        return null;
-    }
-
-    if (state.error) {
-        console.error(state.error);
-        toast.error(`Error acquiring GPS location: ${state.error.message}`);
-        return null;
-    }
-
-    if (state.longitude === null || state.latitude === null) {
-        toast.error("Could not acquire GPS location");
-        return null;
-    }
+    // Handle displaying errors only once instead of map update
+    useEffect(() => {
+        if (state.error) {
+            console.error(state.error);
+            toast.error(`Error acquiring GPS location. ${state.error.message}`);
+        }
+    }, [state.error]);
 
     const userLngLat =
         state.longitude !== null && state.latitude !== null
@@ -167,23 +159,31 @@ const UserMarker: React.FC<{}> = ({}) => {
     const userSetLocationToUserDistance =
         userSetLocation && userLngLat ? userSetLocation.distanceTo(userLngLat) : null;
 
-    const isUserSetLocationActive = userSetLocation
-        ? userSetLocationToUserDistance && userSetLocationToUserDistance > 25
-        : false;
+    const isUserSetLocationActive =
+        !userLngLat ||
+        (userSetLocation
+            ? userSetLocationToUserDistance && userSetLocationToUserDistance > 25
+            : false);
+
+    if (!map) {
+        return null;
+    }
 
     return (
         <>
-            <Marker longitude={state.longitude} latitude={state.latitude}>
-                <div
-                    className={cn(
-                        "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110"
-                    )}
-                ></div>
-            </Marker>
+            {userLngLat && (
+                <Marker longitude={userLngLat.lng} latitude={userLngLat.lat}>
+                    <div
+                        className={cn(
+                            "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110"
+                        )}
+                    ></div>
+                </Marker>
+            )}
 
             <Marker
-                longitude={userSetLocation?.lng || state.longitude}
-                latitude={userSetLocation?.lat || state.latitude}
+                longitude={userSetLocation.lng}
+                latitude={userSetLocation.lat}
                 onDrag={handleMarkerDrag}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}

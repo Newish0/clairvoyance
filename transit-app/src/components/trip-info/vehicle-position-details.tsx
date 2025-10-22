@@ -34,18 +34,10 @@ export function VehiclePositionDetails({
     atStopId,
     className,
 }: VehiclePositionDetailsProps) {
-    if (!vehiclePosition) {
-        return <VehiclePositionEmpty className={className} />;
-    }
-
     const { isLoading, data: tripInstance } = useQuery({
-        ...trpc.tripInstance.getFullById.queryOptions(vehiclePosition.trip_instance!),
-        enabled: !!vehiclePosition.trip_instance,
+        ...trpc.tripInstance.getFullById.queryOptions(vehiclePosition?.trip_instance!),
+        enabled: !!vehiclePosition?.trip_instance,
     });
-
-    if (isLoading) {
-        return <VehiclePositionSkeleton className={className} />;
-    }
 
     const getStatusBadge = (status: VehicleStopStatus | null) => {
         if (!status) return null;
@@ -134,12 +126,12 @@ export function VehiclePositionDetails({
         });
     };
 
-    const occupancyInfo = getOccupancyInfo(vehiclePosition.occupancy_status);
+    const occupancyInfo = vehiclePosition && getOccupancyInfo(vehiclePosition.occupancy_status);
     const tripName = tripInstance?.trip?.trip_headsign;
 
     const { data: stops } = useQuery({
         ...trpc.stop.getStops.queryOptions({
-            agencyId: tripInstance!.agency_id,
+            agencyId: tripInstance?.agency_id!,
             stopId: atStopId!,
         }),
         enabled: !!tripInstance && !!atStopId,
@@ -151,7 +143,7 @@ export function VehiclePositionDetails({
     const stopSequence = stopIndex !== undefined ? stopIndex + 1 : undefined;
     const stopsAway =
         stopSequence !== undefined &&
-        vehiclePosition.current_stop_sequence &&
+        vehiclePosition?.current_stop_sequence &&
         vehiclePosition.current_stop_sequence <= stopSequence
             ? stopSequence - vehiclePosition.current_stop_sequence
             : undefined;
@@ -187,6 +179,14 @@ export function VehiclePositionDetails({
             realTimeDelaySeconds <= 30,
         "text-blue-400": realTimeDelaySeconds !== undefined && realTimeDelaySeconds < -30,
     });
+
+    if (!vehiclePosition) {
+        return <VehiclePositionEmpty className={className} />;
+    }
+
+    if (isLoading) {
+        return <VehiclePositionSkeleton className={className} />;
+    }
 
     return (
         <Card className={cn("w-full", className)}>
@@ -266,11 +266,12 @@ export function VehiclePositionDetails({
                                 <p className={cn("font-semibold", occupancyInfo.color)}>
                                     {occupancyInfo.label}
                                 </p>
-                                {vehiclePosition.occupancy_percentage !== null && (
+                                {/* Let's not use occupancy percentage for no because some agencies don't provide it or it's not accurate. */}
+                                {/* {vehiclePosition.occupancy_percentage !== null && (
                                     <p className="text-xs text-muted-foreground">
                                         {vehiclePosition.occupancy_percentage}% full
                                     </p>
-                                )}
+                                )} */}
                             </div>
                         </div>
                     )}
