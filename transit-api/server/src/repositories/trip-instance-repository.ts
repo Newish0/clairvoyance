@@ -103,8 +103,15 @@ export class TripInstancesRepository extends DataRepository {
             return new Date(aStopTime).getTime() - new Date(bStopTime).getTime();
         });
 
-        // TODO: Maybe add trip info too
-        return tripInstances;
+        const tripInstancesWithTripInfo = await Promise.all(
+            tripInstances.map(async (ti) => {
+                const trip = await this.db
+                    .collection("trips")
+                    .findOne({ _id: new ObjectId(ti.trip) });
+                return { ...ti, trip };
+            })
+        );
+        return tripInstancesWithTripInfo;
     }
 
     public async findNextAtStop({
