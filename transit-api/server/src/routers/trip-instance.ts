@@ -72,6 +72,21 @@ export const tripInstanceRouter = router({
             const trips = await new TripInstancesRepository(ctx.db).findNextAtStop(input);
             return trips;
         }),
+    getByRouteStopTime: publicProcedure
+        .input(
+            v.object({
+                agencyId: v.string(),
+                routeId: v.string(),
+                directionId: v.optional(v.enum(Direction)),
+                stopId: v.string(),
+                minDatetime: v.date(),
+                maxDatetime: v.date(),
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTime(input);
+            return trips;
+        }),
 
     liveTripPositions: publicProcedure
         .input(

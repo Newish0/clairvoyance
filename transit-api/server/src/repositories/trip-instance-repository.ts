@@ -65,6 +65,48 @@ export class TripInstancesRepository extends DataRepository {
             .findOne({ _id: new ObjectId(tripInstanceId) });
     }
 
+    public async findByRouteStopTime({
+        agencyId,
+        routeId,
+        directionId,
+        stopId,
+        minDatetime,
+        maxDatetime,
+    }: {
+        agencyId: string;
+        routeId: string;
+        directionId?: Direction;
+        stopId: string;
+        minDatetime: Date;
+        maxDatetime: Date;
+    }) {
+        const tripInstances = await this.db
+            .collection(this.collectionName)
+            .find({
+                agency_id: agencyId,
+                route_id: routeId,
+                ...(directionId && { direction_id: directionId }),
+                stop_times: {
+                    $elemMatch: {
+                        stop_id: stopId,
+                        departure_datetime: { $gte: minDatetime, $lte: maxDatetime },
+                    },
+                },
+                state: { $ne: TripInstanceState.REMOVED },
+            })
+            .toArray();
+
+        tripInstances.sort((a, b) => {
+            const aStopTime = a.stop_times.find((st) => st.stop_id === stopId)?.departure_datetime;
+            const bStopTime = b.stop_times.find((st) => st.stop_id === stopId)?.departure_datetime;
+            if (!aStopTime || !bStopTime) return 0;
+            return new Date(aStopTime).getTime() - new Date(bStopTime).getTime();
+        });
+
+        // TODO: Maybe add trip info too
+        return tripInstances;
+    }
+
     public async findNextAtStop({
         stopId,
         agencyId,

@@ -20,24 +20,26 @@ import { routeTree } from "./routeTree.gen";
 
 export const queryClient = new QueryClient();
 
-export const trpc = createTRPCOptionsProxy<AppRouter>({
-    client: createTRPCClient({
-        links: [
-            loggerLink(),
-            splitLink({
-                // uses the httpSubscriptionLink for subscriptions
-                condition: (op) => op.type === "subscription",
-                true: httpSubscriptionLink({
-                    url: "http://localhost:8000",
-                    transformer: superjson,
-                }),
-                false: httpBatchLink({
-                    url: "http://localhost:8000",
-                    transformer: superjson,
-                }),
+export const trpcClient = createTRPCClient<AppRouter>({
+    links: [
+        loggerLink(),
+        splitLink({
+            // uses the httpSubscriptionLink for subscriptions
+            condition: (op) => op.type === "subscription",
+            true: httpSubscriptionLink({
+                url: "http://localhost:8000",
+                transformer: superjson,
             }),
-        ],
-    }),
+            false: httpBatchLink({
+                url: "http://localhost:8000",
+                transformer: superjson,
+            }),
+        }),
+    ],
+});
+
+export const trpc = createTRPCOptionsProxy<AppRouter>({
+    client: trpcClient,
     queryClient,
 });
 
