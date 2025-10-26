@@ -1,7 +1,7 @@
 import { trpcClient } from "@/main";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { addHours, addSeconds } from "date-fns";
-import { useState } from "react";
+import { useMemo } from "react";
 import type { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export const useBidirectionalTripInstancesByRouteStopTimes = (props: {
@@ -13,7 +13,8 @@ export const useBidirectionalTripInstancesByRouteStopTimes = (props: {
     chunksSizeHours?: number;
 }) => {
     const chunksSizeHours = props.chunksSizeHours ?? 12;
-    const [initialDate] = useState(() => props.initialDate ?? new Date());
+    const initialDate = useMemo(() => props.initialDate ?? new Date(), [props.initialDate]);
+
     const query = useInfiniteQuery({
         queryKey: [
             "tripsInstancesScheduleByRouteStopTime",
@@ -21,6 +22,7 @@ export const useBidirectionalTripInstancesByRouteStopTimes = (props: {
             props.routeId,
             props.stopId,
             props.directionId,
+            initialDate.getTime(),
         ],
 
         queryFn: async ({ pageParam }) => {
