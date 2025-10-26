@@ -2,6 +2,7 @@ import { AppSettings } from "@/components/app-settings";
 import { TripMap } from "@/components/maps/trip-map";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
+import { InfiniteVirtualScroll } from "@/components/trip-info/virtualized-schedule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -92,7 +93,7 @@ function RouteComponent() {
         undefined;
 
     return (
-        <div className="h-[100dvh] w-[100dvw] relative">
+        <div className="h-dvh w-dvw relative">
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     agencyId={agencyId}
@@ -131,7 +132,7 @@ function RouteComponent() {
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
-            <div className="absolute top-[1rem] left-[1rem] max-h-[calc(100dvh-2rem)] w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md">
+            <div className="absolute top-4 left-4 max-h-[calc(100dvh-2rem)] w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md">
                 {/* Trip info */}
                 <div className="flex items-center space-x-2">
                     <Badge
@@ -231,6 +232,40 @@ function RouteComponent() {
                                 </CarouselItem>
                             );
                         })}
+
+                        <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                            <ResponsiveModal>
+                                <ResponsiveModalTrigger asChild>
+                                    <Card className={cn("p-0 bg-card/15 cursor-pointer")}>
+                                        <CardContent className="flex items-center justify-center h-16 relative">
+                                            <div className="font-bold text-sm">More...</div>
+                                        </CardContent>
+                                    </Card>
+                                </ResponsiveModalTrigger>
+                                <ResponsiveModalContent className="">
+                                    <ResponsiveModalHeader>
+                                        <ResponsiveModalTitle></ResponsiveModalTitle>
+                                        <ResponsiveModalDescription></ResponsiveModalDescription>
+                                    </ResponsiveModalHeader>
+                                    <div className="p-4 overflow-auto">
+                                        {/* <VirtualizedSchedule
+                                            agencyId={agencyId}
+                                            routeId={routeId}
+                                            stopId={stopId}
+                                            curViewingTripId={tripInstanceId}
+                                            directionId={directionId}
+                                        /> */}
+                                        <InfiniteVirtualScroll
+                                            agencyId={agencyId}
+                                            routeId={routeId}
+                                            stopId={stopId}
+                                            // curViewingTripId={tripInstanceId}
+                                            directionId={directionId}
+                                        />
+                                    </div>
+                                </ResponsiveModalContent>
+                            </ResponsiveModal>
+                        </CarouselItem>
                     </CarouselContent>
                 </Carousel>
 
