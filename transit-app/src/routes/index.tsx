@@ -18,12 +18,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useThrottle } from "@uidotdev/usehooks";
 import { SettingsIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import z from "zod";
+
+const SearchSchema = z.object({
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+});
 
 export const Route = createFileRoute("/")({
     component: TransitApp,
+    validateSearch: SearchSchema,
 });
 
 function TransitApp() {
+    // const { lat = undefined, lng = undefined } = Route.useSearch();
+
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
         lat: 0,
         lng: 0,
@@ -71,7 +80,7 @@ function TransitApp() {
     );
 
     return (
-        <div className="h-[100dvh] w-[100dvw] relative">
+        <div className="h-dvh w-dvw relative">
             <div className="w-full h-full absolute top-0 left-0">
                 <HomeMap onLocationChange={handleLocationChange} />
             </div>
@@ -95,7 +104,7 @@ function TransitApp() {
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
-            <div className="absolute top-[1rem] left-[1rem] max-h-[calc(100dvh-2rem)] w-sm p-2 overflow-auto rounded-md bg-primary-foreground/60 backdrop-blur-md">
+            <div className="absolute top-4 left-4 max-h-[calc(100dvh-2rem)] w-sm p-2 overflow-auto rounded-md bg-primary-foreground/60 backdrop-blur-md">
                 <DepartureBoard departures={nearbyTrips || null} />
             </div>
         </div>
