@@ -1,24 +1,51 @@
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useBidirectionalTripInstancesByRouteStopTimes } from "@/hooks/data/use-bidirectional-trips";
+import type { TrpcRouterOutputs } from "@/main";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { addHours, differenceInMilliseconds, format, startOfDay, startOfHour } from "date-fns";
 import { useEffect, useRef, useState } from "react";
-import {
-    Direction,
-    type Trip,
-    type TripInstance,
-} from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { DatePickerDropdown } from "../ui/date-picker-dropdown";
+import { cn } from "@/lib/utils";
 
-type Props = {
+type VirtualizedScheduleProps = {
     agencyId: string;
     routeId: string;
     stopId: string;
     directionId?: Direction;
+    activeTripInstanceId?: string;
 };
 
-export const VirtualizedSchedule: React.FC<Props> = (props) => {
+// Define discriminated union types for render items
+type LoaderItem = {
+    type: "loader";
+    id: string;
+    direction: "previous" | "next";
+};
+
+type DateHeaderItem = {
+    type: "date-header";
+    id: string;
+    headerText: string;
+};
+
+type HourHeaderItem = {
+    type: "hour-header";
+    id: string;
+    headerText: string;
+};
+
+type TripItem = {
+    type: "trip";
+    id: string;
+    tripInstance: TrpcRouterOutputs["tripInstance"]["getByRouteStopTime"][number];
+    isActive?: boolean;
+};
+
+type RenderItem = LoaderItem | DateHeaderItem | HourHeaderItem | TripItem;
+
+export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) => {
     const hasInitialized = useRef(false);
     const [currentViewingDate, setCurrentViewingDate] = useState<Date>(new Date());
     const [initialDate, setInitialDate] = useState<Date>(addHours(currentViewingDate, -3));
@@ -41,13 +68,14 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
     const [currentVisibleDate, setCurrentVisibleDate] = useState<Date>();
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const itemsToRender = (() => {
-        const workingItems = [];
+    const itemsToRender: RenderItem[] = (() => {
+        const workingItems: RenderItem[] = [];
 
         if (hasPreviousPage) {
             workingItems.push({
+                type: "loader",
                 id: "previous-loader",
-                element: <LoadingRow />,
+                direction: "previous",
             });
         }
 
@@ -62,8 +90,9 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
                     ? format(departureTime, "PPPP")
                     : "No Departure Date";
                 workingItems.push({
+                    type: "date-header",
                     id: `header-${departureTime?.toISOString() ?? "unknown"}`,
-                    element: <DateHeaderRow headerText={headerText} />,
+                    headerText,
                 });
             }
 
@@ -73,14 +102,17 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
                     ? format(startOfHour(departureTime), "p")
                     : "No Departure Time";
                 workingItems.push({
+                    type: "hour-header",
                     id: `hour-${departureTime?.toISOString() ?? "unknown"}`,
-                    element: <HourHeaderRow headerText={hourText} />,
+                    headerText: hourText,
                 });
             }
 
             workingItems.push({
-                id: ti._id!,
-                element: <TripInstanceRow tripInstance={ti as any} stopId={props.stopId} />,
+                type: "trip",
+                id: ti._id! + "",
+                tripInstance: ti as any,
+                isActive: props.activeTripInstanceId === ti._id.toString(),
             });
 
             prevTripDate = departureTime ?? null;
@@ -88,8 +120,9 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
 
         if (hasNextPage) {
             workingItems.push({
+                type: "loader",
                 id: "next-loader",
-                element: <LoadingRow />,
+                direction: "next",
             });
         }
 
@@ -117,7 +150,7 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
                 .filter((time) => !!time)
                 .map((time) => differenceInMilliseconds(time, currentViewingDate));
             const nextFutureTripIndex = stopTimeDiffs.findIndex((diff) => diff >= 0);
-            const tripInstanceId = tripsInstances.at(nextFutureTripIndex)?._id;
+            const tripInstanceId = tripsInstances.at(nextFutureTripIndex)?._id + "";
             const renderItemIndex = itemsToRender.findIndex((item) => item.id === tripInstanceId);
             const indexWithOffset = renderItemIndex - 2; // Show a couple items before for context (either headers or prior trips)
             virtualizer.scrollToIndex(indexWithOffset, {
@@ -131,9 +164,9 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
     useEffect(() => {
         if (!tripsInstances.length) return;
         const midIndex = Math.floor(virtualItems.length / 2);
-        if (itemsToRender[virtualItems[midIndex].index]) {
-            const renderItemId = itemsToRender[virtualItems[midIndex].index].id;
-            const tripInstance = tripsInstances.find((ti) => ti._id === renderItemId);
+        const renderItem = itemsToRender[virtualItems[midIndex]?.index];
+        if (renderItem && renderItem.type === "trip") {
+            const tripInstance = renderItem.tripInstance;
             const stopTime = tripInstance?.stop_time;
             const departureTime =
                 stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
@@ -197,9 +230,24 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
         }
     };
 
+    const renderItem = (item: RenderItem) => {
+        switch (item.type) {
+            case "loader":
+                return <LoadingRow direction={item.direction} />;
+            case "date-header":
+                return <DateHeaderRow headerText={item.headerText} />;
+            case "hour-header":
+                return <HourHeaderRow headerText={item.headerText} />;
+            case "trip":
+                return (
+                    <TripInstanceRow tripInstance={item.tripInstance} isActive={item.isActive} />
+                );
+        }
+    };
+
     return (
         <div className="space-y-4">
-            <Card className="p-4 bg-primary text-primary-foreground">
+            <Card className="p-4 bg-primary/5">
                 <div className="flex items-center justify-between">
                     <div>
                         <DatePickerDropdown
@@ -220,7 +268,7 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
                 </div>
             </Card>
 
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden bg-transparent">
                 <div ref={parentRef} className="h-[50dvh] overflow-auto">
                     <div
                         style={{
@@ -230,7 +278,7 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
                         }}
                     >
                         {virtualItems.map((virtualItem) => {
-                            const renderItem = itemsToRender[virtualItem.index];
+                            const item = itemsToRender[virtualItem.index];
                             return (
                                 <div
                                     key={virtualItem.index}
@@ -244,7 +292,7 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
                                         transform: `translateY(${virtualItem.start}px)`,
                                     }}
                                 >
-                                    {renderItem.element}
+                                    {renderItem(item)}
                                 </div>
                             );
                         })}
@@ -256,30 +304,37 @@ export const VirtualizedSchedule: React.FC<Props> = (props) => {
 };
 
 const TripInstanceRow: React.FC<{
-    tripInstance: TripInstance & { trip: Trip | null };
-    stopId: string;
-}> = ({ tripInstance, stopId }) => {
-    const stopTime = tripInstance.stop_times.find((st) => st.stop_id === stopId);
+    tripInstance: TrpcRouterOutputs["tripInstance"]["getByRouteStopTime"][number];
+    isActive?: boolean;
+}> = ({ tripInstance, isActive }) => {
+    const stopTime = tripInstance.stop_time;
     const departureTime = stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
 
     return (
-        <div className="px-4 py-3 border-b hover:bg-muted/50 transition-colors">
+        <div
+            className={cn(
+                "px-4 py-3 border-b hover:bg-muted/50 transition-colors",
+                isActive && "bg-muted/60"
+            )}
+        >
             <div className="flex items-center gap-2">
                 <span className="font-medium">
                     {departureTime ? format(departureTime, "p") : "---"}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                    {tripInstance.trip.trip_headsign}
+                    {tripInstance.trip?.trip_headsign}
                 </span>
             </div>
         </div>
     );
 };
 
-const LoadingRow: React.FC = () => {
+const LoadingRow: React.FC<{ direction: "previous" | "next" }> = ({ direction }) => {
     return (
         <div className="px-4 py-3 border-b bg-secondary/70">
-            <div className="font-medium">Loading more trips...</div>
+            <div className="font-medium">
+                Loading {direction === "previous" ? "previous" : "more"} trips...
+            </div>
         </div>
     );
 };
@@ -296,7 +351,7 @@ const DateHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => {
 
 const HourHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => {
     return (
-        <div className="px-4 py-2 border-b bg-muted/70">
+        <div className="px-4 py-2 border-b bg-muted/50">
             <div className="flex items-center h-full">
                 <span className="text-sm text-muted-foreground">{headerText}</span>
             </div>

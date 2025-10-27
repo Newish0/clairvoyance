@@ -242,7 +242,7 @@ function RouteComponent() {
                                         </CardContent>
                                     </Card>
                                 </ResponsiveModalTrigger>
-                                <ResponsiveModalContent className="">
+                                <ResponsiveModalContent className="bg-primary-foreground/60 backdrop-blur-md">
                                     <ResponsiveModalHeader>
                                         <ResponsiveModalTitle></ResponsiveModalTitle>
                                         <ResponsiveModalDescription></ResponsiveModalDescription>
@@ -252,7 +252,7 @@ function RouteComponent() {
                                             agencyId={agencyId}
                                             routeId={routeId}
                                             stopId={stopId}
-                                            // curViewingTripId={tripInstanceId}
+                                            activeTripInstanceId={tripInstanceId}
                                             directionId={directionId}
                                         />
                                     </div>
