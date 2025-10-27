@@ -335,7 +335,9 @@ const TripInstanceRow: React.FC<{
                     <span className="font-medium">
                         {departureTime ? format(departureTime, "p") : "---"}
                     </span>
-                    {delayInSeconds !== null && <RealTimeIndicator delaySeconds={delayInSeconds} className="-mt-1 -mr-3" />}
+                    {delayInSeconds !== null && (
+                        <RealTimeIndicator delaySeconds={delayInSeconds} className="-mt-1 -mr-3" />
+                    )}
                 </div>
 
                 <span className="text-sm text-muted-foreground">

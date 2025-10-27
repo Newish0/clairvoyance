@@ -5,10 +5,27 @@ import { trpc } from "@/main";
 import { getMutedColor, withOpacity } from "@/utils/css";
 import { useQuery } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import React, { useCallback, useState } from "react";
-import { Layer, Source, type LayerProps, type ViewStateChangeEvent } from "react-map-gl/maplibre";
-import type { Direction, VehiclePosition } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+    Layer,
+    Marker,
+    Popup,
+    Source,
+    useMap,
+    type LayerProps,
+    type MapLayerMouseEvent,
+    type ViewStateChangeEvent,
+} from "react-map-gl/maplibre";
+import type {
+    Direction,
+    StopTimeInstance,
+    VehiclePosition,
+} from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
+import { useClickAway } from "@uidotdev/usehooks";
+import { ChevronRight } from "lucide-react";
+import { format as formatDate, isFuture, type DateArg } from "date-fns";
+import { Link } from "@tanstack/react-router";
 
 export type TripMapProps = {
     agencyId: string;
@@ -20,6 +37,7 @@ export type TripMapProps = {
     routeTextColor?: string;
     stopIds: string[];
     shapeObjectId?: string;
+    stopTimes?: StopTimeInstance[];
 };
 
 export const TripMap: React.FC<TripMapProps> = (props) => {
@@ -49,6 +67,9 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 agencyId={props.agencyId}
                 stopColor={props.routeColor}
                 stopBorderColor={props.routeTextColor}
+                stopTimes={props.stopTimes}
+                routeId={props.routeId}
+                routeDirection={props.direction}
             />
             <LiveVehiclesLayer
                 agencyId={props.agencyId}
@@ -63,13 +84,15 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
         </ProtoMap>
     );
 };
-
 const StopsGeojsonLayer: React.FC<{
     stopIds: string[];
     atStopId: string;
+    stopTimes?: StopTimeInstance[];
     agencyId: string;
     stopBorderColor?: string;
     stopColor?: string;
+    routeId: string;
+    routeDirection?: Direction;
 }> = (props) => {
     const { data: stopsGeojson } = useQuery({
         ...trpc.stop.getGeojson.queryOptions({
@@ -77,7 +100,26 @@ const StopsGeojsonLayer: React.FC<{
             stopId: props.stopIds,
         }),
     });
+
+    const { data: stops } = useQuery({
+        ...trpc.stop.getStops.queryOptions({
+            agencyId: props.agencyId,
+            stopId: props.stopIds,
+        }),
+    });
+
     const colors = useThemeColors();
+    const { current: map } = useMap();
+    const [stopInfo, setStopInfo] = useState<{
+        lng: number;
+        lat: number;
+        stopId: string;
+        name?: string;
+        tripStopTime?: DateArg<Date>;
+    } | null>(null);
+    const stopInfoRef = useClickAway<HTMLDivElement>(() => {
+        if (stopInfo) setStopInfo(null);
+    });
 
     const atStopIndex =
         stopsGeojson?.features.findIndex(
@@ -91,7 +133,7 @@ const StopsGeojsonLayer: React.FC<{
                   ...feature,
                   properties: {
                       ...feature.properties,
-                      index: index,
+                      index,
                   },
               })),
           }
@@ -102,40 +144,116 @@ const StopsGeojsonLayer: React.FC<{
     const mutedBorderColor = getMutedColor(borderColor);
     const mutedStopColor = getMutedColor(stopColor);
 
+    const stopBorderLayerId = "stops-border-layer";
+    const stopFillLayerId = "stops-fill-layer";
+
     const stopBorderCircleLayerStyle: LayerProps = {
+        id: stopBorderLayerId,
         type: "circle",
         paint: {
             "circle-radius": 10,
             "circle-color": [
                 "case",
                 ["<", ["get", "index"], atStopIndex],
-                mutedBorderColor, // before target
-                borderColor, // including and after target
+                mutedBorderColor,
+                borderColor,
             ],
         },
     };
 
     const stopFillCircleLayerStyle: LayerProps = {
+        id: stopFillLayerId,
         type: "circle",
         paint: {
             "circle-radius": 6,
             "circle-color": [
                 "case",
                 ["<", ["get", "index"], atStopIndex],
-                mutedStopColor, // before target
-                stopColor, // including and after target
+                mutedStopColor,
+                stopColor,
             ],
         },
     };
+
+    // Add on geojson click handler
+    useEffect(() => {
+        if (!map) return;
+
+        const handleClick = (e: MapLayerMouseEvent) => {
+            const feature = e.features?.[0];
+            if (!feature) return;
+
+            const stopId = feature.properties?.stopId;
+            const geometry = stopsGeojson?.features.find(
+                (f) => f.properties?.stopId === stopId
+            )?.geometry;
+            const lngLat = (geometry as any)?.coordinates;
+            const stopTime = props.stopTimes?.find((st) => st.stop_id === stopId);
+            const arrivalTime = stopTime?.predicted_arrival_datetime ?? stopTime?.arrival_datetime;
+            const stopName = stops?.find((s) => s.stop_id === stopId)?.stop_name;
+
+            setStopInfo({
+                lng: lngLat[0],
+                lat: lngLat[1],
+                stopId,
+                name: stopName ?? undefined,
+                tripStopTime: arrivalTime ?? undefined,
+            });
+        };
+
+        map.on("click", [stopFillLayerId, stopBorderLayerId], handleClick);
+
+        // Change cursor on hover
+        map.on("mouseenter", [stopFillLayerId, stopBorderLayerId], () => {
+            map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", [stopFillLayerId, stopBorderLayerId], () => {
+            map.getCanvas().style.cursor = "";
+        });
+
+        // cleanup
+        return () => {
+            map.off("click", [stopFillLayerId, stopBorderLayerId], handleClick);
+        };
+    }, [map, stopsGeojson, setStopInfo]);
 
     return (
         <>
             <Source type="geojson" data={indexedStopsGeojson}>
                 <Layer {...stopBorderCircleLayerStyle} />
-            </Source>
-            <Source type="geojson" data={indexedStopsGeojson}>
                 <Layer {...stopFillCircleLayerStyle} />
             </Source>
+            {stopInfo && (
+                <Marker longitude={stopInfo.lng} latitude={stopInfo.lat} anchor="right">
+                    <Link to={`/`} search={{ lat: stopInfo.lat, lng: stopInfo.lng }}>
+                        <div
+                            ref={stopInfoRef}
+                            className="min-h-4 bg-primary-foreground/70 backdrop-blur-md p-4 rounded-xl mr-4 flex gap-2 items-center"
+                        >
+                            <div>
+                                <div className="text-base font-semibold leading-none">
+                                    {stopInfo.name}
+                                </div>
+                                <div className="space-x-2">
+                                    <span className="text-muted-foreground">{stopInfo.stopId}</span>
+                                    {stopInfo.tripStopTime && (
+                                        <span className="text-sm">
+                                            {isFuture(stopInfo.tripStopTime)
+                                                ? "Arriving"
+                                                : "Arrived"}
+                                            {" at "}
+                                            {formatDate(stopInfo.tripStopTime, "p")}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <ChevronRight />
+                            </div>
+                        </div>
+                    </Link>
+                </Marker>
+            )}
         </>
     );
 };

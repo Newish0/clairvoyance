@@ -26,6 +26,7 @@ import { SettingsIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { Direction } from "../../../gtfs-processor/shared/gtfs-db-types";
+import { isDataRealtime } from "@/utils/date";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
@@ -76,8 +77,6 @@ function RouteComponent() {
         return <div>Invalid stop</div>;
     }
 
-    console.log({ stopId, routeId, directionId });
-
     const combinedTripInstances = useMemo(() => {
         if (tripInstance) {
             return [tripInstance, ...(nextTripInstances || [])].sort((a, b) => {
@@ -102,6 +101,7 @@ function RouteComponent() {
                     atStopId={stopId}
                     atStopDistTraveled={atStopDistTraveled}
                     stopIds={tripInstance?.stop_times.map((st) => st.stop_id) ?? []}
+                    stopTimes={tripInstance?.stop_times}
                     shapeObjectId={tripInstance?.shape ?? undefined}
                     routeColor={
                         ensureHexColorStartsWithHash(tripInstance?.route?.route_color) ?? undefined
@@ -192,10 +192,16 @@ function RouteComponent() {
 
                             const time = predictedTime ?? scheduledTime;
 
+                            const stopTimeLastUpdated = nextTripInstance.stop_times_updated_at;
+
                             const delayInSeconds =
-                                scheduledTime && predictedTime
+                                scheduledTime &&
+                                predictedTime &&
+                                stopTimeLastUpdated &&
+                                isDataRealtime(stopTimeLastUpdated)
                                     ? differenceInSeconds(predictedTime, scheduledTime)
                                     : null;
+
                             return (
                                 <CarouselItem
                                     key={nextTripInstance._id.toString()}
