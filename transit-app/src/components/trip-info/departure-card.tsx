@@ -99,7 +99,7 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                         <DepartureTime datetime={time || null} />
                     </div>
 
-                    {delayInSeconds != null && <RealTimeIndicator delaySeconds={delayInSeconds} />}
+                    {delayInSeconds != null && <RealTimeIndicator delaySeconds={delayInSeconds} className="mt-1"/>}
 
                     {/* {import.meta.env.DEV && props.predictedDepartureTime && (
                         <code className="text-muted-foreground text-xs">

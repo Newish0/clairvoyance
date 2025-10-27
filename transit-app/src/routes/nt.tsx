@@ -224,6 +224,7 @@ function RouteComponent() {
                                                 {delayInSeconds !== null && (
                                                     <RealTimeIndicator
                                                         delaySeconds={delayInSeconds}
+                                                        className="mt-2 mr-2"
                                                     />
                                                 )}
                                             </CardContent>
