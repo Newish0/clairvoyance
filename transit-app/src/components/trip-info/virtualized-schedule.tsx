@@ -3,11 +3,19 @@ import { Spinner } from "@/components/ui/spinner";
 import { useBidirectionalTripInstancesByRouteStopTimes } from "@/hooks/data/use-bidirectional-trips";
 import type { TrpcRouterOutputs } from "@/main";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { addHours, differenceInMilliseconds, format, startOfDay, startOfHour } from "date-fns";
+import {
+    addHours,
+    differenceInMilliseconds,
+    differenceInSeconds,
+    format,
+    startOfDay,
+    startOfHour,
+} from "date-fns";
 import { useEffect, useRef, useState } from "react";
 import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { DatePickerDropdown } from "../ui/date-picker-dropdown";
 import { cn } from "@/lib/utils";
+import { RealTimeIndicator } from "../ui/realtime-indicator";
 
 type VirtualizedScheduleProps = {
     agencyId: string;
@@ -308,7 +316,12 @@ const TripInstanceRow: React.FC<{
     isActive?: boolean;
 }> = ({ tripInstance, isActive }) => {
     const stopTime = tripInstance.stop_time;
-    const departureTime = stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
+    const scheduledTime = stopTime?.departure_datetime;
+    const predictedTime = stopTime?.predicted_departure_datetime;
+    const departureTime = predictedTime ?? scheduledTime;
+
+    const delayInSeconds =
+        scheduledTime && predictedTime ? differenceInSeconds(predictedTime, scheduledTime) : null;
 
     return (
         <div
@@ -317,10 +330,14 @@ const TripInstanceRow: React.FC<{
                 isActive && "bg-muted/60"
             )}
         >
-            <div className="flex items-center gap-2">
-                <span className="font-medium">
-                    {departureTime ? format(departureTime, "p") : "---"}
-                </span>
+            <div className="flex items-center gap-5">
+                <div className="relative">
+                    <span className="font-medium">
+                        {departureTime ? format(departureTime, "p") : "---"}
+                    </span>
+                    {delayInSeconds !== null && <RealTimeIndicator delaySeconds={delayInSeconds} className="-mt-1 -mr-3" />}
+                </div>
+
                 <span className="text-sm text-muted-foreground">
                     {tripInstance.trip?.trip_headsign}
                 </span>
