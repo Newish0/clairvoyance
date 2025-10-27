@@ -18,7 +18,7 @@ type Props = {
     directionId?: Direction;
 };
 
-export const InfiniteVirtualScroll: React.FC<Props> = (props) => {
+export const VirtualizedSchedule: React.FC<Props> = (props) => {
     const hasInitialized = useRef(false);
     const [currentViewingDate, setCurrentViewingDate] = useState<Date>(new Date());
     const [initialDate, setInitialDate] = useState<Date>(addHours(currentViewingDate, -3));
@@ -53,9 +53,8 @@ export const InfiniteVirtualScroll: React.FC<Props> = (props) => {
 
         let prevTripDate: Date | null = null;
         for (const ti of tripsInstances) {
-            const stopTime = ti.stop_times.find((st) => st.stop_id === props.stopId);
             const departureTime =
-                stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
+                ti.stop_time?.predicted_departure_datetime ?? ti.stop_time?.departure_datetime;
 
             // Add date header if date changes
             if (prevTripDate!?.getDate() !== departureTime?.getDate()) {
@@ -112,7 +111,7 @@ export const InfiniteVirtualScroll: React.FC<Props> = (props) => {
         if (virtualizer && tripInstancePages && parentRef.current && !hasInitialized.current) {
             const stopTimeDiffs = tripsInstances
                 .map((ti) => {
-                    const st = ti.stop_times.find((st) => st.stop_id === props.stopId);
+                    const st = ti.stop_time;
                     return st ? (st.predicted_departure_datetime ?? st.departure_datetime) : null;
                 })
                 .filter((time) => !!time)
@@ -135,7 +134,7 @@ export const InfiniteVirtualScroll: React.FC<Props> = (props) => {
         if (itemsToRender[virtualItems[midIndex].index]) {
             const renderItemId = itemsToRender[virtualItems[midIndex].index].id;
             const tripInstance = tripsInstances.find((ti) => ti._id === renderItemId);
-            const stopTime = tripInstance?.stop_times.find((st) => st.stop_id === props.stopId);
+            const stopTime = tripInstance?.stop_time;
             const departureTime =
                 stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
             if (departureTime) setCurrentVisibleDate(departureTime);

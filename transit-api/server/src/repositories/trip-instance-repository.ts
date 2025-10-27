@@ -111,7 +111,17 @@ export class TripInstancesRepository extends DataRepository {
                 return { ...ti, trip };
             })
         );
-        return tripInstancesWithTripInfo;
+
+        const minimizedTripInstances = tripInstancesWithTripInfo.map((ti) => {
+            const stopTimeInstance = ti.stop_times.find((st) => st.stop_id === stopId);
+            return {
+                ...ti,
+                stop_time: stopTimeInstance,
+                stop_times: undefined,
+            };
+        });
+
+        return minimizedTripInstances;
     }
 
     public async findNextAtStop({

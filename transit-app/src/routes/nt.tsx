@@ -2,7 +2,7 @@ import { AppSettings } from "@/components/app-settings";
 import { TripMap } from "@/components/maps/trip-map";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
-import { InfiniteVirtualScroll } from "@/components/trip-info/virtualized-schedule";
+import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -248,14 +248,7 @@ function RouteComponent() {
                                         <ResponsiveModalDescription></ResponsiveModalDescription>
                                     </ResponsiveModalHeader>
                                     <div className="p-4 overflow-auto">
-                                        {/* <VirtualizedSchedule
-                                            agencyId={agencyId}
-                                            routeId={routeId}
-                                            stopId={stopId}
-                                            curViewingTripId={tripInstanceId}
-                                            directionId={directionId}
-                                        /> */}
-                                        <InfiniteVirtualScroll
+                                        <VirtualizedSchedule
                                             agencyId={agencyId}
                                             routeId={routeId}
                                             stopId={stopId}
