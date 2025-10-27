@@ -227,7 +227,7 @@ export function VehiclePositionMapMarker({
                     <VehiclePositionDetails
                         vehiclePosition={vp}
                         atStopId={atStopId}
-                        className="border-0 bg-transparent"
+                        className="border-0 shadow-none bg-transparent"
                     />
                 </ResponsiveModalContent>
             </ResponsiveModal>

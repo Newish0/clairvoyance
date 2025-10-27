@@ -17,6 +17,7 @@ import reportWebVitals from "./reportWebVitals.ts";
 import "./globals.css";
 
 import { routeTree } from "./routeTree.gen";
+import type { inferRouterOutputs } from "@trpc/server";
 
 export const queryClient = new QueryClient();
 
@@ -37,6 +38,8 @@ export const trpcClient = createTRPCClient<AppRouter>({
         }),
     ],
 });
+
+export type TrpcRouterOutputs = inferRouterOutputs<AppRouter>;
 
 export const trpc = createTRPCOptionsProxy<AppRouter>({
     client: trpcClient,
