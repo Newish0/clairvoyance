@@ -125,9 +125,6 @@ export const UserMarker: React.FC<{
         return null;
     }
 
-    console.log("map userSetLocation", userSetLocation);
-    console.log("map userLocation", userLocation);
-
     return (
         <>
             {userLocation && (

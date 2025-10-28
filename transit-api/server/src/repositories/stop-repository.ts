@@ -54,20 +54,21 @@ export class StopRepository extends DataRepository {
                             maxLng: number;
                         };
                     }
-              )
+              ),
+        maxRadius = 10000 // 10km
     ) {
         const nearbyStopsCursor = this.db.collection(this.collectionName).aggregate([
-            "radius" in params
+            {
+                $geoNear: {
+                    near: { type: "Point", coordinates: [params.lng, params.lat] },
+                    distanceField: "distance",
+                    maxDistance: "radius" in params ? params.radius : maxRadius,
+                    spherical: true,
+                    query: {},
+                },
+            },
+            "bbox" in params
                 ? {
-                      $geoNear: {
-                          near: { type: "Point", coordinates: [params.lng, params.lat] },
-                          distanceField: "distance",
-                          maxDistance: params.radius,
-                          spherical: true,
-                          query: {},
-                      },
-                  }
-                : {
                       $match: {
                           location: {
                               $geoWithin: {
@@ -78,7 +79,8 @@ export class StopRepository extends DataRepository {
                               },
                           },
                       },
-                  },
+                  }
+                : {},
             {
                 $project: {
                     _id: 1,
