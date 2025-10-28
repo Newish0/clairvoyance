@@ -19,5 +19,7 @@ export function usePersistUserSetLocation() {
         _saveUserSetLocation({ lng: newLngLat.lng, lat: newLngLat.lat });
     };
 
+    console.log("userSetLocation", userSetLocation);
+
     return [userSetLocation, setUserSetLocation] as const;
 }
