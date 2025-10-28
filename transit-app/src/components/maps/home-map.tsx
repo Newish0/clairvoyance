@@ -3,10 +3,15 @@ import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { useQuery } from "@tanstack/react-query";
 import type { inferProcedureOutput } from "@trpc/server";
-import { useGeolocation, useThrottle } from "@uidotdev/usehooks";
+import {
+    useDebounce,
+    useGeolocation,
+    useThrottle,
+    type GeolocationState,
+} from "@uidotdev/usehooks";
 import { BusIcon } from "lucide-react";
 import { LngLat, type MapLibreEvent } from "maplibre-gl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Marker,
     useMap,
@@ -17,6 +22,8 @@ import {
 import { toast } from "sonner";
 import type { AppRouter } from "../../../../transit-api/server/src";
 import { Badge } from "../ui/badge";
+import { DEFAULT_LOCATION } from "@/constants/location";
+import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
 
 export type HomeMapProps = {
     onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
@@ -24,8 +31,8 @@ export type HomeMapProps = {
 
 export const HomeMap: React.FC<HomeMapProps> = (props) => {
     const [viewState, setViewState] = useState({
-        longitude: -123.35,
-        latitude: 48.47,
+        longitude: DEFAULT_LOCATION.lng,
+        latitude: DEFAULT_LOCATION.lat,
         zoom: 15,
     });
 
@@ -81,7 +88,14 @@ export const HomeMap: React.FC<HomeMapProps> = (props) => {
     );
 
     return (
-        <ProtoMap {...viewState} onMove={handleMove} onLoad={handleLoad}>
+        <ProtoMap
+            {...viewState}
+            onMove={handleMove}
+            onLoad={handleLoad}
+            scrollZoom={{
+                around: "center",
+            }}
+        >
             <StopMarkers stops={data || []} />
             <UserMarker />
         </ProtoMap>
@@ -115,55 +129,100 @@ const StopMarkers: React.FC<{
     );
 };
 
-const UserMarker: React.FC<{}> = ({}) => {
+const UserMarker: React.FC<{
+    geolocationAttachmentThreshold?: number;
+}> = ({ geolocationAttachmentThreshold = 25 }) => {
+    // --- States ---
     const { current: map } = useMap();
-    const state = useGeolocation({
+    const geolocation = useGeolocation({
         enableHighAccuracy: true,
     });
-    const [userSetLocation, setUserSetLocation] = useState<LngLat>(new LngLat(-123.35, 48.47));
-    const [isDraggingUserSetLocation, setIsDraggingUserSetLocation] = useState(false);
+    const [userSetLocation, setUserSetLocation] = usePersistUserSetLocation();
+    const [isUserSetLocationActive, setIsUserSetLocationActive] = useState(false);
+    const hasSyncedUserGeolocation = useRef(false); // Ensure sync map center & userSetLocation to geolocation is done only once
 
+    // --- Derived values ---
+    const debouncedGeolocation = useDebounce(geolocation, 50); // Ignore transient geolocation errors
+    const userLocation = useMemo(
+        () =>
+            debouncedGeolocation.longitude !== null && debouncedGeolocation.latitude !== null
+                ? new LngLat(debouncedGeolocation.longitude, debouncedGeolocation.latitude)
+                : null,
+        [debouncedGeolocation]
+    );
+
+    // NAME: EffectOne
+    // On initialization, sync map center to userSetLocation
+    useEffect(() => {
+        if (!map) return;
+        map.setCenter(userSetLocation);
+    }, [map]);
+
+    // NAME: EffectTwo
+    // On initialization of geolocation, sync map center & userSetLocation to geolocation.
+    // That is, geolocation ALWAYS takes precedence over userSetLocation if available.
+    useEffect(() => {
+        if (!map || !userLocation || hasSyncedUserGeolocation.current) return;
+
+        hasSyncedUserGeolocation.current = true; // Ensures this effect is run only once
+        map.setCenter(userLocation);
+        setUserSetLocation(userLocation);
+    }, [map, userLocation, setUserSetLocation, hasSyncedUserGeolocation.current]);
+
+    // NAME: EffectThree
+    // Always sync the following to user geolocation
+    //  1. userSetLocation
+    //  2. map center
+    // when we are NOT using user set location (AKA only when user set location is attached to geolocation).
+    useEffect(() => {
+        if (isUserSetLocationActive || !userLocation) return;
+
+        setUserSetLocation(userLocation);
+        setIsUserSetLocationActive(false);
+        map?.setCenter(userLocation);
+    }, [
+        userLocation,
+        setUserSetLocation,
+        setIsUserSetLocationActive,
+        isUserSetLocationActive,
+        map,
+    ]);
+
+    // NAME: EffectFour
+    // Sync userSetLocation to map center when map center is not near user's geolocation by threshold.
+    // If distance from map center to user geolocation is within threshold, then allow map center and
+    // user set location to be attached to geolocation (enable EffectThree by setting isUserSetLocationActive).
+    useEffect(() => {
+        const handleMove = () => {
+            if (!map) return;
+            const mapCenter = map.getCenter();
+
+            if (
+                userLocation &&
+                mapCenter.distanceTo(userLocation) < geolocationAttachmentThreshold
+            ) {
+                if (isUserSetLocationActive) setIsUserSetLocationActive(false);
+            } else {
+                setUserSetLocation(new LngLat(mapCenter.lng, mapCenter.lat));
+                if (!isUserSetLocationActive) setIsUserSetLocationActive(true);
+            }
+        };
+
+        map?.on("move", handleMove);
+
+        return () => {
+            map?.off("move", handleMove);
+        };
+    }, [map, setUserSetLocation, userLocation]);
+
+    // NAME: EffectFive
     // Handle displaying errors only once instead of map update
     useEffect(() => {
-        if (state.error) {
-            console.error(state.error);
-            toast.error(`Error acquiring GPS location. ${state.error.message}`);
+        if (debouncedGeolocation.error) {
+            console.error(debouncedGeolocation.error);
+            toast.error(`Error acquiring GPS location. ${debouncedGeolocation.error.message}`);
         }
-    }, [state.error]);
-
-    const userLngLat =
-        state.longitude !== null && state.latitude !== null
-            ? new LngLat(state.longitude, state.latitude)
-            : null;
-
-    const handleMarkerDrag = (e: MarkerDragEvent) => {
-        const lngLat = e.lngLat;
-
-        if (userLngLat && lngLat.distanceTo(userLngLat) < 25) {
-            setUserSetLocation(userLngLat);
-            return;
-        }
-
-        setUserSetLocation(lngLat);
-        // map?.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: map.getZoom() });
-    };
-
-    const handleDragStart = () => {
-        setIsDraggingUserSetLocation(true);
-    };
-
-    const handleDragEnd = () => {
-        setIsDraggingUserSetLocation(false);
-    };
-
-    const userSetLocationToUserDistance =
-        userSetLocation && userLngLat ? userSetLocation.distanceTo(userLngLat) : null;
-
-    const isUserSetLocationActive =
-        !userLngLat ||
-        (userSetLocation
-            ? userSetLocationToUserDistance && userSetLocationToUserDistance > 25
-            : false);
+    }, [debouncedGeolocation.error]);
 
     if (!map) {
         return null;
@@ -171,8 +230,8 @@ const UserMarker: React.FC<{}> = ({}) => {
 
     return (
         <>
-            {userLngLat && (
-                <Marker longitude={userLngLat.lng} latitude={userLngLat.lat}>
+            {userLocation && (
+                <Marker longitude={userLocation.lng} latitude={userLocation.lat}>
                     <div
                         className={cn(
                             "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110"
@@ -181,20 +240,11 @@ const UserMarker: React.FC<{}> = ({}) => {
                 </Marker>
             )}
 
-            <Marker
-                longitude={userSetLocation.lng}
-                latitude={userSetLocation.lat}
-                onDrag={handleMarkerDrag}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                draggable
-            >
+            <Marker longitude={userSetLocation.lng} latitude={userSetLocation.lat}>
                 <div
                     className={cn(
                         "w-6 h-6 rounded-full bg-fuchsia-400 border-4 border-white hover:scale-110 active:scale-120 active:-translate-y-1 active:shadow-4xl transition-opacity duration-300",
-                        isDraggingUserSetLocation || isUserSetLocationActive
-                            ? "opacity-100"
-                            : "opacity-0",
+                        isUserSetLocationActive ? "opacity-100" : "opacity-0",
                         "hover:opacity-100"
                     )}
                 ></div>
