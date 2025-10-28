@@ -80,8 +80,8 @@ function TransitApp() {
     );
 
     return (
-        <div className="h-dvh w-dvw relative">
-            <div className="w-full h-full absolute top-0 left-0">
+        <div className="h-dvh w-dvw relative overflow-clip">
+            <div className="w-full md:w-[calc(100%+var(--container-sm))] h-full absolute top-0 left-0">
                 <HomeMap onLocationChange={handleLocationChange} />
             </div>
 

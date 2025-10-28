@@ -1,15 +1,19 @@
 import { ProtoMap } from "@/components/maps/proto-map";
 import { EMPTY_FEATURE_COLLECTION } from "@/constants/geojson";
+import { DEFAULT_LOCATION } from "@/constants/location";
 import { useThemeColors } from "@/hooks/use-theme-colors";
 import { trpc } from "@/main";
 import { getMutedColor, withOpacity } from "@/utils/css";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
+import { useClickAway } from "@uidotdev/usehooks";
+import { format as formatDate, isFuture, type DateArg } from "date-fns";
+import { ChevronRight } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import {
     Layer,
     Marker,
-    Popup,
     Source,
     useMap,
     type LayerProps,
@@ -22,10 +26,6 @@ import type {
     VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
-import { useClickAway } from "@uidotdev/usehooks";
-import { ChevronRight } from "lucide-react";
-import { format as formatDate, isFuture, type DateArg } from "date-fns";
-import { Link } from "@tanstack/react-router";
 
 export type TripMapProps = {
     agencyId: string;
@@ -42,8 +42,8 @@ export type TripMapProps = {
 
 export const TripMap: React.FC<TripMapProps> = (props) => {
     const [viewState, setViewState] = useState({
-        longitude: -123.35,
-        latitude: 48.47,
+        longitude: DEFAULT_LOCATION.lng,
+        latitude: DEFAULT_LOCATION.lat,
         zoom: 15,
     });
 
