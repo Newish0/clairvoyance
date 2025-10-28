@@ -26,6 +26,7 @@ import type {
     VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
+import { UserMarker } from "./user-marker";
 
 export type TripMapProps = {
     agencyId: string;
@@ -81,6 +82,8 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 // routeTextColor={"var(--primary-foreground)"}
                 atStopId={props.atStopId}
             />
+
+            <UserMarker viewOnly={true} />
         </ProtoMap>
     );
 };

@@ -81,7 +81,7 @@ function TransitApp() {
 
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
-            <div className="w-full md:w-[calc(100%+var(--container-sm))] h-full absolute top-0 left-0">
+            <div className="w-full md:w-[calc(100%+var(--container-sm))] h-[calc(100%+50dvh)] md:h-full absolute bottom-0 left-0">
                 <HomeMap onLocationChange={handleLocationChange} />
             </div>
 
@@ -104,7 +104,7 @@ function TransitApp() {
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
-            <div className="absolute top-4 left-4 max-h-[calc(100dvh-2rem)] w-sm p-2 overflow-auto rounded-md bg-primary-foreground/60 backdrop-blur-md">
+            <div className="absolute bottom-4 md:top-4 left-4 h-min max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm p-2 overflow-auto rounded-md bg-primary-foreground/60 backdrop-blur-md">
                 <DepartureBoard departures={nearbyTrips || null} />
             </div>
         </div>
