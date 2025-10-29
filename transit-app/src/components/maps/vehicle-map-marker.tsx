@@ -156,7 +156,7 @@ export function VehiclePositionMapMarker({
                             className={cn(
                                 "bg-primary-foreground/60 backdrop-blur-sm",
                                 "shadow-xl relative flex h-12 w-12 items-center justify-center rounded-full",
-                                hasData ? "border-1" : "border-2"
+                                hasData ? "border" : "border-2"
                             )}
                             style={{
                                 border: hasData

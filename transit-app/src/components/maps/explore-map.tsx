@@ -16,6 +16,7 @@ import {
 import type { AppRouter } from "../../../../transit-api/server/src";
 import { Badge } from "../ui/badge";
 import { UserLocationControl, UserLocationMarker } from "./user-location";
+import { cn } from "@/lib/utils";
 
 export type ExploreMapProps = {
     fixedUserLocation?: LngLat;
@@ -119,10 +120,19 @@ const StopMarkers: React.FC<{
                             key={stop._id}
                             longitude={stop.location.coordinates[0]}
                             latitude={stop.location.coordinates[1]}
+                            anchor="bottom"
                         >
-                            <Badge variant={"default"} className="p-0.5 w-9 h-9">
-                                <BusIcon className="w-9 h-9" size={36} />
-                            </Badge>
+                            <button
+                                className={cn(
+                                    "relative flex flex-col items-center justify-center",
+                                    "cursor-pointer transition-transform hover:scale-110 active:scale-95",
+                                    "bg-primary-foreground/60 backdrop-blur-sm",
+                                    "border shadow-xl h-10 w-10",
+                                    "rounded-tl-full rounded-bl-full rounded-tr-full rotate-45"
+                                )}
+                            >
+                                <BusIcon size={18} className="drop-shadow-md -rotate-45" />
+                            </button>
                         </Marker>
                     )
             )}
