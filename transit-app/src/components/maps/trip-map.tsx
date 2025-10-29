@@ -25,8 +25,8 @@ import type {
     StopTimeInstance,
     VehiclePosition,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { UserLocationMarker } from "./user-location";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
-import { UserMarker } from "./user-marker";
 
 export type TripMapProps = {
     agencyId: string;
@@ -83,7 +83,7 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 atStopId={props.atStopId}
             />
 
-            <UserMarker viewOnly={true} />
+            <UserLocationMarker />
         </ProtoMap>
     );
 };
