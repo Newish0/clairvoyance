@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppSettings } from "@/components/app-settings";
-import { HomeMap, type HomeMapProps } from "@/components/maps/home-map";
+import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import { useThrottle } from "@uidotdev/usehooks";
 import { SettingsIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import z from "zod";
+import { LngLat } from "maplibre-gl";
 
 const SearchSchema = z.object({
     lat: z.number().optional(),
@@ -31,7 +32,10 @@ export const Route = createFileRoute("/")({
 });
 
 function TransitApp() {
-    // const { lat = undefined, lng = undefined } = Route.useSearch();
+    const { lat, lng } = Route.useSearch();
+
+    const fixedUserLocation =
+        lat !== undefined && lng !== undefined ? new LngLat(lng, lat) : undefined;
 
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
         lat: 0,
@@ -59,7 +63,7 @@ function TransitApp() {
         };
     }, [nearbyTripsRefetchIntervalId, refetchNearbyTrips]);
 
-    const handleLocationChange: NonNullable<HomeMapProps["onLocationChange"]> = useCallback(
+    const handleLocationChange: NonNullable<ExploreMapProps["onLocationChange"]> = useCallback(
         (lat, lng, viewBounds) => {
             setNearbyTripsQueryParams((prev) => ({
                 ...prev,
@@ -82,7 +86,10 @@ function TransitApp() {
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
             <div className="w-full md:w-[calc(100%+var(--container-sm))] h-[calc(100%+50dvh)] md:h-full absolute bottom-0 left-0">
-                <HomeMap onLocationChange={handleLocationChange} />
+                <ExploreMap
+                    onLocationChange={handleLocationChange}
+                    fixedUserLocation={fixedUserLocation}
+                />
             </div>
 
             <ResponsiveModal>
