@@ -6,10 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, useMap } from "react-map-gl/maplibre";
 import { toast } from "sonner";
 
-// TODO:
-// 2. Create a UserLocationMarker component that is strictly read-only
-// 3. Remove viewOnly mode from UserLocationControl
-// 4. On nt.tsx, set map center to stop location and user set location mid point  + proper zoom to show both
+// TODO: 
 // 5. New route or on index.ts (prob new route) to show nearby trips at given location from search param
 // 6. index.ts and the new route can set a specific time instead of always current time for nearby trips.??? Something to consider
 
@@ -158,8 +155,6 @@ export const UserLocationMarker: React.FC<{ geolocationAttachmentThreshold?: num
 
     const isUserSetLocationActive =
         !userLocation || userLocation.distanceTo(userSetLocation) > geolocationAttachmentThreshold;
-
-    console.log("isUserSetLocationActive", isUserSetLocationActive);
 
     return (
         <>

@@ -27,6 +27,7 @@ import type {
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { UserLocationMarker } from "./user-location";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
+import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
 
 export type TripMapProps = {
     agencyId: string;
@@ -47,6 +48,31 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
         latitude: DEFAULT_LOCATION.lat,
         zoom: 15,
     });
+
+    const { data: stops } = useQuery({
+        ...trpc.stop.getStops.queryOptions({
+            agencyId: props.agencyId,
+            stopId: props.atStopId,
+        }),
+    });
+    const atStop = stops?.[0];
+    const [userSetLocation] = usePersistUserSetLocation();
+
+    // Set the map center to the mid point between the stop and the user set location.
+    // If there is no stop location, use the user set location.
+    useEffect(() => {
+        const stopLng = atStop?.location?.coordinates[0];
+        const stopLat = atStop?.location?.coordinates[1];
+
+        const roughMidLng = stopLng ? (stopLng + userSetLocation.lng) / 2 : userSetLocation.lng;
+        const roughMidLat = stopLat ? (stopLat + userSetLocation.lat) / 2 : userSetLocation.lat;
+
+        setViewState((prev) => ({
+            ...prev,
+            longitude: roughMidLng,
+            latitude: roughMidLat,
+        }));
+    }, [atStop, userSetLocation, setViewState]);
 
     const handleMove = useCallback(
         (evt: ViewStateChangeEvent) => {
