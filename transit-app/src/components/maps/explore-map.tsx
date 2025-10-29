@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferProcedureOutput } from "@trpc/server";
 import { useThrottle } from "@uidotdev/usehooks";
 import { BusIcon } from "lucide-react";
-import { type MapLibreEvent } from "maplibre-gl";
+import { LngLat, type MapLibreEvent } from "maplibre-gl";
 import { useCallback, useState } from "react";
 import {
     Marker,
@@ -15,13 +15,14 @@ import {
 } from "react-map-gl/maplibre";
 import type { AppRouter } from "../../../../transit-api/server/src";
 import { Badge } from "../ui/badge";
-import { UserLocationControl } from "./user-location";
+import { UserLocationControl, UserLocationMarker } from "./user-location";
 
-export type HomeMapProps = {
+export type ExploreMapProps = {
+    fixedUserLocation?: LngLat;
     onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
 };
 
-export const HomeMap: React.FC<HomeMapProps> = (props) => {
+export const ExploreMap: React.FC<ExploreMapProps> = (props) => {
     const [viewState, setViewState] = useState({
         longitude: DEFAULT_LOCATION.lng,
         latitude: DEFAULT_LOCATION.lat,
@@ -90,7 +91,14 @@ export const HomeMap: React.FC<HomeMapProps> = (props) => {
             }}
         >
             <StopMarkers stops={data || []} />
-            <UserLocationControl />
+            {props.fixedUserLocation ? (
+                <UserLocationMarker
+                    userSetLocation={props.fixedUserLocation}
+                    centerMapToUserSetLocation
+                />
+            ) : (
+                <UserLocationControl />
+            )}
         </ProtoMap>
     );
 };
