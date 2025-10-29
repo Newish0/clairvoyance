@@ -15,7 +15,7 @@ import {
 } from "react-map-gl/maplibre";
 import type { AppRouter } from "../../../../transit-api/server/src";
 import { Badge } from "../ui/badge";
-import { UserMarker } from "./user-marker";
+import { UserLocationControl } from "./user-location";
 
 export type HomeMapProps = {
     onLocationChange?: (lat: number, lng: number, viewBounds: LngLatBounds) => void;
@@ -90,7 +90,7 @@ export const HomeMap: React.FC<HomeMapProps> = (props) => {
             }}
         >
             <StopMarkers stops={data || []} />
-            <UserMarker />
+            <UserLocationControl />
         </ProtoMap>
     );
 };
