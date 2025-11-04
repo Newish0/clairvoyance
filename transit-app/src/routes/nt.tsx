@@ -25,7 +25,7 @@ import { differenceInSeconds, format } from "date-fns";
 import { SettingsIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
-import { Direction } from "../../../gtfs-processor/shared/gtfs-db-types";
+import { Direction, type StopTimeInstance } from "../../../gtfs-processor/shared/gtfs-db-types";
 import { isDataRealtime } from "@/utils/date";
 
 const nextTripsSchema = z.object({
@@ -273,13 +273,36 @@ function RouteComponent() {
                 <div className="overflow-auto">
                     <TransitRouteTimeline
                         stops={
-                            tripInstance?.stop_times.map((st) => ({
-                                stopName: stopsMap?.get(st.stop_id)?.stop_name || "---",
-                                stopTime: format(
-                                    st.predicted_arrival_datetime || st.arrival_datetime || "",
-                                    "p"
-                                ),
-                            })) || []
+                            tripInstance?.stop_times.map((st) => {
+                                const stop = stopsMap?.get(st.stop_id);
+                                const stopCoordinates = stop?.location?.coordinates;
+                                return {
+                                    stopName: stopCoordinates ? (
+                                        <Link
+                                            to={`/`}
+                                            search={{
+                                                lng: stopCoordinates[0],
+                                                lat: stopCoordinates[1],
+                                            }}
+                                        >
+                                            {stop?.stop_name || "---"}
+                                        </Link>
+                                    ) : (
+                                        <>{stop?.stop_name || "---"}</>
+                                    ),
+                                    stopTime: format(
+                                        st.predicted_arrival_datetime || st.arrival_datetime || "",
+                                        "p"
+                                    ),
+                                    stopInfo: (
+                                        <TimelineStopInfo
+                                            agencyId={agencyId}
+                                            stopTimeInstance={st}
+                                            currentRouteObjectId={tripInstance.route?._id.toString()}
+                                        />
+                                    ),
+                                };
+                            }) || []
                         }
                         activeStop={
                             tripInstance?.stop_times.findIndex((st) => st.stop_id === stopId) || -1
@@ -290,3 +313,34 @@ function RouteComponent() {
         </div>
     );
 }
+
+const TimelineStopInfo = ({
+    agencyId,
+    stopTimeInstance,
+    currentRouteObjectId,
+}: {
+    agencyId: string;
+    stopTimeInstance: StopTimeInstance;
+    currentRouteObjectId?: string;
+}) => {
+    const { data: routesAtStop } = useQuery({
+        ...trpc.stop.getNearbyRoutesByStop.queryOptions({
+            agencyId,
+            stopId: stopTimeInstance.stop_id,
+        }),
+    });
+
+    const filteredRoutesAtStop = routesAtStop?.filter(
+        (r) => r._id.toString() !== currentRouteObjectId
+    );
+
+    return (
+        <div className="space-x-1 mt-1">
+            {filteredRoutesAtStop?.map((r) => (
+                <Badge key={r.route_id} variant={"outline"}>
+                    {r.route_short_name}
+                </Badge>
+            ))}
+        </div>
+    );
+};

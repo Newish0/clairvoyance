@@ -566,7 +566,9 @@ class TripInstance(Document):
 class RoutesByStop(Document):
     """
     *Materialized View* that aggregates routes by stop.
-    Provides efficient lookup of all routes passing through each stop.
+    Provides efficient lookup of all routes
+     - passing through each stop
+     - passing through a stop within 100 meters
 
     NOTE: We are emulating a materialize view using a regular collection because Beanie does not support it.
     """
@@ -651,9 +653,9 @@ class RoutesByStop(Document):
                     }
                 }
             },
-            # 6) Extract the stop ObjectId (or drop if missing)
+            # 6) Extract the stop
             {"$addFields": {"stop": {"$arrayElemAt": ["$stop_info._id", 0]}}},
-            # 7) drop entries where the stop lookup failed
+            # 7) Drop entries where the stop lookup failed
             {"$match": {"stop": {"$ne": None}}},
             # 8) Lookup route documents by route_id array (index-friendly)
             {
@@ -682,7 +684,16 @@ class RoutesByStop(Document):
                     "_id": 0,
                     "stop": "$stop",
                     "routes": {
-                        "$map": {"input": "$route_objects", "as": "r", "in": "$$r._id"}
+                        "$setUnion": [
+                            {
+                                "$map": {
+                                    "input": "$route_objects",
+                                    "as": "r",
+                                    "in": "$$r._id",
+                                }
+                            },
+                            [],
+                        ]
                     },
                     "agency_id": "$_id.agency_id",
                     "stop_id": "$_id.stop_id",

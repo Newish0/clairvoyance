@@ -1,3 +1,4 @@
+import { RoutesByStopRepository } from "../repositories/routes-by-stop-repository";
 import { StopRepository } from "../repositories/stop-repository";
 import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
@@ -60,5 +61,21 @@ export const stopRouter = router({
             const stopRepo = new StopRepository(ctx.db);
             const data = await stopRepo.findNearbyStops(input);
             return data;
+        }),
+
+    getNearbyRoutesByStop: publicProcedure
+        .input(
+            v.union([
+                v.object({
+                    stopObjectId: v.string(),
+                }),
+                v.object({
+                    agencyId: v.string(),
+                    stopId: v.string(),
+                }),
+            ])
+        )
+        .query(async ({ input, ctx }) => {
+            return new RoutesByStopRepository(ctx.db).findNearbyRoutesByStop(input);
         }),
 });

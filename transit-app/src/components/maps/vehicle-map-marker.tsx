@@ -51,7 +51,7 @@ function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
             <Badge
                 variant="outline"
                 className={cn(
-                    "bg-primary-foreground/60 text-[10px] text-muted-foreground font-medium px-2 py-0.5 leading-none rounded-full backdrop-blur-sm shadow-xl border-1 whitespace-nowrap"
+                    "bg-primary-foreground/60 text-[10px] text-muted-foreground font-medium px-2 py-0.5 leading-none rounded-full backdrop-blur-sm shadow-xl border whitespace-nowrap"
                 )}
             >
                 {displayText}
