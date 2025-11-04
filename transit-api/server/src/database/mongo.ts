@@ -8,6 +8,7 @@ import type {
     Trip,
     TripInstance,
     VehiclePosition,
+    RoutesByStop,
 } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export type OmitId<T> = Omit<T, "_id">;
@@ -20,6 +21,7 @@ export interface TransitDb extends Db {
     collection<T extends TripInstance>(name: "trip_instances"): Collection<OmitId<T>>;
     collection<T extends Alert>(name: "alerts"): Collection<OmitId<T>>;
     collection<T extends VehiclePosition>(name: "vehicle_positions"): Collection<OmitId<T>>;
+    collection<T extends RoutesByStop>(name: "routes_by_stop"): Collection<OmitId<T>>;
 }
 
 export class DatabaseManager {

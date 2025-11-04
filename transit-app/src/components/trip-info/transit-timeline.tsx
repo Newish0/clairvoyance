@@ -31,6 +31,7 @@ export const TransitRouteTimeline: React.FC<TransitRouteTimelineProps> = ({
                         key={index}
                         stopName={stop.stopName}
                         stopTime={stop.stopTime}
+                        stopInfo={stop.stopInfo}
                         description={stop.description}
                         icon={stop.icon}
                         isLast={index === stops.length - 1}
@@ -50,6 +51,7 @@ export const TransitRouteTimeline: React.FC<TransitRouteTimelineProps> = ({
 export interface TransitStopItemProps {
     stopName: React.ReactNode;
     stopTime?: React.ReactNode;
+    stopInfo?: React.ReactNode;
     description?: React.ReactNode;
     icon?: React.ReactNode;
     isLast?: boolean;
@@ -67,6 +69,7 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
     description,
     stopName,
     stopTime,
+    stopInfo,
     isLast,
     isFirst,
     isActive,
@@ -93,7 +96,7 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
         <li
             ref={ref}
             className={cn(
-                "relative border-l pb-8 pl-8",
+                "relative border-l pb-6 pl-8",
                 isLast && "border-l-transparent pb-0",
                 isActive && !isLast && "border-l-primary",
                 className
@@ -113,12 +116,17 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
 
             <div
                 className={cn(
-                    "flex items-center justify-between",
+                    "flex items-center justify-between mb-1",
                     !isActive && "text-muted-foreground"
                 )}
             >
-                <TransitStopName>{stopName}</TransitStopName>
-                {stopTime && <TransitStopTime>{stopTime}</TransitStopTime>}
+                <div className="flex-1">
+                    <div className="text-base font-semibold leading-none">{stopName}</div>
+                    {stopInfo && <div>{stopInfo}</div>}
+                </div>
+                {stopTime && (
+                    <div className="mx-2 mb-1 text-sm text-muted-foreground">{stopTime}</div>
+                )}
             </div>
 
             {description && <TransitStopDescription>{description}</TransitStopDescription>}
@@ -163,14 +171,6 @@ const TransitStopBullet: React.FC<TransitStopBulletProps> = ({
         </div>
     );
 };
-
-const TransitStopName: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="flex-1 mb-1 text-base font-semibold leading-none">{children}</div>
-);
-
-const TransitStopTime: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="mx-2 mb-1 text-sm text-muted-foreground">{children}</div>
-);
 
 const TransitStopDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({
     className,

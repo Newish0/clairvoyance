@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { DataRepository } from "./data-repository";
 import type { FeatureCollection } from "geojson";
 
@@ -6,6 +7,13 @@ export class StopRepository extends DataRepository {
 
     public async findStop(agency_id: string, stop_id: string) {
         return this.db.collection(this.collectionName).findOne({ agency_id, stop_id });
+    }
+
+    public async findById(stopObjectId: string) {
+        const stop = await this.db
+            .collection(this.collectionName)
+            .findOne({ _id: new ObjectId(stopObjectId) });
+        return stop;
     }
 
     public async findAllStops(agencyId: string, stopIds: string[]) {
@@ -67,23 +75,26 @@ export class StopRepository extends DataRepository {
                     query: {},
                 },
             },
-            "bbox" in params
-                ? {
-                      $match: {
-                          location: {
-                              $geoWithin: {
-                                  $box: [
-                                      [params.bbox.minLng, params.bbox.minLat], // southwest
-                                      [params.bbox.maxLng, params.bbox.maxLat], // northeast
-                                  ],
+            ...("bbox" in params
+                ? [
+                      {
+                          $match: {
+                              location: {
+                                  $geoWithin: {
+                                      $box: [
+                                          [params.bbox.minLng, params.bbox.minLat], // southwest
+                                          [params.bbox.maxLng, params.bbox.maxLat], // northeast
+                                      ],
+                                  },
                               },
                           },
                       },
-                  }
-                : {},
+                  ]
+                : []),
             {
                 $project: {
                     _id: 1,
+                    agency_id: 1,
                     stop_id: 1,
                     distance: 1,
                     stop_name: 1,
@@ -97,6 +108,7 @@ export class StopRepository extends DataRepository {
 
         const nearbyStops: {
             _id: string;
+            agency_id: string;
             stop_id: string;
             distance: number;
             stop_name: string;
