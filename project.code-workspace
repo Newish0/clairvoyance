@@ -5,20 +5,12 @@
             "path": "./"
         },
         {
-            "name": "DEPRECATED - GTFS API Serivce",
-            "path": "./gtfs-api"
-        },
-        {
             "name": "Transit API Serivce",
             "path": "./transit-api"
         },
         {
             "name": "GTFS Processor",
             "path": "./gtfs-processor"
-        },
-        {
-            "name": "Web App",
-            "path": "./web-app"
         },
         {
             "name": "Transit App",
