@@ -41,7 +41,7 @@ export const ExploreMap: React.FC<ExploreMapProps> = (props) => {
             maxLng: 0,
         },
     });
-    const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 1000);
+    const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 2000);
 
     const { data } = useQuery({
         ...trpc.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),

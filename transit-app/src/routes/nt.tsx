@@ -92,7 +92,7 @@ function RouteComponent() {
         undefined;
 
     return (
-        <div className="h-dvh w-dvw relative">
+        <div className="h-dvh w-dvw relative overflow-clip">
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     agencyId={agencyId}
@@ -132,7 +132,7 @@ function RouteComponent() {
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
-            <div className="absolute top-4 left-4 max-h-[calc(100dvh-2rem)] w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md">
+            <div className="absolute bottom-4 md:top-4 left-4 max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md">
                 {/* Trip info */}
                 <div className="flex items-center space-x-2">
                     <Badge
@@ -205,7 +205,7 @@ function RouteComponent() {
                             return (
                                 <CarouselItem
                                     key={nextTripInstance._id.toString()}
-                                    className="md:basis-1/2 lg:basis-1/3"
+                                    className="basis-1/3 lg:basis-1/4"
                                 >
                                     <Link
                                         to="."
@@ -240,7 +240,7 @@ function RouteComponent() {
                             );
                         })}
 
-                        <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                        <CarouselItem className="basis-1/3 lg:basis-1/4">
                             <ResponsiveModal>
                                 <ResponsiveModalTrigger asChild>
                                     <Card className={cn("p-0 bg-card/15 cursor-pointer")}>
