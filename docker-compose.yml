@@ -29,11 +29,11 @@ services:
       gtfs-static-processor:
         condition: service_started
 
-  gtfs-api:
-    container_name: gtfs-api
+  transit-api:
+    container_name: transit-api
     build:
       context: .
-      dockerfile: ./services/gtfs-api/Dockerfile
+      dockerfile: ./services/transit-api/Dockerfile
     environment:
       - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
       - MONGO_DB_NAME=transit
