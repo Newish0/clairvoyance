@@ -20,27 +20,25 @@ export class AlertRepository extends DataRepository {
 
         // Only include constraint if provided.(Otherwise allow it to be any value)
         const queryWithDbFields = {
-            ...(query.agencyId ? { agency_id: query.agencyId } : {}),
-            ...(query.routeId ? { route_id: query.routeId } : {}),
-            ...(query.routeType ? { route_type: query.routeType } : {}),
-            ...(query.directionId ? { direction_id: query.directionId } : {}),
-            ...(query.stopId ? { stop_id: query.stopId } : {}),
-            ...(query.tripInstanceId ? { trip_instance: query.tripInstanceId } : {}),
+            ...(query.agencyId ? { agency_id: { $in: [query.agencyId, null, ""] } } : {}),
+            ...(query.routeId ? { route_id: { $in: [query.routeId, null, ""] } } : {}),
+            ...(query.routeType ? { route_type: { $in: [query.routeType, null, ""] } } : {}),
+            ...(query.directionId ? { direction_id: { $in: [query.directionId, null, ""] } } : {}),
+            ...(query.stopId
+                ? {
+                      stop_id: {
+                          $in: [
+                              ...(Array.isArray(query.stopId) ? query.stopId : [query.stopId]),
+                              null,
+                              "",
+                          ],
+                      },
+                  }
+                : {}),
+            ...(query.tripInstanceId
+                ? { trip_instance: { $in: [query.tripInstanceId, null, ""] } }
+                : {}),
         };
-
-        const dbQueries = AlertRepository.generateCombinations(
-            queryWithDbFields,
-            {
-                $in: [null, ""],
-            },
-            (value) => {
-                if (Array.isArray(value)) {
-                    return { $in: value };
-                } else {
-                    return value;
-                }
-            }
-        );
 
         const fullQuery = {
             $and: [
@@ -60,56 +58,13 @@ export class AlertRepository extends DataRepository {
                 },
             ],
             informed_entities: {
-                $elemMatch: { $or: dbQueries },
+                $elemMatch: queryWithDbFields,
             },
             last_seen: { $gte: minDate },
         };
 
-        console.log("fullQuery", JSON.stringify(fullQuery, null, 0));
-
         const alerts = await this.db.collection(this.collectionName).find(fullQuery).toArray();
 
         return alerts;
-    }
-    /**
-     * @example
-     * Given {a: 1, b: 2, c: 3} with emptyValue = null, it outputs:
-     * [
-     *   { "a": 1,    "b": null, "c": null },
-     *   { "a": 1,    "b": 2,    "c": null },
-     *   { "a": 1,    "b": 2,    "c": 3    },
-     *   { "a": null, "b": 2,    "c": null },
-     *   { "a": null, "b": 2,    "c": 3    },
-     *   { "a": null, "b": null, "c": 3    }
-     * ]
-     */
-    private static generateCombinations<T extends Record<string, any>, U>(
-        fieldValues: T,
-        emptyValue: U,
-        mapFn: (value: any) => any = (value) => value
-    ) {
-        const keys = Object.keys(fieldValues);
-        const combinations: Array<Record<string, any>> = [];
-
-        // Generate all non-empty subsets (exclude the empty set)
-        const totalCombinations = (1 << keys.length) - 1; // 2^n - 1
-
-        for (let mask = 1; mask <= totalCombinations; mask++) {
-            const combination: Record<string, any> = {};
-
-            for (let i = 0; i < keys.length; i++) {
-                const key = keys[i];
-                // Check if the i-th bit is set in the mask
-                if (mask & (1 << i)) {
-                    combination[key] = mapFn(fieldValues[key]);
-                } else {
-                    combination[key] = emptyValue;
-                }
-            }
-
-            combinations.push(combination);
-        }
-
-        return combinations;
     }
 }
