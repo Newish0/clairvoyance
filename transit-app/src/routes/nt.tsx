@@ -1,5 +1,6 @@
 import { AppSettings } from "@/components/app-settings";
 import { TripMap } from "@/components/maps/trip-map";
+import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
 import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
@@ -19,14 +20,15 @@ import {
 import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
+import { isDataRealtime } from "@/utils/date";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { differenceInSeconds, format } from "date-fns";
 import { SettingsIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { z } from "zod";
 import { Direction, type StopTimeInstance } from "../../../gtfs-processor/shared/gtfs-db-types";
-import { isDataRealtime } from "@/utils/date";
+import { useHover } from "@uidotdev/usehooks";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
@@ -68,16 +70,6 @@ function RouteComponent() {
         }),
     });
 
-    const { data: alerts } = useQuery({
-        ...trpc.alert.getActiveAlerts.queryOptions({
-            agencyId,
-            stopId: tripInstance?.stop_times.map((st) => st.stop_id),
-            routeId,
-            directionId,
-            tripInstanceId,
-        }),
-    });
-
     const stopsMap = useMemo(
         () => (stops ? new Map(stops.map((stop) => [stop.stop_id, stop])) : null),
         [stops]
@@ -97,7 +89,7 @@ function RouteComponent() {
         tripInstance?.stop_times.find((st) => st.stop_id === stopId)?.shape_dist_traveled ??
         undefined;
 
-    console.log("alerts", alerts);
+    const [hoverRef, hovering] = useHover();
 
     if (tripInstance && tripInstance.stop_times.every((st) => st.stop_id !== stopId)) {
         return <div>Invalid stop</div>;
@@ -144,7 +136,14 @@ function RouteComponent() {
                 </ResponsiveModalContent>
             </ResponsiveModal>
 
-            <div className="absolute bottom-4 md:top-4 left-4 max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md">
+            <div
+                tabIndex={0}
+                className={cn(
+                    "absolute bottom-4 md:top-4 left-4 max-h-[50dvh] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md",
+                    hovering && "max-h-[80dvh]",
+                    "md:max-h-[calc(100dvh-2rem)]"
+                )}
+            >
                 {/* Trip info */}
                 <div className="flex items-center space-x-2">
                     <Badge
@@ -281,8 +280,17 @@ function RouteComponent() {
                     </CarouselContent>
                 </Carousel>
 
+                <AlertCarousel
+                    agencyId={agencyId}
+                    routeId={routeId}
+                    directionId={directionId}
+                    tripInstanceId={tripInstanceId}
+                    stopIds={tripInstance?.stop_times.map((st) => st.stop_id)}
+                    // routeType={routeType}
+                />
+
                 {/* Stop times */}
-                <div className="overflow-auto">
+                <div ref={hoverRef} className="overflow-auto">
                     <TransitRouteTimeline
                         stops={
                             tripInstance?.stop_times.map((st) => {
