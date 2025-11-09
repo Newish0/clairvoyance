@@ -63,11 +63,20 @@ class AlertMapper(Transformer[ParsedEntity, UpdateOne]):
     ) -> TripInstance | None:
         """Find existing trip instance matching the descriptor."""
 
-        return await TripInstance.find_one(
+        base_conditions = And(
             TripInstance.agency_id == self.agency_id,
             TripInstance.trip_id == trip_descriptor.trip_id,
             TripInstance.start_date == trip_descriptor.start_date,
-            TripInstance.start_time == trip_descriptor.start_time,
+        )
+
+        if trip_descriptor.start_time:
+            base_conditions = And(
+                base_conditions,
+                TripInstance.start_time == trip_descriptor.start_time,
+            )
+
+        return await TripInstance.find_one(
+            base_conditions,
             Or(
                 TripInstance.trip_id == trip_descriptor.trip_id,
                 And(

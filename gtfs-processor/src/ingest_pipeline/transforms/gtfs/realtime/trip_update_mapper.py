@@ -151,13 +151,6 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
         self, trip_update, agency: Agency, trip_instance: TripInstance | None
     ) -> list[StopTimeInstance]:
         """Process all stop time updates and return sorted list."""
-        # stop_times_with_seq: list[tuple[int | None, StopTimeInstance]] = []
-        # for stu in trip_update.stop_time_update:
-        #     seq, existing_sti = None, None
-        #     if trip_instance is not None:
-        #         seq, existing_sti = self._find_existing_stop_time(stu, trip_instance)
-        #     stop_time = stop_time_update_to_model(stu, existing_sti, seq)
-        #     stop_times_with_seq.append(stop_time)
         existing_stop_times = (
             trip_instance.stop_times if trip_instance is not None else []
         )
@@ -176,7 +169,7 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
                         break
                     else:
                         raise Exception(
-                            f"Stop time sequence mismatch: {updated_seq} != {seq}"
+                            f"Stop time sequence mismatch: {updated_seq} != {seq} {f'on trip instance {trip_instance.id}' if trip_instance else ''}"
                         )
             if not updated:
                 new_seq, new_stop_time = stop_time_update_to_model(stu, None)
@@ -234,9 +227,9 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
 
         trip_instance = TripInstance(
             agency_id=self.agency_id,
-            trip_id=trip_descriptor.trip_id,  
-            start_date=trip_descriptor.start_date, 
-            start_time=trip_descriptor.start_time,  
+            trip_id=trip_descriptor.trip_id,
+            start_date=trip_descriptor.start_date,
+            start_time=trip_descriptor.start_time,
             route_id=route.route_id,
             direction_id=trip.direction_id,
             state=state,
@@ -244,8 +237,8 @@ class TripUpdateMapper(Transformer[ParsedEntity, UpdateOne]):
             or stop_times[0].departure_datetime,  # type: ignore
             stop_times=stop_times,
             stop_times_updated_at=datetime.now(timezone.utc),
-            route=route.id if route else None, # type: ignore
-            trip=trip.id if trip else None, # type: ignore
+            route=route.id if route else None,  # type: ignore
+            trip=trip.id if trip else None,  # type: ignore
         )
 
         await trip_instance.validate_self()

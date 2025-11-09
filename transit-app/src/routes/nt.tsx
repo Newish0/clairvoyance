@@ -58,11 +58,6 @@ function RouteComponent() {
         enabled: !!tripInstance,
     });
 
-    const stopsMap = useMemo(
-        () => (stops ? new Map(stops.map((stop) => [stop.stop_id, stop])) : null),
-        [stops]
-    );
-
     const { data: nextTripInstances } = useQuery({
         ...trpc.tripInstance.getNext.queryOptions({
             agencyId,
@@ -73,9 +68,20 @@ function RouteComponent() {
         }),
     });
 
-    if (tripInstance && tripInstance.stop_times.every((st) => st.stop_id !== stopId)) {
-        return <div>Invalid stop</div>;
-    }
+    const { data: alerts } = useQuery({
+        ...trpc.alert.getActiveAlerts.queryOptions({
+            agencyId,
+            stopId: tripInstance?.stop_times.map((st) => st.stop_id),
+            routeId,
+            directionId,
+            tripInstanceId,
+        }),
+    });
+
+    const stopsMap = useMemo(
+        () => (stops ? new Map(stops.map((stop) => [stop.stop_id, stop])) : null),
+        [stops]
+    );
 
     const combinedTripInstances = useMemo(() => {
         if (tripInstance) {
@@ -90,6 +96,12 @@ function RouteComponent() {
     const atStopDistTraveled =
         tripInstance?.stop_times.find((st) => st.stop_id === stopId)?.shape_dist_traveled ??
         undefined;
+
+    console.log("alerts", alerts);
+
+    if (tripInstance && tripInstance.stop_times.every((st) => st.stop_id !== stopId)) {
+        return <div>Invalid stop</div>;
+    }
 
     return (
         <div className="h-dvh w-dvw relative overflow-clip">

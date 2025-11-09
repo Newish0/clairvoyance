@@ -428,6 +428,58 @@ class Alert(Document):
                 unique=True,
                 name="alert_unique_idx",
             ),
+            # Index for querying by active period time ranges
+            pymongo.IndexModel(
+                [
+                    ("active_periods.start", pymongo.ASCENDING),
+                    ("active_periods.end", pymongo.ASCENDING),
+                ],
+                name="active_periods_idx",
+            ),
+            # Individual indexes for each informed_entities field to support any combination
+            pymongo.IndexModel(
+                [
+                    ("informed_entities.agency_id", pymongo.ASCENDING),
+                ],
+                name="informed_entities_agency_idx",
+            ),
+            pymongo.IndexModel(
+                [
+                    ("informed_entities.route_id", pymongo.ASCENDING),
+                ],
+                name="informed_entities_route_idx",
+            ),
+            pymongo.IndexModel(
+                [
+                    ("informed_entities.route_type", pymongo.ASCENDING),
+                ],
+                name="informed_entities_route_type_idx",
+            ),
+            pymongo.IndexModel(
+                [
+                    ("informed_entities.direction_id", pymongo.ASCENDING),
+                ],
+                name="informed_entities_direction_idx",
+            ),
+            pymongo.IndexModel(
+                [
+                    ("informed_entities.trip_instance", pymongo.ASCENDING),
+                ],
+                name="informed_entities_trip_idx",
+            ),
+            pymongo.IndexModel(
+                [
+                    ("informed_entities.stop_id", pymongo.ASCENDING),
+                ],
+                name="informed_entities_stop_idx",
+            ),
+            # Index for querying by last_seen
+            pymongo.IndexModel(
+                [
+                    ("last_seen", pymongo.DESCENDING),
+                ],
+                name="last_seen_idx",
+            ),
         ]
 
 
