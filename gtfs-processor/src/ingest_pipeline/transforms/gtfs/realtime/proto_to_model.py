@@ -180,6 +180,12 @@ class ParsedStopTimeUpdate:
     )
 
 
+def _try_getattr(entity, attr, default=None):
+    if entity.HasField(attr):
+        return getattr(entity, attr)
+    return default
+
+
 def _make_canonical(obj):
     """
     Recursively convert dicts, lists, DBRefs into canonical form.
@@ -232,12 +238,14 @@ def trip_descriptor_to_model(trip: pb.TripDescriptor) -> TripDescriptor:
         trip_id=_extract_core_trip_id(trip.trip_id)
         if trip.HasField("trip_id")
         else None,
-        start_time=getattr(trip, "start_time", None),
-        start_date=getattr(trip, "start_date", None),
-        route_id=getattr(trip, "route_id", None),
-        direction_id=_DIRECTION_ID_MAP.get(getattr(trip, "direction_id", None), None),
+        start_time=_try_getattr(trip, "start_time", None),
+        start_date=_try_getattr(trip, "start_date", None),
+        route_id=_try_getattr(trip, "route_id", None),
+        direction_id=_DIRECTION_ID_MAP.get(
+            _try_getattr(trip, "direction_id", None), None
+        ),
         schedule_relationship=_TRIP_DESCRIPTOR_SCHEDULE_RELATIONSHIP_MAP.get(
-            getattr(trip, "schedule_relationship", None), None
+            _try_getattr(trip, "schedule_relationship", None), None
         ),
     )
 
@@ -276,9 +284,9 @@ def _extract_time_fields(
     time_event, existing_time: Optional[int] = None
 ) -> tuple[int | None, int | None, int | None]:
     """Extract and normalize time fields from arrival/departure event."""
-    scheduled_time = getattr(time_event, "scheduled_time", None)
-    time = getattr(time_event, "time", None)
-    delay = getattr(time_event, "delay", None)
+    scheduled_time = _try_getattr(time_event, "scheduled_time", None)
+    time = _try_getattr(time_event, "time", None)
+    delay = _try_getattr(time_event, "delay", None)
 
     return _normalize_times(scheduled_time, time, delay, existing_time)
 
@@ -291,10 +299,12 @@ def _parse_stop_time_update(
     """Parse protobuf StopTimeUpdate into normalized data structure."""
 
     # Extract basic fields
-    stop_sequence = getattr(stop_time_update, "stop_sequence", None)
-    stop_id = getattr(stop_time_update, "stop_id", None)
-    schedule_relationship = getattr(stop_time_update, "schedule_relationship", None)
-    departure_occupancy_status = getattr(
+    stop_sequence = _try_getattr(stop_time_update, "stop_sequence", None)
+    stop_id = _try_getattr(stop_time_update, "stop_id", None)
+    schedule_relationship = _try_getattr(
+        stop_time_update, "schedule_relationship", None
+    )
+    departure_occupancy_status = _try_getattr(
         stop_time_update, "departure_occupancy_status", None
     )
 
@@ -317,11 +327,13 @@ def _parse_stop_time_update(
         scheduled_arrival_time=scheduled_arrival_time,
         arrival_time=arrival_time,
         arrival_delay=arrival_delay,
-        arrival_uncertainty=getattr(stop_time_update.arrival, "uncertainty", None),
+        arrival_uncertainty=_try_getattr(stop_time_update.arrival, "uncertainty", None),
         scheduled_departure_time=scheduled_departure_time,
         departure_time=departure_time,
         departure_delay=departure_delay,
-        departure_uncertainty=getattr(stop_time_update.departure, "uncertainty", None),
+        departure_uncertainty=_try_getattr(
+            stop_time_update.departure, "uncertainty", None
+        ),
         departure_occupancy_status=_OCCUPANCY_STATUS_MAP.get(
             departure_occupancy_status, ms.OccupancyStatus.NO_DATA_AVAILABLE
         ),
@@ -463,11 +475,11 @@ def vehicle_descriptor_to_model(
     """Convert protobuf VehicleDescriptor to model Vehicle."""
     return ms.Vehicle(
         agency_id=agency_id,
-        vehicle_id=getattr(vehicle, "id", ""),
-        label=getattr(vehicle, "label", None),
-        license_plate=getattr(vehicle, "license_plate", None),
+        vehicle_id=_try_getattr(vehicle, "id", ""),
+        label=_try_getattr(vehicle, "label", None),
+        license_plate=_try_getattr(vehicle, "license_plate", None),
         wheelchair_accessible=_WHEELCHAIR_BOARDING_MAP.get(
-            getattr(vehicle, "wheelchair_accessible", None)
+            _try_getattr(vehicle, "wheelchair_accessible", None)
         ),
         positions=[],
     )
@@ -480,29 +492,33 @@ def vehicle_position_to_model(
     agency_id: str,
 ) -> ms.VehiclePosition:
     """Convert protobuf VehiclePosition to model VehiclePosition."""
-    position = getattr(vehicle_position, "position", None)
-    latitude = getattr(position, "latitude", None) if position else None
-    longitude = getattr(position, "longitude", None) if position else None
-    bearing = getattr(position, "bearing", None) if position else None
-    odometer = getattr(position, "odometer", None) if position else None
-    speed = getattr(position, "speed", None) if position else None
+    position = _try_getattr(vehicle_position, "position", None)
+    latitude = _try_getattr(position, "latitude", None) if position else None
+    longitude = _try_getattr(position, "longitude", None) if position else None
+    bearing = _try_getattr(position, "bearing", None) if position else None
+    odometer = _try_getattr(position, "odometer", None) if position else None
+    speed = _try_getattr(position, "speed", None) if position else None
 
     return ms.VehiclePosition(
         agency_id=agency_id,
         vehicle_id=vehicle_position.vehicle.id,
         timestamp=timestamp,
-        stop_id=getattr(vehicle_position, "stop_id", None),
-        current_stop_sequence=getattr(vehicle_position, "current_stop_sequence", None),
+        stop_id=_try_getattr(vehicle_position, "stop_id", None),
+        current_stop_sequence=_try_getattr(
+            vehicle_position, "current_stop_sequence", None
+        ),
         current_status=_VEHICLE_STOP_STATUS_MAP.get(
-            getattr(vehicle_position, "stop_status", None)
+            _try_getattr(vehicle_position, "stop_status", None)
         ),
         congestion_level=_CONGESTION_LEVEL_MAP.get(
-            getattr(vehicle_position, "congestion_level", None),
+            _try_getattr(vehicle_position, "congestion_level", None),
         ),
         occupancy_status=_OCCUPANCY_STATUS_MAP.get(
-            getattr(vehicle_position, "occupancy_status", None)
+            _try_getattr(vehicle_position, "occupancy_status", None)
         ),
-        occupancy_percentage=getattr(vehicle_position, "occupancy_percentage", None),
+        occupancy_percentage=_try_getattr(
+            vehicle_position, "occupancy_percentage", None
+        ),
         latitude=latitude,
         longitude=longitude,
         bearing=bearing,
@@ -514,8 +530,8 @@ def vehicle_position_to_model(
 
 def time_range_to_model(time_range: pb.TimeRange) -> ms.TimeRange:
     """Convert protobuf TimeRange to model TimeRange."""
-    start = _clean_time_value(getattr(time_range, "start", None))
-    end = _clean_time_value(getattr(time_range, "end", None))
+    start = _clean_time_value(_try_getattr(time_range, "start", None))
+    end = _clean_time_value(_try_getattr(time_range, "end", None))
 
     return ms.TimeRange(
         start=datetime.fromtimestamp(
@@ -542,13 +558,13 @@ def entity_selector_to_partial_model(
 
     return (
         ms.EntitySelector(
-            agency_id=getattr(entity, "agency_id", agency_id),
-            route_id=getattr(entity, "route_id", None),
-            route_type=_ROUTE_TYPE_MAP.get(getattr(entity, "route_type", None)),
+            agency_id=_try_getattr(entity, "agency_id", agency_id),
+            route_id=_try_getattr(entity, "route_id", None),
+            route_type=_ROUTE_TYPE_MAP.get(_try_getattr(entity, "route_type", None)),
             direction_id=_DIRECTION_ID_MAP.get(
-                getattr(entity, "direction_id", None), None
+                _try_getattr(entity, "direction_id", None), None
             ),
-            stop_id=getattr(entity, "stop_id", None),
+            stop_id=_try_getattr(entity, "stop_id", None),
             trip_instance=None,
         ),
         trip,
@@ -591,8 +607,8 @@ def alert_to_model(
     alert_dict = {}
 
     alert_dict["agency_id"] = agency_id
-    alert_dict["cause"] = _ALERT_CAUSE_MAP.get(getattr(alert, "cause", None))
-    alert_dict["effect"] = _ALERT_EFFECT_MAP.get(getattr(alert, "effect", None))
+    alert_dict["cause"] = _ALERT_CAUSE_MAP.get(_try_getattr(alert, "cause", None))
+    alert_dict["effect"] = _ALERT_EFFECT_MAP.get(_try_getattr(alert, "effect", None))
 
     if alert.HasField("header_text"):
         alert_dict["header_text"] = _get_translated_string_safely(alert.header_text)
@@ -606,7 +622,7 @@ def alert_to_model(
         alert_dict["url"] = _get_translated_string_safely(alert.url)
 
     alert_dict["severity_level"] = _ALERT_SEVERITY_MAP.get(
-        getattr(alert, "severity_level", None)
+        _try_getattr(alert, "severity_level", None)
     )
     alert_dict["active_periods"] = active_periods
     alert_dict["informed_entities"] = informed_entities
