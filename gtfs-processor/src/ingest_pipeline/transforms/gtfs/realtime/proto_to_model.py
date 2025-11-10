@@ -181,9 +181,12 @@ class ParsedStopTimeUpdate:
 
 
 def _try_getattr(entity, attr, default=None):
-    if entity.HasField(attr):
-        return getattr(entity, attr)
-    return default
+    try:
+        if entity.HasField(attr):
+            return getattr(entity, attr)
+        return default
+    except:  # noqa: E722
+        return default
 
 
 def _make_canonical(obj):
@@ -607,8 +610,12 @@ def alert_to_model(
     alert_dict = {}
 
     alert_dict["agency_id"] = agency_id
-    alert_dict["cause"] = _ALERT_CAUSE_MAP.get(_try_getattr(alert, "cause", None))
-    alert_dict["effect"] = _ALERT_EFFECT_MAP.get(_try_getattr(alert, "effect", None))
+    alert_dict["cause"] = _ALERT_CAUSE_MAP.get(
+        _try_getattr(alert, "cause", ms.AlertCause.UNKNOWN_CAUSE)
+    )
+    alert_dict["effect"] = _ALERT_EFFECT_MAP.get(
+        _try_getattr(alert, "effect", ms.AlertEffect.UNKNOWN_EFFECT)
+    )
 
     if alert.HasField("header_text"):
         alert_dict["header_text"] = _get_translated_string_safely(alert.header_text)
@@ -622,7 +629,7 @@ def alert_to_model(
         alert_dict["url"] = _get_translated_string_safely(alert.url)
 
     alert_dict["severity_level"] = _ALERT_SEVERITY_MAP.get(
-        _try_getattr(alert, "severity_level", None)
+        _try_getattr(alert, "severity_level", ms.AlertSeverity.UNKNOWN_SEVERITY)
     )
     alert_dict["active_periods"] = active_periods
     alert_dict["informed_entities"] = informed_entities
