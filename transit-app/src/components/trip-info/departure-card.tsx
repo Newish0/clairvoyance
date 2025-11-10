@@ -23,6 +23,7 @@ export interface DepartureCardProps {
     scheduledDepartureTime?: DateArg<Date> | null;
     predictedDepartureTime?: DateArg<Date> | null;
     isCancelled?: boolean;
+    isLastTripOfDay?: boolean;
 }
 
 export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
@@ -85,21 +86,30 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                 <div className="relative overflow-visible p-2 mr-1 min-w-16">
                     <div
                         className={cn(
-                            "flex items-center justify-end space-x-1 h-8",
+                        "flex items-center justify-end space-x-1 h-8",
                             props.isCancelled ? "line-through text-muted-foreground" : ""
                         )}
                     >
                         {lastStopDropOffOnly && (
-                            <Badge variant="secondary" className="text-sm font-bold">
+                            <Badge variant="secondary" className="text-xs font-bold">
                                 Drop Off Only
                             </Badge>
                         )}
-                        <Clock className="h-3 w-3" />
+
+                        {props.isLastTripOfDay && (
+                            <Badge variant="default" className="text-[0.5rem] font-bold uppercase">
+                                Last
+                            </Badge>
+                        )}
+
+                        <Clock className="h-3 w-3 shrink-0" />
 
                         <DepartureTime datetime={time || null} />
                     </div>
 
-                    {delayInSeconds != null && <RealTimeIndicator delaySeconds={delayInSeconds} className="mt-1"/>}
+                    {delayInSeconds != null && (
+                        <RealTimeIndicator delaySeconds={delayInSeconds} className="mt-1" />
+                    )}
 
                     {/* {import.meta.env.DEV && props.predictedDepartureTime && (
                         <code className="text-muted-foreground text-xs">

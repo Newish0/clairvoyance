@@ -69,6 +69,10 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
                                                     tripInstance.stop_time.schedule_relationship ===
                                                     StopTimeUpdateScheduleRelationship.SKIPPED
                                                 }
+                                                isLastTripOfDay={
+                                                    tripInstance.start_date <
+                                                    tripInstances[1]?.start_date
+                                                }
                                             />
                                         ))}
                                     </CarouselItem>
