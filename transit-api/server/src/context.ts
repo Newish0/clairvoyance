@@ -1,5 +1,4 @@
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
-import type { CreateHTTPContextOptions } from "@trpc/server/adapters/standalone";
 import { DatabaseManager } from "./database/mongo";
 
 const MONGO_CONNECTION_STRING =

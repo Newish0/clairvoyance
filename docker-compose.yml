@@ -1,59 +1,59 @@
 services:
-  gtfs-static-processor:
-    container_name: gtfs-static-processor
-    build:
-      context: ./services/gtfs-processor
-      dockerfile: Dockerfile.static
-    environment:
-      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
-      - MONGO_DB_NAME=transit
-    networks:
-      - gtfs-internal
-    depends_on:
-      mongodb:
-        condition: service_healthy
+  # gtfs-static-processor:
+  #   container_name: gtfs-static-processor
+  #   build:
+  #     context: ./services/gtfs-processor
+  #     dockerfile: Dockerfile.static
+  #   environment:
+  #     - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
+  #     - MONGO_DB_NAME=transit
+  #   networks:
+  #     - transit-internal
+  #   depends_on:
+  #     mongodb:
+  #       condition: service_healthy
 
-  gtfs-realtime-processor:
-    container_name: gtfs-realtime-processor
-    build:
-      context: ./services/gtfs-processor
-      dockerfile: Dockerfile.realtime
-    environment:
-      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
-      - MONGO_DB_NAME=transit
-    networks:
-      - gtfs-internal
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      gtfs-static-processor:
-        condition: service_started
+  # gtfs-realtime-processor:
+  #   container_name: gtfs-realtime-processor
+  #   build:
+  #     context: ./services/gtfs-processor
+  #     dockerfile: Dockerfile.realtime
+  #   environment:
+  #     - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
+  #     - MONGO_DB_NAME=transit
+  #   networks:
+  #     - transit-internal
+  #   depends_on:
+  #     mongodb:
+  #       condition: service_healthy
+  #     gtfs-static-processor:
+  #       condition: service_started
 
   transit-api:
     container_name: transit-api
     build:
       context: .
-      dockerfile: ./services/transit-api/Dockerfile
+      dockerfile: ./transit-api/server/Dockerfile
     environment:
-      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
+      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017?replicaSet=rs0
       - MONGO_DB_NAME=transit
-      - PORT=5888
+      - PORT=8000
     ports:
-      - "5888:5888" # For debugging only
+      - "8000:8000" # For debugging only
     networks:
-      - gtfs-internal
+      - transit-internal
     depends_on:
       mongodb:
         condition: service_healthy
 
-  web-app:
-    container_name: web-app
+  transit-app:
+    container_name: transit-app
     build:
       context: .
-      dockerfile: ./services/web-app/Dockerfile
+      dockerfile: ./services/transit-app/Dockerfile
       args:
         - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
-        - GTFS_API_ENDPOINT=http://gtfs-api:5888
+        - GTFS_API_ENDPOINT=http://transit-api:5888
         - SITE=http://localhost:8080
         - BASE=/
     environment:
@@ -61,11 +61,11 @@ services:
       - PORT=4321
       - SITE=http://bp.botnewish.xyz:8080
       - BASE=/
-      - GTFS_API_ENDPOINT=http://gtfs-api:5888
+      - GTFS_API_ENDPOINT=http://transit-api:5888
     networks:
-      - gtfs-internal
+      - transit-internal
     depends_on:
-      - gtfs-api
+      - transit-api
 
   mongodb:
     image: mongo:latest
@@ -73,7 +73,7 @@ services:
     ports:
       - "27017:27017" # For debugging only
     networks:
-      - gtfs-internal
+      - transit-internal
     command: >
       bash -c "
         mongod --replSet rs0 --bind_ip_all &
@@ -107,11 +107,11 @@ services:
     ports:
       - "8080:80"
     networks:
-      - gtfs-internal
+      - transit-internal
     depends_on:
-      - gtfs-api
-      - web-app
+      - transit-api
+      - transit-app
 
 networks:
-  gtfs-internal:
+  transit-internal:
     driver: bridge

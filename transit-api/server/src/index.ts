@@ -1,12 +1,13 @@
-import { createContext } from "./context";
-import { shapeRouter } from "./routers/shape";
-import { tripInstanceRouter } from "./routers/trip-instance";
-import { routeRouter } from "./routers/route";
-import { stopRouter } from "./routers/stop";
-import { alertRouter } from "./routers/alert";
-import { router } from "./trpc";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { createHTTPServer } from "@trpc/server/adapters/standalone";
+import { createContext } from "./context";
+import { alertRouter } from "./routers/alert";
+import { routeRouter } from "./routers/route";
+import { shapeRouter } from "./routers/shape";
+import { stopRouter } from "./routers/stop";
+import { tripInstanceRouter } from "./routers/trip-instance";
+import { router } from "./trpc";
+
+const port = Bun.env.PORT || 8000;
 
 const appRouter = router({
     shape: shapeRouter,
@@ -48,13 +49,6 @@ const handler = (req: Request) =>
     });
 
 Bun.serve({
-    port: 8000,
+    port,
     fetch: handler,
 });
-
-// const server = createHTTPServer({
-//     router: appRouter,
-//     createContext,
-// });
-
-// server.listen(3000);
