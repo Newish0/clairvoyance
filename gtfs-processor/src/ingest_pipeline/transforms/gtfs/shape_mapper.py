@@ -1,0 +1,127 @@
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import AsyncIterator, Dict, List, cast
+
+from pymongo import UpdateOne
+
+from ingest_pipeline.core.errors import ErrorPolicy
+from ingest_pipeline.core.types import Context, Transformer
+from models.mongo_schemas import LineStringGeometry, Shape
+from utils.convert import safe_float, safe_int
+
+
+class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
+    """
+    Maps GTFS shapes.txt rows (dict) into Mongo UpdateOne operations after validation through DB model.
+    Input: Dict[str, str]
+    Output: Mongo UpdateOne
+    """
+
+    input_type: type[Dict[str, str]] = Dict[str, str]
+    output_type: type[UpdateOne] = UpdateOne
+
+    @dataclass
+    class __TmpShapeInfo:
+        geometry: Dict[int, List[float]] = field(default_factory=dict)
+        distances_traveled: Dict[int, float] = field(default_factory=dict)
+
+    __tmp_shapes: Dict[str, __TmpShapeInfo] = defaultdict(__TmpShapeInfo)
+
+    def __init__(self, agency_id: str):
+        self.agency_id = agency_id
+
+    async def run(
+        self, context: Context, inputs: AsyncIterator[Dict[str, str]]
+    ) -> AsyncIterator[UpdateOne]:
+        async for row in inputs:
+            try:
+                shape_id = row.get("shape_id")
+                pt_lat = safe_float(row.get("shape_pt_lat"))
+                pt_lon = safe_float(row.get("shape_pt_lon"))
+                distances_traveled = safe_float(row.get("shape_dist_traveled"))
+                pt_sequence = safe_int(row.get("shape_pt_sequence"))
+
+                # Type ignore to bypass static type checking for required fields.
+                # We know these fields may be wrong. We validate the model immediately after.
+                validation_shape_doc = Shape(
+                    agency_id=self.agency_id,
+                    shape_id=shape_id,  # type: ignore
+                    geometry=LineStringGeometry(coordinates=[(pt_lon, pt_lat)]),  # type: ignore
+                    distances_traveled=[distances_traveled]
+                    if distances_traveled is not None
+                    else None,
+                )
+
+                await validation_shape_doc.validate_self()
+
+                # Model validation asserts values are not None
+                tmp_shape = self.__tmp_shapes[validation_shape_doc.shape_id]
+                tmp_shape.geometry[cast(int, pt_sequence)] = [
+                    cast(float, pt_lon),
+                    cast(float, pt_lat),
+                ]
+                tmp_shape.distances_traveled[cast(int, pt_sequence)] = cast(
+                    float, distances_traveled
+                )
+
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr("shape_mapper.skipped")
+                        context.logger.error(e)
+                        continue
+                    case _:
+                        raise e
+
+        shape_docs = self.__get_constructed_shape()
+        for shape_doc in shape_docs:
+            try:
+                await shape_doc.validate_self()
+                yield UpdateOne(
+                    {"agency_id": self.agency_id, "shape_id": shape_doc.shape_id},
+                    {"$set": shape_doc.model_dump(exclude={"id"})},
+                    upsert=True,
+                )
+            except Exception as e:
+                match context.error_policy:
+                    case ErrorPolicy.FAIL_FAST:
+                        raise e
+                    case ErrorPolicy.SKIP_RECORD:
+                        context.telemetry.incr("shape_mapper.skipped")
+                        context.logger.error(e)
+                    case _:
+                        raise e
+
+    def __get_constructed_shape(self):
+        for shape_id, tmp_shape in self.__tmp_shapes.items():
+            # MongoDB GeoJSON LineString must have at least 2 vertices.
+            # So for a single point, we duplicate the point with a small offset.
+            # Note: it's safe to assume we have at least 1 point at this point in the code.
+            coordinates = (
+                [tmp_shape.geometry[i] for i in sorted(tmp_shape.geometry.keys())]
+                if len(tmp_shape.geometry) > 1
+                else [
+                    tmp_shape.geometry[0],
+                    [
+                        tmp_shape.geometry[0][0] + 0.00001,
+                        tmp_shape.geometry[0][1] + 0.00001,
+                    ],
+                ]
+            )
+            distances_traveled = (
+                [
+                    tmp_shape.distances_traveled[i]
+                    for i in sorted(tmp_shape.distances_traveled.keys())
+                ]
+                if len(tmp_shape.distances_traveled) > 1
+                else [tmp_shape.distances_traveled[0], tmp_shape.distances_traveled[0]]
+            )
+
+            yield Shape(
+                agency_id=self.agency_id,
+                shape_id=shape_id,
+                geometry=LineStringGeometry(coordinates=coordinates),
+                distances_traveled=distances_traveled,
+            )

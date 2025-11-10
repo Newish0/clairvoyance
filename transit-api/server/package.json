@@ -1,0 +1,21 @@
+{
+  "name": "server",
+  "version": "1.0.50",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "dependencies": {
+    "@trpc/server": "^11.6.0",
+    "@types/geojson": "^7946.0.16",
+    "geojson": "^0.5.0",
+    "mongodb": "^6.20.0",
+    "neverthrow": "^8.2.0",
+    "superjson": "^2.2.2",
+    "valibot": "^1.1.0"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "module": "src/index.js"
+}
