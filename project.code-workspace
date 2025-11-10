@@ -5,16 +5,16 @@
             "path": "./"
         },
         {
-            "name": "GTFS API Serivce",
-            "path": "./services/gtfs-api"
+            "name": "Transit API Serivce",
+            "path": "./transit-api"
         },
         {
             "name": "GTFS Processor",
-            "path": "./services/gtfs-processor"
+            "path": "./gtfs-processor"
         },
         {
-            "name": "Web App",
-            "path": "./services/web-app"
+            "name": "Transit App",
+            "path": "./transit-app"
         },
     ],
     "settings": {
