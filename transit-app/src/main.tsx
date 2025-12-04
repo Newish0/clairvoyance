@@ -21,6 +21,10 @@ import type { inferRouterOutputs } from "@trpc/server";
 
 export const queryClient = new QueryClient();
 
+// API URL from environment variable, default to localhost:8000 for local development
+// Can be overridden via VITE_API_URL env var (e.g., in Docker build)
+const API_URL = import.meta.env.VITE_API_URL || "./api";
+
 export const trpcClient = createTRPCClient<AppRouter>({
     links: [
         loggerLink(),
@@ -28,11 +32,11 @@ export const trpcClient = createTRPCClient<AppRouter>({
             // uses the httpSubscriptionLink for subscriptions
             condition: (op) => op.type === "subscription",
             true: httpSubscriptionLink({
-                url: "http://localhost:8000",
+                url: API_URL,
                 transformer: superjson,
             }),
             false: httpBatchLink({
-                url: "http://localhost:8000",
+                url: API_URL,
                 transformer: superjson,
             }),
         }),

@@ -34,7 +34,7 @@ export function useProtoMapsStyle() {
                 },
             },
             layers: filteredLayers,
-        };
+        } as const;
 
         return style;
     }, [displayedTheme]);

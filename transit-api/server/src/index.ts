@@ -50,5 +50,6 @@ const handler = (req: Request) =>
 
 Bun.serve({
     port,
+    hostname: "0.0.0.0", // Listen on all interfaces to accept connections from Docker network
     fetch: handler,
 });
