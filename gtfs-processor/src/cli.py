@@ -73,7 +73,7 @@ def parse_arguments() -> argparse.Namespace:
         required=True,
     )
 
-    parser.add_argument(
+    static_parser.add_argument(
         "--realize_instances",
         action="store_true",
         help="Realize trip instances from GTFS static data.",

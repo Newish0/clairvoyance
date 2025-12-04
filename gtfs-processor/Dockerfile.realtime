@@ -30,5 +30,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []
 
-# HACK: Ensure static service inits DB first.
-CMD ["sh", "-c", "sleep 10 && uv run ./src/realtime.main.py -i 10"]
+CMD ["uv", "run", "./src/cli.py", "--connection_string=mongodb://mongodb:27017", "--database_name=transit", "realtime", "--gtfs_urls", "https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48", "https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48", "https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48", "--agency_id=BCT-48", "--poll=15"]

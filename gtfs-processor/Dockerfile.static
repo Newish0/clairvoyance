@@ -30,4 +30,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []
 
-CMD ["uv", "run", "./src/static.main.py"]
+CMD ["uv", "run", "./src/cli.py", "--connection_string=mongodb://mongodb:27017", "--database_name=transit", "static", "--agency_id=BCT-48", "--gtfs_url=https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48", "--realize_instances"]

@@ -4,27 +4,38 @@ import tailwindcss from "@tailwindcss/vite";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { resolve } from "node:path";
-import { nitroV2Plugin } from "@tanstack/nitro-v2-vite-plugin";
 
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
-        nitroV2Plugin(),
         tanstackRouter({ autoCodeSplitting: true }),
+        tailwindcss(),
         viteReact({
             babel: {
                 plugins: ["babel-plugin-react-compiler"],
             },
         }),
-        tailwindcss(),
     ],
-    test: {
-        globals: true,
-        environment: "jsdom",
-    },
+    // test: {
+    //     globals: true,
+    //     environment: "jsdom",
+    // },
+
     resolve: {
         alias: {
             "@": resolve(__dirname, "./src"),
+        },
+    },
+    build: {
+        ssr: false,
+    },
+    server: {
+        proxy: {
+            "/api": {
+                target: "http://localhost:8000",
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ""),
+            },
         },
     },
 });

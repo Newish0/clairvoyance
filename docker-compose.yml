@@ -1,33 +1,27 @@
 services:
-  # gtfs-static-processor:
-  #   container_name: gtfs-static-processor
-  #   build:
-  #     context: ./services/gtfs-processor
-  #     dockerfile: Dockerfile.static
-  #   environment:
-  #     - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
-  #     - MONGO_DB_NAME=transit
-  #   networks:
-  #     - transit-internal
-  #   depends_on:
-  #     mongodb:
-  #       condition: service_healthy
+  gtfs-static-processor:
+    container_name: gtfs-static-processor
+    build:
+      context: ./gtfs-processor
+      dockerfile: Dockerfile.static
+    networks:
+      - transit-internal
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
-  # gtfs-realtime-processor:
-  #   container_name: gtfs-realtime-processor
-  #   build:
-  #     context: ./services/gtfs-processor
-  #     dockerfile: Dockerfile.realtime
-  #   environment:
-  #     - MONGO_CONNECTION_STRING=mongodb://mongodb:27017
-  #     - MONGO_DB_NAME=transit
-  #   networks:
-  #     - transit-internal
-  #   depends_on:
-  #     mongodb:
-  #       condition: service_healthy
-  #     gtfs-static-processor:
-  #       condition: service_started
+  gtfs-realtime-processor:
+    container_name: gtfs-realtime-processor
+    build:
+      context: ./gtfs-processor
+      dockerfile: Dockerfile.realtime
+    networks:
+      - transit-internal
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      # gtfs-static-processor:
+      #   condition: service_completed_successfully
 
   transit-api:
     container_name: transit-api
@@ -45,27 +39,6 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-
-  transit-app:
-    container_name: transit-app
-    build:
-      context: .
-      dockerfile: ./services/transit-app/Dockerfile
-      args:
-        - PUBLIC_GTFS_API_ENDPOINT=http://localhost:8080/api
-        - GTFS_API_ENDPOINT=http://transit-api:5888
-        - SITE=http://localhost:8080
-        - BASE=/
-    environment:
-      - HOST=0.0.0.0
-      - PORT=4321
-      - SITE=http://bp.botnewish.xyz:8080
-      - BASE=/
-      - GTFS_API_ENDPOINT=http://transit-api:5888
-    networks:
-      - transit-internal
-    depends_on:
-      - transit-api
 
   mongodb:
     image: mongo:latest
@@ -102,15 +75,19 @@ services:
   gateway:
     container_name: gateway
     build:
-      context: ./services/gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./gateway/Dockerfile
+      args:
+        # API URL for the frontend - defaults to http://localhost:8000 if not set
+        # For production, set to the relative path /api (proxied by nginx)
+        # or to the full API URL if served separately
+        - VITE_API_URL=${VITE_API_URL:-/api}
     ports:
       - "8080:80"
     networks:
       - transit-internal
     depends_on:
       - transit-api
-      - transit-app
 
 networks:
   transit-internal:

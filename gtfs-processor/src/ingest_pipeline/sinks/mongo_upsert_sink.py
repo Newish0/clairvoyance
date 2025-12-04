@@ -61,3 +61,5 @@ class MongoUpsertSink(Sink[UpdateOne]):
             context.telemetry.incr(
                 "mongo_upsert_sink.deleted_count", write_result.deleted_count
             )
+        else:
+            context.telemetry.incr("mongo_upsert_sink.no_operations_flushed")
