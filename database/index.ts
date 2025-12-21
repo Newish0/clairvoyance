@@ -257,7 +257,7 @@ export const routes = pgTable(
         color: varchar("color", { length: 6 }),
         textColor: varchar("text_color", { length: 6 }),
     },
-    (t) => [unique("idx_route_sid").on(t.agencyId, t.routeSid)]
+    (t) => [unique("uq_routes_agency_route_sid").on(t.agencyId, t.routeSid)]
 );
 
 export const shapes = pgTable(
@@ -272,7 +272,10 @@ export const shapes = pgTable(
         path: geometry("path", { type: "linestring", srid: 4326 }).notNull(),
         distancesTraveled: jsonb("distances_traveled").$type<number[]>(),
     },
-    (t) => [index("idx_shape_path").using("gist", t.path), index("idx_shape_sid").on(t.shapeSid)]
+    (t) => [
+        index("idx_shapes_path_gist").using("gist", t.path),
+        index("idx_shapes_shape_sid").on(t.shapeSid),
+    ]
 );
 
 export const vehicles = pgTable(
@@ -288,7 +291,7 @@ export const vehicles = pgTable(
         licensePlate: text("license_plate"),
         wheelchairAccessible: wheelchairBoardingEnum("wheelchair_accessible"),
     },
-    (t) => [unique("idx_vehicle_src_unique").on(t.agencyId, t.vehicleSid)]
+    (t) => [unique("uq_vehicles_agency_vehicle_sid").on(t.agencyId, t.vehicleSid)]
 );
 
 export const trips = pgTable(
@@ -306,7 +309,7 @@ export const trips = pgTable(
         direction: directionEnum("direction"),
         blockId: text("block_id"),
     },
-    (t) => [unique("idx_trip_sid").on(t.agencyId, t.tripSid)]
+    (t) => [unique("uq_trips_agency_trip_sid").on(t.agencyId, t.tripSid)]
 );
 
 export const stops = pgTable(
@@ -331,8 +334,8 @@ export const stops = pgTable(
         wheelchairBoarding: wheelchairBoardingEnum("wheelchair_boarding"),
     },
     (t) => [
-        index("idx_stop_location").using("gist", t.location),
-        index("idx_stop_sid").on(t.agencyId, t.stopSid),
+        index("idx_stops_location_gist").using("gist", t.location),
+        index("idx_stops_agency_stop_sid").on(t.agencyId, t.stopSid),
     ]
 );
 
@@ -372,7 +375,7 @@ export const stopTimes = pgTable(
         timepoint: timepointEnum("timepoint").default(Timepoint.EXACT),
         shapeDistTraveled: doublePrecision("shape_dist_traveled"),
     },
-    (t) => [unique("idx_st_trip_seq").on(t.agencyId, t.tripSid, t.stopSequence)]
+    (t) => [unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence)]
 );
 
 export const tripInstances = pgTable(
@@ -402,7 +405,7 @@ export const tripInstances = pgTable(
             withTimezone: true,
         }),
     },
-    (t) => [unique("idx_trip_inst_unique").on(t.agencyId, t.tripId, t.startDate)]
+    (t) => [unique("uq_trip_instances_agency_trip_date").on(t.agencyId, t.tripId, t.startDate)]
 );
 
 export const stopTimeInstances = pgTable(
@@ -425,7 +428,7 @@ export const stopTimeInstances = pgTable(
             "schedule_relationship"
         ).default(StopTimeUpdateScheduleRelationship.SCHEDULED),
     },
-    (t) => [index("idx_sti_trip_instance").on(t.tripInstanceId)]
+    (t) => [index("idx_stop_time_instances_trip_instance_id").on(t.tripInstanceId)]
 );
 
 export const vehiclePositions = pgTable(
@@ -454,8 +457,8 @@ export const vehiclePositions = pgTable(
         ingestedAt: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
     },
     (t) => [
-        unique("idx_vp_history").on(t.vehicleId, t.timestamp),
-        index("idx_vp_geo").using("gist", t.location),
+        unique("uq_vehicle_positions_vehicle_timestamp").on(t.vehicleId, t.timestamp),
+        index("idx_vehicle_positions_location_gist").using("gist", t.location),
     ]
 );
 
@@ -483,8 +486,8 @@ export const alerts = pgTable(
     },
     (t) => [
         // JSONB Indexing is critical for 'informed_entities' queries
-        index("idx_alerts_entities").using("gin", t.informedEntities),
-        index("idx_alerts_active_periods").using("gin", t.activePeriods),
+        index("idx_alerts_informed_entities_gin").using("gin", t.informedEntities),
+        index("idx_alerts_active_periods_gin").using("gin", t.activePeriods),
     ]
 );
 
