@@ -144,7 +144,7 @@ function RouteComponent() {
             <div
                 tabIndex={0}
                 className={cn(
-                    "absolute bottom-4 md:top-4 left-4 max-h-[50dvh] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-2 rounded-md bg-primary-foreground/60 backdrop-blur-md",
+                    "absolute bottom-4 md:top-4 left-4 max-h-[50dvh] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-4 rounded-xl bg-primary-foreground/60 backdrop-blur-md",
                     hovering && "max-h-[80dvh]",
                     "md:max-h-[calc(100dvh-2rem)]"
                 )}
