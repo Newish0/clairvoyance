@@ -11,7 +11,7 @@ type DepartureBoardProps = {
 };
 
 export const DepartureBoard: React.FC<DepartureBoardProps> = (props) => {
-    if (!props.departures) return <div>No departures</div>;
+    if (!props.departures) return <div className="p-2">No departures</div>;
 
     const routes = Object.entries(props.departures);
 

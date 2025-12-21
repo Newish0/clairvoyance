@@ -175,7 +175,7 @@ function TransitApp() {
                         />
                     </div>
                 </div>
-                <div className="p-2 overflow-auto rounded-md bg-primary-foreground/60 backdrop-blur-md">
+                <div className="p-2 overflow-auto rounded-xl bg-primary-foreground/60 backdrop-blur-md">
                     <DepartureBoard departures={nearbyTrips || null} />
                 </div>
             </div>
