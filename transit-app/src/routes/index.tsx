@@ -40,9 +40,14 @@ function TransitApp() {
         lat !== undefined && lng !== undefined ? new LngLat(lng, lat) : undefined;
 
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
-        lat: 0,
-        lng: 0,
-        bbox: { minLat: 0, maxLat: 0, minLng: 0, maxLng: 0 },
+        lat: lat ?? 0,
+        lng: lng ?? 0,
+        bbox: {
+            minLat: (lat ?? 0) - 0.01,
+            maxLat: (lat ?? 0) + 0.01,
+            minLng: (lng ?? 0) - 0.01,
+            maxLng: (lng ?? 0) + 0.01,
+        },
     });
     const throttledNearbyTripsQueryParams = useThrottle(nearbyTripsQueryParams, 1000);
 
@@ -58,20 +63,23 @@ function TransitApp() {
     });
     const nearbyTripsRefetchIntervalId = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const closestStopName =
-        nearbyTrips &&
-        Object.values(nearbyTrips)
-            .flatMap((directionRec) => Object.values(directionRec))
-            .flat()
-            .reduce<[number, string]>(
-                ([distance, stopName], cur) => {
-                    const curDistance = cur.stop_time.distance;
-                    return curDistance < distance
-                        ? [curDistance, cur.stop_time.stop_name]
-                        : [distance, stopName];
-                },
-                [Infinity, ""]
-            )?.[1];
+    const closestStopName = useMemo(
+        () =>
+            nearbyTrips &&
+            Object.values(nearbyTrips)
+                .flatMap((directionRec) => Object.values(directionRec))
+                .flat()
+                .reduce<[number, string]>(
+                    ([distance, stopName], cur) => {
+                        const curDistance = cur.stop_time.distance;
+                        return curDistance < distance
+                            ? [curDistance, cur.stop_time.stop_name]
+                            : [distance, stopName];
+                    },
+                    [Infinity, ""]
+                )?.[1],
+        [nearbyTrips]
+    );
 
     useEffect(() => {
         nearbyTripsRefetchIntervalId.current = setInterval(() => {
@@ -86,6 +94,7 @@ function TransitApp() {
 
     const handleLocationChange: NonNullable<ExploreMapProps["onLocationChange"]> = useCallback(
         (lat, lng, viewBounds) => {
+            if (fixedUserLocation) return;
             setNearbyTripsQueryParams((prev) => ({
                 ...prev,
                 lat,
@@ -101,12 +110,12 @@ function TransitApp() {
                 ),
             }));
         },
-        [setNearbyTripsQueryParams]
+        [setNearbyTripsQueryParams, fixedUserLocation]
     );
 
     const handleReturnToPrevPage = useCallback(() => {
         router.history.back();
-    }, []);
+    }, [router]);
 
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
@@ -151,7 +160,11 @@ function TransitApp() {
                     <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
                         <MapPin size={16} />
                         <span className="truncate text-center">
-                            Near {closestStopName || "unknown stop"}
+                            Near{" "}
+                            {closestStopName ||
+                                nearbyTripsQueryParams.lat?.toFixed(4) +
+                                    ", " +
+                                    nearbyTripsQueryParams.lng?.toFixed(4)}
                         </span>
                         <Loader2
                             size={16}
