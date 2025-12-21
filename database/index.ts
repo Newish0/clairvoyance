@@ -13,6 +13,7 @@ import {
     serial,
     text,
     timestamp,
+    unique,
     varchar,
     type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -216,12 +217,12 @@ export type TranslationMap = {
 export type TimePeriod = { start?: string; end?: string };
 
 export type EntitySelector = {
-    agency_id?: string;
-    route_id?: number;
-    route_type?: RouteType;
+    agencyId?: string;
+    routeId?: number;
+    routeType?: RouteType;
     direction?: Direction;
-    trip_instance?: string;
-    stop_id?: string;
+    tripInstance?: string;
+    stopId?: string;
 };
 
 // =========================================================
@@ -230,7 +231,7 @@ export type EntitySelector = {
 
 export const agencies = pgTable("agencies", {
     id: text("id").primaryKey(),
-    agency_sid: text("agency_sid").notNull(),
+    agencySid: text("agency_sid").notNull(),
 
     name: text("name").notNull(),
     url: text("url").notNull(),
@@ -245,10 +246,10 @@ export const routes = pgTable(
     "routes",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id")
+        agencyId: text("agency_id")
             .notNull()
             .references(() => agencies.id),
-        route_sid: text("route_sid").notNull(),
+        routeSid: text("route_sid").notNull(),
 
         shortName: text("short_name"),
         longName: text("long_name"),
@@ -256,64 +257,64 @@ export const routes = pgTable(
         color: varchar("color", { length: 6 }),
         textColor: varchar("text_color", { length: 6 }),
     },
-    (t) => [index("idx_route_sid").on(t.route_sid)]
+    (t) => [unique("idx_route_sid").on(t.agencyId, t.routeSid)]
 );
 
 export const shapes = pgTable(
     "shapes",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id")
+        agencyId: text("agency_id")
             .notNull()
             .references(() => agencies.id),
-        shape_sid: text("shape_sid").notNull(),
+        shapeSid: text("shape_sid").notNull(),
 
         path: geometry("path", { type: "linestring", srid: 4326 }).notNull(),
-        distances_traveled: jsonb("distances_traveled").$type<number[]>(),
+        distancesTraveled: jsonb("distances_traveled").$type<number[]>(),
     },
-    (t) => [index("idx_shape_path").using("gist", t.path), index("idx_shape_sid").on(t.shape_sid)]
+    (t) => [index("idx_shape_path").using("gist", t.path), index("idx_shape_sid").on(t.shapeSid)]
 );
 
 export const vehicles = pgTable(
     "vehicles",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id")
+        agencyId: text("agency_id")
             .references(() => agencies.id)
             .notNull(),
-        vehicle_sid: text("vehicle_sid").notNull(),
+        vehicleSid: text("vehicle_sid").notNull(),
 
         label: text("label"),
-        license_plate: text("license_plate"),
-        wheelchair_accessible: wheelchairBoardingEnum("wheelchair_accessible"),
+        licensePlate: text("license_plate"),
+        wheelchairAccessible: wheelchairBoardingEnum("wheelchair_accessible"),
     },
-    (t) => [index("idx_vehicle_src_unique").on(t.agency_id, t.vehicle_sid)]
+    (t) => [unique("idx_vehicle_src_unique").on(t.agencyId, t.vehicleSid)]
 );
 
 export const trips = pgTable(
     "trips",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id").references(() => agencies.id),
-        route_id: integer("route_id").references(() => routes.id),
-        shape_id: integer("shape_id").references(() => shapes.id),
-        trip_sid: text("trip_sid").notNull(),
-        service_sid: text("service_sid").notNull(),
+        agencyId: text("agency_id").references(() => agencies.id),
+        routeId: integer("route_id").references(() => routes.id),
+        shapeId: integer("shape_id").references(() => shapes.id),
+        tripSid: text("trip_sid").notNull(),
+        serviceSid: text("service_sid").notNull(),
 
         headsign: text("headsign"),
         shortName: text("short_name"),
         direction: directionEnum("direction"),
-        block_id: text("block_id"),
+        blockId: text("block_id"),
     },
-    (t) => [index("idx_trip_sid").on(t.trip_sid)]
+    (t) => [unique("idx_trip_sid").on(t.agencyId, t.tripSid)]
 );
 
 export const stops = pgTable(
     "stops",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id").references(() => agencies.id),
-        stop_sid: text("stop_sid").notNull(),
+        agencyId: text("agency_id").references(() => agencies.id),
+        stopSid: text("stop_sid").notNull(),
 
         code: text("code"),
         name: text("name"),
@@ -324,28 +325,28 @@ export const stops = pgTable(
         locationType: locationTypeEnum("location_type"),
 
         // Self-reference using explicit type to avoid circular inference issues
-        parent_station_id: integer("parent_station_id").references((): AnyPgColumn => stops.id),
+        parentStationId: integer("parent_station_id").references((): AnyPgColumn => stops.id),
 
         timezone: text("timezone"),
         wheelchairBoarding: wheelchairBoardingEnum("wheelchair_boarding"),
     },
     (t) => [
         index("idx_stop_location").using("gist", t.location),
-        index("idx_stop_sid").on(t.stop_sid),
+        index("idx_stop_sid").on(t.agencyId, t.stopSid),
     ]
 );
 
 export const calendarDates = pgTable(
     "calendar_dates",
     {
-        agency_id: integer("agency_id")
+        agencyId: text("agency_id")
             .references(() => agencies.id)
             .notNull(),
-        service_sid: text("service_sid").notNull(),
+        serviceSid: text("service_sid").notNull(),
         date: varchar("date", { length: 8 }).notNull(),
-        exception_type: calendarExceptionTypeEnum("exception_type").notNull(),
+        exceptionType: calendarExceptionTypeEnum("exception_type").notNull(),
     },
-    (t) => [primaryKey({ columns: [t.agency_id, t.service_sid, t.date] })]
+    (t) => [primaryKey({ columns: [t.agencyId, t.serviceSid, t.date] })]
 );
 
 export const stopTimes = pgTable(
@@ -353,13 +354,13 @@ export const stopTimes = pgTable(
     {
         id: serial("id").primaryKey(),
 
-        agency_id: integer("agency_id").references(() => agencies.id),
-        trip_id: integer("trip_id").references(() => trips.id),
-        stop_id: integer("stop_id").references(() => stops.id),
-        trip_sid: text("trip_sid").notNull(),
-        stop_sid: text("stop_sid").notNull(),
+        agencyId: text("agency_id").references(() => agencies.id),
+        tripId: integer("trip_id").references(() => trips.id),
+        stopId: integer("stop_id").references(() => stops.id),
+        tripSid: text("trip_sid").notNull(),
+        stopSid: text("stop_sid").notNull(),
 
-        stop_sequence: integer("stop_sequence").notNull(),
+        stopSequence: integer("stop_sequence").notNull(),
 
         // TZ specified by agency.timezone per GTFS spec
         arrivalTime: timestamp("arrival_time", { withTimezone: true }),
@@ -371,92 +372,89 @@ export const stopTimes = pgTable(
         timepoint: timepointEnum("timepoint").default(Timepoint.EXACT),
         shapeDistTraveled: doublePrecision("shape_dist_traveled"),
     },
-    (t) => [
-        // Keeping an index on the original unique logical key for lookup performance
-        index("idx_st_trip_seq").on(t.trip_sid, t.stop_sequence),
-    ]
+    (t) => [unique("idx_st_trip_seq").on(t.agencyId, t.tripSid, t.stopSequence)]
 );
 
 export const tripInstances = pgTable(
     "trip_instances",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id")
+        agencyId: text("agency_id")
             .references(() => agencies.id)
             .notNull(),
-        trip_id: integer("trip_id")
+        tripId: integer("trip_id")
             .references(() => trips.id)
             .notNull(),
-        route_id: integer("route_id")
+        routeId: integer("route_id")
             .references(() => routes.id)
             .notNull(),
-        shape_id: integer("shape_id").references(() => shapes.id),
-        vehicle_id: integer("vehicle_id").references(() => vehicles.id),
+        shapeId: integer("shape_id").references(() => shapes.id),
+        vehicleId: integer("vehicle_id").references(() => vehicles.id),
 
-        start_date: varchar("start_date", { length: 8 }).notNull(),
-        start_time: varchar("start_time", { length: 8 }).notNull(),
-        start_datetime: timestamp("start_datetime", { withTimezone: true }).notNull(),
+        startDate: varchar("start_date", { length: 8 }).notNull(),
+        startTime: varchar("start_time", { length: 8 }).notNull(),
+        startDatetime: timestamp("start_datetime", { withTimezone: true }).notNull(),
 
         state: tripInstanceStateEnum("state").notNull().default(TripInstanceState.PRISTINE),
 
         /** The last time this row was updated a matching realtime trip update */
-        last_trip_update_at: timestamp("last_trip_update_at", {
+        lastTripUpdateAt: timestamp("last_trip_update_at", {
             withTimezone: true,
         }),
     },
-    (t) => [index("idx_trip_inst_lookup").on(t.agency_id, t.trip_id, t.start_date)]
+    (t) => [unique("idx_trip_inst_unique").on(t.agencyId, t.tripId, t.startDate)]
 );
 
 export const stopTimeInstances = pgTable(
     "stop_time_instances",
     {
         id: serial("id").primaryKey(),
-        trip_instance_id: integer("trip_instance_id")
+        tripInstanceId: integer("trip_instance_id")
             .references(() => tripInstances.id)
             .notNull(),
-        stop_time_id: integer("stop_time_id")
+        stopTimeId: integer("stop_time_id")
             .references(() => stopTimes.id)
             .notNull(),
 
         predictedArrivalTime: timestamp("predicted_arrival_time", { withTimezone: true }),
         predictedDepartureTime: timestamp("predicted_departure_time", { withTimezone: true }),
-        predicted_arrival_uncertainty: integer("predicted_arrival_uncertainty"),
-        predicted_departure_uncertainty: integer("predicted_departure_uncertainty"),
+        predictedArrivalUncertainty: integer("predicted_arrival_uncertainty"),
+        predictedDepartureUncertainty: integer("predicted_departure_uncertainty"),
 
-        schedule_relationship: stopTimeUpdateScheduleRelationshipEnum(
+        scheduleRelationship: stopTimeUpdateScheduleRelationshipEnum(
             "schedule_relationship"
         ).default(StopTimeUpdateScheduleRelationship.SCHEDULED),
     },
-    (t) => [index("idx_sti_trip_instance").on(t.trip_instance_id)]
+    (t) => [index("idx_sti_trip_instance").on(t.tripInstanceId)]
 );
 
 export const vehiclePositions = pgTable(
     "vehicle_positions",
     {
         id: serial("id").primaryKey(),
-        vehicle_id: integer("vehicle_id")
+        vehicleId: integer("vehicle_id")
             .references(() => vehicles.id)
             .notNull(),
-        trip_instance_id: integer("trip_instance_id").references(() => tripInstances.id),
+        tripInstanceId: integer("trip_instance_id").references(() => tripInstances.id),
 
         timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
         location: geometry("location", { type: "point", srid: 4326 }).notNull(),
 
-        stop_id: integer("stop_id").references(() => stops.id),
-        current_stop_sequence: integer("current_stop_sequence"),
-        current_status: vehicleStopStatusEnum("current_status"),
-        congestion_level: congestionLevelEnum("congestion_level"),
-        occupancy_status: occupancyStatusEnum("occupancy_status"),
-        occupancy_percentage: integer("occupancy_percentage"),
+        stopId: integer("stop_id").references(() => stops.id),
+        currentStopSequence: integer("current_stop_sequence"),
+        currentStatus: vehicleStopStatusEnum("current_status"),
+        congestionLevel: congestionLevelEnum("congestion_level"),
+        occupancyStatus: occupancyStatusEnum("occupancy_status"),
+        occupancyPercentage: integer("occupancy_percentage"),
 
         bearing: doublePrecision("bearing"),
         odometer: doublePrecision("odometer"),
         speed: doublePrecision("speed"),
 
-        ingested_at: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
+        ingestedAt: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
     },
     (t) => [
-        index("idx_vp_history").on(t.vehicle_id, t.timestamp),
+        unique("idx_vp_history").on(t.vehicleId, t.timestamp),
         index("idx_vp_geo").using("gist", t.location),
     ]
 );
@@ -465,28 +463,28 @@ export const alerts = pgTable(
     "alerts",
     {
         id: serial("id").primaryKey(),
-        agency_id: integer("agency_id")
+        agencyId: text("agency_id")
             .references(() => agencies.id)
             .notNull(),
-        content_hash: text("content_hash").unique().notNull(),
+        contentHash: text("content_hash").unique().notNull(),
 
         cause: alertCauseEnum("cause").default(AlertCause.UNKNOWN_CAUSE),
         effect: alertEffectEnum("effect").default(AlertEffect.UNKNOWN_EFFECT),
         severity: alertSeverityEnum("severity").default(AlertSeverity.UNKNOWN_SEVERITY),
 
-        header_text: jsonb("header_text").$type<TranslationMap>().notNull(),
-        description_text: jsonb("description_text").$type<TranslationMap>().notNull(),
+        headerText: jsonb("header_text").$type<TranslationMap>().notNull(),
+        descriptionText: jsonb("description_text").$type<TranslationMap>().notNull(),
         url: jsonb("url").$type<TranslationMap>(),
 
-        active_periods: jsonb("active_periods").$type<TimePeriod[]>(),
-        informed_entities: jsonb("informed_entities").$type<EntitySelector[]>(),
+        activePeriods: jsonb("active_periods").$type<TimePeriod[]>(),
+        informedEntities: jsonb("informed_entities").$type<EntitySelector[]>(),
 
-        last_seen: timestamp("last_seen", { withTimezone: true }).defaultNow(),
+        lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow(),
     },
     (t) => [
         // JSONB Indexing is critical for 'informed_entities' queries
-        index("idx_alerts_entities").using("gin", t.informed_entities),
-        index("idx_alerts_active_periods").using("gin", t.active_periods),
+        index("idx_alerts_entities").using("gin", t.informedEntities),
+        index("idx_alerts_active_periods").using("gin", t.activePeriods),
     ]
 );
 
@@ -495,9 +493,9 @@ export const alerts = pgTable(
 // =========================================================
 
 // export const routesByStop = pgMaterializedView("routes_by_stop", {
-//     stop_id: integer("stop_id").notNull(),
-//     route_ids: integer("route_ids").array().notNull(),
-//     agency_id: integer("agency_id").notNull(),
+//     stopId: integer("stop_id").notNull(),
+//     routeIds: integer("route_ids").array().notNull(),
+//     agencyId: text("agency_id").notNull(),
 // }).using("btree");
 
 // =========================================================
@@ -505,38 +503,38 @@ export const alerts = pgTable(
 // =========================================================
 
 export const tripRelations = relations(trips, ({ one, many }) => ({
-    agency: one(agencies, { fields: [trips.agency_id], references: [agencies.id] }),
-    route: one(routes, { fields: [trips.route_id], references: [routes.id] }),
-    shape: one(shapes, { fields: [trips.shape_id], references: [shapes.id] }),
+    agency: one(agencies, { fields: [trips.agencyId], references: [agencies.id] }),
+    route: one(routes, { fields: [trips.routeId], references: [routes.id] }),
+    shape: one(shapes, { fields: [trips.shapeId], references: [shapes.id] }),
     stopTimes: many(stopTimes),
 }));
 
 export const stopTimeRelations = relations(stopTimes, ({ one }) => ({
-    trip: one(trips, { fields: [stopTimes.trip_id], references: [trips.id] }),
-    stop: one(stops, { fields: [stopTimes.stop_id], references: [stops.id] }),
+    trip: one(trips, { fields: [stopTimes.tripId], references: [trips.id] }),
+    stop: one(stops, { fields: [stopTimes.stopId], references: [stops.id] }),
 }));
 
 export const tripInstanceRelations = relations(tripInstances, ({ one, many }) => ({
-    trip: one(trips, { fields: [tripInstances.trip_id], references: [trips.id] }),
-    vehicle: one(vehicles, { fields: [tripInstances.vehicle_id], references: [vehicles.id] }),
+    trip: one(trips, { fields: [tripInstances.tripId], references: [trips.id] }),
+    vehicle: one(vehicles, { fields: [tripInstances.vehicleId], references: [vehicles.id] }),
     stopTimeInstances: many(stopTimeInstances),
     positions: many(vehiclePositions),
 }));
 
 export const stopTimeInstanceRelations = relations(stopTimeInstances, ({ one }) => ({
     tripInstance: one(tripInstances, {
-        fields: [stopTimeInstances.trip_instance_id],
+        fields: [stopTimeInstances.tripInstanceId],
         references: [tripInstances.id],
     }),
     stopTime: one(stopTimes, {
-        fields: [stopTimeInstances.stop_time_id],
+        fields: [stopTimeInstances.stopTimeId],
         references: [stopTimes.id],
     }),
 }));
 
 export const vehiclePositionRelations = relations(vehiclePositions, ({ one }) => ({
     tripInstance: one(tripInstances, {
-        fields: [vehiclePositions.trip_instance_id],
+        fields: [vehiclePositions.tripInstanceId],
         references: [tripInstances.id],
     }),
 }));
