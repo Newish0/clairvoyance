@@ -22,9 +22,9 @@ import { trpc } from "@/main";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
 import { isDataRealtime } from "@/utils/date";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { differenceInSeconds, format } from "date-fns";
-import { SettingsIcon } from "lucide-react";
+import { SettingsIcon, X } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { z } from "zod";
 import { Direction, type StopTimeInstance } from "../../../gtfs-processor/shared/gtfs-db-types";
@@ -45,6 +45,7 @@ export const Route = createFileRoute("/nt")({
 
 function RouteComponent() {
     const { agencyId, stopId, routeId, directionId, tripInstanceId } = Route.useSearch();
+    const router = useRouter();
 
     const { data: tripInstance } = useQuery({
         ...trpc.tripInstance.getFullById.queryOptions(tripInstanceId!),
@@ -90,6 +91,10 @@ function RouteComponent() {
         undefined;
 
     const [hoverRef, hovering] = useHover();
+
+    const handleCloseNtPage = () => {
+        router.history.back();
+    };
 
     if (tripInstance && tripInstance.stop_times.every((st) => st.stop_id !== stopId)) {
         return <div>Invalid stop</div>;
@@ -144,33 +149,39 @@ function RouteComponent() {
                     "md:max-h-[calc(100dvh-2rem)]"
                 )}
             >
-                {/* Trip info */}
-                <div className="flex items-center space-x-2">
-                    <Badge
-                        variant="secondary"
-                        className="text-sm font-bold"
-                        style={{
-                            backgroundColor: tripInstance?.route?.route_color
-                                ? `#${tripInstance.route.route_color}`
-                                : undefined,
-                            color: tripInstance?.route?.route_text_color
-                                ? `#${tripInstance.route.route_text_color}`
-                                : undefined,
-                        }}
-                    >
-                        {tripInstance?.route?.route_short_name || "---"}
-                    </Badge>
+                {/* Top row */}
+                <div className="flex justify-between">
+                    {/* Trip info */}
+                    <div className="flex items-center space-x-2 w-full overflow-hidden">
+                        <Badge
+                            variant="secondary"
+                            className="text-sm font-bold"
+                            style={{
+                                backgroundColor: tripInstance?.route?.route_color
+                                    ? `#${tripInstance.route.route_color}`
+                                    : undefined,
+                                color: tripInstance?.route?.route_text_color
+                                    ? `#${tripInstance.route.route_text_color}`
+                                    : undefined,
+                            }}
+                        >
+                            {tripInstance?.route?.route_short_name || "---"}
+                        </Badge>
 
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold truncate">
+                        <div className="overflow-hidden">
+                            <p className="font-semibold truncate">
                                 {tripInstance?.trip?.trip_headsign || "---"}
-                            </span>
-                        </div>
+                            </p>
 
-                        <p className="text-xs text-muted-foreground truncate">
-                            At {stopsMap?.get(stopId)?.stop_name || "---"}
-                        </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                                At {stopsMap?.get(stopId)?.stop_name || "---"}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="">
+                        <Button variant="ghost" size="icon" onClick={handleCloseNtPage}>
+                            <X />
+                        </Button>
                     </div>
                 </div>
 
@@ -227,6 +238,7 @@ function RouteComponent() {
                                             routeId,
                                             directionId,
                                         }}
+                                        replace={true}
                                     >
                                         <Card
                                             className={cn(
