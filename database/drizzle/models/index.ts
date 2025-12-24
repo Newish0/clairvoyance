@@ -6,9 +6,7 @@ import {
     index,
     integer,
     jsonb,
-    pgEnum,
     pgMaterializedView,
-    pgTable,
     primaryKey,
     serial,
     text,
@@ -16,14 +14,21 @@ import {
     unique,
     varchar,
     type AnyPgColumn,
+    pgSchema,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+
+// =========================================================
+// SCHEMA
+// =========================================================
+
+export const schema = pgSchema("transit");
 
 // =========================================================
 // ENUMS
 // =========================================================
 
-/** Utility function to convert TS enum to pgEnum format */
+/** Utility function to convert TS enum toschema.enum format */
 function enumToPgEnum<T extends Record<string, any>>(myEnum: T): [T[keyof T], ...T[keyof T][]] {
     return Object.values(myEnum).map((value: any) => `${value}`) as any;
 }
@@ -163,47 +168,53 @@ export enum TripInstanceState {
 // PG ENUMS
 // =========================================================
 
-export const routeTypeEnum = pgEnum("route_type", enumToPgEnum(RouteType));
+export const routeTypeEnum = schema.enum("route_type", enumToPgEnum(RouteType));
 
-export const locationTypeEnum = pgEnum("location_type", enumToPgEnum(LocationType));
+export const locationTypeEnum = schema.enum("location_type", enumToPgEnum(LocationType));
 
 /**
  * Is "NO PICKUP" for pickup type and "NO DROP OFF" for drop off type
  */
-export const pickupDropOffEnum = pgEnum("pickup_drop_off", enumToPgEnum(PickupDropOff));
+export const pickupDropOffEnum = schema.enum("pickup_drop_off", enumToPgEnum(PickupDropOff));
 
-export const directionEnum = pgEnum("direction", enumToPgEnum(Direction));
+export const directionEnum = schema.enum("direction", enumToPgEnum(Direction));
 
-export const wheelchairBoardingEnum = pgEnum(
+export const wheelchairBoardingEnum = schema.enum(
     "wheelchair_boarding",
     enumToPgEnum(WheelchairBoarding)
 );
 
-export const calendarExceptionTypeEnum = pgEnum(
+export const calendarExceptionTypeEnum = schema.enum(
     "calendar_exception_type",
     enumToPgEnum(CalendarExceptionType)
 );
 
-export const timepointEnum = pgEnum("timepoint", enumToPgEnum(Timepoint));
+export const timepointEnum = schema.enum("timepoint", enumToPgEnum(Timepoint));
 
-export const stopTimeUpdateScheduleRelationshipEnum = pgEnum(
+export const stopTimeUpdateScheduleRelationshipEnum = schema.enum(
     "stop_time_update_schedule_relationship",
     enumToPgEnum(StopTimeUpdateScheduleRelationship)
 );
 
-export const vehicleStopStatusEnum = pgEnum("vehicle_stop_status", enumToPgEnum(VehicleStopStatus));
+export const vehicleStopStatusEnum = schema.enum(
+    "vehicle_stop_status",
+    enumToPgEnum(VehicleStopStatus)
+);
 
-export const congestionLevelEnum = pgEnum("congestion_level", enumToPgEnum(CongestionLevel));
+export const congestionLevelEnum = schema.enum("congestion_level", enumToPgEnum(CongestionLevel));
 
-export const occupancyStatusEnum = pgEnum("occupancy_status", enumToPgEnum(OccupancyStatus));
+export const occupancyStatusEnum = schema.enum("occupancy_status", enumToPgEnum(OccupancyStatus));
 
-export const alertCauseEnum = pgEnum("alert_cause", enumToPgEnum(AlertCause));
+export const alertCauseEnum = schema.enum("alert_cause", enumToPgEnum(AlertCause));
 
-export const alertEffectEnum = pgEnum("alert_effect", enumToPgEnum(AlertEffect));
+export const alertEffectEnum = schema.enum("alert_effect", enumToPgEnum(AlertEffect));
 
-export const alertSeverityEnum = pgEnum("alert_severity", enumToPgEnum(AlertSeverity));
+export const alertSeverityEnum = schema.enum("alert_severity", enumToPgEnum(AlertSeverity));
 
-export const tripInstanceStateEnum = pgEnum("trip_instance_state", enumToPgEnum(TripInstanceState));
+export const tripInstanceStateEnum = schema.enum(
+    "trip_instance_state",
+    enumToPgEnum(TripInstanceState)
+);
 
 // =========================================================
 // TYPES
@@ -229,7 +240,7 @@ export type EntitySelector = {
 // TABLES
 // =========================================================
 
-export const agencies = pgTable("agencies", {
+export const agencies = schema.table("agencies", {
     id: text("id").primaryKey(),
     agencySid: text("agency_sid").notNull(),
 
@@ -242,7 +253,7 @@ export const agencies = pgTable("agencies", {
     email: text("email"),
 });
 
-export const routes = pgTable(
+export const routes = schema.table(
     "routes",
     {
         id: serial("id").primaryKey(),
@@ -260,7 +271,7 @@ export const routes = pgTable(
     (t) => [unique("uq_routes_agency_route_sid").on(t.agencyId, t.routeSid)]
 );
 
-export const shapes = pgTable(
+export const shapes = schema.table(
     "shapes",
     {
         id: serial("id").primaryKey(),
@@ -278,7 +289,7 @@ export const shapes = pgTable(
     ]
 );
 
-export const vehicles = pgTable(
+export const vehicles = schema.table(
     "vehicles",
     {
         id: serial("id").primaryKey(),
@@ -294,7 +305,7 @@ export const vehicles = pgTable(
     (t) => [unique("uq_vehicles_agency_vehicle_sid").on(t.agencyId, t.vehicleSid)]
 );
 
-export const trips = pgTable(
+export const trips = schema.table(
     "trips",
     {
         id: serial("id").primaryKey(),
@@ -312,7 +323,7 @@ export const trips = pgTable(
     (t) => [unique("uq_trips_agency_trip_sid").on(t.agencyId, t.tripSid)]
 );
 
-export const stops = pgTable(
+export const stops = schema.table(
     "stops",
     {
         id: serial("id").primaryKey(),
@@ -339,7 +350,7 @@ export const stops = pgTable(
     ]
 );
 
-export const calendarDates = pgTable(
+export const calendarDates = schema.table(
     "calendar_dates",
     {
         agencyId: text("agency_id")
@@ -352,7 +363,7 @@ export const calendarDates = pgTable(
     (t) => [primaryKey({ columns: [t.agencyId, t.serviceSid, t.date] })]
 );
 
-export const stopTimes = pgTable(
+export const stopTimes = schema.table(
     "stop_times",
     {
         id: serial("id").primaryKey(),
@@ -378,7 +389,7 @@ export const stopTimes = pgTable(
     (t) => [unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence)]
 );
 
-export const tripInstances = pgTable(
+export const tripInstances = schema.table(
     "trip_instances",
     {
         id: serial("id").primaryKey(),
@@ -408,7 +419,7 @@ export const tripInstances = pgTable(
     (t) => [unique("uq_trip_instances_agency_trip_date").on(t.agencyId, t.tripId, t.startDate)]
 );
 
-export const stopTimeInstances = pgTable(
+export const stopTimeInstances = schema.table(
     "stop_time_instances",
     {
         id: serial("id").primaryKey(),
@@ -431,7 +442,7 @@ export const stopTimeInstances = pgTable(
     (t) => [index("idx_stop_time_instances_trip_instance_id").on(t.tripInstanceId)]
 );
 
-export const vehiclePositions = pgTable(
+export const vehiclePositions = schema.table(
     "vehicle_positions",
     {
         id: serial("id").primaryKey(),
@@ -462,7 +473,7 @@ export const vehiclePositions = pgTable(
     ]
 );
 
-export const alerts = pgTable(
+export const alerts = schema.table(
     "alerts",
     {
         id: serial("id").primaryKey(),

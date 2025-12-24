@@ -16,6 +16,10 @@
             "name": "Transit App",
             "path": "./transit-app"
         },
+        {
+            "name": "DB Models - Python",
+            "path": "./database/python"
+        },
     ],
     "settings": {
         "files.exclude": {
