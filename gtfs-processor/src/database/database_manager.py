@@ -1,39 +1,8 @@
 import logging
 from typing import List
-from pymongo import AsyncMongoClient
-from beanie import init_beanie, Document
-from models.mongo_schemas import (
-    Agency,
-    CalendarDate,
-    FeedInfo,
-    Route,
-    RoutesByStop,
-    Shape,
-    Stop,
-    StopTime,
-    Trip,
-    TripInstance,
-    Vehicle,
-    VehiclePosition,
-    Alert,
-)
 from utils.logger_config import setup_logger
+from db_models import Document
 
-DOCUMENT_MODELS = [
-    Agency,
-    StopTime,
-    CalendarDate,
-    Route,
-    Stop,
-    Trip,
-    Shape,
-    TripInstance,
-    FeedInfo,
-    Vehicle,
-    VehiclePosition,
-    Alert,
-    RoutesByStop,
-]
 
 
 class DatabaseManager:
