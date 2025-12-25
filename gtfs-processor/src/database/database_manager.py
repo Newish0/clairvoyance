@@ -1,81 +1,62 @@
 import logging
-from typing import List
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel.main import SQLModel
 from utils.logger_config import setup_logger
-from db_models import Document
-
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy import event
 
 
 class DatabaseManager:
-    """Async context manager to own the Motor client and initialize Beanie."""
+    """Async context manager to own the database. NOTE: Migrations are done via Drizzle Kit."""
 
     def __init__(
         self,
-        connection_string: str,
-        database_name: str,
-        document_models: List[type[Document]] = DOCUMENT_MODELS,
+        database_url: str,
         logger: logging.Logger = setup_logger("database_manager", logging.INFO),
     ):
-        self.connection_string = connection_string
-        self.database_name = database_name
-        self.document_models = document_models
+        self.database_url = database_url
         self.logger = logger
-        self.client: AsyncMongoClient | None = None
+        self.engine = create_async_engine(self.database_url, echo=True)
 
-    async def connect(self) -> None:
-        if self.client is not None:
-            self.logger.debug("Database already connected.")
-            return
+        # Set up connection event listeners
+        @event.listens_for(self.engine.sync_engine.pool, "connect")
+        def on_connect(dbapi_conn, connection_record):
+            self.logger.info("Database connection established")
 
-        self.logger.info("Connecting to MongoDB...")
-        self.client = AsyncMongoClient(self.connection_string, directConnection=True)
-        # Initialize beanie using the motor database object, so beanie models work.
-        await init_beanie(
-            database=self.client[self.database_name],
-            document_models=self.document_models,
-        )
-        self.logger.info("Connected & init_beanie completed.")
+        @event.listens_for(self.engine.sync_engine.pool, "close")
+        def on_close(dbapi_conn, connection_record):
+            self.logger.info("Database connection closed")
 
-    async def close(self) -> None:
-        if self.client is not None:
-            # motor client close is synchronous
-            await self.client.close()
-            self.client = None
-            self.logger.info("MongoDB client closed.")
-
-    async def drop_collections(self) -> None:
-        if not self.client:
-            raise RuntimeError("Database client is not connected.")
+    async def delete_all(self) -> None:
+        """Delete all data from the database by deleting all rows from all tables."""
         try:
-            self.logger.info("Dropping existing collections for document models...")
-            for model in self.document_models:
-                coll_name = model.Settings.name  # type: ignore
-                await self.client[self.database_name][coll_name].drop()
-                self.logger.debug("Dropped collection: %s", coll_name)
-            self.logger.info("All specified collections dropped.")
+            async with self.createSession() as session:
+                async with session.begin():
+                    tables = list(reversed(SQLModel.metadata.sorted_tables))
+                    self.logger.info(
+                        f"Deleting data from {len(tables)} tables ({map(lambda t: t.name, tables)})"
+                    )
 
-            # Recreate collections and indexes
-            self.logger.info(
-                "Recreating collections and indexes for document models..."
-            )
-            await init_beanie(
-                database=self.client[self.database_name],
-                document_models=self.document_models,
-                recreate_views=True,
-            )
-            self.logger.info("Collections and indexes recreated.")
-        except Exception:
-            self.logger.exception("Failed when dropping collections.")
+                    for table in tables:
+                        table_name = table.name
+                        self.logger.debug(f"Deleting all rows from table: {table_name}")
+
+                        try:
+                            result = await session.exec(table.delete())
+                            self.logger.debug(
+                                f"Deleted {result.rowcount} rows from {table_name}"
+                            )
+                        except Exception as e:
+                            self.logger.error(
+                                f"Failed to delete from table {table_name}: {e}",
+                                exc_info=True,
+                            )
+                            raise
+
+                    self.logger.info("Successfully deleted all data from all tables")
+        except Exception as e:
+            self.logger.error(f"delete_all() failed: {e}", exc_info=True)
             raise
 
-    @property
-    def db(self):
-        if not self.client:
-            raise RuntimeError("Database client is not connected.")
-        return self.client[self.database_name]
-
-    async def __aenter__(self) -> "DatabaseManager":
-        await self.connect()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb) -> None:
-        await self.close()
+    def createSession(self) -> AsyncSession:
+        return AsyncSession(self.engine)

@@ -1,14 +1,12 @@
 import argparse
 import asyncio
-import json
 import logging
 import sys
-from typing import List, Dict, Any, Union
+from typing import List
 
-from ingest_pipeline.realize_instances import run_realize_instances_pipelines
-from ingest_pipeline.realtime import run_gtfs_realtime_pipelines
+# from ingest_pipeline.realize_instances import run_realize_instances_pipelines
+# from ingest_pipeline.realtime import run_gtfs_realtime_pipelines
 from ingest_pipeline.static import run_gtfs_static_pipelines
-
 
 # --- Argument Parsing Logic ---
 
@@ -191,17 +189,17 @@ def process_realtime_data(
     print(f"  Log Level: {'DEBUG' if log_level == logging.DEBUG else 'INFO'}")
 
     print(f"  GTFS URLs (Realtime): {gtfs_urls}")
-    asyncio.run(
-        run_gtfs_realtime_pipelines(
-            connection_string=connection_string,
-            database_name=database_name,
-            drop_collections=drop_collections,
-            agency_id=agency_id,
-            gtfs_urls=gtfs_urls,
-            poll=poll,
-            log_level=log_level,
-        )
-    )
+    # asyncio.run(
+    #     run_gtfs_realtime_pipelines(
+    #         connection_string=connection_string,
+    #         database_name=database_name,
+    #         drop_collections=drop_collections,
+    #         agency_id=agency_id,
+    #         gtfs_urls=gtfs_urls,
+    #         poll=poll,
+    #         log_level=log_level,
+    #     )
+    # )
 
     print("-" * 40)
     print("  Realtime data processed successfully.")
@@ -235,17 +233,18 @@ def execute_command(args: argparse.Namespace) -> None:
             log_level=log_level,
         )
     elif args.command in ("realize_instances", "realize"):
-        asyncio.run(
-            run_realize_instances_pipelines(
-                connection_string=args.connection_string,
-                database_name=args.database_name,
-                drop_collections=args.drop_collections,
-                agency_id=args.agency_id,
-                min_date=args.min_date,
-                max_date=args.max_date,
-                log_level=log_level,
-            )
-        )
+        # asyncio.run(
+        #     run_realize_instances_pipelines(
+        #         connection_string=args.connection_string,
+        #         database_name=args.database_name,
+        #         drop_collections=args.drop_collections,
+        #         agency_id=args.agency_id,
+        #         min_date=args.min_date,
+        #         max_date=args.max_date,
+        #         log_level=log_level,
+        #     )
+        # )
+        pass
     else:
         # This case should ideally not be reached due to required=True on subparsers
         print(f"Error: Unknown command '{args.command}'", file=sys.stderr)

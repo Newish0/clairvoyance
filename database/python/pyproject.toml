@@ -9,4 +9,5 @@ dependencies = [
     "psycopg2>=2.9.11",
     "sqlacodegen>=3.2.0",
     "sqlalchemy>=2.0.45",
+    "sqlmodel>=0.0.29",
 ]
