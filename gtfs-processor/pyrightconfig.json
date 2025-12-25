@@ -1,0 +1,14 @@
+{
+    "include": [
+        "**/*"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "**/*venv/**"
+    ],
+    "extraPaths": [
+        ".",
+        "../database/python"
+    ]
+}

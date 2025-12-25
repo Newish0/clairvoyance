@@ -1,51 +1,46 @@
 from typing import AsyncIterator, Dict
 from ingest_pipeline.core.errors import ErrorPolicy
-from models.mongo_schemas import Agency
-from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
+from generated.db_models import Agencies
+from ingest_pipeline.sinks.postgres_upsert_sink import UpsertOperation
 
 
-class AgencyMapper(Transformer[Dict[str, str], UpdateOne]):
+class AgencyMapper(Transformer[Dict[str, str], UpsertOperation]):
     """
-    Maps GTFS agency.txt rows (dict) into mongo UpdateOne operations after validation through DB model.
+    Maps GTFS agency.txt rows (dict) into a UpsertOperation to be sent to the database.
     Input: Dict[str, str]
-    Output: mongo UpdateOne
+    Output: UpsertOperation to upsert into database
     """
 
     input_type: type[Dict[str, str]] = Dict[str, str]
-    output_type: type[UpdateOne] = UpdateOne
+    output_type: type[UpsertOperation] = UpsertOperation
 
     def __init__(self, agency_id: str):
         self.agency_id = agency_id
 
     async def run(
         self, context: Context, inputs: AsyncIterator[Dict[str, str]]
-    ) -> AsyncIterator[UpdateOne]:
+    ) -> AsyncIterator[UpsertOperation]:
         async for row in inputs:
             try:
                 # Type ignore to bypass static type checking for required fields.
                 # We know these fields may be wrong. We validate the model immediately after.
-                agency_doc = Agency(
-                    agency_id=self.agency_id,
-                    source_agency_id=row.get("agency_id"),  # type: ignore
-                    agency_name=row.get("agency_name"),  # type: ignore
-                    agency_url=row.get("agency_url"),  # type: ignore
-                    agency_timezone=row.get("agency_timezone"),  # type: ignore
-                    agency_lang=row.get("agency_lang"),
-                    agency_phone=row.get("agency_phone"),
-                    agency_fare_url=row.get("agency_fare_url"),
-                    agency_email=row.get("agency_email"),
+                agency_model = Agencies(
+                    id=self.agency_id,
+                    agency_sid=row.get("agency_id"),  # type: ignore
+                    name=row.get("agency_name"),  # type: ignore
+                    url=row.get("agency_url"),  # type: ignore
+                    timezone=row.get("agency_timezone"),  # type: ignore
+                    lang=row.get("agency_lang"),
+                    phone=row.get("agency_phone"),
+                    fare_url=row.get("agency_fare_url"),
+                    email=row.get("agency_email"),
                 )
 
-                await agency_doc.validate_self()
-
-                yield UpdateOne(
-                    {
-                        "agency_id": self.agency_id,
-                        "source_agency_id": agency_doc.source_agency_id,
-                    },
-                    {"$set": agency_doc.model_dump(exclude={"id"})},
-                    upsert=True,
+                yield UpsertOperation(
+                    model=Agencies,
+                    values=agency_model.model_dump(),
+                    conflict_columns=["id"],
                 )
             except Exception as e:
                 match context.error_policy:

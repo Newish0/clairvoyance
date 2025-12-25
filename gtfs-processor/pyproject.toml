@@ -11,24 +11,18 @@ dependencies = [
     "jsonschema>=4.24.0",
     "memory-profiler>=0.61.0",
     "protobuf>=6.31.0",
-    "psycopg2>=2.9.11",
     "pydantic>=2.11.9",
     "db-models>=0.1.0",
     "pytz>=2025.2",
     "requests>=2.32.3",
     "sqlalchemy>=2.0.45",
     "types-pytz>=2025.2.0.20250516",
+    "sqlmodel>=0.0.29",
+    "asyncpg>=0.31.0",
 ]
 
 [tool]
 
-[tool.pyrefly]
-project-includes = ["**/*"]
-project-excludes = [
-    "**/node_modules",
-    "**/__pycache__",
-    '**/*venv/**\*',
-]
 
 [tool.uv.sources]
 db-models = { path = "../database/python", editable = true }
