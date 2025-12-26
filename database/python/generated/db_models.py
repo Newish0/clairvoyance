@@ -164,7 +164,10 @@ class Stops(SQLModel, table=True):
     wheelchair_boarding: Optional[str] = Field(default=None, sa_column=Column('wheelchair_boarding', Enum('NO_INFO', 'ACCESSIBLE', 'NOT_ACCESSIBLE', name='wheelchair_boarding')))
 
     agency: Optional['Agencies'] = Relationship(back_populates='stops')
-    parent_station: Optional['Stops'] = Relationship(back_populates='parent_station_reverse')
+    parent_station: Optional['Stops'] = Relationship(
+        back_populates='parent_station_reverse',
+        sa_relationship_kwargs={"remote_side": "Stops.id"}
+    )
     parent_station_reverse: list['Stops'] = Relationship(back_populates='parent_station')
     stop_times: list['StopTimes'] = Relationship(back_populates='stop')
     vehicle_positions: list['VehiclePositions'] = Relationship(back_populates='stop')
