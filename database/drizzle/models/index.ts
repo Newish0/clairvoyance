@@ -253,6 +253,26 @@ export const agencies = schema.table("agencies", {
     email: text("email"),
 });
 
+export const feedInfo = schema.table(
+    "feed_info",
+    {
+        hash: text("hash").primaryKey(),
+        agencyId: text("agency_id")
+            .references(() => agencies.id)
+            .notNull(),
+        publisherName: text("publisher_name"),
+        publisherUrl: text("publisher_url"),
+        lang: varchar("lang", { length: 10 }),
+        version: text("version"),
+        startDate: varchar("start_date", { length: 8 }), // YYYYMMDD
+        endDate: varchar("end_date", { length: 8 }), // YYYYMMDD
+    },
+    (t) => [
+        unique("uq_feed_info_feed_hash").on(t.hash),
+        index("idx_feed_info_agency_id").on(t.agencyId),
+    ]
+);
+
 export const routes = schema.table(
     "routes",
     {

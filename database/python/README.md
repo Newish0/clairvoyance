@@ -5,27 +5,3 @@
 
 1. Set `DATABASE_URL` env var (e.g., `$env:DATABASE_URL="postgresql://transit:transit@localhost:5432/transit"`)
 2. Run `uv run sqlacodegen $env:DATABASE_URL --schema transit --generator sqlmodels --outfile generated/db_models.py`
-
-
-# SQLAlchemy Self-Referential Relationship Warning
-
-## Issue
-When using `sqlacodegen` to generate models with self-referential relationships (like `Stops.parent_station`), you may see this warning:
-```
-Stops.parent_station and back-reference Stops.parent_station_reverse are both of the same direction.
-Did you mean to set remote_side on the many-to-one side?
-```
-
-## Fix
-Manually add `remote_side` to the many-to-one relationship after code generation:
-```python
-parent_station: Optional['Stops'] = Relationship(
-    back_populates='parent_station_reverse',
-    sa_relationship_kwargs={"remote_side": "Stops.id"}
-)
-```
-
-This tells SQLAlchemy which side is "one" in the one-to-many relationship.
-
-## Why
-SQLAlchemy can't automatically determine relationship direction when both sides reference the same table. The `remote_side` parameter clarifies that `Stops.id` is on the "one" side (parent), making `parent_station_id` the "many" side (children).

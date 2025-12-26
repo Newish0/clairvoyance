@@ -1,4 +1,4 @@
-# database
+# Shared Database Models for Clairvoyance - Realtime Transit 
 
 To install dependencies:
 
@@ -6,10 +6,16 @@ To install dependencies:
 bun install
 ```
 
-To run:
+# To generate migration files
 
-```bash
-bun run index.ts
+Run 
+```bash 
+bunx drizzle-kit generate 
 ```
 
-This project was created using `bun init` in bun v1.3.2. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+
+# To run migrations
+
+```bash
+bunx drizzle-kit migrate
+```
