@@ -5,6 +5,7 @@ from sqlalchemy.orm import session
 
 from database.database_manager import DatabaseManager
 from ingest_pipeline.pipelines.gtfs.agency_pipeline import build_agency_pipeline
+
 # from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
 #     build_calendar_dates_pipeline,
 # )
@@ -22,22 +23,21 @@ from utils.logger_config import setup_logger
 
 
 async def run_gtfs_static_pipelines(
-    connection_string: str,
-    database_name: str,
+    database_url: str,
     agency_id: str,
     gtfs_url: str,
-    drop_collections: bool = False,
+    delete_rows: bool = False,
     realize_instances: bool = False,
     log_level: int = logging.INFO,
 ):
     logger = setup_logger("ingest_pipeline.static", log_level)
 
     db_manager = DatabaseManager(
-        database_url=connection_string,
+        database_url=database_url,
         logger=logger,
     )
 
-    if drop_collections:
+    if delete_rows:
         await db_manager.delete_all()
 
     async with GTFSArchiveSource(gtfs_url).materialize() as source_info:

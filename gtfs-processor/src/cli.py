@@ -25,21 +25,14 @@ def parse_arguments() -> argparse.Namespace:
 
     # Global arguments
     parser.add_argument(
-        "--connection_string",
+        "--database_url",
         type=str,
-        default="mongodb://localhost:27017?replicaSet=rs0",
-        help="MongoDB connection string.",
+        help="Connection string for the database to connect to. E.g. 'postgresql+asyncpg://transit:transit@localhost:5432/transit'",
     )
     parser.add_argument(
-        "--database_name",
-        type=str,
-        default="transit",
-        help="Name of the MongoDB database.",
-    )
-    parser.add_argument(
-        "--drop_collections",
+        "--delete_rows",
         action="store_true",
-        help="Drop existing collections before importing data.",
+        help="Delete existing data in the database tables before ingesting new data.",
     )
     parser.add_argument(
         "--verbose",
@@ -135,9 +128,8 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def process_static_data(
-    connection_string: str,
-    database_name: str,
-    drop_collections: bool,
+    database_url: str,
+    delete_rows: bool,
     agency_id: str,
     gtfs_url: str,
     realize_instances: bool,
@@ -147,9 +139,8 @@ def process_static_data(
     Handles the 'static' command logic.
     """
     print("--- Running static data processing ---")
-    print(f"  Connection String: {connection_string}")
-    print(f"  Database Name: {database_name}")
-    print(f"  Drop Collections: {drop_collections}")
+    print(f"  Database URL: {database_url}")
+    print(f"  Delete Rows: {delete_rows}")
     print(f"  Agency ID: {agency_id}")
     print(f"  Realize Instances: {realize_instances}")
     print(f"  Log Level: {'DEBUG' if log_level == logging.DEBUG else 'INFO'}")
@@ -157,9 +148,8 @@ def process_static_data(
     print(f"  GTFS URL (Static): {gtfs_url}")
     asyncio.run(
         run_gtfs_static_pipelines(
-            connection_string=connection_string,
-            database_name=database_name,
-            drop_collections=drop_collections,
+            database_url=database_url,
+            delete_rows=delete_rows,
             agency_id=agency_id,
             gtfs_url=gtfs_url,
             realize_instances=realize_instances,
@@ -171,9 +161,8 @@ def process_static_data(
 
 
 def process_realtime_data(
-    connection_string: str,
-    database_name: str,
-    drop_collections: bool,
+    database_url: str,
+    delete_rows: bool,
     agency_id: str,
     gtfs_urls: List[str],
     poll: int,
@@ -183,9 +172,8 @@ def process_realtime_data(
     Handles the 'realtime' command logic.
     """
     print("--- Running realtime data processing ---")
-    print(f"  Connection String: {connection_string}")
-    print(f"  Database Name: {database_name}")
-    print(f"  Drop Collections: {drop_collections}")
+    print(f"  Database URL: {database_url}")
+    print(f"  Delete Rows: {delete_rows}")
     print(f"  Log Level: {'DEBUG' if log_level == logging.DEBUG else 'INFO'}")
 
     print(f"  GTFS URLs (Realtime): {gtfs_urls}")
@@ -214,9 +202,8 @@ def execute_command(args: argparse.Namespace) -> None:
 
     if args.command == "static":
         process_static_data(
-            connection_string=args.connection_string,
-            database_name=args.database_name,
-            drop_collections=args.drop_collections,
+            database_url=args.database_url,
+            delete_rows=args.delete_rows,
             agency_id=args.agency_id,
             gtfs_url=args.gtfs_url,
             realize_instances=args.realize_instances,
@@ -224,9 +211,8 @@ def execute_command(args: argparse.Namespace) -> None:
         )
     elif args.command == "realtime":
         process_realtime_data(
-            connection_string=args.connection_string,
-            database_name=args.database_name,
-            drop_collections=args.drop_collections,
+            database_url=args.database_url,
+            delete_rows=args.delete_rows,
             agency_id=args.agency_id,
             gtfs_urls=args.gtfs_urls,
             poll=args.poll,
