@@ -1,15 +1,14 @@
 import asyncio
 import logging
 
-from sqlalchemy.orm import session
-
 from database.database_manager import DatabaseManager
 from ingest_pipeline.pipelines.gtfs.agency_pipeline import build_agency_pipeline
 
 # from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
 #     build_calendar_dates_pipeline,
 # )
-# from ingest_pipeline.pipelines.gtfs.feed_info_pipeline import build_feed_info_pipeline
+from ingest_pipeline.pipelines.gtfs.feed_info_pipeline import build_feed_info_pipeline
+
 # from ingest_pipeline.pipelines.gtfs.routes_pipeline import build_routes_pipeline
 # from ingest_pipeline.pipelines.gtfs.shapes_pipeline import build_shapes_pipeline
 # from ingest_pipeline.pipelines.gtfs.stop_times_pipeline import build_stop_times_pipeline
@@ -49,9 +48,13 @@ async def run_gtfs_static_pipelines(
             db_manager.createSession(),
             log_level=log_level,
         )
-        # feed_info_pipeline = build_feed_info_pipeline(
-        #     tmpdir / "feed_info.txt", agency_id, source_info.hash, log_level=log_level
-        # )
+        feed_info_pipeline = build_feed_info_pipeline(
+            tmpdir / "feed_info.txt",
+            agency_id,
+            source_info.hash,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
         # calendar_dates_pipeline = build_calendar_dates_pipeline(
         #     tmpdir / "calendar_dates.txt", agency_id, log_level=log_level
         # )
@@ -77,7 +80,7 @@ async def run_gtfs_static_pipelines(
 
         await asyncio.gather(
             agency_pipeline.run(),
-            # feed_info_pipeline.run(),
+            feed_info_pipeline.run(),
             # stop_times_pipeline.run(),
             # calendar_dates_pipeline.run(),
             # routes_pipeline.run(),
