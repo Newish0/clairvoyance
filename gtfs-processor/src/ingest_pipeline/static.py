@@ -4,9 +4,9 @@ import logging
 from database.database_manager import DatabaseManager
 from ingest_pipeline.pipelines.gtfs.agency_pipeline import build_agency_pipeline
 
-# from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
-#     build_calendar_dates_pipeline,
-# )
+from ingest_pipeline.pipelines.gtfs.calendar_dates_pipeline import (
+    build_calendar_dates_pipeline,
+)
 from ingest_pipeline.pipelines.gtfs.feed_info_pipeline import build_feed_info_pipeline
 
 # from ingest_pipeline.pipelines.gtfs.routes_pipeline import build_routes_pipeline
@@ -55,9 +55,12 @@ async def run_gtfs_static_pipelines(
             db_manager.createSession(),
             log_level=log_level,
         )
-        # calendar_dates_pipeline = build_calendar_dates_pipeline(
-        #     tmpdir / "calendar_dates.txt", agency_id, log_level=log_level
-        # )
+        calendar_dates_pipeline = build_calendar_dates_pipeline(
+            tmpdir / "calendar_dates.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
         # routes_pipeline = build_routes_pipeline(
         #     tmpdir / "routes.txt", agency_id, log_level=log_level
         # )
@@ -82,7 +85,7 @@ async def run_gtfs_static_pipelines(
             agency_pipeline.run(),
             feed_info_pipeline.run(),
             # stop_times_pipeline.run(),
-            # calendar_dates_pipeline.run(),
+            calendar_dates_pipeline.run(),
             # routes_pipeline.run(),
             # stops_pipeline.run(),
             # trips_pipeline.run(),
