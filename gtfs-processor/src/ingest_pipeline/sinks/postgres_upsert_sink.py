@@ -37,7 +37,6 @@ class PostgresUpsertSink(Sink[UpsertOperation]):
         buffer: List[UpsertOperation] = []
 
         async for op in inputs:
-            print("GOT OP:", op)
             buffer.append(op)
             if len(buffer) >= self.batch_size:
                 await self._flush(buffer, context)
@@ -48,7 +47,6 @@ class PostgresUpsertSink(Sink[UpsertOperation]):
 
     async def _flush(self, ops: List[UpsertOperation], context: Context) -> None:
         if not ops:
-            print("no ops")
             return
 
         # Group by (model, conflict_columns, ignore_columns) for batching
@@ -80,7 +78,6 @@ class PostgresUpsertSink(Sink[UpsertOperation]):
                 index_elements=first.conflict_columns, set_=update_dict
             )
             
-            print("RAW SQL:", stmt.compile(compile_kwargs={"literal_binds": True}))
 
             await self.session.execute(stmt)
             context.telemetry.incr("postgres_upsert_sink.upserted", len(batch))

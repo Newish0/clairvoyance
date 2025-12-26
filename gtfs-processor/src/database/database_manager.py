@@ -16,7 +16,7 @@ class DatabaseManager:
     ):
         self.database_url = database_url
         self.logger = logger
-        self.engine = create_async_engine(self.database_url, echo=True)
+        self.engine = create_async_engine(self.database_url, echo=False)
 
         # Set up connection event listeners
         @event.listens_for(self.engine.sync_engine.pool, "connect")
