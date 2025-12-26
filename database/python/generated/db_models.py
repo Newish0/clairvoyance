@@ -24,6 +24,7 @@ class Agencies(SQLModel, table=True):
 
     alerts: list['Alerts'] = Relationship(back_populates='agency')
     calendar_dates: list['CalendarDates'] = Relationship(back_populates='agency')
+    feed_info: list['FeedInfo'] = Relationship(back_populates='agency')
     routes: list['Routes'] = Relationship(back_populates='agency')
     shapes: list['Shapes'] = Relationship(back_populates='agency')
     stops: list['Stops'] = Relationship(back_populates='agency')
@@ -73,6 +74,27 @@ class CalendarDates(SQLModel, table=True):
     exception_type: str = Field(sa_column=Column('exception_type', Enum('ADDED', 'REMOVED', name='calendar_exception_type'), nullable=False))
 
     agency: Optional['Agencies'] = Relationship(back_populates='calendar_dates')
+
+
+class FeedInfo(SQLModel, table=True):
+    __tablename__ = 'feed_info'
+    __table_args__ = (
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='feed_info_agency_id_agencies_id_fk'),
+        PrimaryKeyConstraint('hash', name='uq_feed_info_feed_hash'),
+        Index('idx_feed_info_agency_id', 'agency_id'),
+        {'schema': 'transit'}
+    )
+
+    hash: str = Field(sa_column=Column('hash', Text, primary_key=True))
+    agency_id: str = Field(sa_column=Column('agency_id', Text, nullable=False))
+    publisher_name: Optional[str] = Field(default=None, sa_column=Column('publisher_name', Text))
+    publisher_url: Optional[str] = Field(default=None, sa_column=Column('publisher_url', Text))
+    lang: Optional[str] = Field(default=None, sa_column=Column('lang', String(10)))
+    version: Optional[str] = Field(default=None, sa_column=Column('version', Text))
+    start_date: Optional[str] = Field(default=None, sa_column=Column('start_date', String(8)))
+    end_date: Optional[str] = Field(default=None, sa_column=Column('end_date', String(8)))
+
+    agency: Optional['Agencies'] = Relationship(back_populates='feed_info')
 
 
 class Routes(SQLModel, table=True):
@@ -142,7 +164,7 @@ class Stops(SQLModel, table=True):
     wheelchair_boarding: Optional[str] = Field(default=None, sa_column=Column('wheelchair_boarding', Enum('NO_INFO', 'ACCESSIBLE', 'NOT_ACCESSIBLE', name='wheelchair_boarding')))
 
     agency: Optional['Agencies'] = Relationship(back_populates='stops')
-    parent_station: Optional['Stops'] = Relationship(back_populates='parent_station_reverse', sa_relationship_kwargs={"remote_side": "Stops.id"})
+    parent_station: Optional['Stops'] = Relationship(back_populates='parent_station_reverse')
     parent_station_reverse: list['Stops'] = Relationship(back_populates='parent_station')
     stop_times: list['StopTimes'] = Relationship(back_populates='stop')
     vehicle_positions: list['VehiclePositions'] = Relationship(back_populates='stop')
