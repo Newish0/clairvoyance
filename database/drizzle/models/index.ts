@@ -304,6 +304,7 @@ export const shapes = schema.table(
         distancesTraveled: jsonb("distances_traveled").$type<number[]>(),
     },
     (t) => [
+        unique("uq_shapes_agency_shape_sid").on(t.agencyId, t.shapeSid),
         index("idx_shapes_path_gist").using("gist", t.path),
         index("idx_shapes_shape_sid").on(t.shapeSid),
     ]

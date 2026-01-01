@@ -1,24 +1,28 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Dict, List, cast
+from typing import AsyncIterator, Dict, List
 
-from pymongo import UpdateOne
+from generated.db_models import Shapes
+from geoalchemy2.elements import WKTElement
 
 from ingest_pipeline.core.errors import ErrorPolicy
 from ingest_pipeline.core.types import Context, Transformer
-from models.mongo_schemas import LineStringGeometry, Shape
+from ingest_pipeline.sinks.postgres_upsert_sink import UpsertOperation
 from utils.convert import safe_float, safe_int
 
 
-class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
+class ShapeMapper(Transformer[Dict[str, str], UpsertOperation]):
     """
-    Maps GTFS shapes.txt rows (dict) into Mongo UpdateOne operations after validation through DB model.
+    Maps GTFS shapes.txt rows (dict) into UpsertOperations for the
+    relational `Shapes` table. Aggregates multiple shape points into
+    a single LineString geometry.
+
     Input: Dict[str, str]
-    Output: Mongo UpdateOne
+    Output: UpsertOperation
     """
 
     input_type: type[Dict[str, str]] = Dict[str, str]
-    output_type: type[UpdateOne] = UpdateOne
+    output_type: type[UpsertOperation] = UpsertOperation
 
     @dataclass
     class __TmpShapeInfo:
@@ -32,7 +36,7 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
 
     async def run(
         self, context: Context, inputs: AsyncIterator[Dict[str, str]]
-    ) -> AsyncIterator[UpdateOne]:
+    ) -> AsyncIterator[UpsertOperation]:
         async for row in inputs:
             try:
                 shape_id = row.get("shape_id")
@@ -41,28 +45,19 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
                 distances_traveled = safe_float(row.get("shape_dist_traveled"))
                 pt_sequence = safe_int(row.get("shape_pt_sequence"))
 
-                # Type ignore to bypass static type checking for required fields.
-                # We know these fields may be wrong. We validate the model immediately after.
-                validation_shape_doc = Shape(
-                    agency_id=self.agency_id,
-                    shape_id=shape_id,  # type: ignore
-                    geometry=LineStringGeometry(coordinates=[(pt_lon, pt_lat)]),  # type: ignore
-                    distances_traveled=[distances_traveled]
-                    if distances_traveled is not None
-                    else None,
-                )
+                if (
+                    shape_id is None
+                    or pt_lat is None
+                    or pt_lon is None
+                    or pt_sequence is None
+                ):
+                    raise ValueError("Required shape fields are missing")
 
-                await validation_shape_doc.validate_self()
-
-                # Model validation asserts values are not None
-                tmp_shape = self.__tmp_shapes[validation_shape_doc.shape_id]
-                tmp_shape.geometry[cast(int, pt_sequence)] = [
-                    cast(float, pt_lon),
-                    cast(float, pt_lat),
-                ]
-                tmp_shape.distances_traveled[cast(int, pt_sequence)] = cast(
-                    float, distances_traveled
-                )
+                # Collect shape points for aggregation
+                tmp_shape = self.__tmp_shapes[shape_id]
+                tmp_shape.geometry[pt_sequence] = [pt_lon, pt_lat]
+                if distances_traveled is not None:
+                    tmp_shape.distances_traveled[pt_sequence] = distances_traveled
 
             except Exception as e:
                 match context.error_policy:
@@ -75,14 +70,13 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
                     case _:
                         raise e
 
-        shape_docs = self.__get_constructed_shape()
-        for shape_doc in shape_docs:
+        # Yield aggregated shapes as UpsertOperations
+        for shape_model in self.__get_constructed_shape():
             try:
-                await shape_doc.validate_self()
-                yield UpdateOne(
-                    {"agency_id": self.agency_id, "shape_id": shape_doc.shape_id},
-                    {"$set": shape_doc.model_dump(exclude={"id"})},
-                    upsert=True,
+                yield UpsertOperation(
+                    model=Shapes,
+                    values=shape_model.model_dump(),
+                    conflict_columns=["agency_id", "shape_sid"],
                 )
             except Exception as e:
                 match context.error_policy:
@@ -91,37 +85,55 @@ class ShapeMapper(Transformer[Dict[str, str], UpdateOne]):
                     case ErrorPolicy.SKIP_RECORD:
                         context.telemetry.incr("shape_mapper.skipped")
                         context.logger.error(e)
+                        continue
                     case _:
                         raise e
 
     def __get_constructed_shape(self):
         for shape_id, tmp_shape in self.__tmp_shapes.items():
-            # MongoDB GeoJSON LineString must have at least 2 vertices.
+            # PostGIS LineString must have at least 2 vertices.
             # So for a single point, we duplicate the point with a small offset.
             # Note: it's safe to assume we have at least 1 point at this point in the code.
+            sorted_sequences = sorted(tmp_shape.geometry.keys())
             coordinates = (
-                [tmp_shape.geometry[i] for i in sorted(tmp_shape.geometry.keys())]
+                [tmp_shape.geometry[i] for i in sorted_sequences]
                 if len(tmp_shape.geometry) > 1
                 else [
-                    tmp_shape.geometry[0],
+                    tmp_shape.geometry[sorted_sequences[0]],
                     [
-                        tmp_shape.geometry[0][0] + 0.00001,
-                        tmp_shape.geometry[0][1] + 0.00001,
+                        tmp_shape.geometry[sorted_sequences[0]][0] + 0.00001,
+                        tmp_shape.geometry[sorted_sequences[0]][1] + 0.00001,
                     ],
                 ]
             )
-            distances_traveled = (
-                [
-                    tmp_shape.distances_traveled[i]
-                    for i in sorted(tmp_shape.distances_traveled.keys())
-                ]
-                if len(tmp_shape.distances_traveled) > 1
-                else [tmp_shape.distances_traveled[0], tmp_shape.distances_traveled[0]]
-            )
 
-            yield Shape(
-                agency_id=self.agency_id,
-                shape_id=shape_id,
-                geometry=LineStringGeometry(coordinates=coordinates),
-                distances_traveled=distances_traveled,
+            # Convert coordinates to PostGIS LINESTRING WKT format
+            # Format: LINESTRING(lon1 lat1, lon2 lat2, ...)
+            linestring_coords = ", ".join(
+                f"{coord[0]} {coord[1]}" for coord in coordinates
             )
+            linestring_wkt = f"LINESTRING({linestring_coords})"
+            # Use WKTElement with SRID for PostGIS geometry
+            path_geometry = WKTElement(linestring_wkt, srid=4326)
+
+            # Convert distances_traveled to dict format for JSONB
+            distances_dict = None
+            if tmp_shape.distances_traveled:
+                sorted_distances = [
+                    tmp_shape.distances_traveled.get(i)
+                    for i in sorted_sequences
+                    if i in tmp_shape.distances_traveled
+                ]
+                if len(sorted_distances) > 1:
+                    distances_dict = {"values": sorted_distances}
+                elif len(sorted_distances) == 1:
+                    distances_dict = {
+                        "values": [sorted_distances[0], sorted_distances[0]]
+                    }
+
+            yield Shapes(
+                agency_id=self.agency_id,
+                shape_sid=shape_id,
+                path=path_geometry,  # WKTElement for PostGIS geometry
+                distances_traveled=distances_dict,
+            )  # pyright: ignore[reportCallIssue] - id is not needed for constructor
