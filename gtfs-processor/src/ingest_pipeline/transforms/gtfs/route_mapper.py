@@ -1,32 +1,34 @@
 from typing import AsyncIterator, Dict
+
 from ingest_pipeline.core.errors import ErrorPolicy
-from models.enums import RouteType
-from models.mongo_schemas import Route
-from pymongo import UpdateOne
 from ingest_pipeline.core.types import Context, Transformer
+from ingest_pipeline.sinks.postgres_upsert_sink import UpsertOperation
+from generated.db_models import Routes
 
 
-class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
+class RouteMapper(Transformer[Dict[str, str], UpsertOperation]):
     """
-    Maps GTFS routes.txt rows (dict) into Mongo UpdateOne operations after validation through DB model.
+    Maps GTFS routes.txt rows (dict) into UpsertOperations for the
+    relational `Routes` table.
+
     Input: Dict[str, str]
-    Output: Mongo UpdateOne
+    Output: UpsertOperation
     """
 
     input_type: type[Dict[str, str]] = Dict[str, str]
-    output_type: type[UpdateOne] = UpdateOne
+    output_type: type[UpsertOperation] = UpsertOperation
 
     __ROUTE_TYPE_MAPPING = {
-        "0": RouteType.TRAM,
-        "1": RouteType.SUBWAY,
-        "2": RouteType.RAIL,
-        "3": RouteType.BUS,
-        "4": RouteType.FERRY,
-        "5": RouteType.CABLE_TRAM,
-        "6": RouteType.AERIAL_LIFT,
-        "7": RouteType.FUNICULAR,
-        "11": RouteType.TROLLEYBUS,
-        "12": RouteType.MONORAIL,
+        "0": "TRAM",
+        "1": "SUBWAY",
+        "2": "RAIL",
+        "3": "BUS",
+        "4": "FERRY",
+        "5": "CABLE_TRAM",
+        "6": "AERIAL_LIFT",
+        "7": "FUNICULAR",
+        "11": "TROLLEYBUS",
+        "12": "MONORAIL",
         None: None,
     }
 
@@ -35,27 +37,25 @@ class RouteMapper(Transformer[Dict[str, str], UpdateOne]):
 
     async def run(
         self, context: Context, inputs: AsyncIterator[Dict[str, str]]
-    ) -> AsyncIterator[UpdateOne]:
+    ) -> AsyncIterator[UpsertOperation]:
         async for row in inputs:
             try:
                 # Type ignore to bypass static type checking for required fields.
                 # We know these fields may be wrong. We validate the model immediately after.
-                route_doc = Route(
+                route_model = Routes(
                     agency_id=self.agency_id,
-                    route_id=row.get("route_id"),  # type: ignore
-                    route_short_name=row.get("route_short_name"),
-                    route_long_name=row.get("route_long_name"),
-                    route_type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),  # type: ignore
-                    route_color=row.get("route_color"),
-                    route_text_color=row.get("route_text_color"),
+                    route_sid=row.get("route_id"),  # type: ignore
+                    type=self.__ROUTE_TYPE_MAPPING.get(row.get("route_type")),  # type: ignore
+                    short_name=row.get("route_short_name"),
+                    long_name=row.get("route_long_name"),
+                    color=row.get("route_color"),
+                    text_color=row.get("route_text_color"),
                 )
 
-                await route_doc.validate_self()
-
-                yield UpdateOne(
-                    {"agency_id": self.agency_id, "route_id": route_doc.route_id},
-                    {"$set": route_doc.model_dump(exclude={"id"})},
-                    upsert=True,
+                yield UpsertOperation(
+                    model=Routes,
+                    values=route_model.model_dump(),
+                    conflict_columns=["agency_id", "route_sid"],
                 )
             except Exception as e:
                 match context.error_policy:

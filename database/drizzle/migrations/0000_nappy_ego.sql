@@ -67,7 +67,7 @@ CREATE TABLE "transit"."shapes" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"agency_id" text NOT NULL,
 	"shape_sid" text NOT NULL,
-	"path" geometry(point) NOT NULL,
+	"path" geometry(linestring) NOT NULL,
 	"distances_traveled" jsonb
 );
 --> statement-breakpoint
