@@ -2,7 +2,7 @@ from typing import Any, Optional
 import datetime
 
 from geoalchemy2.types import Geometry
-from sqlalchemy import Column, DateTime, Double, Enum, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
+from sqlalchemy import CHAR, Column, DateTime, Double, Enum, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -123,6 +123,7 @@ class Shapes(SQLModel, table=True):
     __table_args__ = (
         ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='shapes_agency_id_agencies_id_fk'),
         PrimaryKeyConstraint('id', name='shapes_pkey'),
+        UniqueConstraint('agency_id', 'shape_sid', name='uq_shapes_agency_shape_sid'),
         Index('idx_shapes_path_gist', 'path'),
         Index('idx_shapes_shape_sid', 'shape_sid'),
         {'schema': 'transit'}
@@ -131,7 +132,7 @@ class Shapes(SQLModel, table=True):
     id: int = Field(sa_column=Column('id', Integer, primary_key=True))
     agency_id: str = Field(sa_column=Column('agency_id', Text, nullable=False))
     shape_sid: str = Field(sa_column=Column('shape_sid', Text, nullable=False))
-    path: Any = Field(sa_column=Column('path', Geometry('POINT', dimension=2, from_text='ST_GeomFromEWKT', name='geometry', nullable=False), nullable=False))
+    path: Any = Field(sa_column=Column('path', Geometry('LINESTRING', dimension=2, from_text='ST_GeomFromEWKT', name='geometry', nullable=False), nullable=False))
     distances_traveled: Optional[dict] = Field(default=None, sa_column=Column('distances_traveled', JSONB))
 
     agency: Optional['Agencies'] = Relationship(back_populates='shapes')
@@ -144,7 +145,7 @@ class Stops(SQLModel, table=True):
         ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='stops_agency_id_agencies_id_fk'),
         ForeignKeyConstraint(['parent_station_id'], ['transit.stops.id'], name='stops_parent_station_id_stops_id_fk'),
         PrimaryKeyConstraint('id', name='stops_pkey'),
-        Index('idx_stops_agency_stop_sid', 'agency_id', 'stop_sid'),
+        UniqueConstraint('agency_id', 'stop_sid', name='uq_stops_agency_stop_sid'),
         Index('idx_stops_location_gist', 'location'),
         {'schema': 'transit'}
     )
@@ -239,8 +240,8 @@ class StopTimes(SQLModel, table=True):
     agency_id: Optional[str] = Field(default=None, sa_column=Column('agency_id', Text))
     trip_id: Optional[int] = Field(default=None, sa_column=Column('trip_id', Integer))
     stop_id: Optional[int] = Field(default=None, sa_column=Column('stop_id', Integer))
-    arrival_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('arrival_time', DateTime(True)))
-    departure_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('departure_time', DateTime(True)))
+    arrival_time: Optional[str] = Field(default=None, sa_column=Column('arrival_time', CHAR(8)))
+    departure_time: Optional[str] = Field(default=None, sa_column=Column('departure_time', CHAR(8)))
     stop_headsign: Optional[str] = Field(default=None, sa_column=Column('stop_headsign', Text))
     pickup_type: Optional[str] = Field(default=None, sa_column=Column('pickup_type', Enum('REGULAR', 'NO_PICKUP_OR_DROP_OFF', 'PHONE_AGENCY', 'COORDINATE_WITH_DRIVER', name='pickup_drop_off')))
     drop_off_type: Optional[str] = Field(default=None, sa_column=Column('drop_off_type', Enum('REGULAR', 'NO_PICKUP_OR_DROP_OFF', 'PHONE_AGENCY', 'COORDINATE_WITH_DRIVER', name='pickup_drop_off')))
@@ -293,6 +294,7 @@ class StopTimeInstances(SQLModel, table=True):
         ForeignKeyConstraint(['stop_time_id'], ['transit.stop_times.id'], name='stop_time_instances_stop_time_id_stop_times_id_fk'),
         ForeignKeyConstraint(['trip_instance_id'], ['transit.trip_instances.id'], name='stop_time_instances_trip_instance_id_trip_instances_id_fk'),
         PrimaryKeyConstraint('id', name='stop_time_instances_pkey'),
+        UniqueConstraint('trip_instance_id', 'stop_sequence', name='uq_stop_time_instances__trip_instance_stop_sequence'),
         Index('idx_stop_time_instances_trip_instance_id', 'trip_instance_id'),
         {'schema': 'transit'}
     )
@@ -300,11 +302,19 @@ class StopTimeInstances(SQLModel, table=True):
     id: int = Field(sa_column=Column('id', Integer, primary_key=True))
     trip_instance_id: int = Field(sa_column=Column('trip_instance_id', Integer, nullable=False))
     stop_time_id: int = Field(sa_column=Column('stop_time_id', Integer, nullable=False))
+    stop_sequence: int = Field(sa_column=Column('stop_sequence', Integer, nullable=False))
     predicted_arrival_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('predicted_arrival_time', DateTime(True)))
     predicted_departure_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('predicted_departure_time', DateTime(True)))
     predicted_arrival_uncertainty: Optional[int] = Field(default=None, sa_column=Column('predicted_arrival_uncertainty', Integer))
     predicted_departure_uncertainty: Optional[int] = Field(default=None, sa_column=Column('predicted_departure_uncertainty', Integer))
     schedule_relationship: Optional[str] = Field(default=None, sa_column=Column('schedule_relationship', Enum('SCHEDULED', 'SKIPPED', 'NO_DATA', 'UNSCHEDULED', name='stop_time_update_schedule_relationship'), server_default=text("'SCHEDULED'::stop_time_update_schedule_relationship")))
+    timepoint: Optional[str] = Field(default=None, sa_column=Column('timepoint', Enum('APPROXIMATE', 'EXACT', name='timepoint'), server_default=text("'EXACT'::timepoint")))
+    scheduled_arrival_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('scheduled_arrival_time', DateTime(True)))
+    scheduled_departure_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('scheduled_departure_time', DateTime(True)))
+    stop_headsign: Optional[str] = Field(default=None, sa_column=Column('stop_headsign', Text))
+    pickup_type: Optional[str] = Field(default=None, sa_column=Column('pickup_type', Enum('REGULAR', 'NO_PICKUP_OR_DROP_OFF', 'PHONE_AGENCY', 'COORDINATE_WITH_DRIVER', name='pickup_drop_off')))
+    drop_off_type: Optional[str] = Field(default=None, sa_column=Column('drop_off_type', Enum('REGULAR', 'NO_PICKUP_OR_DROP_OFF', 'PHONE_AGENCY', 'COORDINATE_WITH_DRIVER', name='pickup_drop_off')))
+    last_updated_at: Optional[datetime.datetime] = Field(default=None, sa_column=Column('last_updated_at', DateTime(True), server_default=text('now()')))
 
     stop_time: Optional['StopTimes'] = Relationship(back_populates='stop_time_instances')
     trip_instance: Optional['TripInstances'] = Relationship(back_populates='stop_time_instances')

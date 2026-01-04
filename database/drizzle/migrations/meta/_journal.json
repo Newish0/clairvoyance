@@ -22,6 +22,20 @@
       "when": 1767249359298,
       "tag": "0002_colossal_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767257403391,
+      "tag": "0003_uneven_ultron",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1767432023828,
+      "tag": "0004_omniscient_captain_cross",
+      "breakpoints": true
     }
   ]
 }

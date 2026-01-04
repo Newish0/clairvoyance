@@ -12,12 +12,13 @@ from ingest_pipeline.pipelines.gtfs.feed_info_pipeline import build_feed_info_pi
 from ingest_pipeline.pipelines.gtfs.routes_pipeline import build_routes_pipeline
 from ingest_pipeline.pipelines.gtfs.shapes_pipeline import build_shapes_pipeline
 
-# from ingest_pipeline.pipelines.gtfs.stop_times_pipeline import build_stop_times_pipeline
-# from ingest_pipeline.pipelines.gtfs.stops_pipeline import build_stops_pipeline
+from ingest_pipeline.pipelines.gtfs.stop_times_pipeline import build_stop_times_pipeline
+from ingest_pipeline.pipelines.gtfs.stops_pipeline import build_stops_pipeline
+
 # from ingest_pipeline.pipelines.gtfs.trip_instances_pipeline import (
 #     build_trip_instances_pipeline,
 # )
-# from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
+from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
 from utils.logger_config import setup_logger
 
@@ -68,15 +69,24 @@ async def run_gtfs_static_pipelines(
             db_manager.createSession(),
             log_level=log_level,
         )
-        # stops_pipeline = build_stops_pipeline(
-        #     tmpdir / "stops.txt", agency_id, log_level=log_level
-        # )
-        # trips_pipeline = build_trips_pipeline(
-        #     tmpdir / "trips.txt", agency_id, log_level=log_level
-        # )
-        # stop_times_pipeline = build_stop_times_pipeline(
-        #     tmpdir / "stop_times.txt", agency_id, log_level=log_level
-        # )
+        stops_pipeline = build_stops_pipeline(
+            tmpdir / "stops.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
+        trips_pipeline = build_trips_pipeline(
+            tmpdir / "trips.txt",
+            agency_id,
+            db_manager,
+            log_level=log_level,
+        )
+        stop_times_pipeline = build_stop_times_pipeline(
+            tmpdir / "stop_times.txt",
+            agency_id,
+            db_manager,
+            log_level=log_level,
+        )
         shapes_pipeline = build_shapes_pipeline(
             tmpdir / "shapes.txt",
             agency_id,
@@ -91,13 +101,17 @@ async def run_gtfs_static_pipelines(
         await asyncio.gather(
             # agency_pipeline.run(),
             # feed_info_pipeline.run(),
-            # stop_times_pipeline.run(),
             # calendar_dates_pipeline.run(),
             # routes_pipeline.run(),
             # stops_pipeline.run(),
-            # trips_pipeline.run(),
-            shapes_pipeline.run(),
+            # shapes_pipeline.run(),
         )
+
+        # Depends on routes & shapes pipelines to be completed first.
+        # await trips_pipeline.run()
+
+        # Depends on trips & stops pipelines to be completed first.
+        await stop_times_pipeline.run()
 
     # # Refresh all materialized views
     # logger.info("Refreshing materialized views...")

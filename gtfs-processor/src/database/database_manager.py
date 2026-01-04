@@ -13,10 +13,18 @@ class DatabaseManager:
         self,
         database_url: str,
         logger: logging.Logger = setup_logger("database_manager", logging.INFO),
+        pool_size: int = 20,
+        max_overflow: int = 80,
     ):
         self.database_url = database_url
         self.logger = logger
-        self.engine = create_async_engine(self.database_url, echo=False)
+        self.engine = create_async_engine(
+            self.database_url,
+            echo=False,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_pre_ping=True,
+        )
 
         # Set up connection event listeners
         @event.listens_for(self.engine.sync_engine.pool, "connect")
