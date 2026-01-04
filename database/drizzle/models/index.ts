@@ -15,6 +15,7 @@ import {
     varchar,
     type AnyPgColumn,
     pgSchema,
+    char,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -366,8 +367,8 @@ export const stops = schema.table(
         wheelchairBoarding: wheelchairBoardingEnum("wheelchair_boarding"),
     },
     (t) => [
+        unique("uq_stops_agency_stop_sid").on(t.agencyId, t.stopSid),
         index("idx_stops_location_gist").using("gist", t.location),
-        index("idx_stops_agency_stop_sid").on(t.agencyId, t.stopSid),
     ]
 );
 
@@ -378,7 +379,7 @@ export const calendarDates = schema.table(
             .references(() => agencies.id)
             .notNull(),
         serviceSid: text("service_sid").notNull(),
-        date: varchar("date", { length: 8 }).notNull(),
+        date: varchar("date", { length: 8 }).notNull(), // YYYYMMDD
         exceptionType: calendarExceptionTypeEnum("exception_type").notNull(),
     },
     (t) => [primaryKey({ columns: [t.agencyId, t.serviceSid, t.date] })]
@@ -397,9 +398,8 @@ export const stopTimes = schema.table(
 
         stopSequence: integer("stop_sequence").notNull(),
 
-        // TZ specified by agency.timezone per GTFS spec
-        arrivalTime: timestamp("arrival_time", { withTimezone: true }),
-        departureTime: timestamp("departure_time", { withTimezone: true }),
+        arrivalTime: char("arrival_time", { length: 8 }), // HH:MM:SS format, can exceed 24 hours
+        departureTime: char("departure_time", { length: 8 }), // HH:MM:SS format, can exceed 24 hours
 
         stopHeadsign: text("stop_headsign"),
         pickupType: pickupDropOffEnum("pickup_type"),
@@ -443,6 +443,7 @@ export const tripInstances = schema.table(
 export const stopTimeInstances = schema.table(
     "stop_time_instances",
     {
+        // PK & FKs
         id: serial("id").primaryKey(),
         tripInstanceId: integer("trip_instance_id")
             .references(() => tripInstances.id)
@@ -451,16 +452,43 @@ export const stopTimeInstances = schema.table(
             .references(() => stopTimes.id)
             .notNull(),
 
+        // -----------------------------------------------------------------
+        // --- Static fields from stop_times (replicated for efficiency) ---
+        // -----------------------------------------------------------------
+        timepoint: timepointEnum("timepoint").default(Timepoint.EXACT),
+
+        // ------------------------------------------------------------
+        // --- Below are all fields updatable via realtime updates. ---
+        // ------------------------------------------------------------
+        stopSequence: integer("stop_sequence").notNull(),
+
+        // TZ specified by agency.timezone per GTFS spec
+        scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
+        scheduledDepartureTime: timestamp("scheduled_departure_time", { withTimezone: true }),
+
         predictedArrivalTime: timestamp("predicted_arrival_time", { withTimezone: true }),
         predictedDepartureTime: timestamp("predicted_departure_time", { withTimezone: true }),
         predictedArrivalUncertainty: integer("predicted_arrival_uncertainty"),
         predictedDepartureUncertainty: integer("predicted_departure_uncertainty"),
 
+        // Per doc: Frequency-based trips (GTFS frequencies.txt with exact_times = 0) should not have a SCHEDULED value and should use UNSCHEDULED instead.
         scheduleRelationship: stopTimeUpdateScheduleRelationshipEnum(
             "schedule_relationship"
         ).default(StopTimeUpdateScheduleRelationship.SCHEDULED),
+
+        stopHeadsign: text("stop_headsign"),
+        pickupType: pickupDropOffEnum("pickup_type"),
+        dropOffType: pickupDropOffEnum("drop_off_type"),
+
+        lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }).defaultNow(),
     },
-    (t) => [index("idx_stop_time_instances_trip_instance_id").on(t.tripInstanceId)]
+    (t) => [
+        index("idx_stop_time_instances_trip_instance_id").on(t.tripInstanceId),
+        unique("uq_stop_time_instances__trip_instance_stop_sequence").on(
+            t.tripInstanceId,
+            t.stopSequence
+        ),
+    ]
 );
 
 export const vehiclePositions = schema.table(

@@ -20,6 +20,6 @@ def build_shapes_pipeline(
         StageSpec("file_source", LocalFileSource(file_path)),
         StageSpec("csv_decoder", CSVDecoder()),
         StageSpec("shape_mapper", ShapeMapper(agency_id)),
-        StageSpec("postgres_upsert_sink", PostgresUpsertSink(session, batch_size=1)),
+        StageSpec("postgres_upsert_sink", PostgresUpsertSink(session)),
     ]
     return Orchestrator(stages, log_level=log_level, name="shapes_pipeline")
