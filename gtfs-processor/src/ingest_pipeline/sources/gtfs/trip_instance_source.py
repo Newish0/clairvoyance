@@ -1,20 +1,32 @@
 from typing import AsyncIterator, Optional, Tuple, List
+
 from cachetools import LRUCache
-from models.enums import TripInstanceState
-from models.mongo_schemas import (
-    Agency,
-    CalendarDate,
-    Route,
-    Shape,
-    Trip,
-    StopTime,
-    TripInstance,
-)
+from sqlmodel import select, col
+
 from ingest_pipeline.core.types import Context, Source
+from generated.db_models import (
+    Agencies,
+    CalendarDates,
+    Trips,
+    Routes,
+    Shapes,
+    StopTimes,
+    TripInstances,
+)
+from database.database_manager import DatabaseManager
 
 
 class TripInstanceSource(
-    Source[Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]]
+    Source[
+        Tuple[
+            Agencies,
+            CalendarDates,
+            Trips,
+            StopTimes,
+            Routes | None,
+            Shapes | None,
+        ]
+    ]
 ):
     """
     Source that yields a unique trip instance based
@@ -24,107 +36,163 @@ class TripInstanceSource(
     """
 
     output_type: type[
-        Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
-    ] = Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
+        Tuple[
+            Agencies,
+            CalendarDates,
+            Trips,
+            StopTimes,
+            Routes | None,
+            Shapes | None,
+        ]
+    ] = Tuple[Agencies, CalendarDates, Trips, StopTimes, Routes | None, Shapes | None]
 
     def __init__(
         self,
         agency_id: str,
         min_date: str,
         max_date: str,
+        db: DatabaseManager,
         cache_size: int = 1000,
     ):
         self.agency_id = agency_id
         self.min_date = min_date
         self.max_date = max_date
+        self.db = db
 
         self._route_cache: LRUCache = LRUCache(maxsize=cache_size)
         self._shape_cache: LRUCache = LRUCache(maxsize=cache_size)
-        self._stop_times_cache: LRUCache = LRUCache(maxsize=cache_size)
+        self._stop_time_cache: LRUCache = LRUCache(maxsize=cache_size)
 
-    async def _get_route_cached(self, route_id: str) -> Optional[Route]:
-        """Get route with LRU caching."""
+    async def _lookup_route(self, route_id: int) -> Optional[Routes]:
+        """Get route by route PK ID with LRU caching."""
         if route_id in self._route_cache:
             return self._route_cache[route_id]
 
         # Cache miss - query database
-        route = await Route.find_one(
-            Route.agency_id == self.agency_id, Route.route_id == route_id
-        )
+        async with self.db.createSession() as session:
+            stmt = select(Routes).where(Routes.id == route_id)
 
-        # Add to cache (LRU eviction handled automatically)
+            route = await session.scalar(stmt)
+
+        # Add to cache
         self._route_cache[route_id] = route
         return route
 
-    async def _get_shape_cached(self, shape_id: str | None) -> Optional[Shape]:
-        """Get shape with LRU caching."""
-        if not shape_id:
-            return None
+    async def _lookup_shape(self, shape_id: int) -> Optional[Shapes]:
+        """Get shape by shape PK ID with LRU caching."""
 
         if shape_id in self._shape_cache:
             return self._shape_cache[shape_id]
 
         # Cache miss - query database
-        shape = await Shape.find_one(
-            Shape.agency_id == self.agency_id, Shape.shape_id == shape_id
-        )
+        async with self.db.createSession() as session:
+            stmt = select(Shapes).where(Shapes.id == shape_id)
 
-        # Add to cache (LRU eviction handled automatically)
+            shape = await session.scalar(stmt)
+
+        # Add to cache
         self._shape_cache[shape_id] = shape
         return shape
 
-    async def _get_stop_times_cached(self, trip_id: str) -> List[StopTime]:
-        """Get stop times with LRU caching."""
-        if trip_id in self._stop_times_cache:
-            return self._stop_times_cache[trip_id]
+    async def _lookup_stop_time(self, trip_id: int) -> StopTimes | None:
+        """Get stop times by trip PK ID with LRU caching."""
+        if trip_id in self._stop_time_cache:
+            return self._stop_time_cache[trip_id]
 
         # Cache miss - query database
-        stop_times = (
-            await StopTime.find(
-                StopTime.agency_id == self.agency_id,
-                StopTime.trip_id == trip_id,
+        async with self.db.createSession() as session:
+            stmt = select(StopTimes).where(
+                StopTimes.trip_id == trip_id,
+                StopTimes.stop_sequence == 1,
             )
-            .sort(StopTime.stop_sequence)
-            .to_list()
-        )
+            stop_time = await session.scalar(stmt)
 
-        # Add to cache (LRU eviction handled automatically)
-        self._stop_times_cache[trip_id] = stop_times
-        return stop_times
+        # Add to cache
+        self._stop_time_cache[trip_id] = stop_time
+        return stop_time
+
+    async def _lookup_agency(self) -> Optional[Agencies]:
+        """Lookup agency by agency_id."""
+        async with self.db.createSession() as session:
+            stmt = select(Agencies).where(Agencies.id == self.agency_id)
+            agency = await session.scalar(stmt)
+        return agency
 
     async def stream(
         self, context: Context
-    ) -> AsyncIterator[Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]]:
-        agency = await Agency.find_one(Agency.agency_id == self.agency_id)
+    ) -> AsyncIterator[
+        Tuple[
+            Agencies,
+            CalendarDates,
+            Trips,
+            StopTimes,
+            Routes | None,
+            Shapes | None,
+        ]
+    ]:
+        agency = await self._lookup_agency()
+        if not agency:
+            raise ValueError(f"Agency not found: agency_id={self.agency_id}")
 
-        async for calendar_date in CalendarDate.find(
-            CalendarDate.agency_id == self.agency_id,
-            CalendarDate.date >= self.min_date,
-            CalendarDate.date <= self.max_date,
-        ):
-            async for trip in Trip.find(
-                Trip.agency_id == self.agency_id,
-                Trip.service_id == calendar_date.service_id,
-            ):
-                # Use cached queries
-                stop_times = await self._get_stop_times_cached(trip.trip_id)
-                route = await self._get_route_cached(trip.route_id)
-                shape = await self._get_shape_cached(trip.shape_id)
-
-                # Do not make changes to existing trip instances that are not pristine. Skip them.
-                exist_not_pristine = await TripInstance.find_one(
-                    TripInstance.agency_id == self.agency_id,
-                    TripInstance.trip_id == trip.trip_id,
-                    TripInstance.start_date == calendar_date.date,
-                    TripInstance.start_time == stop_times[0].arrival_time,
-                    TripInstance.state != TripInstanceState.PRISTINE,
-                ).exists()
-
-                if exist_not_pristine:
-                    context.logger.info(
-                        f"Skipping trip instance {self.agency_id} {trip.trip_id} {calendar_date.date} {stop_times[0].arrival_time} because it is not pristine."
+        async with self.db.createSession() as session:
+            calendar_dates_stream = await session.stream_scalars(
+                select(CalendarDates).where(
+                    CalendarDates.agency_id == self.agency_id,
+                    CalendarDates.date >= self.min_date,
+                    CalendarDates.date <= self.max_date,
+                )
+            )
+            async for calendar_date in calendar_dates_stream:
+                trips_stream = await session.stream_scalars(
+                    select(Trips).where(
+                        Trips.agency_id == self.agency_id,
+                        Trips.service_sid == calendar_date.service_sid,
                     )
-                    context.telemetry.incr("trip_instance_source.not_pristine_skip")
-                    continue
+                )
 
-                yield (agency, calendar_date, trip, stop_times, route, shape)
+                async for trip in trips_stream:
+                    # Use cached queries
+                    stop_time = await self._lookup_stop_time(trip.id)
+                    route = (
+                        (await self._lookup_route(trip.route_id))
+                        if trip.route_id is not None
+                        else None
+                    )
+                    shape = (
+                        (await self._lookup_shape(trip.shape_id))
+                        if trip.shape_id is not None
+                        else None
+                    )
+
+                    # HACK: Skip if no stop times. This is a limitation right now...
+                    if not stop_time:
+                        context.logger.info(
+                            f"Skipping trip instance {self.agency_id} {trip.id} {calendar_date.date} because it has no stop times."
+                        )
+                        context.telemetry.incr(
+                            "trip_instance_source.no_stop_times_skip"
+                        )
+                        continue
+
+                    # Do not make changes to existing trip instances that are not pristine. Skip them.
+                    exist_not_pristine = (
+                        await session.exec(
+                            select(1)
+                            .where(
+                                TripInstances.trip_id == trip.id,
+                                TripInstances.start_date == calendar_date.date,
+                                TripInstances.start_time == stop_time.arrival_time,
+                                TripInstances.state != "PRISTINE",
+                            )
+                            .limit(1)
+                        )
+                    ).first() is not None
+
+                    if exist_not_pristine:
+                        context.logger.info(
+                            f"Skipping trip instance {self.agency_id} {trip.id} {calendar_date.date} {stop_time.arrival_time} because it is not pristine."
+                        )
+                        context.telemetry.incr("trip_instance_source.not_pristine_skip")
+                        continue
+
+                    yield (agency, calendar_date, trip, stop_time, route, shape)

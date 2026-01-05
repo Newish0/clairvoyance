@@ -1,0 +1,1758 @@
+{
+  "id": "b1213ffb-4c8a-411f-aa58-dd93b81ffc2a",
+  "prevId": "edbe5a82-50f2-43fe-b048-fca80cb0fbd3",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "transit.agencies": {
+      "name": "agencies",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_sid": {
+          "name": "agency_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lang": {
+          "name": "lang",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fare_url": {
+          "name": "fare_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.alerts": {
+      "name": "alerts",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cause": {
+          "name": "cause",
+          "type": "alert_cause",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'UNKNOWN_CAUSE'"
+        },
+        "effect": {
+          "name": "effect",
+          "type": "alert_effect",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'UNKNOWN_EFFECT'"
+        },
+        "severity": {
+          "name": "severity",
+          "type": "alert_severity",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'UNKNOWN_SEVERITY'"
+        },
+        "header_text": {
+          "name": "header_text",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description_text": {
+          "name": "description_text",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active_periods": {
+          "name": "active_periods",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "informed_entities": {
+          "name": "informed_entities",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_seen": {
+          "name": "last_seen",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_alerts_informed_entities_gin": {
+          "name": "idx_alerts_informed_entities_gin",
+          "columns": [
+            {
+              "expression": "informed_entities",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "idx_alerts_active_periods_gin": {
+          "name": "idx_alerts_active_periods_gin",
+          "columns": [
+            {
+              "expression": "active_periods",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "alerts_agency_id_agencies_id_fk": {
+          "name": "alerts_agency_id_agencies_id_fk",
+          "tableFrom": "alerts",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "alerts_content_hash_unique": {
+          "name": "alerts_content_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "content_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.calendar_dates": {
+      "name": "calendar_dates",
+      "schema": "transit",
+      "columns": {
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_sid": {
+          "name": "service_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exception_type": {
+          "name": "exception_type",
+          "type": "calendar_exception_type",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "calendar_dates_agency_id_agencies_id_fk": {
+          "name": "calendar_dates_agency_id_agencies_id_fk",
+          "tableFrom": "calendar_dates",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "calendar_dates_agency_id_service_sid_date_pk": {
+          "name": "calendar_dates_agency_id_service_sid_date_pk",
+          "columns": [
+            "agency_id",
+            "service_sid",
+            "date"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.feed_info": {
+      "name": "feed_info",
+      "schema": "transit",
+      "columns": {
+        "hash": {
+          "name": "hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publisher_name": {
+          "name": "publisher_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publisher_url": {
+          "name": "publisher_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lang": {
+          "name": "lang",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_feed_info_agency_id": {
+          "name": "idx_feed_info_agency_id",
+          "columns": [
+            {
+              "expression": "agency_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "feed_info_agency_id_agencies_id_fk": {
+          "name": "feed_info_agency_id_agencies_id_fk",
+          "tableFrom": "feed_info",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_feed_info_feed_hash": {
+          "name": "uq_feed_info_feed_hash",
+          "nullsNotDistinct": false,
+          "columns": [
+            "hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.routes": {
+      "name": "routes",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_sid": {
+          "name": "route_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "short_name": {
+          "name": "short_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "long_name": {
+          "name": "long_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "route_type",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "text_color": {
+          "name": "text_color",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "routes_agency_id_agencies_id_fk": {
+          "name": "routes_agency_id_agencies_id_fk",
+          "tableFrom": "routes",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_routes_agency_route_sid": {
+          "name": "uq_routes_agency_route_sid",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agency_id",
+            "route_sid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.shapes": {
+      "name": "shapes",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape_sid": {
+          "name": "shape_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "geometry(point)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "distances_traveled": {
+          "name": "distances_traveled",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_shapes_path_gist": {
+          "name": "idx_shapes_path_gist",
+          "columns": [
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        },
+        "idx_shapes_shape_sid": {
+          "name": "idx_shapes_shape_sid",
+          "columns": [
+            {
+              "expression": "shape_sid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shapes_agency_id_agencies_id_fk": {
+          "name": "shapes_agency_id_agencies_id_fk",
+          "tableFrom": "shapes",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_shapes_agency_shape_sid": {
+          "name": "uq_shapes_agency_shape_sid",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agency_id",
+            "shape_sid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.stop_time_instances": {
+      "name": "stop_time_instances",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "trip_instance_id": {
+          "name": "trip_instance_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_time_id": {
+          "name": "stop_time_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timepoint": {
+          "name": "timepoint",
+          "type": "timepoint",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'EXACT'"
+        },
+        "stop_sequence": {
+          "name": "stop_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_arrival_time": {
+          "name": "scheduled_arrival_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scheduled_departure_time": {
+          "name": "scheduled_departure_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "predicted_arrival_time": {
+          "name": "predicted_arrival_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "predicted_departure_time": {
+          "name": "predicted_departure_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "predicted_arrival_uncertainty": {
+          "name": "predicted_arrival_uncertainty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "predicted_departure_uncertainty": {
+          "name": "predicted_departure_uncertainty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schedule_relationship": {
+          "name": "schedule_relationship",
+          "type": "stop_time_update_schedule_relationship",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'SCHEDULED'"
+        },
+        "stop_headsign": {
+          "name": "stop_headsign",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pickup_type": {
+          "name": "pickup_type",
+          "type": "pickup_drop_off",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "drop_off_type": {
+          "name": "drop_off_type",
+          "type": "pickup_drop_off",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_updated_at": {
+          "name": "last_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_stop_time_instances_trip_instance_id": {
+          "name": "idx_stop_time_instances_trip_instance_id",
+          "columns": [
+            {
+              "expression": "trip_instance_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stop_time_instances_trip_instance_id_trip_instances_id_fk": {
+          "name": "stop_time_instances_trip_instance_id_trip_instances_id_fk",
+          "tableFrom": "stop_time_instances",
+          "tableTo": "trip_instances",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "trip_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stop_time_instances_stop_time_id_stop_times_id_fk": {
+          "name": "stop_time_instances_stop_time_id_stop_times_id_fk",
+          "tableFrom": "stop_time_instances",
+          "tableTo": "stop_times",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "stop_time_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_stop_time_instances__trip_instance_stop_sequence": {
+          "name": "uq_stop_time_instances__trip_instance_stop_sequence",
+          "nullsNotDistinct": false,
+          "columns": [
+            "trip_instance_id",
+            "stop_sequence"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.stop_times": {
+      "name": "stop_times",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_id": {
+          "name": "stop_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_sid": {
+          "name": "trip_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_sid": {
+          "name": "stop_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_sequence": {
+          "name": "stop_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arrival_time": {
+          "name": "arrival_time",
+          "type": "char(8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "departure_time": {
+          "name": "departure_time",
+          "type": "char(8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_headsign": {
+          "name": "stop_headsign",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pickup_type": {
+          "name": "pickup_type",
+          "type": "pickup_drop_off",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "drop_off_type": {
+          "name": "drop_off_type",
+          "type": "pickup_drop_off",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timepoint": {
+          "name": "timepoint",
+          "type": "timepoint",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'EXACT'"
+        },
+        "shape_dist_traveled": {
+          "name": "shape_dist_traveled",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "stop_times_agency_id_agencies_id_fk": {
+          "name": "stop_times_agency_id_agencies_id_fk",
+          "tableFrom": "stop_times",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stop_times_trip_id_trips_id_fk": {
+          "name": "stop_times_trip_id_trips_id_fk",
+          "tableFrom": "stop_times",
+          "tableTo": "trips",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stop_times_stop_id_stops_id_fk": {
+          "name": "stop_times_stop_id_stops_id_fk",
+          "tableFrom": "stop_times",
+          "tableTo": "stops",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "stop_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_stop_times_agency_trip_sequence": {
+          "name": "uq_stop_times_agency_trip_sequence",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agency_id",
+            "trip_sid",
+            "stop_sequence"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.stops": {
+      "name": "stops",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stop_sid": {
+          "name": "stop_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "geometry(point)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone_id": {
+          "name": "zone_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_type": {
+          "name": "location_type",
+          "type": "location_type",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_station_id": {
+          "name": "parent_station_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wheelchair_boarding": {
+          "name": "wheelchair_boarding",
+          "type": "wheelchair_boarding",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_stops_location_gist": {
+          "name": "idx_stops_location_gist",
+          "columns": [
+            {
+              "expression": "location",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stops_agency_id_agencies_id_fk": {
+          "name": "stops_agency_id_agencies_id_fk",
+          "tableFrom": "stops",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "stops_parent_station_id_stops_id_fk": {
+          "name": "stops_parent_station_id_stops_id_fk",
+          "tableFrom": "stops",
+          "tableTo": "stops",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "parent_station_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_stops_agency_stop_sid": {
+          "name": "uq_stops_agency_stop_sid",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agency_id",
+            "stop_sid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.trip_instances": {
+      "name": "trip_instances",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape_id": {
+          "name": "shape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vehicle_id": {
+          "name": "vehicle_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_datetime": {
+          "name": "start_datetime",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "trip_instance_state",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PRISTINE'"
+        },
+        "last_trip_update_at": {
+          "name": "last_trip_update_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trip_instances_agency_id_agencies_id_fk": {
+          "name": "trip_instances_agency_id_agencies_id_fk",
+          "tableFrom": "trip_instances",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trip_instances_trip_id_trips_id_fk": {
+          "name": "trip_instances_trip_id_trips_id_fk",
+          "tableFrom": "trip_instances",
+          "tableTo": "trips",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trip_instances_route_id_routes_id_fk": {
+          "name": "trip_instances_route_id_routes_id_fk",
+          "tableFrom": "trip_instances",
+          "tableTo": "routes",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trip_instances_shape_id_shapes_id_fk": {
+          "name": "trip_instances_shape_id_shapes_id_fk",
+          "tableFrom": "trip_instances",
+          "tableTo": "shapes",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "shape_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trip_instances_vehicle_id_vehicles_id_fk": {
+          "name": "trip_instances_vehicle_id_vehicles_id_fk",
+          "tableFrom": "trip_instances",
+          "tableTo": "vehicles",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "vehicle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_trip_instances_trip_start_date_start_time": {
+          "name": "uq_trip_instances_trip_start_date_start_time",
+          "nullsNotDistinct": false,
+          "columns": [
+            "trip_id",
+            "start_date",
+            "start_time"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.trips": {
+      "name": "trips",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shape_id": {
+          "name": "shape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_sid": {
+          "name": "trip_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_sid": {
+          "name": "service_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "headsign": {
+          "name": "headsign",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "short_name": {
+          "name": "short_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "direction",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block_id": {
+          "name": "block_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trips_agency_id_agencies_id_fk": {
+          "name": "trips_agency_id_agencies_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trips_route_id_routes_id_fk": {
+          "name": "trips_route_id_routes_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "routes",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trips_shape_id_shapes_id_fk": {
+          "name": "trips_shape_id_shapes_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "shapes",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "shape_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_trips_agency_trip_sid": {
+          "name": "uq_trips_agency_trip_sid",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agency_id",
+            "trip_sid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.vehicle_positions": {
+      "name": "vehicle_positions",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "vehicle_id": {
+          "name": "vehicle_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trip_instance_id": {
+          "name": "trip_instance_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location": {
+          "name": "location",
+          "type": "geometry(point)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_id": {
+          "name": "stop_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_stop_sequence": {
+          "name": "current_stop_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_status": {
+          "name": "current_status",
+          "type": "vehicle_stop_status",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "congestion_level": {
+          "name": "congestion_level",
+          "type": "congestion_level",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occupancy_status": {
+          "name": "occupancy_status",
+          "type": "occupancy_status",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occupancy_percentage": {
+          "name": "occupancy_percentage",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bearing": {
+          "name": "bearing",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "odometer": {
+          "name": "odometer",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "speed": {
+          "name": "speed",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ingested_at": {
+          "name": "ingested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_vehicle_positions_location_gist": {
+          "name": "idx_vehicle_positions_location_gist",
+          "columns": [
+            {
+              "expression": "location",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "vehicle_positions_vehicle_id_vehicles_id_fk": {
+          "name": "vehicle_positions_vehicle_id_vehicles_id_fk",
+          "tableFrom": "vehicle_positions",
+          "tableTo": "vehicles",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "vehicle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "vehicle_positions_trip_instance_id_trip_instances_id_fk": {
+          "name": "vehicle_positions_trip_instance_id_trip_instances_id_fk",
+          "tableFrom": "vehicle_positions",
+          "tableTo": "trip_instances",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "trip_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "vehicle_positions_stop_id_stops_id_fk": {
+          "name": "vehicle_positions_stop_id_stops_id_fk",
+          "tableFrom": "vehicle_positions",
+          "tableTo": "stops",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "stop_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_vehicle_positions_vehicle_timestamp": {
+          "name": "uq_vehicle_positions_vehicle_timestamp",
+          "nullsNotDistinct": false,
+          "columns": [
+            "vehicle_id",
+            "timestamp"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "transit.vehicles": {
+      "name": "vehicles",
+      "schema": "transit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vehicle_sid": {
+          "name": "vehicle_sid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license_plate": {
+          "name": "license_plate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wheelchair_accessible": {
+          "name": "wheelchair_accessible",
+          "type": "wheelchair_boarding",
+          "typeSchema": "transit",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vehicles_agency_id_agencies_id_fk": {
+          "name": "vehicles_agency_id_agencies_id_fk",
+          "tableFrom": "vehicles",
+          "tableTo": "agencies",
+          "schemaTo": "transit",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_vehicles_agency_vehicle_sid": {
+          "name": "uq_vehicles_agency_vehicle_sid",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agency_id",
+            "vehicle_sid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "transit.alert_cause": {
+      "name": "alert_cause",
+      "schema": "transit",
+      "values": [
+        "UNKNOWN_CAUSE",
+        "OTHER_CAUSE",
+        "TECHNICAL_PROBLEM",
+        "STRIKE",
+        "DEMONSTRATION",
+        "ACCIDENT",
+        "HOLIDAY",
+        "WEATHER",
+        "MAINTENANCE",
+        "CONSTRUCTION",
+        "POLICE_ACTIVITY",
+        "MEDICAL_EMERGENCY"
+      ]
+    },
+    "transit.alert_effect": {
+      "name": "alert_effect",
+      "schema": "transit",
+      "values": [
+        "NO_SERVICE",
+        "REDUCED_SERVICE",
+        "SIGNIFICANT_DELAYS",
+        "DETOUR",
+        "ADDITIONAL_SERVICE",
+        "MODIFIED_SERVICE",
+        "OTHER_EFFECT",
+        "UNKNOWN_EFFECT",
+        "STOP_MOVED",
+        "NO_EFFECT",
+        "ACCESSIBILITY_ISSUE"
+      ]
+    },
+    "transit.alert_severity": {
+      "name": "alert_severity",
+      "schema": "transit",
+      "values": [
+        "UNKNOWN_SEVERITY",
+        "INFO",
+        "WARNING",
+        "SEVERE"
+      ]
+    },
+    "transit.calendar_exception_type": {
+      "name": "calendar_exception_type",
+      "schema": "transit",
+      "values": [
+        "ADDED",
+        "REMOVED"
+      ]
+    },
+    "transit.congestion_level": {
+      "name": "congestion_level",
+      "schema": "transit",
+      "values": [
+        "UNKNOWN_CONGESTION_LEVEL",
+        "RUNNING_SMOOTHLY",
+        "STOP_AND_GO",
+        "CONGESTION",
+        "SEVERE_CONGESTION"
+      ]
+    },
+    "transit.direction": {
+      "name": "direction",
+      "schema": "transit",
+      "values": [
+        "OUTBOUND",
+        "INBOUND"
+      ]
+    },
+    "transit.location_type": {
+      "name": "location_type",
+      "schema": "transit",
+      "values": [
+        "STOP_OR_PLATFORM",
+        "STATION",
+        "ENTRANCE_EXIT",
+        "GENERIC_NODE",
+        "BOARDING_AREA"
+      ]
+    },
+    "transit.occupancy_status": {
+      "name": "occupancy_status",
+      "schema": "transit",
+      "values": [
+        "EMPTY",
+        "MANY_SEATS_AVAILABLE",
+        "FEW_SEATS_AVAILABLE",
+        "STANDING_ROOM_ONLY",
+        "CRUSHED_STANDING_ROOM_ONLY",
+        "FULL",
+        "NOT_ACCEPTING_PASSENGERS",
+        "NO_DATA_AVAILABLE",
+        "NOT_BOARDABLE"
+      ]
+    },
+    "transit.pickup_drop_off": {
+      "name": "pickup_drop_off",
+      "schema": "transit",
+      "values": [
+        "REGULAR",
+        "NO_PICKUP_OR_DROP_OFF",
+        "PHONE_AGENCY",
+        "COORDINATE_WITH_DRIVER"
+      ]
+    },
+    "transit.route_type": {
+      "name": "route_type",
+      "schema": "transit",
+      "values": [
+        "TRAM",
+        "SUBWAY",
+        "RAIL",
+        "BUS",
+        "FERRY",
+        "CABLE_TRAM",
+        "AERIAL_LIFT",
+        "FUNICULAR",
+        "TROLLEYBUS",
+        "MONORAIL"
+      ]
+    },
+    "transit.stop_time_update_schedule_relationship": {
+      "name": "stop_time_update_schedule_relationship",
+      "schema": "transit",
+      "values": [
+        "SCHEDULED",
+        "SKIPPED",
+        "NO_DATA",
+        "UNSCHEDULED"
+      ]
+    },
+    "transit.timepoint": {
+      "name": "timepoint",
+      "schema": "transit",
+      "values": [
+        "APPROXIMATE",
+        "EXACT"
+      ]
+    },
+    "transit.trip_instance_state": {
+      "name": "trip_instance_state",
+      "schema": "transit",
+      "values": [
+        "PRISTINE",
+        "DIRTY",
+        "REMOVED"
+      ]
+    },
+    "transit.vehicle_stop_status": {
+      "name": "vehicle_stop_status",
+      "schema": "transit",
+      "values": [
+        "INCOMING_AT",
+        "STOPPED_AT",
+        "IN_TRANSIT_TO"
+      ]
+    },
+    "transit.wheelchair_boarding": {
+      "name": "wheelchair_boarding",
+      "schema": "transit",
+      "values": [
+        "NO_INFO",
+        "ACCESSIBLE",
+        "NOT_ACCESSIBLE"
+      ]
+    }
+  },
+  "schemas": {
+    "transit": "transit"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

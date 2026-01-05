@@ -342,7 +342,10 @@ export const trips = schema.table(
         direction: directionEnum("direction"),
         blockId: text("block_id"),
     },
-    (t) => [unique("uq_trips_agency_trip_sid").on(t.agencyId, t.tripSid)]
+    (t) => [
+        unique("uq_trips_agency_trip_sid").on(t.agencyId, t.tripSid),
+        index("idx_trips_agency_service").on(t.agencyId, t.serviceSid),
+    ]
 );
 
 export const stops = schema.table(
@@ -382,7 +385,10 @@ export const calendarDates = schema.table(
         date: varchar("date", { length: 8 }).notNull(), // YYYYMMDD
         exceptionType: calendarExceptionTypeEnum("exception_type").notNull(),
     },
-    (t) => [primaryKey({ columns: [t.agencyId, t.serviceSid, t.date] })]
+    (t) => [
+        primaryKey({ columns: [t.agencyId, t.serviceSid, t.date] }),
+        index("idx_calendar_dates_agency_date").on(t.agencyId, t.date),
+    ]
 );
 
 export const stopTimes = schema.table(
@@ -407,7 +413,10 @@ export const stopTimes = schema.table(
         timepoint: timepointEnum("timepoint").default(Timepoint.EXACT),
         shapeDistTraveled: doublePrecision("shape_dist_traveled"),
     },
-    (t) => [unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence)]
+    (t) => [
+        unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence),
+        index("idx_stop_times_trip_id_sequence").on(t.tripId, t.stopSequence),
+    ]
 );
 
 export const tripInstances = schema.table(
@@ -437,7 +446,19 @@ export const tripInstances = schema.table(
             withTimezone: true,
         }),
     },
-    (t) => [unique("uq_trip_instances_agency_trip_date").on(t.agencyId, t.tripId, t.startDate)]
+    (t) => [
+        unique("uq_trip_instances_trip_start_date_start_time").on(
+            t.tripId,
+            t.startDate,
+            t.startTime
+        ),
+        index("idx_trip_instances_trip_date_time_state").on(
+            t.tripId,
+            t.startDate,
+            t.startTime,
+            t.state
+        ),
+    ]
 );
 
 export const stopTimeInstances = schema.table(
