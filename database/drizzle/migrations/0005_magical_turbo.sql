@@ -1,0 +1,2 @@
+ALTER TABLE "transit"."trip_instances" DROP CONSTRAINT "uq_trip_instances_agency_trip_date";--> statement-breakpoint
+ALTER TABLE "transit"."trip_instances" ADD CONSTRAINT "uq_trip_instances_trip_start_date_start_time" UNIQUE("trip_id","start_date","start_time");

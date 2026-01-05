@@ -1,42 +1,54 @@
 from typing import AsyncIterator, List, Tuple
-from datetime import datetime
-
-from pymongo import UpdateOne
 
 from ingest_pipeline.core.types import Context, Transformer
-from models.enums import (
-    StopTimeUpdateScheduleRelationship,
-    TripInstanceState,
-)
-from models.mongo_schemas import (
-    Agency,
-    CalendarDate,
-    Route,
-    Shape,
-    StopTime,
-    StopTimeInstance,
-    Trip,
-    TripInstance,
-    CalendarExceptionType,
+from generated.db_models import (
+    Agencies,
+    CalendarDates,
+    Trips,
+    Routes,
+    Shapes,
+    StopTimes,
+    TripInstances,
 )
 from utils.datetime import convert_to_datetime
+from ingest_pipeline.sinks.postgres_upsert_sink import UpsertOperation
 
 
 class TripInstanceMapper(
     Transformer[
-        Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape], UpdateOne
+        Tuple[
+            Agencies,
+            CalendarDates,
+            Trips,
+            StopTimes,
+            Routes | None,
+            Shapes | None,
+        ],
+        UpsertOperation,
     ]
 ):
     """
-    Maps unique trip instances into MongoDB UpdateOne operations
-    Input: Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
-    Output: pymongo UpdateOne
+    Maps unique trip instances into postgres UpsertOperation
     """
 
     input_type: type[
-        Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
-    ] = Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
-    output_type: type[UpdateOne] = UpdateOne
+        Tuple[
+            Agencies,
+            CalendarDates,
+            Trips,
+            StopTimes,
+            Routes | None,
+            Shapes | None,
+        ]
+    ] = Tuple[
+        Agencies,
+        CalendarDates,
+        Trips,
+        StopTimes,
+        Routes | None,
+        Shapes | None,
+    ]
+    output_type: type[UpsertOperation] = UpsertOperation
 
     def __init__(self):
         pass
@@ -45,85 +57,50 @@ class TripInstanceMapper(
         self,
         context: Context,
         inputs: AsyncIterator[
-            Tuple[Agency, CalendarDate, Trip, List[StopTime], Route, Shape]
+            Tuple[
+                Agencies,
+                CalendarDates,
+                Trips,
+                StopTimes,
+                Routes | None,
+                Shapes | None,
+            ]
         ],
-    ) -> AsyncIterator[UpdateOne]:
+    ) -> AsyncIterator[UpsertOperation]:
         async for row in inputs:
-            agency, calendar_date, trip, stop_times, route, shape = row
+            agency, calendar_date, trip, stop_time, route, shape = row
             try:
+                state = "PRISTINE"
+                if calendar_date.exception_type == "REMOVED":
+                    state = "REMOVED"
+
+                start_time = stop_time.arrival_time
+
                 # Type ignore to bypass static type checking for required fields.
-                # We know these fields may be wrong. We validate the parent model (which includes this model) immediately after.
-                stop_time_infos = [
-                    StopTimeInstance(
-                        stop_id=stop_time.stop_id,  # type: ignore
-                        stop_headsign=stop_time.stop_headsign,
-                        pickup_type=stop_time.pickup_type,
-                        drop_off_type=stop_time.drop_off_type,
-                        timepoint=stop_time.timepoint,
-                        shape_dist_traveled=stop_time.shape_dist_traveled,
-                        arrival_datetime=convert_to_datetime(
-                            calendar_date.date,
-                            stop_time.arrival_time,
-                            agency.agency_timezone,
-                            context.logger,
-                        ),  # type: ignore
-                        departure_datetime=convert_to_datetime(
-                            calendar_date.date,
-                            stop_time.departure_time,
-                            agency.agency_timezone,
-                            context.logger,
-                        ),  # type: ignore
-                        schedule_relationship=StopTimeUpdateScheduleRelationship.SCHEDULED,
-                    )
-                    for stop_time in stop_times
-                ]
-
-                state = TripInstanceState.PRISTINE
-                if calendar_date.exception_type == CalendarExceptionType.REMOVED:
-                    state = TripInstanceState.REMOVED
-
-                trip_instance_doc = TripInstance(
-                    agency_id=agency.agency_id,
-                    trip_id=trip.trip_id,
+                # Pydantic validation will catch any issues at runtime.
+                trip_instance = TripInstances(
+                    agency_id=agency.id,
+                    trip_id=trip.id,
+                    route_id=route.id if route else None,  # type: ignore
+                    shape_id=shape.id if shape else None,
                     start_date=calendar_date.date,
-                    start_time=stop_times[0].arrival_time,
-                    route_id=route.route_id,
-                    direction_id=trip.direction_id,
-                    state=state,
+                    start_time=start_time,  # type: ignore
                     start_datetime=convert_to_datetime(
                         calendar_date.date,
-                        stop_times[0].arrival_time,
-                        agency.agency_timezone,
+                        start_time,
+                        agency.timezone,
                         context.logger,
-                    ),  # type: ignore
-                    stop_times=stop_time_infos,
-                    stop_times_updated_at=datetime.now(),
-                    # We know the ID of these fields MUST exist.
-                    trip=trip.id,  # type: ignore
-                    route=route.id,  # type: ignore
-                    shape=shape.id,  # type: ignore
+                    )
+                    if start_time
+                    else None,  # type: ignore
+                    state=state,
                 )
 
-                await trip_instance_doc.validate_self()
-
-                yield UpdateOne(
-                    {
-                        "agency_id": trip_instance_doc.agency_id,
-                        "trip_id": trip_instance_doc.trip_id,
-                        "start_date": trip_instance_doc.start_date,
-                        "start_time": trip_instance_doc.start_time,
-                        # Check to make sure we only update PRISTINE documents
-                        "$or": [
-                            {"state": TripInstanceState.PRISTINE},
-                            {"state": {"$exists": False}},
-                        ],
-                    },
-                    {
-                        "$set": {
-                            **trip_instance_doc.model_dump(exclude={"id"}),
-                        }
-                    },
-                    upsert=True,
+                # Only yield AFTER all validations pass
+                yield UpsertOperation(
+                    model=TripInstances,
+                    values=trip_instance.model_dump(),
+                    conflict_columns=["trip_id", "start_date", "start_time"],
                 )
 
             except Exception as e:

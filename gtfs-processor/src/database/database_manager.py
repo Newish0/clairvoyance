@@ -42,7 +42,7 @@ class DatabaseManager:
                 async with session.begin():
                     tables = list(reversed(SQLModel.metadata.sorted_tables))
                     self.logger.info(
-                        f"Deleting data from {len(tables)} tables ({map(lambda t: t.name, tables)})"
+                        f"Deleting data from {len(tables)} tables ({', '.join(map(lambda t: t.name, tables))})"
                     )
 
                     for table in tables:

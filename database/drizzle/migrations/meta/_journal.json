@@ -36,6 +36,20 @@
       "when": 1767432023828,
       "tag": "0004_omniscient_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767514500745,
+      "tag": "0005_magical_turbo",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767598770813,
+      "tag": "0006_gray_morph",
+      "breakpoints": true
     }
   ]
 }

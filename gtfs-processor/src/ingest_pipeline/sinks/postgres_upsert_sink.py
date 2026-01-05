@@ -77,7 +77,7 @@ class PostgresUpsertSink(Sink[UpsertOperation]):
             stmt = stmt.on_conflict_do_update(
                 index_elements=first.conflict_columns, set_=update_dict
             )
-            
+
 
             await self.session.execute(stmt)
             context.telemetry.incr("postgres_upsert_sink.upserted", len(batch))
