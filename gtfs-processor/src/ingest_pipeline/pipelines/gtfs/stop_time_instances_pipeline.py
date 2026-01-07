@@ -28,7 +28,8 @@ def build_stop_time_instances_pipeline(
         ),
         StageSpec("stop_time_instance_mapper", StopTimeInstanceMapper()),
         StageSpec(
-            "postgres_upsert_sink", PostgresUpsertSink(db.createSession(), batch_size=1)
+            "postgres_upsert_sink",
+            PostgresUpsertSink(db.createSession(), batch_size=1000),
         ),
     ]
     return Orchestrator(
