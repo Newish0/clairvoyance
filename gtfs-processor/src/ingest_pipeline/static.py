@@ -18,9 +18,7 @@ from ingest_pipeline.pipelines.gtfs.stops_pipeline import build_stops_pipeline
 from ingest_pipeline.pipelines.gtfs.trip_instances_pipeline import (
     build_trip_instances_pipeline,
 )
-from ingest_pipeline.pipelines.gtfs.stop_time_instances_pipeline import (
-    build_stop_time_instances_pipeline,
-)
+
 from ingest_pipeline.pipelines.gtfs.trips_pipeline import build_trips_pipeline
 from ingest_pipeline.sources.gtfs.gtfs_archive import GTFSArchiveSource
 from utils.logger_config import setup_logger
@@ -45,10 +43,6 @@ async def run_gtfs_static_pipelines(
         await db_manager.delete_all()
 
     trip_instances_pipeline = build_trip_instances_pipeline(
-        agency_id, db=db_manager, log_level=log_level
-    )
-
-    stop_time_instances_pipeline = build_stop_time_instances_pipeline(
         agency_id, db=db_manager, log_level=log_level
     )
 
@@ -132,6 +126,3 @@ async def run_gtfs_static_pipelines(
     # Must run after GTFS ingest from zip is complete.
 
     # await trip_instances_pipeline.run()
-
-    # Must run after trip instances are created.
-    await stop_time_instances_pipeline.run()

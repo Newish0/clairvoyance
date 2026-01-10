@@ -17,7 +17,7 @@ import {
     pgSchema,
     char,
 } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
+import { and, eq, relations, sql } from "drizzle-orm";
 
 // =========================================================
 // SCHEMA
@@ -461,6 +461,19 @@ export const tripInstances = schema.table(
     ]
 );
 
+// TODO: Make stopTimeInstances LAZY.
+//       We only realize them when RT data arrives.
+//       If no realized stopTimeInstances, in query,
+//       we can easily generate static stopTimes that matches
+//       the SAME type as stopTimeInstances (so to API consumers they look the same).
+//       So, API logic would be if exists realized stopTimeInstances, use them, else use static stopTimes.
+//       **This also means we need a view for the static stopTimesFakeInstances to easily query next/nearby.
+
+/**
+ * A stopTimeInstance is ONLY generated when a realtime trip update arrives.
+ * It contains all the static fields from stopTimes, and the realtime fields from realtime trip updates.
+ * For static stopTimes, we use the static stopTimesStaticInstances view.
+ */
 export const stopTimeInstances = schema.table(
     "stop_time_instances",
     {
@@ -510,6 +523,46 @@ export const stopTimeInstances = schema.table(
             t.stopSequence
         ),
     ]
+);
+
+/**
+ * This view is used when we have no stopTimeInstances (i.e. no realtime trip updates).
+ */
+export const stopTimesStaticInstances = schema.view("stop_times_static_instances").as((qb) =>
+    qb
+        .select({
+            // Must explicitly use as "trip_instance_id" and "stop_time_id" to avoid error `column "id" specified more than once`
+            tripInstanceId: sql<number>`${tripInstances.id}`.as("trip_instance_id"),
+            stopTimeId: sql<number>`${stopTimes.id}`.as("stop_time_id"),
+
+            stopSequence: stopTimes.stopSequence,
+            timepoint: stopTimes.timepoint,
+            scheduledArrivalTime: sql<Date>`(${tripInstances.startDatetime} + (
+                ${stopTimes.arrivalTime}::interval - (
+                    SELECT ${stopTimes.arrivalTime}::interval
+                    FROM ${stopTimes}
+                    WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
+                    AND ${stopTimes.stopSequence} = 1
+                )
+            ))::timestamptz`.as("scheduled_arrival_time"),
+
+            // Subtract first stop's arrival time (not departure) because tripInstances.startDatetime
+            // corresponds to when the trip arrives at the first stop, so all times are relative to that
+            scheduledDepartureTime: sql<Date>`(${tripInstances.startDatetime} + (
+                ${stopTimes.departureTime}::interval - (
+                    SELECT ${stopTimes.arrivalTime}::interval
+                    FROM ${stopTimes}
+                    WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
+                    AND ${stopTimes.stopSequence} = 1
+                )
+            ))::timestamptz`.as("scheduled_departure_time"),
+
+            stopHeadsign: stopTimes.stopHeadsign,
+            pickupType: stopTimes.pickupType,
+            dropOffType: stopTimes.dropOffType,
+        } satisfies Record<keyof Omit<typeof stopTimeInstances.$inferSelect, "id" | "lastUpdatedAt" | "predictedArrivalTime" | "predictedDepartureTime" | "predictedArrivalUncertainty" | "predictedDepartureUncertainty" | "scheduleRelationship">, any>)
+        .from(tripInstances)
+        .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId))
 );
 
 export const vehiclePositions = schema.table(
