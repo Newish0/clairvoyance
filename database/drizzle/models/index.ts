@@ -17,7 +17,7 @@ import {
     pgSchema,
     char,
 } from "drizzle-orm/pg-core";
-import { and, eq, relations, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, relations, sql } from "drizzle-orm";
 
 // =========================================================
 // SCHEMA
@@ -470,15 +470,17 @@ export const tripInstances = schema.table(
 //       **This also means we need a view for the static stopTimesFakeInstances to easily query next/nearby.
 
 /**
- * A stopTimeInstance is ONLY generated when a realtime trip update arrives.
- * It contains all the static fields from stopTimes, and the realtime fields from realtime trip updates.
+ * A stopTimeRealtimeInstance is ONLY generated when a realtime trip update arrives.
+ * It contains all the realtime fields from realtime trip updates (and some static values if realtime counterpart is missing).
  * For static stopTimes, we use the static stopTimesStaticInstances view.
  */
-export const stopTimeInstances = schema.table(
-    "stop_time_instances",
+export const stopTimeRealtimeInstances = schema.table(
+    "stop_time_realtime_instances",
     {
-        // PK & FKs
+        // PK
         id: serial("id").primaryKey(),
+
+        // FKs
         tripInstanceId: integer("trip_instance_id")
             .references(() => tripInstances.id)
             .notNull(),
@@ -560,11 +562,57 @@ export const stopTimesStaticInstances = schema.view("stop_times_static_instances
             stopHeadsign: stopTimes.stopHeadsign,
             pickupType: stopTimes.pickupType,
             dropOffType: stopTimes.dropOffType,
-        } satisfies Record<keyof Omit<typeof stopTimeInstances.$inferSelect, "id" | "lastUpdatedAt" | "predictedArrivalTime" | "predictedDepartureTime" | "predictedArrivalUncertainty" | "predictedDepartureUncertainty" | "scheduleRelationship">, any>)
+        } satisfies Record<keyof Omit<typeof stopTimeRealtimeInstances.$inferSelect, "id" | "lastUpdatedAt" | "predictedArrivalTime" | "predictedDepartureTime" | "predictedArrivalUncertainty" | "predictedDepartureUncertainty" | "scheduleRelationship">, any>)
         .from(tripInstances)
         .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId))
 );
 
+/**
+ * Merges stopTimeRealtimeInstances with stopTimesStaticInstances.
+ * If stopTimeRealtimeInstances exist, use them. Else use stopTimesStaticInstances
+ *
+ * IMPORTANT NOTE:
+ * Using mostly raw SQL here because there is a known Drizzle issue when joining views.
+ * The problem is that Drizzle's SQL generation doesn't properly qualify column references from views in FULL JOINs.
+ */
+export const stopTimeInstances = schema.view("stop_time_instances").as((qb) =>
+    qb
+        .select({
+            id: sql`rt.id`.as("id"),
+            tripInstanceId: sql`COALESCE(rt.trip_instance_id, st.trip_instance_id)`.as(
+                "trip_instance_id"
+            ),
+            stopTimeId: sql`COALESCE(rt.stop_time_id, st.stop_time_id)`.as("stop_time_id"),
+            stopSequence: sql`COALESCE(rt.stop_sequence, st.stop_sequence)`.as("stop_sequence"),
+            timepoint: sql`COALESCE(rt.timepoint, st.timepoint)`.as("timepoint"),
+            scheduledArrivalTime:
+                sql`COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)`.as(
+                    "scheduled_arrival_time"
+                ),
+            scheduledDepartureTime:
+                sql`COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time)`.as(
+                    "scheduled_departure_time"
+                ),
+            predictedArrivalTime: sql`rt.predicted_arrival_time`.as("predicted_arrival_time"),
+            predictedDepartureTime: sql`rt.predicted_departure_time`.as("predicted_departure_time"),
+            predictedArrivalUncertainty: sql`rt.predicted_arrival_uncertainty`.as(
+                "predicted_arrival_uncertainty"
+            ),
+            predictedDepartureUncertainty: sql`rt.predicted_departure_uncertainty`.as(
+                "predicted_departure_uncertainty"
+            ),
+            scheduleRelationship: sql`rt.schedule_relationship`.as("schedule_relationship"),
+            stopHeadsign: sql`COALESCE(rt.stop_headsign, st.stop_headsign)`.as("stop_headsign"),
+            pickupType: sql`COALESCE(rt.pickup_type, st.pickup_type)`.as("pickup_type"),
+            dropOffType: sql`COALESCE(rt.drop_off_type, st.drop_off_type)`.as("drop_off_type"),
+            lastUpdatedAt: sql`rt.last_updated_at`.as("last_updated_at"),
+        } satisfies Record<keyof typeof stopTimeRealtimeInstances.$inferSelect, any>)
+        .from(sql`transit.stop_time_realtime_instances rt`)
+        .fullJoin(
+            sql`transit.stop_times_static_instances st`,
+            sql`rt.trip_instance_id = st.trip_instance_id AND rt.stop_sequence = st.stop_sequence`
+        )
+);
 export const vehiclePositions = schema.table(
     "vehicle_positions",
     {
@@ -654,17 +702,17 @@ export const stopTimeRelations = relations(stopTimes, ({ one }) => ({
 export const tripInstanceRelations = relations(tripInstances, ({ one, many }) => ({
     trip: one(trips, { fields: [tripInstances.tripId], references: [trips.id] }),
     vehicle: one(vehicles, { fields: [tripInstances.vehicleId], references: [vehicles.id] }),
-    stopTimeInstances: many(stopTimeInstances),
+    stopTimeInstances: many(stopTimeRealtimeInstances),
     positions: many(vehiclePositions),
 }));
 
-export const stopTimeInstanceRelations = relations(stopTimeInstances, ({ one }) => ({
+export const stopTimeInstanceRelations = relations(stopTimeRealtimeInstances, ({ one }) => ({
     tripInstance: one(tripInstances, {
-        fields: [stopTimeInstances.tripInstanceId],
+        fields: [stopTimeRealtimeInstances.tripInstanceId],
         references: [tripInstances.id],
     }),
     stopTime: one(stopTimes, {
-        fields: [stopTimeInstances.stopTimeId],
+        fields: [stopTimeRealtimeInstances.stopTimeId],
         references: [stopTimes.id],
     }),
 }));
