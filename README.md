@@ -12,7 +12,7 @@
 
 Realtime transit webapp using GTFS data in a microservice architecture.
 
-Visit the [demo site](http://newishdev.space).
+Visit the [demo site](https://transit.newishdev.space).
 
 </div>
 
