@@ -2,8 +2,8 @@
 
 <h1>Clairvoyance</h1>
 
-![Astro](https://img.shields.io/badge/astro-%23FF5A1F.svg?style=for-the-badge&logo=astro&logoColor=white)
-![Bun](https://img.shields.io/badge/bun-%2300C7B7.svg?style=for-the-badge&logo=bun&logoColor=white)
+![TanStack Router](https://img.shields.io/badge/TanStack%20Router-00B970?style=for-the-badge&logo=tanstack&logoColor=white)
+![Bun](https://img.shields.io/badge/bun-%23f472b6.svg?style=for-the-badge&logo=bun&logoColor=white)
 ![tRPC](https://img.shields.io/badge/tRPC-%232596BE.svg?style=for-the-badge&logo=trpc&logoColor=white)
 ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
 ![Python](https://img.shields.io/badge/python-%233776AB.svg?style=for-the-badge&logo=python&logoColor=white)
@@ -27,7 +27,7 @@ Visit the [demo site](http://newishdev.space).
 
 -   **Frontend**: Tanstack Router + React + TypeScript
 -   **Backend**: Bun + TRPC (API) + Python (ETL)
--   **ORM**: Beanie (MongoDB)
+-   **ORM**: Beanie
 -   **Database**: MongoDB
 -   **Containerization**: Docker
 -   **Package Management**: uv (Python)
