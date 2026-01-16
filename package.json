@@ -1,0 +1,17 @@
+{
+  "name": "clairvoyance",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "database/drizzle",
+    "transit-api/server",
+    "transit-api/test-client",
+    "transit-app"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

@@ -1,16 +1,11 @@
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
-import { DatabaseManager } from "./database/mongo";
+import { drizzle } from "drizzle-orm/bun-sql";
 
-const MONGO_CONNECTION_STRING =
-    Bun.env.MONGO_CONNECTION_STRING || "mongodb://localhost:27017?replicaSet=rs0";
-const MONGO_DB_NAME = Bun.env.MONGO_DB_NAME || "transit";
-
+const DATABASE_URL = Bun.env.DATABASE_URL!;
 export async function createContext(opts: FetchCreateContextFnOptions) {
-    const dbManager = DatabaseManager.getInstance(MONGO_CONNECTION_STRING, MONGO_DB_NAME);
-    await dbManager.connect();
-
+    const db = drizzle(DATABASE_URL);
     return {
-        db: dbManager.db,
+        db,
     };
 }
 

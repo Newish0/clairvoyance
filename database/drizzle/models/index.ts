@@ -613,6 +613,7 @@ export const stopTimeInstances = schema.view("stop_time_instances").as((qb) =>
             sql`rt.trip_instance_id = st.trip_instance_id AND rt.stop_sequence = st.stop_sequence`
         )
 );
+
 export const vehiclePositions = schema.table(
     "vehicle_positions",
     {
