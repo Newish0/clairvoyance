@@ -1,12 +1,9 @@
-import { ObjectId } from "mongodb";
+import { trips } from "database";
+import { eq } from "drizzle-orm";
 import { DataRepository } from "./data-repository";
 
 export class TripRepository extends DataRepository {
-    protected collectionName = "trips" as const;
-
-    public async findById(routeObjectId: string) {
-        return this.db
-            .collection(this.collectionName)
-            .findOne({ _id: new ObjectId(routeObjectId) });
+    public async findById(tripId: number) {
+        return this.db.select().from(trips).where(eq(trips.id, tripId));
     }
 }
