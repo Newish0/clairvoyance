@@ -6,8 +6,6 @@ import { StopRepository } from "./stop-repository";
 import { RouteRepository } from "./route-repository";
 
 export class RoutesByStopRepository extends DataRepository {
-    protected collectionName = "routes_by_stop" as const;
-
     private stopRepository: StopRepository;
     private routeRepository: RouteRepository;
 

@@ -1,39 +1,74 @@
-import { ObjectId, WithId } from "mongodb";
+import { shapes } from "database";
 import { DataRepository } from "./data-repository";
-import { Shape } from "../../../../gtfs-processor/shared/gtfs-db-types";
-import { OmitId } from "../database/mongo";
+import { eq, sql } from "drizzle-orm";
+import { Result, ok, err } from "neverthrow";
+import * as v from "valibot";
+import {
+    parseGeoJSON,
+    LineStringSchema,
+    type LineString,
+    type Feature,
+    type GeoJSONError,
+} from "../validations/geojson-validation";
+
+// Define the properties schema for Shape features
+const ShapePropertiesSchema = v.object({
+    shapeId: v.number(),
+    shapeSid: v.string(),
+    agencyId: v.string(),
+    distancesTraveled: v.nullable(v.array(v.number())),
+});
+
+type ShapeProperties = v.InferOutput<typeof ShapePropertiesSchema>;
+type ShapeFeature = Feature<LineString, ShapeProperties>;
 
 export class ShapeRepository extends DataRepository {
-    protected collectionName = "shapes" as const;
+    public async findGeoJson(shapeId: number): Promise<Result<ShapeFeature | null, GeoJSONError>> {
+        const result = await this.db
+            .select({
+                id: shapes.id,
+                agencyId: shapes.agencyId,
+                shapeSid: shapes.shapeSid,
+                pathGeoJson: sql<string>`ST_AsGeoJSON(${shapes.path})`,
+                distancesTraveled: shapes.distancesTraveled,
+            })
+            .from(shapes)
+            .where(eq(shapes.id, shapeId));
 
-    public async findGeoJson(agencyId: string, shapeId: string) {
-        const shape = await this.db
-            .collection(this.collectionName)
-            .findOne({ agency_id: agencyId, shape_id: shapeId });
+        const shape = result[0];
 
-        return this.transformShapeToGeojson(shape);
-    }
-
-    public async findGeoJsonById(shapeObjectId: string) {
-        const shape = await this.db
-            .collection(this.collectionName)
-            .findOne({ _id: new ObjectId(shapeObjectId) });
-
-        return this.transformShapeToGeojson(shape);
-    }
-
-    private transformShapeToGeojson(shape: WithId<OmitId<Shape>> | null | undefined) {
         if (!shape) {
-            return null;
+            return ok(null);
         }
 
-        return {
+        return this.transformShapeToGeoJson(shape);
+    }
+
+    private transformShapeToGeoJson(shape: {
+        id: number;
+        agencyId: string;
+        shapeSid: string;
+        pathGeoJson: string;
+        distancesTraveled: number[] | null;
+    }): Result<ShapeFeature, GeoJSONError> {
+        // Parse and validate the LineString geometry because DB returns string
+        const geometryResult = parseGeoJSON<LineString>(shape.pathGeoJson, LineStringSchema);
+
+        if (geometryResult.isErr()) {
+            return err(geometryResult.error);
+        }
+
+        const feature: ShapeFeature = {
             type: "Feature",
+            geometry: geometryResult.value,
             properties: {
-                shapeId: shape.shape_id,
-                distances_traveled: shape.distances_traveled || [],
+                shapeId: shape.id,
+                shapeSid: shape.shapeSid,
+                agencyId: shape.agencyId,
+                distancesTraveled: shape.distancesTraveled,
             },
-            geometry: shape.geometry,
-        } as const;
+        };
+
+        return ok(feature);
     }
 }

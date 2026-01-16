@@ -3,7 +3,6 @@ import { DataRepository } from "./data-repository";
 import type { FeatureCollection } from "geojson";
 
 export class StopRepository extends DataRepository {
-    protected collectionName = "stops" as const;
 
     public async findStop(agency_id: string, stop_id: string) {
         return this.db.collection(this.collectionName).findOne({ agency_id, stop_id });
