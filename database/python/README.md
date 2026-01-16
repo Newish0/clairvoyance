@@ -5,7 +5,7 @@
 
 1. Set `DATABASE_URL` env var (e.g., `$env:DATABASE_URL="postgresql://transit:transit@localhost:5432/transit"`)
 2. Run `uv run sqlacodegen $env:DATABASE_URL --schema transit --generator sqlmodels --outfile generated/db_models.py`
-
+3. Do the manual changes below
 
 
 # SQLAlchemy/SQLModel Self-Referential Relationship Warning

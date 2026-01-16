@@ -1,10 +1,9 @@
-import { TransitDb } from "../database/mongo";
+import { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
 export abstract class DataRepository {
-    protected abstract readonly collectionName: string;
-    protected db: TransitDb;
+    protected db: BunSQLDatabase;
 
-    constructor(db: TransitDb) {
+    constructor(db: BunSQLDatabase) {
         this.db = db;
     }
 }

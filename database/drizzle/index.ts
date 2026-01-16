@@ -1,3 +1,12 @@
 import { drizzle } from "drizzle-orm/bun-sql";
+import { routes } from "./models";
+import { eq } from "drizzle-orm";
 
-const db = drizzle(Bun.env.DATABASE_URL!);
+export * from "./models";
+
+// export const createDatabase = (databaseUrl: string) => {
+//     return drizzle(databaseUrl);
+// };
+
+// const db = createDatabase("");
+// db.select().from(routes).where(eq(routes.id, 123));
