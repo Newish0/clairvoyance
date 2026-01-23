@@ -81,7 +81,7 @@ export class TripInstancesRepository extends DataRepository {
         });
     }
 
-    public async findByRouteStopTime({
+    public async findByRouteStopTimeAtStop({
         routeId,
         direction,
         stopId,
@@ -114,6 +114,7 @@ export class TripInstancesRepository extends DataRepository {
                 ),
             );
 
+        // There should exist one unique trip instance per stop time instance
         const stopTimeInstancesResult = await this.db
             .select({
                 ...getTableColumns(stops),
@@ -137,18 +138,15 @@ export class TripInstancesRepository extends DataRepository {
                 stopTimeInstances.scheduledDepartureTime,
             );
 
-        const groupedByTripInstance = stopTimeInstancesResult.reduce(
-            (acc, stopTimeInstance) => {
-                if (!acc[stopTimeInstance.tripInstanceId]) {
-                    acc[stopTimeInstance.tripInstanceId] = [];
-                }
-                acc[stopTimeInstance.tripInstanceId].push(stopTimeInstance);
-                return acc;
-            },
-            {} as Record<number, typeof stopTimeInstancesResult>,
-        );
-
-        const tripInstanceIds = Object.keys(groupedByTripInstance).map(Number);
+        const stopTimeInstancesMap: Record<number, (typeof stopTimeInstancesResult)[number]> =
+            stopTimeInstancesResult.reduce(
+                (acc, stopTimeInstance) => ({
+                    ...acc,
+                    [stopTimeInstance.id]: stopTimeInstance,
+                }),
+                {},
+            );
+        const tripInstanceIds = Object.keys(stopTimeInstancesMap).map(Number);
 
         const tripInstancesResult = await this.db
             .select()
@@ -159,7 +157,7 @@ export class TripInstancesRepository extends DataRepository {
         const fullyPopulatedTripInstances = tripInstancesResult.map((tripInstance) => ({
             ...tripInstance.trips, // trips MUST go first to allow tripInstances.id to overwrite trips.id
             ...tripInstance.trip_instances,
-            stopTimeInstances: groupedByTripInstance[tripInstance.trip_instances.id],
+            stopTimeInstances: stopTimeInstancesMap[tripInstance.trip_instances.id],
         }));
 
         return fullyPopulatedTripInstances;
