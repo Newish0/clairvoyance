@@ -84,7 +84,7 @@ export const tripInstanceRouter = router({
             }),
         )
         .query(async ({ input, ctx }) => {
-            const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTime(input);
+            const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTimeAtStop(input);
             return trips;
         }),
 
