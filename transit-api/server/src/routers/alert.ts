@@ -1,15 +1,16 @@
-import { Direction, RouteType } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { Direction, RouteType } from "database";
 import { AlertRepository } from "../repositories/alert-repository";
 import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
+import { vInteger } from "../validations/helpers";
 
 const entitySelectionQuery = v.object({
-    agencyId: v.optional(v.string()),
+    agencyId: v.optional(vInteger()),
     routeType: v.optional(v.enum(RouteType)),
-    routeId: v.optional(v.string()),
-    directionId: v.optional(v.enum(Direction)),
-    stopId: v.optional(v.union([v.string(), v.array(v.string())])),
-    tripInstanceId: v.optional(v.string()),
+    routeId: v.optional(vInteger()),
+    direction: v.optional(v.enum(Direction)),
+    stopId: v.optional(v.union([vInteger(), v.array(vInteger())])),
+    tripInstanceId: v.optional(vInteger()),
 });
 
 export const alertRouter = router({

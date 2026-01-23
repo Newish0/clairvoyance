@@ -22,17 +22,19 @@ type IsObjectId<T> = T extends { _bsontype: "ObjectId" } ? true : false;
 export type AsSuperjsonSerialized<T> = T extends Function
     ? never
     : IsObjectId<T> extends true
-    ? string
-    : T extends Date | RegExp | Map<any, any> | Set<any>
-    ? T
-    : T extends bigint
-    ? bigint
-    : T extends number
-    ? number // Preserves NaN, Infinity, -Infinity
-    : T extends undefined
-    ? undefined
-    : T extends object
-    ? {
-          [K in keyof T as T[K] extends Function ? never : K]: AsSuperjsonSerialized<T[K]>;
-      }
-    : T;
+      ? string
+      : T extends Date | RegExp | Map<any, any> | Set<any>
+        ? T
+        : T extends bigint
+          ? bigint
+          : T extends number
+            ? number // Preserves NaN, Infinity, -Infinity
+            : T extends undefined
+              ? undefined
+              : T extends object
+                ? {
+                      [K in keyof T as T[K] extends Function ? never : K]: AsSuperjsonSerialized<
+                          T[K]
+                      >;
+                  }
+                : T;

@@ -182,24 +182,24 @@ export const directionEnum = schema.enum("direction", enumToPgEnum(Direction));
 
 export const wheelchairBoardingEnum = schema.enum(
     "wheelchair_boarding",
-    enumToPgEnum(WheelchairBoarding)
+    enumToPgEnum(WheelchairBoarding),
 );
 
 export const calendarExceptionTypeEnum = schema.enum(
     "calendar_exception_type",
-    enumToPgEnum(CalendarExceptionType)
+    enumToPgEnum(CalendarExceptionType),
 );
 
 export const timepointEnum = schema.enum("timepoint", enumToPgEnum(Timepoint));
 
 export const stopTimeUpdateScheduleRelationshipEnum = schema.enum(
     "stop_time_update_schedule_relationship",
-    enumToPgEnum(StopTimeUpdateScheduleRelationship)
+    enumToPgEnum(StopTimeUpdateScheduleRelationship),
 );
 
 export const vehicleStopStatusEnum = schema.enum(
     "vehicle_stop_status",
-    enumToPgEnum(VehicleStopStatus)
+    enumToPgEnum(VehicleStopStatus),
 );
 
 export const congestionLevelEnum = schema.enum("congestion_level", enumToPgEnum(CongestionLevel));
@@ -214,7 +214,7 @@ export const alertSeverityEnum = schema.enum("alert_severity", enumToPgEnum(Aler
 
 export const tripInstanceStateEnum = schema.enum(
     "trip_instance_state",
-    enumToPgEnum(TripInstanceState)
+    enumToPgEnum(TripInstanceState),
 );
 
 // =========================================================
@@ -271,7 +271,7 @@ export const feedInfo = schema.table(
     (t) => [
         unique("uq_feed_info_feed_hash").on(t.hash),
         index("idx_feed_info_agency_id").on(t.agencyId),
-    ]
+    ],
 );
 
 export const routes = schema.table(
@@ -289,7 +289,7 @@ export const routes = schema.table(
         color: varchar("color", { length: 6 }),
         textColor: varchar("text_color", { length: 6 }),
     },
-    (t) => [unique("uq_routes_agency_route_sid").on(t.agencyId, t.routeSid)]
+    (t) => [unique("uq_routes_agency_route_sid").on(t.agencyId, t.routeSid)],
 );
 
 export const shapes = schema.table(
@@ -308,7 +308,7 @@ export const shapes = schema.table(
         unique("uq_shapes_agency_shape_sid").on(t.agencyId, t.shapeSid),
         index("idx_shapes_path_gist").using("gist", t.path),
         index("idx_shapes_shape_sid").on(t.shapeSid),
-    ]
+    ],
 );
 
 export const vehicles = schema.table(
@@ -324,7 +324,7 @@ export const vehicles = schema.table(
         licensePlate: text("license_plate"),
         wheelchairAccessible: wheelchairBoardingEnum("wheelchair_accessible"),
     },
-    (t) => [unique("uq_vehicles_agency_vehicle_sid").on(t.agencyId, t.vehicleSid)]
+    (t) => [unique("uq_vehicles_agency_vehicle_sid").on(t.agencyId, t.vehicleSid)],
 );
 
 export const trips = schema.table(
@@ -345,7 +345,7 @@ export const trips = schema.table(
     (t) => [
         unique("uq_trips_agency_trip_sid").on(t.agencyId, t.tripSid),
         index("idx_trips_agency_service").on(t.agencyId, t.serviceSid),
-    ]
+    ],
 );
 
 export const stops = schema.table(
@@ -372,7 +372,7 @@ export const stops = schema.table(
     (t) => [
         unique("uq_stops_agency_stop_sid").on(t.agencyId, t.stopSid),
         index("idx_stops_location_gist").using("gist", t.location),
-    ]
+    ],
 );
 
 export const calendarDates = schema.table(
@@ -388,7 +388,7 @@ export const calendarDates = schema.table(
     (t) => [
         primaryKey({ columns: [t.agencyId, t.serviceSid, t.date] }),
         index("idx_calendar_dates_agency_date").on(t.agencyId, t.date),
-    ]
+    ],
 );
 
 export const stopTimes = schema.table(
@@ -416,7 +416,7 @@ export const stopTimes = schema.table(
     (t) => [
         unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence),
         index("idx_stop_times_trip_id_sequence").on(t.tripId, t.stopSequence),
-    ]
+    ],
 );
 
 export const tripInstances = schema.table(
@@ -450,24 +450,16 @@ export const tripInstances = schema.table(
         unique("uq_trip_instances_trip_start_date_start_time").on(
             t.tripId,
             t.startDate,
-            t.startTime
+            t.startTime,
         ),
         index("idx_trip_instances_trip_date_time_state").on(
             t.tripId,
             t.startDate,
             t.startTime,
-            t.state
+            t.state,
         ),
-    ]
+    ],
 );
-
-// TODO: Make stopTimeInstances LAZY.
-//       We only realize them when RT data arrives.
-//       If no realized stopTimeInstances, in query,
-//       we can easily generate static stopTimes that matches
-//       the SAME type as stopTimeInstances (so to API consumers they look the same).
-//       So, API logic would be if exists realized stopTimeInstances, use them, else use static stopTimes.
-//       **This also means we need a view for the static stopTimesFakeInstances to easily query next/nearby.
 
 /**
  * A stopTimeRealtimeInstance is ONLY generated when a realtime trip update arrives.
@@ -488,15 +480,8 @@ export const stopTimeRealtimeInstances = schema.table(
             .references(() => stopTimes.id)
             .notNull(),
 
-        // -----------------------------------------------------------------
-        // --- Static fields from stop_times (replicated for efficiency) ---
-        // -----------------------------------------------------------------
-        timepoint: timepointEnum("timepoint").default(Timepoint.EXACT),
-
-        // ------------------------------------------------------------
-        // --- Below are all fields updatable via realtime updates. ---
-        // ------------------------------------------------------------
         stopSequence: integer("stop_sequence").notNull(),
+        stopId: integer("stop_id").references(() => stops.id),
 
         // TZ specified by agency.timezone per GTFS spec
         scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
@@ -509,7 +494,7 @@ export const stopTimeRealtimeInstances = schema.table(
 
         // Per doc: Frequency-based trips (GTFS frequencies.txt with exact_times = 0) should not have a SCHEDULED value and should use UNSCHEDULED instead.
         scheduleRelationship: stopTimeUpdateScheduleRelationshipEnum(
-            "schedule_relationship"
+            "schedule_relationship",
         ).default(StopTimeUpdateScheduleRelationship.SCHEDULED),
 
         stopHeadsign: text("stop_headsign"),
@@ -522,24 +507,27 @@ export const stopTimeRealtimeInstances = schema.table(
         index("idx_stop_time_instances_trip_instance_id").on(t.tripInstanceId),
         unique("uq_stop_time_instances__trip_instance_stop_sequence").on(
             t.tripInstanceId,
-            t.stopSequence
+            t.stopSequence,
         ),
-    ]
+    ],
 );
 
 /**
  * This view is used when we have no stopTimeInstances (i.e. no realtime trip updates).
  */
-export const stopTimesStaticInstances = schema.view("stop_times_static_instances").as((qb) =>
-    qb
-        .select({
-            // Must explicitly use as "trip_instance_id" and "stop_time_id" to avoid error `column "id" specified more than once`
-            tripInstanceId: sql<number>`${tripInstances.id}`.as("trip_instance_id"),
-            stopTimeId: sql<number>`${stopTimes.id}`.as("stop_time_id"),
+export const stopTimeStaticInstances = schema
+    .materializedView("stop_time_static_instances")
+    .as((qb) =>
+        qb
+            .select({
+                // Must explicitly use as "trip_instance_id" and "stop_time_id" to avoid error `column "id" specified more than once`
+                tripInstanceId: sql<number>`${tripInstances.id}`.as("trip_instance_id"),
+                stopTimeId: sql<number>`${stopTimes.id}`.as("stop_time_id"),
 
-            stopSequence: stopTimes.stopSequence,
-            timepoint: stopTimes.timepoint,
-            scheduledArrivalTime: sql<Date>`(${tripInstances.startDatetime} + (
+                stopSequence: stopTimes.stopSequence,
+                stopId: stopTimes.stopId,
+                timepoint: stopTimes.timepoint,
+                scheduledArrivalTime: sql<Date>`(${tripInstances.startDatetime} + (
                 ${stopTimes.arrivalTime}::interval - (
                     SELECT ${stopTimes.arrivalTime}::interval
                     FROM ${stopTimes}
@@ -548,9 +536,9 @@ export const stopTimesStaticInstances = schema.view("stop_times_static_instances
                 )
             ))::timestamptz`.as("scheduled_arrival_time"),
 
-            // Subtract first stop's arrival time (not departure) because tripInstances.startDatetime
-            // corresponds to when the trip arrives at the first stop, so all times are relative to that
-            scheduledDepartureTime: sql<Date>`(${tripInstances.startDatetime} + (
+                // Subtract first stop's arrival time (not departure) because tripInstances.startDatetime
+                // corresponds to when the trip arrives at the first stop, so all times are relative to that
+                scheduledDepartureTime: sql<Date>`(${tripInstances.startDatetime} + (
                 ${stopTimes.departureTime}::interval - (
                     SELECT ${stopTimes.arrivalTime}::interval
                     FROM ${stopTimes}
@@ -559,13 +547,26 @@ export const stopTimesStaticInstances = schema.view("stop_times_static_instances
                 )
             ))::timestamptz`.as("scheduled_departure_time"),
 
-            stopHeadsign: stopTimes.stopHeadsign,
-            pickupType: stopTimes.pickupType,
-            dropOffType: stopTimes.dropOffType,
-        } satisfies Record<keyof Omit<typeof stopTimeRealtimeInstances.$inferSelect, "id" | "lastUpdatedAt" | "predictedArrivalTime" | "predictedDepartureTime" | "predictedArrivalUncertainty" | "predictedDepartureUncertainty" | "scheduleRelationship">, any>)
-        .from(tripInstances)
-        .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId))
-);
+                stopHeadsign: stopTimes.stopHeadsign,
+                pickupType: stopTimes.pickupType,
+                dropOffType: stopTimes.dropOffType,
+            } satisfies Record<
+                keyof Omit<
+                    typeof stopTimeRealtimeInstances.$inferSelect,
+                    | "id"
+                    | "lastUpdatedAt"
+                    | "predictedArrivalTime"
+                    | "predictedDepartureTime"
+                    | "predictedArrivalUncertainty"
+                    | "predictedDepartureUncertainty"
+                    | "scheduleRelationship"
+                > &
+                    "timepoint",
+                any
+            >)
+            .from(tripInstances)
+            .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId)),
+    );
 
 /**
  * Merges stopTimeRealtimeInstances with stopTimesStaticInstances.
@@ -578,40 +579,60 @@ export const stopTimesStaticInstances = schema.view("stop_times_static_instances
 export const stopTimeInstances = schema.view("stop_time_instances").as((qb) =>
     qb
         .select({
-            id: sql`rt.id`.as("id"),
-            tripInstanceId: sql`COALESCE(rt.trip_instance_id, st.trip_instance_id)`.as(
-                "trip_instance_id"
+            id: sql<number | null>`rt.id`.as("id"),
+            tripInstanceId: sql<number>`COALESCE(rt.trip_instance_id, st.trip_instance_id)`.as(
+                "trip_instance_id",
             ),
-            stopTimeId: sql`COALESCE(rt.stop_time_id, st.stop_time_id)`.as("stop_time_id"),
-            stopSequence: sql`COALESCE(rt.stop_sequence, st.stop_sequence)`.as("stop_sequence"),
-            timepoint: sql`COALESCE(rt.timepoint, st.timepoint)`.as("timepoint"),
+            stopTimeId: sql<number>`COALESCE(rt.stop_time_id, st.stop_time_id)`.as("stop_time_id"),
+            stopSequence: sql<number>`COALESCE(rt.stop_sequence, st.stop_sequence)`.as(
+                "stop_sequence",
+            ),
+            stopId: sql<number | null>`COALESCE(rt.stop_id, st.stop_id)`.as("stop_id"),
+            timepoint: sql<Timepoint | null>`st.timepoint`.as("timepoint"),
             scheduledArrivalTime:
-                sql`COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)`.as(
-                    "scheduled_arrival_time"
+                sql<Date | null>`COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)`.as(
+                    "scheduled_arrival_time",
                 ),
             scheduledDepartureTime:
-                sql`COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time)`.as(
-                    "scheduled_departure_time"
+                sql<Date | null>`COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time)`.as(
+                    "scheduled_departure_time",
                 ),
-            predictedArrivalTime: sql`rt.predicted_arrival_time`.as("predicted_arrival_time"),
-            predictedDepartureTime: sql`rt.predicted_departure_time`.as("predicted_departure_time"),
-            predictedArrivalUncertainty: sql`rt.predicted_arrival_uncertainty`.as(
-                "predicted_arrival_uncertainty"
+            predictedArrivalTime: sql<Date | null>`rt.predicted_arrival_time`.as(
+                "predicted_arrival_time",
             ),
-            predictedDepartureUncertainty: sql`rt.predicted_departure_uncertainty`.as(
-                "predicted_departure_uncertainty"
+            predictedDepartureTime: sql<Date | null>`rt.predicted_departure_time`.as(
+                "predicted_departure_time",
             ),
-            scheduleRelationship: sql`rt.schedule_relationship`.as("schedule_relationship"),
-            stopHeadsign: sql`COALESCE(rt.stop_headsign, st.stop_headsign)`.as("stop_headsign"),
-            pickupType: sql`COALESCE(rt.pickup_type, st.pickup_type)`.as("pickup_type"),
-            dropOffType: sql`COALESCE(rt.drop_off_type, st.drop_off_type)`.as("drop_off_type"),
-            lastUpdatedAt: sql`rt.last_updated_at`.as("last_updated_at"),
-        } satisfies Record<keyof typeof stopTimeRealtimeInstances.$inferSelect, any>)
+            predictedArrivalUncertainty: sql<number | null>`rt.predicted_arrival_uncertainty`.as(
+                "predicted_arrival_uncertainty",
+            ),
+            predictedDepartureUncertainty: sql<
+                number | null
+            >`rt.predicted_departure_uncertainty`.as("predicted_departure_uncertainty"),
+            scheduleRelationship:
+                sql<StopTimeUpdateScheduleRelationship | null>`rt.schedule_relationship`.as(
+                    "schedule_relationship",
+                ),
+            stopHeadsign: sql<string | null>`COALESCE(rt.stop_headsign, st.stop_headsign)`.as(
+                "stop_headsign",
+            ),
+            pickupType: sql<PickupDropOff | null>`COALESCE(rt.pickup_type, st.pickup_type)`.as(
+                "pickup_type",
+            ),
+            dropOffType: sql<PickupDropOff | null>`COALESCE(rt.drop_off_type, st.drop_off_type)`.as(
+                "drop_off_type",
+            ),
+            lastUpdatedAt: sql<Date | null>`rt.last_updated_at`.as("last_updated_at"),
+        } satisfies Record<
+            | keyof typeof stopTimeRealtimeInstances.$inferSelect
+            | keyof typeof stopTimeStaticInstances.$inferSelect,
+            any
+        >)
         .from(sql`transit.stop_time_realtime_instances rt`)
         .fullJoin(
-            sql`transit.stop_times_static_instances st`,
-            sql`rt.trip_instance_id = st.trip_instance_id AND rt.stop_sequence = st.stop_sequence`
-        )
+            sql`transit.stop_time_static_instances st`,
+            sql`rt.trip_instance_id = st.trip_instance_id AND rt.stop_sequence = st.stop_sequence`,
+        ),
 );
 
 export const vehiclePositions = schema.table(
@@ -642,7 +663,7 @@ export const vehiclePositions = schema.table(
     (t) => [
         unique("uq_vehicle_positions_vehicle_timestamp").on(t.vehicleId, t.timestamp),
         index("idx_vehicle_positions_location_gist").using("gist", t.location),
-    ]
+    ],
 );
 
 export const alerts = schema.table(
@@ -671,7 +692,7 @@ export const alerts = schema.table(
         // JSONB Indexing is critical for 'informed_entities' queries
         index("idx_alerts_informed_entities_gin").using("gin", t.informedEntities),
         index("idx_alerts_active_periods_gin").using("gin", t.activePeriods),
-    ]
+    ],
 );
 
 // =========================================================
