@@ -1,10 +1,11 @@
 import * as v from "valibot";
-import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { RouteRepository } from "../repositories/route-repository";
 import { TripInstancesRepository } from "../repositories/trip-instance-repository";
 import { TripRepository } from "../repositories/trip-repository";
 import { publicProcedure, router } from "../trpc";
 import { AsSuperjsonSerialized } from "../types/utils";
+import { Direction } from "database";
+import { vInteger } from "../validations/helpers";
 
 export const tripInstanceRouter = router({
     getFullById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId, ctx }) => {
@@ -31,7 +32,7 @@ export const tripInstanceRouter = router({
                         v.number(),
                         v.minValue(100),
                         v.maxValue(5000),
-                        v.description("Radius in meters")
+                        v.description("Radius in meters"),
                     ),
                 }),
                 v.object({
@@ -48,10 +49,10 @@ export const tripInstanceRouter = router({
                             const latDiff = bbox.maxLat - bbox.minLat;
                             const lngDiff = bbox.maxLng - bbox.minLng;
                             return latDiff <= 0.0301 && lngDiff <= 0.0301; // Account for floating point error
-                        }, "Bounding box must not exceed 0.03 degrees in any dimension")
+                        }, "Bounding box must not exceed 0.03 degrees in any dimension"),
                     ),
                 }),
-            ])
+            ]),
         )
         .query(async ({ input, ctx }) => {
             const repo = new TripInstancesRepository(ctx.db);
@@ -63,10 +64,10 @@ export const tripInstanceRouter = router({
             v.object({
                 agencyId: v.string(),
                 routeId: v.string(),
-                directionId: v.optional(v.enum(Direction)),
+                direction: v.optional(v.enum(Direction)),
                 stopId: v.string(),
                 excludedTripInstanceIds: v.optional(v.array(v.string())),
-            })
+            }),
         )
         .query(async ({ input, ctx }) => {
             const trips = await new TripInstancesRepository(ctx.db).findNextAtStop(input);
@@ -75,13 +76,12 @@ export const tripInstanceRouter = router({
     getByRouteStopTime: publicProcedure
         .input(
             v.object({
-                agencyId: v.string(),
-                routeId: v.string(),
-                directionId: v.optional(v.enum(Direction)),
-                stopId: v.string(),
+                routeId: vInteger(),
+                direction: v.optional(v.enum(Direction)),
+                stopId: vInteger(),
                 minDatetime: v.date(),
                 maxDatetime: v.date(),
-            })
+            }),
         )
         .query(async ({ input, ctx }) => {
             const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTime(input);
@@ -91,18 +91,18 @@ export const tripInstanceRouter = router({
     liveTripPositions: publicProcedure
         .input(
             v.object({
-                agencyId: v.optional(v.string()),
-                routeId: v.optional(v.string()),
-                directionId: v.optional(v.enum(Direction)),
+                agencyId: v.optional(vInteger()),
+                routeId: v.optional(vInteger()),
+                direction: v.optional(v.enum(Direction)),
                 bbox: v.optional(
                     v.object({
                         minLat: v.number(),
                         maxLat: v.number(),
                         minLng: v.number(),
                         maxLng: v.number(),
-                    })
+                    }),
                 ),
-            })
+            }),
         )
         .subscription(async function* ({ input, ctx, signal }) {
             const repo = new TripInstancesRepository(ctx.db);
@@ -120,8 +120,8 @@ export const tripInstanceRouter = router({
                 v.object({
                     tripInstanceId: v.string(),
                     stopId: v.string(),
-                })
-            )
+                }),
+            ),
         )
         .subscription(async function* ({ input, ctx, signal }) {
             const repo = new TripInstancesRepository(ctx.db);

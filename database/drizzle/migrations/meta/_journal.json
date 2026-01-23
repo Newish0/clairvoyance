@@ -71,6 +71,20 @@
       "when": 1768119421295,
       "tag": "0009_yummy_turbo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1768987478063,
+      "tag": "0010_fat_the_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1769158517090,
+      "tag": "0011_cold_orphan",
+      "breakpoints": true
     }
   ]
 }

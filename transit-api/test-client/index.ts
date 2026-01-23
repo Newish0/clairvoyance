@@ -28,6 +28,16 @@ const trpc = createTRPCClient<AppRouter>({
     ],
 });
 
+const result = await trpc.tripInstance.getByRouteStopTime.query({
+    routeId: 25,
+    stopId: 807,
+    maxDatetime: new Date(Date.now() + 86400 * 1000),
+    minDatetime: new Date(),
+});
+
+console.log(result);
+console.log(result.length);
+
 // await new Promise((r) => {
 //     trpc.shape.testSubscription.subscribe("", {
 //         onData(data) {
@@ -37,33 +47,33 @@ const trpc = createTRPCClient<AppRouter>({
 //     });
 // });
 
-await new Promise((r) => {
-    trpc.tripInstance.liveTripPositions.subscribe(
-        {
-            agencyId: "BCT-48",
-            routeId: "26-VIC",
-        },
-        {
-            onData(data) {
-                console.log(data);
-            },
-        }
-    );
+// await new Promise((r) => {
+//     trpc.tripInstance.liveTripPositions.subscribe(
+//         {
+//             agencyId: "BCT-48",
+//             routeId: "26-VIC",
+//         },
+//         {
+//             onData(data) {
+//                 console.log(data);
+//             },
+//         }
+//     );
 
-    // trpc.trip.liveTripStopTime.subscribe(
-    //     [
-    //         {
-    //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
-    //             stopId: "100019",
-    //         },
-    //     ],
-    //     {
-    //         onData(data) {
-    //             console.log(data);
-    //         },
-    //     }
-    // );
-});
+//     // trpc.trip.liveTripStopTime.subscribe(
+//     //     [
+//     //         {
+//     //             tripInstanceId: "68e9b8c4fd2bce85d6d3f6b1",
+//     //             stopId: "100019",
+//     //         },
+//     //     ],
+//     //     {
+//     //         onData(data) {
+//     //             console.log(data);
+//     //         },
+//     //     }
+//     // );
+// });
 
 // const result = await trpc.tripInstance.getNearby.query({
 //     lat: 48.474515,

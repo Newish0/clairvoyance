@@ -23,7 +23,9 @@ type ShapeProperties = v.InferOutput<typeof ShapePropertiesSchema>;
 type ShapeFeature = Feature<LineString, ShapeProperties>;
 
 export class ShapeRepository extends DataRepository {
-    public async findGeoJson(shapeId: number): Promise<Result<ShapeFeature | null, GeoJSONError>> {
+    public async findGeoJson(
+        shapeId: typeof shapes.$inferSelect.id,
+    ): Promise<Result<ShapeFeature | null, GeoJSONError>> {
         const result = await this.db
             .select({
                 id: shapes.id,
