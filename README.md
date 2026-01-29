@@ -16,6 +16,9 @@ Visit the [demo site](https://transit.newishdev.space).
 
 </div>
 
+> NOTE: In midst of escaping the Mongo-aggregation rabbit hole: a Postgres-backed branch now WIP.
+> No more $group, $unwind, or $project nightmares—just good ol’ SQL joins and sanity.
+
 ## 🚀 Features
 
 -   📊 Real-time transit updates
