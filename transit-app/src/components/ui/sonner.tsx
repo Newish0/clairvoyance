@@ -1,3 +1,4 @@
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
@@ -23,4 +24,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
     );
 };
 
-export { Toaster };
+const ResponsiveToaster = ({
+    position,
+    ...props
+}: Omit<ToasterProps, "position"> & {
+    position: {
+        mobile: ToasterProps["position"];
+        desktop: ToasterProps["position"];
+    };
+}) => {
+    const isMobile = useIsMobile();
+
+    const responsivePosition = isMobile ? position.mobile : position.desktop;
+
+    return <Toaster {...props} position={responsivePosition} />;
+};
+
+export { Toaster, ResponsiveToaster };

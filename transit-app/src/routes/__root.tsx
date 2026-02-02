@@ -9,7 +9,7 @@ import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "../../../transit-api/server/src/index";
 
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
+import { ResponsiveToaster } from "@/components/ui/sonner";
 
 export interface RouterAppContext {
     trpc: TRPCOptionsProxy<AppRouter>;
@@ -21,7 +21,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         <>
             <ThemeProvider defaultTheme="dark" storageKey="transit-app-ui-theme">
                 <Outlet />
-                <Toaster />
+                <ResponsiveToaster position={{ mobile: "top-center", desktop: "bottom-right" }} />
             </ThemeProvider>
 
             <TanStackDevtools

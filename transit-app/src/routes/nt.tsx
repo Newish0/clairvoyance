@@ -73,7 +73,7 @@ function RouteComponent() {
 
     const stopsMap = useMemo(
         () => (stops ? new Map(stops.map((stop) => [stop.stop_id, stop])) : null),
-        [stops]
+        [stops],
     );
 
     const combinedTripInstances = useMemo(() => {
@@ -146,7 +146,7 @@ function RouteComponent() {
                 className={cn(
                     "absolute bottom-4 md:top-4 left-4 max-h-[50dvh] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-4 rounded-xl bg-primary-foreground/60 backdrop-blur-md",
                     hovering && "max-h-[80dvh]",
-                    "md:max-h-[calc(100dvh-2rem)]"
+                    "md:max-h-[calc(100dvh-2rem)]",
                 )}
             >
                 {/* Top row */}
@@ -174,7 +174,10 @@ function RouteComponent() {
                             </p>
 
                             <p className="text-xs text-muted-foreground truncate">
-                                At {stopsMap?.get(stopId)?.stop_name || "---"}
+                                {tripInstance.vehicle ? (
+                                    <span className="mr-2">Bus {tripInstance?.vehicle?.vehicle_id || "---"}</span>
+                                ) : null}
+                                <span>At {stopsMap?.get(stopId)?.stop_name || "---"}</span>
                             </p>
                         </div>
                     </div>
@@ -194,7 +197,7 @@ function RouteComponent() {
                     <CarouselContent>
                         {combinedTripInstances?.map((nextTripInstance) => {
                             const stopTime = nextTripInstance.stop_times.find(
-                                (st) => st.stop_id === stopId
+                                (st) => st.stop_id === stopId,
                             );
 
                             if (!stopTime) {
@@ -245,7 +248,7 @@ function RouteComponent() {
                                                 "p-0 bg-card/15",
                                                 nextTripInstance._id === tripInstance?._id
                                                     ? "bg-card/80 dark:bg-card/60"
-                                                    : ""
+                                                    : "",
                                             )}
                                         >
                                             <CardContent className="flex items-center justify-center h-16 relative">
@@ -324,7 +327,7 @@ function RouteComponent() {
                                     ),
                                     stopTime: format(
                                         st.predicted_arrival_datetime || st.arrival_datetime || "",
-                                        "p"
+                                        "p",
                                     ),
                                     stopInfo: (
                                         <TimelineStopInfo
@@ -363,7 +366,7 @@ const TimelineStopInfo = ({
     });
 
     const filteredRoutesAtStop = routesAtStop?.filter(
-        (r) => r._id.toString() !== currentRouteObjectId
+        (r) => r._id.toString() !== currentRouteObjectId,
     );
 
     return (
