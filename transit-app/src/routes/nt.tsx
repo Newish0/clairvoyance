@@ -174,8 +174,10 @@ function RouteComponent() {
                             </p>
 
                             <p className="text-xs text-muted-foreground truncate">
-                                {tripInstance.vehicle ? (
-                                    <span className="mr-2">Bus {tripInstance?.vehicle?.vehicle_id || "---"}</span>
+                                {tripInstance?.vehicle ? (
+                                    <span className="mr-2">
+                                        Bus {tripInstance?.vehicle?.vehicle_id || "---"}
+                                    </span>
                                 ) : null}
                                 <span>At {stopsMap?.get(stopId)?.stop_name || "---"}</span>
                             </p>
