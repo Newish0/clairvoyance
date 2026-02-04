@@ -56,7 +56,7 @@ function RouteComponent() {
     const { data: stops } = useQuery({
         ...trpc.stop.getStops.queryOptions({
             agencyId,
-            stopId: tripInstance?.stop_times.map((st) => st.stop_id)!,
+            stopId: tripInstance?.stop_times.map((st) => st.stop_id) ?? [],
         }),
         enabled: !!tripInstance,
     });
