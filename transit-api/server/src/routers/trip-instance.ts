@@ -5,11 +5,13 @@ import { TripInstancesRepository } from "../repositories/trip-instance-repositor
 import { TripRepository } from "../repositories/trip-repository";
 import { publicProcedure, router } from "../trpc";
 import { AsSuperjsonSerialized } from "../types/utils";
+import { VehicleRepository } from "../repositories/vehicle-repository";
 
 export const tripInstanceRouter = router({
     getFullById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId, ctx }) => {
         const tripInstanceRepo = new TripInstancesRepository(ctx.db);
         const tripRepo = new TripRepository(ctx.db);
+        const vehicleRepo = new VehicleRepository(ctx.db);
         const routeRepo = new RouteRepository(ctx.db);
 
         const tripInstance = await tripInstanceRepo.findById(tripInstanceId);
@@ -17,8 +19,11 @@ export const tripInstanceRouter = router({
 
         const trip = await tripRepo.findById(tripInstance.trip);
         const route = await routeRepo.findById(tripInstance.route);
+        const vehicle = tripInstance.vehicle
+            ? await vehicleRepo.findById(tripInstance.vehicle)
+            : null;
 
-        return { ...tripInstance, trip, route };
+        return { ...tripInstance, trip, route, vehicle };
     }),
 
     getNearby: publicProcedure
@@ -31,7 +36,7 @@ export const tripInstanceRouter = router({
                         v.number(),
                         v.minValue(100),
                         v.maxValue(5000),
-                        v.description("Radius in meters")
+                        v.description("Radius in meters"),
                     ),
                 }),
                 v.object({
@@ -48,10 +53,10 @@ export const tripInstanceRouter = router({
                             const latDiff = bbox.maxLat - bbox.minLat;
                             const lngDiff = bbox.maxLng - bbox.minLng;
                             return latDiff <= 0.0301 && lngDiff <= 0.0301; // Account for floating point error
-                        }, "Bounding box must not exceed 0.03 degrees in any dimension")
+                        }, "Bounding box must not exceed 0.03 degrees in any dimension"),
                     ),
                 }),
-            ])
+            ]),
         )
         .query(async ({ input, ctx }) => {
             const repo = new TripInstancesRepository(ctx.db);
@@ -66,7 +71,7 @@ export const tripInstanceRouter = router({
                 directionId: v.optional(v.enum(Direction)),
                 stopId: v.string(),
                 excludedTripInstanceIds: v.optional(v.array(v.string())),
-            })
+            }),
         )
         .query(async ({ input, ctx }) => {
             const trips = await new TripInstancesRepository(ctx.db).findNextAtStop(input);
@@ -81,7 +86,7 @@ export const tripInstanceRouter = router({
                 stopId: v.string(),
                 minDatetime: v.date(),
                 maxDatetime: v.date(),
-            })
+            }),
         )
         .query(async ({ input, ctx }) => {
             const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTime(input);
@@ -100,9 +105,9 @@ export const tripInstanceRouter = router({
                         maxLat: v.number(),
                         minLng: v.number(),
                         maxLng: v.number(),
-                    })
+                    }),
                 ),
-            })
+            }),
         )
         .subscription(async function* ({ input, ctx, signal }) {
             const repo = new TripInstancesRepository(ctx.db);
@@ -120,8 +125,8 @@ export const tripInstanceRouter = router({
                 v.object({
                     tripInstanceId: v.string(),
                     stopId: v.string(),
-                })
-            )
+                }),
+            ),
         )
         .subscription(async function* ({ input, ctx, signal }) {
             const repo = new TripInstancesRepository(ctx.db);
