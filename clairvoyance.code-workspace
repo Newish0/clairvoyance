@@ -13,6 +13,10 @@
             "path": "./gtfs-processor"
         },
         {
+            "name": "Transit Ingest",
+            "path": "./transit-ingest"
+        },
+        {
             "name": "Transit App",
             "path": "./transit-app"
         },
