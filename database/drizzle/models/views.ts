@@ -141,6 +141,11 @@ export const stopTimeInstances = schema.view("stop_time_instances").as((qb) =>
         .from(sql`transit.stop_time_realtime_instances rt`)
         .fullJoin(
             sql`transit.stop_time_static_instances st`,
-            sql`rt.trip_instance_id = st.trip_instance_id AND rt.stop_sequence = st.stop_sequence`,
+            sql`rt.trip_instance_id = st.trip_instance_id AND (
+                CASE WHEN rt.stop_id IS NOT NULL
+                    THEN rt.stop_id = st.stop_id
+                    ELSE rt.stop_sequence = st.stop_sequence
+                END
+            )`,
         ),
 );
