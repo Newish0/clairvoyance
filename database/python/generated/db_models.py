@@ -36,9 +36,9 @@ class Agencies(SQLModel, table=True):
 
 class Alerts(SQLModel, table=True):
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='alerts_agency_id_agencies_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='alerts_agency_id_agencies_id_fkey'),
         PrimaryKeyConstraint('id', name='alerts_pkey'),
-        UniqueConstraint('content_hash', name='alerts_content_hash_unique'),
+        UniqueConstraint('content_hash', name='alerts_content_hash_key'),
         Index('idx_alerts_active_periods_gin', 'active_periods'),
         Index('idx_alerts_informed_entities_gin', 'informed_entities'),
         {'schema': 'transit'}
@@ -63,8 +63,8 @@ class Alerts(SQLModel, table=True):
 class CalendarDates(SQLModel, table=True):
     __tablename__ = 'calendar_dates'
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='calendar_dates_agency_id_agencies_id_fk'),
-        PrimaryKeyConstraint('agency_id', 'service_sid', 'date', name='calendar_dates_agency_id_service_sid_date_pk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='calendar_dates_agency_id_agencies_id_fkey'),
+        PrimaryKeyConstraint('agency_id', 'service_sid', 'date', name='calendar_dates_pkey'),
         Index('idx_calendar_dates_agency_date', 'agency_id', 'date'),
         {'schema': 'transit'}
     )
@@ -80,7 +80,7 @@ class CalendarDates(SQLModel, table=True):
 class FeedInfo(SQLModel, table=True):
     __tablename__ = 'feed_info'
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='feed_info_agency_id_agencies_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='feed_info_agency_id_agencies_id_fkey'),
         PrimaryKeyConstraint('hash', name='uq_feed_info_feed_hash'),
         Index('idx_feed_info_agency_id', 'agency_id'),
         {'schema': 'transit'}
@@ -100,7 +100,7 @@ class FeedInfo(SQLModel, table=True):
 
 class Routes(SQLModel, table=True):
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='routes_agency_id_agencies_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='routes_agency_id_agencies_id_fkey'),
         PrimaryKeyConstraint('id', name='routes_pkey'),
         UniqueConstraint('agency_id', 'route_sid', name='uq_routes_agency_route_sid'),
         {'schema': 'transit'}
@@ -122,7 +122,7 @@ class Routes(SQLModel, table=True):
 
 class Shapes(SQLModel, table=True):
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='shapes_agency_id_agencies_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='shapes_agency_id_agencies_id_fkey'),
         PrimaryKeyConstraint('id', name='shapes_pkey'),
         UniqueConstraint('agency_id', 'shape_sid', name='uq_shapes_agency_shape_sid'),
         Index('idx_shapes_path_gist', 'path'),
@@ -133,7 +133,7 @@ class Shapes(SQLModel, table=True):
     id: int = Field(sa_column=Column('id', Integer, primary_key=True))
     agency_id: str = Field(sa_column=Column('agency_id', Text, nullable=False))
     shape_sid: str = Field(sa_column=Column('shape_sid', Text, nullable=False))
-    path: Any = Field(sa_column=Column('path', Geometry('LINESTRING', dimension=2, from_text='ST_GeomFromEWKT', name='geometry', nullable=False), nullable=False))
+    path: Any = Field(sa_column=Column('path', Geometry('POINT', 4326, 2, from_text='ST_GeomFromEWKT', name='geometry', nullable=False), nullable=False))
     distances_traveled: Optional[dict] = Field(default=None, sa_column=Column('distances_traveled', JSONB))
 
     agency: Optional['Agencies'] = Relationship(back_populates='shapes')
@@ -143,8 +143,8 @@ class Shapes(SQLModel, table=True):
 
 class Stops(SQLModel, table=True):
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='stops_agency_id_agencies_id_fk'),
-        ForeignKeyConstraint(['parent_station_id'], ['transit.stops.id'], name='stops_parent_station_id_stops_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='stops_agency_id_agencies_id_fkey'),
+        ForeignKeyConstraint(['parent_station_id'], ['transit.stops.id'], name='stops_parent_station_id_stops_id_fkey'),
         PrimaryKeyConstraint('id', name='stops_pkey'),
         UniqueConstraint('agency_id', 'stop_sid', name='uq_stops_agency_stop_sid'),
         Index('idx_stops_location_gist', 'location'),
@@ -157,7 +157,7 @@ class Stops(SQLModel, table=True):
     code: Optional[str] = Field(default=None, sa_column=Column('code', Text))
     name: Optional[str] = Field(default=None, sa_column=Column('name', Text))
     description: Optional[str] = Field(default=None, sa_column=Column('description', Text))
-    location: Optional[Any] = Field(default=None, sa_column=Column('location', Geometry('POINT', dimension=2, from_text='ST_GeomFromEWKT', name='geometry')))
+    location: Optional[Any] = Field(default=None, sa_column=Column('location', Geometry('POINT', 4326, 2, from_text='ST_GeomFromEWKT', name='geometry')))
     zone_id: Optional[str] = Field(default=None, sa_column=Column('zone_id', Text))
     url: Optional[str] = Field(default=None, sa_column=Column('url', Text))
     location_type: Optional[str] = Field(default=None, sa_column=Column('location_type', Enum('STOP_OR_PLATFORM', 'STATION', 'ENTRANCE_EXIT', 'GENERIC_NODE', 'BOARDING_AREA', name='location_type')))
@@ -172,12 +172,13 @@ class Stops(SQLModel, table=True):
     )
     parent_station_reverse: list['Stops'] = Relationship(back_populates='parent_station')
     stop_times: list['StopTimes'] = Relationship(back_populates='stop')
+    stop_time_realtime_instances: list['StopTimeRealtimeInstances'] = Relationship(back_populates='stop')
     vehicle_positions: list['VehiclePositions'] = Relationship(back_populates='stop')
 
 
 class Vehicles(SQLModel, table=True):
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='vehicles_agency_id_agencies_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='vehicles_agency_id_agencies_id_fkey'),
         PrimaryKeyConstraint('id', name='vehicles_pkey'),
         UniqueConstraint('agency_id', 'vehicle_sid', name='uq_vehicles_agency_vehicle_sid'),
         {'schema': 'transit'}
@@ -197,9 +198,9 @@ class Vehicles(SQLModel, table=True):
 
 class Trips(SQLModel, table=True):
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='trips_agency_id_agencies_id_fk'),
-        ForeignKeyConstraint(['route_id'], ['transit.routes.id'], name='trips_route_id_routes_id_fk'),
-        ForeignKeyConstraint(['shape_id'], ['transit.shapes.id'], name='trips_shape_id_shapes_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='trips_agency_id_agencies_id_fkey'),
+        ForeignKeyConstraint(['route_id'], ['transit.routes.id'], name='trips_route_id_routes_id_fkey'),
+        ForeignKeyConstraint(['shape_id'], ['transit.shapes.id'], name='trips_shape_id_shapes_id_fkey'),
         PrimaryKeyConstraint('id', name='trips_pkey'),
         UniqueConstraint('agency_id', 'trip_sid', name='uq_trips_agency_trip_sid'),
         Index('idx_trips_agency_service', 'agency_id', 'service_sid'),
@@ -227,9 +228,9 @@ class Trips(SQLModel, table=True):
 class StopTimes(SQLModel, table=True):
     __tablename__ = 'stop_times'
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='stop_times_agency_id_agencies_id_fk'),
-        ForeignKeyConstraint(['stop_id'], ['transit.stops.id'], name='stop_times_stop_id_stops_id_fk'),
-        ForeignKeyConstraint(['trip_id'], ['transit.trips.id'], name='stop_times_trip_id_trips_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='stop_times_agency_id_agencies_id_fkey'),
+        ForeignKeyConstraint(['stop_id'], ['transit.stops.id'], name='stop_times_stop_id_stops_id_fkey'),
+        ForeignKeyConstraint(['trip_id'], ['transit.trips.id'], name='stop_times_trip_id_trips_id_fkey'),
         PrimaryKeyConstraint('id', name='stop_times_pkey'),
         UniqueConstraint('agency_id', 'trip_sid', 'stop_sequence', name='uq_stop_times_agency_trip_sequence'),
         Index('idx_stop_times_trip_id_sequence', 'trip_id', 'stop_sequence'),
@@ -260,11 +261,11 @@ class StopTimes(SQLModel, table=True):
 class TripInstances(SQLModel, table=True):
     __tablename__ = 'trip_instances'
     __table_args__ = (
-        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='trip_instances_agency_id_agencies_id_fk'),
-        ForeignKeyConstraint(['route_id'], ['transit.routes.id'], name='trip_instances_route_id_routes_id_fk'),
-        ForeignKeyConstraint(['shape_id'], ['transit.shapes.id'], name='trip_instances_shape_id_shapes_id_fk'),
-        ForeignKeyConstraint(['trip_id'], ['transit.trips.id'], name='trip_instances_trip_id_trips_id_fk'),
-        ForeignKeyConstraint(['vehicle_id'], ['transit.vehicles.id'], name='trip_instances_vehicle_id_vehicles_id_fk'),
+        ForeignKeyConstraint(['agency_id'], ['transit.agencies.id'], name='trip_instances_agency_id_agencies_id_fkey'),
+        ForeignKeyConstraint(['route_id'], ['transit.routes.id'], name='trip_instances_route_id_routes_id_fkey'),
+        ForeignKeyConstraint(['shape_id'], ['transit.shapes.id'], name='trip_instances_shape_id_shapes_id_fkey'),
+        ForeignKeyConstraint(['trip_id'], ['transit.trips.id'], name='trip_instances_trip_id_trips_id_fkey'),
+        ForeignKeyConstraint(['vehicle_id'], ['transit.vehicles.id'], name='trip_instances_vehicle_id_vehicles_id_fkey'),
         PrimaryKeyConstraint('id', name='trip_instances_pkey'),
         UniqueConstraint('trip_id', 'start_date', 'start_time', name='uq_trip_instances_trip_start_date_start_time'),
         Index('idx_trip_instances_trip_date_time_state', 'trip_id', 'start_date', 'start_time', 'state'),
@@ -295,8 +296,9 @@ class TripInstances(SQLModel, table=True):
 class StopTimeRealtimeInstances(SQLModel, table=True):
     __tablename__ = 'stop_time_realtime_instances'
     __table_args__ = (
-        ForeignKeyConstraint(['stop_time_id'], ['transit.stop_times.id'], name='stop_time_realtime_instances_stop_time_id_stop_times_id_fk'),
-        ForeignKeyConstraint(['trip_instance_id'], ['transit.trip_instances.id'], name='stop_time_realtime_instances_trip_instance_id_trip_instances_id'),
+        ForeignKeyConstraint(['stop_id'], ['transit.stops.id'], name='stop_time_realtime_instances_stop_id_stops_id_fkey'),
+        ForeignKeyConstraint(['stop_time_id'], ['transit.stop_times.id'], name='stop_time_realtime_instances_stop_time_id_stop_times_id_fkey'),
+        ForeignKeyConstraint(['trip_instance_id'], ['transit.trip_instances.id'], name='stop_time_realtime_instances_wte0gAYLURTc_fkey'),
         PrimaryKeyConstraint('id', name='stop_time_realtime_instances_pkey'),
         UniqueConstraint('trip_instance_id', 'stop_sequence', name='uq_stop_time_instances__trip_instance_stop_sequence'),
         Index('idx_stop_time_instances_trip_instance_id', 'trip_instance_id'),
@@ -307,7 +309,7 @@ class StopTimeRealtimeInstances(SQLModel, table=True):
     trip_instance_id: int = Field(sa_column=Column('trip_instance_id', Integer, nullable=False))
     stop_time_id: int = Field(sa_column=Column('stop_time_id', Integer, nullable=False))
     stop_sequence: int = Field(sa_column=Column('stop_sequence', Integer, nullable=False))
-    timepoint: Optional[str] = Field(default=None, sa_column=Column('timepoint', Enum('APPROXIMATE', 'EXACT', name='timepoint'), server_default=text("'EXACT'::timepoint")))
+    stop_id: Optional[int] = Field(default=None, sa_column=Column('stop_id', Integer))
     scheduled_arrival_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('scheduled_arrival_time', DateTime(True)))
     scheduled_departure_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('scheduled_departure_time', DateTime(True)))
     predicted_arrival_time: Optional[datetime.datetime] = Field(default=None, sa_column=Column('predicted_arrival_time', DateTime(True)))
@@ -320,6 +322,7 @@ class StopTimeRealtimeInstances(SQLModel, table=True):
     drop_off_type: Optional[str] = Field(default=None, sa_column=Column('drop_off_type', Enum('REGULAR', 'NO_PICKUP_OR_DROP_OFF', 'PHONE_AGENCY', 'COORDINATE_WITH_DRIVER', name='pickup_drop_off')))
     last_updated_at: Optional[datetime.datetime] = Field(default=None, sa_column=Column('last_updated_at', DateTime(True), server_default=text('now()')))
 
+    stop: Optional['Stops'] = Relationship(back_populates='stop_time_realtime_instances')
     stop_time: Optional['StopTimes'] = Relationship(back_populates='stop_time_realtime_instances')
     trip_instance: Optional['TripInstances'] = Relationship(back_populates='stop_time_realtime_instances')
 
@@ -327,9 +330,9 @@ class StopTimeRealtimeInstances(SQLModel, table=True):
 class VehiclePositions(SQLModel, table=True):
     __tablename__ = 'vehicle_positions'
     __table_args__ = (
-        ForeignKeyConstraint(['stop_id'], ['transit.stops.id'], name='vehicle_positions_stop_id_stops_id_fk'),
-        ForeignKeyConstraint(['trip_instance_id'], ['transit.trip_instances.id'], name='vehicle_positions_trip_instance_id_trip_instances_id_fk'),
-        ForeignKeyConstraint(['vehicle_id'], ['transit.vehicles.id'], name='vehicle_positions_vehicle_id_vehicles_id_fk'),
+        ForeignKeyConstraint(['stop_id'], ['transit.stops.id'], name='vehicle_positions_stop_id_stops_id_fkey'),
+        ForeignKeyConstraint(['trip_instance_id'], ['transit.trip_instances.id'], name='vehicle_positions_trip_instance_id_trip_instances_id_fkey'),
+        ForeignKeyConstraint(['vehicle_id'], ['transit.vehicles.id'], name='vehicle_positions_vehicle_id_vehicles_id_fkey'),
         PrimaryKeyConstraint('id', name='vehicle_positions_pkey'),
         UniqueConstraint('vehicle_id', 'timestamp', name='uq_vehicle_positions_vehicle_timestamp'),
         Index('idx_vehicle_positions_location_gist', 'location'),
@@ -339,7 +342,7 @@ class VehiclePositions(SQLModel, table=True):
     id: int = Field(sa_column=Column('id', Integer, primary_key=True))
     vehicle_id: int = Field(sa_column=Column('vehicle_id', Integer, nullable=False))
     timestamp: datetime.datetime = Field(sa_column=Column('timestamp', DateTime(True), nullable=False))
-    location: Any = Field(sa_column=Column('location', Geometry('POINT', dimension=2, from_text='ST_GeomFromEWKT', name='geometry', nullable=False), nullable=False))
+    location: Any = Field(sa_column=Column('location', Geometry('POINT', 4326, 2, from_text='ST_GeomFromEWKT', name='geometry', nullable=False), nullable=False))
     trip_instance_id: Optional[int] = Field(default=None, sa_column=Column('trip_instance_id', Integer))
     stop_id: Optional[int] = Field(default=None, sa_column=Column('stop_id', Integer))
     current_stop_sequence: Optional[int] = Field(default=None, sa_column=Column('current_stop_sequence', Integer))

@@ -20,6 +20,10 @@
             "name": "DB Models - Python",
             "path": "./database/python"
         },
+        {
+            "name": "DB Models - Drizzle",
+            "path": "./database/drizzle"
+        },
     ],
     "settings": {
         "files.exclude": {
