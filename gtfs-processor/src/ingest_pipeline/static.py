@@ -46,73 +46,73 @@ async def run_gtfs_static_pipelines(
         agency_id, db=db_manager, log_level=log_level
     )
 
-    # async with GTFSArchiveSource(gtfs_url).materialize() as source_info:
-    #     tmpdir = source_info.path
+    async with GTFSArchiveSource(gtfs_url).materialize() as source_info:
+        tmpdir = source_info.path
 
-    #     agency_pipeline = build_agency_pipeline(
-    #         tmpdir / "agency.txt",
-    #         agency_id,
-    #         db_manager.createSession(),
-    #         log_level=log_level,
-    #     )
-    #     feed_info_pipeline = build_feed_info_pipeline(
-    #         tmpdir / "feed_info.txt",
-    #         agency_id,
-    #         source_info.hash,
-    #         db_manager.createSession(),
-    #         log_level=log_level,
-    #     )
-    #     calendar_dates_pipeline = build_calendar_dates_pipeline(
-    #         tmpdir / "calendar_dates.txt",
-    #         agency_id,
-    #         db_manager.createSession(),
-    #         log_level=log_level,
-    #     )
-    #     routes_pipeline = build_routes_pipeline(
-    #         tmpdir / "routes.txt",
-    #         agency_id,
-    #         db_manager.createSession(),
-    #         log_level=log_level,
-    #     )
-    #     stops_pipeline = build_stops_pipeline(
-    #         tmpdir / "stops.txt",
-    #         agency_id,
-    #         db_manager.createSession(),
-    #         log_level=log_level,
-    #     )
-    #     trips_pipeline = build_trips_pipeline(
-    #         tmpdir / "trips.txt",
-    #         agency_id,
-    #         db_manager,
-    #         log_level=log_level,
-    #     )
-    #     stop_times_pipeline = build_stop_times_pipeline(
-    #         tmpdir / "stop_times.txt",
-    #         agency_id,
-    #         db_manager,
-    #         log_level=log_level,
-    #     )
-    #     shapes_pipeline = build_shapes_pipeline(
-    #         tmpdir / "shapes.txt",
-    #         agency_id,
-    #         db_manager.createSession(),
-    #         log_level=log_level,
-    #     )
+        agency_pipeline = build_agency_pipeline(
+            tmpdir / "agency.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
+        feed_info_pipeline = build_feed_info_pipeline(
+            tmpdir / "feed_info.txt",
+            agency_id,
+            source_info.hash,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
+        calendar_dates_pipeline = build_calendar_dates_pipeline(
+            tmpdir / "calendar_dates.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
+        routes_pipeline = build_routes_pipeline(
+            tmpdir / "routes.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
+        stops_pipeline = build_stops_pipeline(
+            tmpdir / "stops.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
+        trips_pipeline = build_trips_pipeline(
+            tmpdir / "trips.txt",
+            agency_id,
+            db_manager,
+            log_level=log_level,
+        )
+        stop_times_pipeline = build_stop_times_pipeline(
+            tmpdir / "stop_times.txt",
+            agency_id,
+            db_manager,
+            log_level=log_level,
+        )
+        shapes_pipeline = build_shapes_pipeline(
+            tmpdir / "shapes.txt",
+            agency_id,
+            db_manager.createSession(),
+            log_level=log_level,
+        )
 
-    #     await asyncio.gather(
-    #         agency_pipeline.run(),
-    #         feed_info_pipeline.run(),
-    #         calendar_dates_pipeline.run(),
-    #         routes_pipeline.run(),
-    #         stops_pipeline.run(),
-    #         shapes_pipeline.run(),
-    #     )
+        await asyncio.gather(
+            agency_pipeline.run(),
+            feed_info_pipeline.run(),
+            calendar_dates_pipeline.run(),
+            routes_pipeline.run(),
+            stops_pipeline.run(),
+            shapes_pipeline.run(),
+        )
 
-    #     # Depends on routes & shapes pipelines to be completed first.
-    #     await trips_pipeline.run()
+        # Depends on routes & shapes pipelines to be completed first.
+        await trips_pipeline.run()
 
-    #     # Depends on trips & stops pipelines to be completed first.
-    #     await stop_times_pipeline.run()
+        # Depends on trips & stops pipelines to be completed first.
+        await stop_times_pipeline.run()
 
     # # Refresh all materialized views
     # logger.info("Refreshing materialized views...")
@@ -125,4 +125,4 @@ async def run_gtfs_static_pipelines(
     # if realize_instances:
     # Must run after GTFS ingest from zip is complete.
 
-    # await trip_instances_pipeline.run()
+    await trip_instances_pipeline.run()
