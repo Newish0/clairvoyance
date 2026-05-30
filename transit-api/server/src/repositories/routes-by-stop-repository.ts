@@ -1,59 +1,60 @@
 import { DataRepository } from "./data-repository";
-import type { FeatureCollection } from "geojson";
-import { StopRepository } from "./stop-repository";
-import { RouteRepository } from "./route-repository";
+import { routes, stops, stopTimes, trips } from "database";
+import { eq, and, inArray, sql } from "drizzle-orm";
 
 export class RoutesByStopRepository extends DataRepository {
     public async findNearbyRoutesByStop(
         query:
-            | {
-                  stopObjectId: string;
-              }
-            | {
-                  agencyId: string;
-                  stopId: string;
-              },
+            | { stopObjectId: string }
+            | { agencyId: string; stopId: string },
         radiusMeters = 100,
     ) {
-        return [[]]; // TODO
+        // Find the stop
+        let stop: typeof stops.$inferSelect | undefined;
+        if ("stopObjectId" in query) {
+            const [s] = await this.db
+                .select()
+                .from(stops)
+                .where(eq(stops.id, Number(query.stopObjectId)));
+            stop = s;
+        } else {
+            const [s] = await this.db
+                .select()
+                .from(stops)
+                .where(and(eq(stops.agencyId, query.agencyId), eq(stops.stopSid, query.stopId)));
+            stop = s;
+        }
 
-        // const stop = await ("stopObjectId" in query
-        //     ? this.stopRepository.findById(query.stopObjectId)
-        //     : this.stopRepository.findStop(query.agencyId, query.stopId));
+        if (!stop?.location) {
+            return [];
+        }
 
-        // if (!stop?.location) {
-        //     return [];
-        // }
+        // Find nearby stops using PostGIS
+        const nearbyStops = await this.db
+            .select({ id: stops.id })
+            .from(stops)
+            .where(
+                sql`ST_DWithin(
+                    ${stops.location}::geography,
+                    (SELECT ${stops.location}::geography FROM ${stops} WHERE ${stops.id} = ${stop.id}),
+                    ${radiusMeters}
+                )`,
+            );
 
-        // const nearbyStops = await this.stopRepository.findNearbyStops({
-        //     lng: stop.location.coordinates[0],
-        //     lat: stop.location.coordinates[1],
-        //     radius: radiusMeters,
-        // });
+        if (nearbyStops.length === 0) {
+            return [];
+        }
 
-        // const nearbyStopIds = nearbyStops.map(({ _id }) => new ObjectId(_id));
+        const nearbyStopIds = nearbyStops.map((s) => s.id);
 
-        // const nearbyRoutesByStops = await this.db
-        //     .collection(this.collectionName)
-        //     .find({
-        //         stop: {
-        //             $in: nearbyStopIds as any, // HACK: Need to fix underlying TS types from type gen
-        //         },
-        //     })
-        //     .toArray();
+        // Find routes serving these stops through stop_times -> trips
+        const servingRoutes = await this.db
+            .selectDistinct()
+            .from(routes)
+            .innerJoin(trips, eq(trips.routeId, routes.id))
+            .innerJoin(stopTimes, eq(stopTimes.tripId, trips.id))
+            .where(inArray(stopTimes.stopId, nearbyStopIds));
 
-        // const routeIds = nearbyRoutesByStops
-        //     .map(({ routes }) => routes.map((r) => r.toString()))
-        //     .flat();
-
-        // const uniqueRouteIds = [...new Set(routeIds)];
-
-        // const routes = await Promise.all(
-        //     uniqueRouteIds.map((id) => this.routeRepository.findById(id))
-        // );
-
-        // const result = routes.filter((r) => !!r);
-
-        // return result;
+        return servingRoutes.map((r) => r.routes);
     }
 }

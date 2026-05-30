@@ -1,44 +1,24 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createContext } from "./context";
-import { alertRouter } from "./routers/alert";
-import { routeRouter } from "./routers/route";
-import { shapeRouter } from "./routers/shape";
-import { stopRouter } from "./routers/stop";
-import { tripInstanceRouter } from "./routers/trip-instance";
-import { router } from "./trpc";
+import { appRouter } from "./app-router";
+
+export type { AppRouter } from "./app-router";
 
 const port = Bun.env.PORT || 8000;
-
-const appRouter = router({
-    shape: shapeRouter,
-    tripInstance: tripInstanceRouter,
-    route: routeRouter,
-    stop: stopRouter,
-    alert: alertRouter,
-});
-
-export type AppRouter = typeof appRouter;
 
 const handler = (req: Request) =>
     fetchRequestHandler({
         router: appRouter,
         req,
         endpoint: "/",
-        /**
-         * @see https://trpc.io/docs/v11/context
-         */
         createContext,
-        /**
-         * @see https://trpc.io/docs/v11/error-handling
-         */
         onError({ error }) {
             if (error.code === "INTERNAL_SERVER_ERROR") {
-                // send to bug reporting
                 console.error("Something went wrong", error);
             }
         },
 
-        responseMeta(opts) {
+        responseMeta() {
             return {
                 headers: new Headers([
                     ["Access-Control-Allow-Origin", "*"],
@@ -50,6 +30,6 @@ const handler = (req: Request) =>
 
 Bun.serve({
     port,
-    hostname: "0.0.0.0", // Listen on all interfaces to accept connections from Docker network
+    hostname: "0.0.0.0",
     fetch: handler,
 });

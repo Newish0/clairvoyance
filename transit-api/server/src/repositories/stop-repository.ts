@@ -7,19 +7,48 @@ export class StopRepository extends DataRepository {
         return this.db.select().from(stops).where(eq(stops.id, stopId));
     }
 
+    /** Look up stops by internal numeric IDs */
     public async findAllStops(stopIds: (typeof stops.$inferSelect.id)[]) {
         return this.db.select().from(stops).where(inArray(stops.id, stopIds));
     }
 
-    public async findStopsGeoJson(stopIds: (typeof stops.$inferSelect.id)[]) {
-        const result = await this.db
-            .select({
-                ...getTableColumns(stops),
-                // Convert PostGIS geometry to GeoJSON
-                geometry: sql<Point>`ST_AsGeoJSON(${stops.location})::json`,
-            })
+    /** Look up stops by agency ID + GTFS stop_sid */
+    public async findByAgencyAndSids(agencyId: string, stopSids: string[]) {
+        return this.db
+            .select()
             .from(stops)
-            .where(inArray(stops.id, stopIds));
+            .where(and(eq(stops.agencyId, agencyId), inArray(stops.stopSid, stopSids)));
+    }
+
+    /** Look up stops by agency ID + GTFS stop_sid, return GeoJSON */
+    public async findGeoJsonByAgencyAndSids(agencyId: string, stopSids: string[]) {
+        return this._stopsToGeoJson(
+            await this.db
+                .select({
+                    ...getTableColumns(stops),
+                    geometry: sql<Point>`ST_AsGeoJSON(${stops.location})::json`,
+                })
+                .from(stops)
+                .where(and(eq(stops.agencyId, agencyId), inArray(stops.stopSid, stopSids))),
+        );
+    }
+
+    /** Look up stops by internal numeric IDs, return GeoJSON */
+    public async findStopsGeoJson(stopIds: (typeof stops.$inferSelect.id)[]) {
+        return this._stopsToGeoJson(
+            await this.db
+                .select({
+                    ...getTableColumns(stops),
+                    geometry: sql<Point>`ST_AsGeoJSON(${stops.location})::json`,
+                })
+                .from(stops)
+                .where(inArray(stops.id, stopIds)),
+        );
+    }
+
+    private _stopsToGeoJson(
+        result: { id: number; name: string | null; agencyId: string | null; stopSid: string; geometry: Point }[],
+    ): FeatureCollection<Point> {
 
         const features = result.map(
             (stop) =>
@@ -43,7 +72,7 @@ export class StopRepository extends DataRepository {
         return geoJson;
     }
 
-    public async findNearbyStops(
+    public findNearbyStops(
         params: { lat: number; lng: number } & (
             | { radius: number }
             | {

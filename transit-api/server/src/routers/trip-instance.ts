@@ -8,7 +8,7 @@ import { Direction } from "database";
 import { vInteger } from "../validations/helpers";
 
 export const tripInstanceRouter = router({
-    getFullById: publicProcedure.input(v.string()).query(async ({ input: tripInstanceId, ctx }) => {
+    getFullById: publicProcedure.input(vInteger()).query(async ({ input: tripInstanceId, ctx }) => {
         const tripInstanceRepo = new TripInstancesRepository(ctx.db);
         const tripRepo = new TripRepository(ctx.db);
         const routeRepo = new RouteRepository(ctx.db);
@@ -16,8 +16,8 @@ export const tripInstanceRouter = router({
         const tripInstance = await tripInstanceRepo.findById(tripInstanceId);
         if (!tripInstance) return null;
 
-        const trip = await tripRepo.findById(tripInstance.trip);
-        const route = await routeRepo.findById(tripInstance.route);
+        const trip = await tripRepo.findById(tripInstance.tripId);
+        const route = await routeRepo.findById(tripInstance.routeId);
 
         return { ...tripInstance, trip, route };
     }),
@@ -64,7 +64,7 @@ export const tripInstanceRouter = router({
             v.object({
                 agencyId: v.string(),
                 routeId: v.string(),
-                direction: v.optional(v.enum(Direction)),
+                directionId: v.optional(v.enum(Direction)),
                 stopId: v.string(),
                 excludedTripInstanceIds: v.optional(v.array(v.string())),
             }),
@@ -91,17 +91,9 @@ export const tripInstanceRouter = router({
     liveTripPositions: publicProcedure
         .input(
             v.object({
-                agencyId: v.optional(vInteger()),
-                routeId: v.optional(vInteger()),
-                direction: v.optional(v.enum(Direction)),
-                bbox: v.optional(
-                    v.object({
-                        minLat: v.number(),
-                        maxLat: v.number(),
-                        minLng: v.number(),
-                        maxLng: v.number(),
-                    }),
-                ),
+                agencyId: v.optional(v.string()),
+                routeId: v.optional(v.string()),
+                directionId: v.optional(v.enum(Direction)),
             }),
         )
         .subscription(async function* ({ input, ctx, signal }) {

@@ -26,12 +26,12 @@ export const shapeRouter = router({
             const shapeRepo = new ShapeRepository(ctx.db);
 
             if ("shapeObjectId" in input) {
-                const geoJson = await shapeRepo.findGeoJsonById(input.shapeObjectId);
+                const geoJson = await shapeRepo.findGeoJsonById(Number(input.shapeObjectId));
                 return geoJson;
             }
 
             const { agencyId, shapeId } = input;
-            const geoJson = await shapeRepo.findGeoJson(agencyId, shapeId);
+            const geoJson = await shapeRepo.findGeoJsonByAgencyAndSid(agencyId, shapeId);
             return geoJson;
         }),
 

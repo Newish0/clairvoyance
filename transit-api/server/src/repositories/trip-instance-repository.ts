@@ -1,9 +1,7 @@
 import { BunSQLDatabase } from "drizzle-orm/bun-sql";
-import { FIVE_MIN_IN_MS, getHoursInFuture } from "../utils/datetime";
+import { FIVE_MIN_IN_MS, getHoursInFuture, getMinAgo } from "../utils/datetime";
 import { DataRepository } from "./data-repository";
 import { StopRepository } from "./stop-repository";
-import { VehiclePositionRepository } from "./vehicle-position-repository";
-import { Direction, stops, stopTimeInstances, stopTimes, tripInstances, trips } from "database";
 import {
     asc,
     eq,
@@ -14,53 +12,13 @@ import {
     getTableColumns,
     getViewSelectedFields,
     sql,
+    or,
+    gte,
+    isNull,
+    not,
 } from "drizzle-orm";
 import * as schema from "database";
 import { Prettify } from "../types/utils";
-import { pickTableColumns } from "../utils/drizzle";
-
-// const CHANGESTREAM_CLOSED_ERROR = 234;
-
-type ScoreWeight = {
-    distance: number;
-    time: number;
-};
-
-// type NearbyTrip = {
-//     _id: string;
-//     trip_id: string;
-//     agency_id: string;
-//     start_date: string;
-//     start_time: string;
-//     direction_id: string;
-//     route_id: string;
-//     shape_object_id: string;
-//     start_datetime: string;
-//     state: string;
-//     stop_times_updated_at: string;
-//     vehicle: object;
-//     trip: WithId<Trip>;
-//     route: WithId<Route>;
-//     stop_time: WithId<StopTimeInstance> & { stop_name: string; distance: number };
-// };
-
-// type TripVehiclePositionEvent = {
-//     latestPosition: WithId<OmitId<VehiclePosition>> | null;
-//     tripInstanceId: ObjectId;
-// };
-
-// type TripStopTimeEvent = {
-//     tripInstanceId: string;
-// } & StopTimeInstance;
-
-type PopulatedTripInstance = Prettify<
-    typeof tripInstances.$inferSelect &
-        typeof trips.$inferSelect & {
-            stopTimeInstances: Prettify<
-                typeof stopTimeInstances.$inferSelect & Omit<typeof stopTimes.$inferSelect, "id">
-            >[];
-        }
->;
 
 export class TripInstancesRepository extends DataRepository {
     private stopRepository: StopRepository;
@@ -72,10 +30,10 @@ export class TripInstancesRepository extends DataRepository {
 
     public async findById(tripInstanceId: number) {
         return this.db.query.tripInstances.findFirst({
-            where: eq(tripInstances.id, tripInstanceId),
+            where: eq(schema.tripInstances.id, tripInstanceId),
             with: {
                 stopTimeInstances: {
-                    orderBy: asc(stopTimeInstances.stopSequence),
+                    orderBy: asc(schema.stopTimeInstances.stopSequence),
                 },
             },
         });
@@ -89,53 +47,49 @@ export class TripInstancesRepository extends DataRepository {
         maxDatetime,
     }: {
         routeId: number;
-        direction?: Direction;
+        direction?: schema.Direction;
         stopId: number;
         minDatetime: Date;
         maxDatetime: Date;
     }) {
-        // Perf: Combine queries later for performance. For now, keep them separate.
         const tripInstanceIdsSubquery = this.db
             .select({
-                tripInstanceId: tripInstances.id,
+                tripInstanceId: schema.tripInstances.id,
             })
-            .from(tripInstances)
-            .rightJoin(trips, eq(trips.id, tripInstances.tripId))
+            .from(schema.tripInstances)
+            .rightJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
             .where(
                 and(
-                    eq(tripInstances.routeId, routeId),
-                    direction && eq(trips.direction, direction),
+                    eq(schema.tripInstances.routeId, routeId),
+                    direction && eq(schema.trips.direction, direction),
                     and(
-                        gt(tripInstances.startDatetime, minDatetime),
-
-                        // For performance; WILL ignore some valid trips that have durations longer than 48 hours
-                        lt(tripInstances.startDatetime, getHoursInFuture(48, maxDatetime)),
+                        gt(schema.tripInstances.startDatetime, minDatetime),
+                        lt(schema.tripInstances.startDatetime, getHoursInFuture(48, maxDatetime)),
                     ),
                 ),
             );
 
-        // There should exist one unique trip instance per stop time instance
         const stopTimeInstancesResult = await this.db
             .select({
-                ...getTableColumns(stops),
-                ...getViewSelectedFields(stopTimeInstances),
-                id: sql<number>`stop_time_instances.id`.as("id"),
+                ...getTableColumns(schema.stops),
+                ...getViewSelectedFields(schema.stopTimeInstances),
+                id: sql<number>`stop_time_instances.trip_instance_id`.as("id"),
             })
-            .from(stopTimeInstances)
-            .leftJoin(stops, eq(stopTimeInstances.stopId, stops.id))
+            .from(schema.stopTimeInstances)
+            .leftJoin(schema.stops, eq(schema.stopTimeInstances.stopId, schema.stops.id))
             .where(
                 and(
-                    eq(stopTimeInstances.stopId, stopId),
+                    eq(schema.stopTimeInstances.stopId, stopId),
                     and(
-                        gt(stopTimeInstances.scheduledArrivalTime, minDatetime),
-                        lt(stopTimeInstances.scheduledDepartureTime, maxDatetime),
+                        gt(schema.stopTimeInstances.scheduledArrivalTime, minDatetime),
+                        lt(schema.stopTimeInstances.scheduledDepartureTime, maxDatetime),
                     ),
-                    inArray(stopTimeInstances.tripInstanceId, tripInstanceIdsSubquery),
+                    inArray(schema.stopTimeInstances.tripInstanceId, tripInstanceIdsSubquery),
                 ),
             )
             .orderBy(
-                stopTimeInstances.scheduledArrivalTime,
-                stopTimeInstances.scheduledDepartureTime,
+                schema.stopTimeInstances.scheduledArrivalTime,
+                schema.stopTimeInstances.scheduledDepartureTime,
             );
 
         const stopTimeInstancesMap: Record<number, (typeof stopTimeInstancesResult)[number]> =
@@ -150,9 +104,9 @@ export class TripInstancesRepository extends DataRepository {
 
         const tripInstancesResult = await this.db
             .select()
-            .from(tripInstances)
-            .leftJoin(trips, eq(trips.id, tripInstances.tripId))
-            .where(inArray(tripInstances.id, tripInstanceIds));
+            .from(schema.tripInstances)
+            .leftJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
+            .where(inArray(schema.tripInstances.id, tripInstanceIds));
 
         const fullyPopulatedTripInstances = tripInstancesResult.map((tripInstance) => ({
             ...tripInstance.trips, // trips MUST go first to allow tripInstances.id to overwrite trips.id
@@ -175,416 +129,185 @@ export class TripInstancesRepository extends DataRepository {
         stopId: string;
         agencyId?: string;
         routeId?: string;
-        directionId?: Direction;
+        directionId?: schema.Direction;
         excludedTripInstanceIds?: string[];
         limit?: number;
         realtimeMaxAgeMs?: number;
     }) {
-        // const now = new Date();
-        // const realtimeThreshold = new Date(now.getTime() - realtimeMaxAge);
-        // const tripInstances = await this.db
-        //     .collection(this.collectionName)
-        //     .aggregate([
-        //         {
-        //             $match: {
-        //                 agency_id: agencyId,
-        //                 ...(routeId ? { route_id: routeId } : {}),
-        //                 ...(directionId ? { direction_id: directionId } : {}),
-        //                 _id: { $nin: excludedTripInstanceIds.map((id) => new ObjectId(id)) },
-        //                 state: { $ne: TripInstanceState.REMOVED },
-        //             },
-        //         },
-        //         // Populate the last known position for each trip
-        //         {
-        //             $addFields: {
-        //                 latest_position_id: { $arrayElemAt: ["$positions", -1] },
-        //             },
-        //         },
-        //         {
-        //             $lookup: {
-        //                 from: "vehicle_positions",
-        //                 localField: "latest_position_id",
-        //                 foreignField: "_id",
-        //                 as: "latest_position",
-        //             },
-        //         },
-        //         // Lookup trip details
-        //         {
-        //             $lookup: {
-        //                 from: "trips",
-        //                 localField: "trip",
-        //                 foreignField: "_id",
-        //                 as: "trip_details",
-        //             },
-        //         },
-        //         // Lookup route details
-        //         {
-        //             $lookup: {
-        //                 from: "routes",
-        //                 localField: "route",
-        //                 foreignField: "_id",
-        //                 as: "route_details",
-        //             },
-        //         },
-        //         // Flatten the lookup arrays
-        //         {
-        //             $addFields: {
-        //                 latest_position: { $arrayElemAt: ["$latest_position", 0] },
-        //                 trip_details: { $arrayElemAt: ["$trip_details", 0] },
-        //                 route_details: { $arrayElemAt: ["$route_details", 0] },
-        //             },
-        //         },
-        //         {
-        //             $match: {
-        //                 $or: [
-        //                     {
-        //                         stop_times: {
-        //                             $elemMatch: {
-        //                                 stop_id: stopId,
-        //                                 $or: [
-        //                                     {
-        //                                         departure_datetime: { $gt: now },
-        //                                     },
-        //                                     {
-        //                                         predicted_departure_datetime: { $gt: now },
-        //                                     },
-        //                                 ],
-        //                             },
-        //                         },
-        //                     },
-        //                     {
-        //                         stop_times_updated_at: { $gte: realtimeThreshold },
-        //                         stop_times: {
-        //                             $elemMatch: {
-        //                                 stop_id: stopId,
-        //                                 stop_sequence: {
-        //                                     $gte: "$latest_position.current_stop_sequence",
-        //                                 },
-        //                             },
-        //                         },
-        //                     },
-        //                 ],
-        //             },
-        //         },
-        //         {
-        //             $sort: {
-        //                 "stop_times.departure_datetime": 1,
-        //             },
-        //         },
-        //         {
-        //             $project: {
-        //                 _id: 1,
-        //                 agency_id: 1,
-        //                 trip_id: 1,
-        //                 start_date: 1,
-        //                 start_time: 1,
-        //                 route_id: 1,
-        //                 direction_id: 1,
-        //                 state: 1,
-        //                 start_datetime: 1,
-        //                 stop_times: 1,
-        //                 stop_times_updated_at: 1,
-        //                 trip: "$trip_details",
-        //                 route: "$route_details",
-        //                 shape: 1,
-        //                 vehicle: 1,
-        //                 latest_position: 1,
-        //             },
-        //         },
-        //     ])
-        //     .limit(limit)
-        //     .toArray();
-        // return tripInstances as unknown as {
-        //     _id: string;
-        //     trip_id: string;
-        //     start_date: string;
-        //     start_time: string;
-        //     route_id: string;
-        //     direction_id: Direction;
-        //     state: TripInstanceState;
-        //     start_datetime: string;
-        //     stop_times: StopTimeInstance[];
-        //     stop_times_updated_at: string;
-        //     trip: WithId<Trip>;
-        //     route: WithId<Route>;
-        //     shape: string;
-        //     vehicle: string;
-        //     latest_position: WithId<VehiclePosition>;
-        // }[];
+        const now = new Date();
+        const excludedIds = excludedTripInstanceIds.map(Number).filter((id) => !isNaN(id));
+
+        // Resolve GTFS stopSid to internal stop ID
+        const [stop] = await this.db
+            .select()
+            .from(schema.stops)
+            .where(and(eq(schema.stops.agencyId, agencyId!), eq(schema.stops.stopSid, stopId)))
+            .limit(1);
+
+        if (!stop) return [];
+
+        // Subquery: find matching trip instance IDs via the view
+        const tripInstanceIdsSubquery = this.db
+            .select({ id: schema.tripInstances.id })
+            .from(schema.tripInstances)
+            .innerJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
+            .innerJoin(schema.routes, eq(schema.routes.id, schema.tripInstances.routeId))
+            .innerJoin(
+                schema.stopTimeInstances,
+                eq(schema.stopTimeInstances.tripInstanceId, schema.tripInstances.id),
+            )
+            .where(
+                and(
+                    eq(schema.tripInstances.agencyId, agencyId!),
+                    eq(schema.stopTimeInstances.stopId, stop.id),
+                    or(
+                        gt(schema.stopTimeInstances.scheduledDepartureTime, now),
+                        gt(schema.stopTimeInstances.predictedDepartureTime, now),
+                    ),
+                    routeId ? eq(schema.routes.routeSid, routeId) : undefined,
+                    directionId ? eq(schema.trips.direction, directionId) : undefined,
+                    excludedIds.length > 0 ? not(inArray(schema.tripInstances.id, excludedIds)) : undefined,
+                ),
+            );
+
+        const tripInstanceIds = await tripInstanceIdsSubquery;
+
+        if (tripInstanceIds.length === 0) return [];
+
+        const ids = tripInstanceIds.map((r) => r.id);
+
+        // Main query: populate trip instances with trip and route
+        const results = await this.db
+            .select()
+            .from(schema.tripInstances)
+            .innerJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
+            .innerJoin(schema.routes, eq(schema.routes.id, schema.tripInstances.routeId))
+            .where(inArray(schema.tripInstances.id, ids));
+
+        return results.map((r) => ({
+            ...r.trip_instances,
+            trip: r.trips,
+            route: r.routes,
+            stopTime: null,
+        }));
     }
 
-    /**
-     * Fetches a list of scheduled trips that depart from nearby stops.
-     *
-     * WARNING: For performance reasons, this function by default only looks for scheduled
-     *          trips that depart within the next 36 hours and trips that have departed within
-     *          the last 12 hours. It may not find all trips that depart from nearby stops by default.
-     *
-     * @param options Configuration object for the nearby trips search.
-     * @param options.lat The latitude of the center point to search.
-     * @param options.lng The longitude of the center point to search.
-     * @param options.radius The radius of the area to search for nearby stops (mutually exclusive with bbox).
-     * @param options.bbox Bounding box for the search area (mutually exclusive with radius).
-     * @param options.bbox.minLat The minimum latitude of the bounding box.
-     * @param options.bbox.maxLat The maximum latitude of the bounding box.
-     * @param options.bbox.minLng The minimum longitude of the bounding box.
-     * @param options.bbox.maxLng The maximum longitude of the bounding box.
-     * @param options.maxDate The maximum start datetime to include in the results. Defaults to 36 hours from the current time.
-     * @param options.minDate The minimum start datetime to include in the results. Defaults to 12 hours ago.
-     * @param options.realtimeMaxAgeMs The maximum age in milliseconds of the position updates to include in the results. Defaults to 5 minutes.
-     * @param options.scoreWeight The weight of each score component in the final score. MUST SUM TO 1. Defaults to { distance: 0.6, time: 0.4 }.
-     * @returns A list of scheduled trips with stop names.
-     */
-    public async findNearbyTrips({
-        lat,
-        lng,
-        maxDate = getHoursInFuture(36),
-        minDate = getHoursInFuture(-12),
-        realtimeMaxAgeMs = FIVE_MIN_IN_MS,
-        scoreWeight = { distance: 0.6, time: 0.4 },
-        ...rest
-    }: {
-        lat: number;
-        lng: number;
-        maxDate?: Date;
-        minDate?: Date;
-        realtimeMaxAgeMs?: number;
-        scoreWeight?: ScoreWeight;
-    } & (
-        | {
-              radius: number;
-          }
-        | {
-              bbox: {
-                  minLat: number;
-                  maxLat: number;
-                  minLng: number;
-                  maxLng: number;
-              };
-          }
-    )) {
-        // // Validate score weight
-        // if (Object.values(scoreWeight).reduce((a, b) => a + b, 0) !== 1) {
-        //     throw new Error("Score weight must sum to 1");
-        // }
-        // console.log("findNearbyTrips");
-        // const realtimeThreshold = new Date(Date.now() - realtimeMaxAgeMs);
-        // // --- Step 1: Find nearby stops ---
-        // let stepStartTime = performance.now();
-        // const nearbyStops = await this.stopRepository.findNearbyStops({ lat, lng, ...rest });
-        // console.log(`Step 1: Find nearby stops - ${performance.now() - stepStartTime} ms`);
-        // if (nearbyStops.length === 0) {
-        //     return null;
-        // }
-        // // --- Step 2: Prepare ---
-        // stepStartTime = performance.now();
-        // const stopIds = nearbyStops.map((stop) => stop.stop_id);
-        // const stopInfoMap = new Map<string, { distance: number; name?: string }>(
-        //     nearbyStops.map((s) => [s.stop_id, { distance: s.distance, name: s.stop_name }]),
-        // );
-        // console.log(`Step 2: Prepare - ${performance.now() - stepStartTime} ms`);
-        // // --- Step 3: Find relevant upcoming scheduled stop times ---
-        // stepStartTime = performance.now();
-        // const now = new Date();
-        // const relevantTrips = this.db.collection("trip_instances").aggregate([
-        //     {
-        //         $match: {
-        //             "stop_times.stop_id": { $in: stopIds },
-        //             start_datetime: { $lt: maxDate, $gte: minDate }, // Limit for performance
-        //             state: { $ne: TripInstanceState.REMOVED },
-        //         },
-        //     },
-        //     { $unwind: "$stop_times" },
-        //     // TODO: Check if this extra $match is necessary
-        //     {
-        //         $match: {
-        //             "stop_times.stop_id": { $in: stopIds },
-        //         },
-        //     },
-        //     // Populate the last known position for each trip
-        //     {
-        //         $addFields: {
-        //             latest_position_id: { $arrayElemAt: ["$positions", -1] },
-        //         },
-        //     },
-        //     {
-        //         $lookup: {
-        //             from: "vehicle_positions",
-        //             localField: "latest_position_id",
-        //             foreignField: "_id",
-        //             as: "latest_position",
-        //         },
-        //     },
-        //     // Lookup trip details
-        //     {
-        //         $lookup: {
-        //             from: "trips",
-        //             localField: "trip",
-        //             foreignField: "_id",
-        //             as: "trip_details",
-        //         },
-        //     },
-        //     // Lookup route details
-        //     {
-        //         $lookup: {
-        //             from: "routes",
-        //             localField: "route",
-        //             foreignField: "_id",
-        //             as: "route_details",
-        //         },
-        //     },
-        //     // Flatten the lookup arrays
-        //     {
-        //         $addFields: {
-        //             latest_position: { $arrayElemAt: ["$latest_position", 0] },
-        //             trip_details: { $arrayElemAt: ["$trip_details", 0] },
-        //             route_details: { $arrayElemAt: ["$route_details", 0] },
-        //         },
-        //     },
-        //     // --- $match stage ---
-        //     {
-        //         $match: {
-        //             $or: [
-        //                 // Static schedule check:
-        //                 //  - Stop time departure time is in the future
-        //                 { "stop_times.departure_datetime": { $gt: now } },
-        //                 // Realtime schedule check:
-        //                 //  - Predicted departure time is in the future
-        //                 { "stop_times.predicted_departure_datetime": { $gt: now } },
-        //                 // Realtime vehicle position check:
-        //                 //  1. Realtime data for where the vehicle is exists
-        //                 //  2. Data is fresh
-        //                 //  3. Trip hasn't passed the stop yet
-        //                 {
-        //                     $and: [
-        //                         // Where the vehicle (in relation to the stop) is exists
-        //                         { "latest_position.current_stop_sequence": { $ne: null } },
-        //                         // Data is fresh
-        //                         { stop_times_updated_at: { $gte: realtimeThreshold } },
-        //                         {
-        //                             $expr: {
-        //                                 $or: [
-        //                                     // Vehicle has not passed this stop
-        //                                     {
-        //                                         $gt: [
-        //                                             "$stop_times.stop_sequence",
-        //                                             "$latest_position.current_stop_sequence",
-        //                                         ],
-        //                                     },
-        //                                     // Vehicle is currently at this stop
-        //                                     {
-        //                                         $eq: [
-        //                                             "$stop_times.stop_sequence",
-        //                                             "$latest_position.current_stop_sequence",
-        //                                         ],
-        //                                     },
-        //                                 ],
-        //                             },
-        //                         },
-        //                     ],
-        //                 },
-        //             ],
-        //         },
-        //     },
-        //     {
-        //         $sort: {
-        //             "stop_times.departure_datetime": 1,
-        //         },
-        //     },
-        //     {
-        //         $project: {
-        //             _id: 1,
-        //             agency_id: 1,
-        //             trip_id: 1,
-        //             start_date: 1,
-        //             start_time: 1,
-        //             route_id: 1,
-        //             direction_id: 1,
-        //             state: 1,
-        //             start_datetime: 1,
-        //             stop_time: "$stop_times",
-        //             stop_times_updated_at: 1,
-        //             trip: "$trip_details",
-        //             route: "$route_details",
-        //             shape: 1,
-        //             vehicle: 1,
-        //             latest_position: 1,
-        //         },
-        //     },
-        // ]);
-        // console.log(
-        //     `Step 3: Find relevant upcoming scheduled stop times - ${
-        //         performance.now() - stepStartTime
-        //     } ms`,
-        // );
-        // // --- Step 4: Process results ---
-        // stepStartTime = performance.now();
-        // const tripsWithStopInfo: any[] = await relevantTrips
-        //     .map((item) => {
-        //         const stopId = item.stop_time.stop_id;
-        //         const { distance, name: stopName } = stopInfoMap.get(stopId)!;
-        //         return {
-        //             ...item,
-        //             stop_time: {
-        //                 ...item.stop_time,
-        //                 stop_name: stopName,
-        //                 distance: distance,
-        //             },
-        //         };
-        //     })
-        //     .toArray();
-        // console.log(`Step 4: Process results - ${performance.now() - stepStartTime} ms`);
-        // // --- Step 5: Sort results ---
-        // stepStartTime = performance.now();
-        // const nowTime = now.getTime();
-        // const maxDistance = Math.max(...tripsWithStopInfo.map((item) => item.stop_time.distance));
-        // const maxTimeDiff = Math.max(
-        //     ...tripsWithStopInfo.map((item) =>
-        //         Math.abs(item.stop_time.departure_datetime.getTime() - nowTime),
-        //     ),
-        // );
-        // tripsWithStopInfo.sort((a, b) => {
-        //     const aNormDistance = a.stop_time.distance / maxDistance;
-        //     const bNormDistance = b.stop_time.distance / maxDistance;
-        //     const aTime = a.stop_time.departure_datetime.getTime();
-        //     const bTime = b.stop_time.departure_datetime.getTime();
-        //     const aNormTimeDiff = Math.abs(aTime - nowTime) / maxTimeDiff;
-        //     const bNormTimeDiff = Math.abs(bTime - nowTime) / maxTimeDiff;
-        //     // Weighted composite score
-        //     const distanceWeight = scoreWeight.distance;
-        //     const timeWeight = scoreWeight.time;
-        //     const aScore = aNormTimeDiff * distanceWeight + aNormDistance * timeWeight;
-        //     const bScore = bNormTimeDiff * distanceWeight + bNormDistance * timeWeight;
-        //     return aScore - bScore;
-        // });
-        // console.log(`Step 5: Sort results - ${performance.now() - stepStartTime} ms`);
-        // // --- Step 6: Format final output ---
-        // stepStartTime = performance.now();
-        // // FIXME: We are grouping by route_id (does not include agency_id). So it is possible
-        // // for different agencies to have the same route_id leading to problems...
-        // // We should group by route_id + agency_id or do a Record of agency_id -> Record of route_id -> ...
-        // const groupedByRoute: Record<string, Record<string, NearbyTrip[]>> = {};
-        // for (const tripInstance of tripsWithStopInfo) {
-        //     const routeId = tripInstance.route_id;
-        //     const directionId = tripInstance.direction_id || Direction.INBOUND;
-        //     groupedByRoute[routeId] = groupedByRoute[routeId] || {};
-        //     groupedByRoute[routeId][directionId] = groupedByRoute[routeId][directionId] || [];
-        //     // Always add the first trip instance (this is the best match; the next trip)
-        //     if (groupedByRoute[routeId][directionId].length < 1) {
-        //         groupedByRoute[routeId][directionId].push(tripInstance);
-        //     }
-        //     // Only add the next trip at the same stop of the best match
-        //     // Limit to 3 trips at the closest stop
-        //     else if (
-        //         groupedByRoute[routeId][directionId][0].stop_time.stop_id ===
-        //             tripInstance.stop_time.stop_id &&
-        //         groupedByRoute[routeId][directionId].length < 3
-        //     ) {
-        //         groupedByRoute[routeId][directionId].push(tripInstance);
-        //     }
-        // }
-        // console.log(`Step 6: Format final output - ${performance.now() - stepStartTime} ms`);
-        // return groupedByRoute;
+    public async findNearbyTrips(
+        {
+            lat,
+            lng,
+            maxDate = getHoursInFuture(36),
+            minDate = getHoursInFuture(-12),
+            realtimeMaxAgeMs = FIVE_MIN_IN_MS,
+            ...rest
+        }: {
+            lat: number;
+            lng: number;
+            maxDate?: Date;
+            minDate?: Date;
+            realtimeMaxAgeMs?: number;
+        } & (
+            | { radius: number }
+            | { bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number } }
+        ),
+        maxRadius = 10000,
+    ) {
+        const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
+
+        // Step 1: find nearby stops with distances
+        const nearbyStops = await this.stopRepository.findNearbyStops({ lat, lng, ...rest }, maxRadius);
+        if (nearbyStops.length === 0) return [];
+
+        const stopIds = nearbyStops.map((s) => s.id);
+        const stopInfoMap = new Map(nearbyStops.map((s) => [s.id, { distance: s.distance, name: s.name }]));
+
+        // Step 2: find matching trip instance IDs + stop IDs from the view
+        const matchingSubquery = this.db
+            .select({
+                id: schema.tripInstances.id,
+                stopId: schema.stopTimeInstances.stopId,
+                routeSid: schema.routes.routeSid,
+                direction: schema.trips.direction,
+            })
+            .from(schema.stopTimeInstances)
+            .innerJoin(schema.tripInstances, eq(schema.tripInstances.id, schema.stopTimeInstances.tripInstanceId))
+            .innerJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
+            .innerJoin(schema.routes, eq(schema.routes.id, schema.tripInstances.routeId))
+            .where(
+                and(
+                    inArray(schema.stopTimeInstances.stopId, stopIds),
+                    or(
+                        and(
+                            or(
+                                lt(schema.stopTimeInstances.lastUpdatedAt, realtimeThresholdDate),
+                                isNull(schema.stopTimeInstances.lastUpdatedAt),
+                                isNull(schema.stopTimeInstances.predictedDepartureTime),
+                            ),
+                            gt(schema.stopTimeInstances.scheduledDepartureTime, minDate),
+                            lt(schema.stopTimeInstances.scheduledDepartureTime, maxDate),
+                        ),
+                        and(
+                            gte(schema.stopTimeInstances.lastUpdatedAt, realtimeThresholdDate),
+                            gt(schema.stopTimeInstances.predictedDepartureTime, minDate),
+                            lt(schema.stopTimeInstances.predictedDepartureTime, maxDate),
+                        ),
+                    ),
+                ),
+            )
+            .orderBy(schema.stopTimeInstances.scheduledDepartureTime);
+
+        const matchingRows = await matchingSubquery;
+        if (matchingRows.length === 0) return {};
+
+        // Step 3: fetch full trip instance data for matched IDs
+        const ids = matchingRows.map((r) => r.id);
+        const tripRows = await this.db
+            .select()
+            .from(schema.tripInstances)
+            .innerJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
+            .innerJoin(schema.routes, eq(schema.routes.id, schema.tripInstances.routeId))
+            .where(inArray(schema.tripInstances.id, ids));
+
+        // Build a lookup for matched rows by trip instance ID
+        const matchByTiId = new Map(matchingRows.map((r) => [r.id, r]));
+
+        // Step 4: attach stop info and group by route ID + direction
+        const groupedByRoute: Record<string, Record<string, any[]>> = {};
+        for (const row of tripRows) {
+            const match = matchByTiId.get(row.trip_instances.id)!;
+            const stopInfo = stopInfoMap.get(match.stopId!)!;
+            const routeId = match.routeSid!;
+            const directionId = match.direction || "INBOUND";
+
+            groupedByRoute[routeId] = groupedByRoute[routeId] || {};
+            groupedByRoute[routeId][directionId] = groupedByRoute[routeId][directionId] || [];
+
+            const tripEntry = {
+                ...row.trip_instances,
+                trip: row.trips,
+                route: row.routes,
+                stopTime: {
+                    stopId: match.stopId,
+                    stopName: stopInfo?.name || null,
+                    distance: stopInfo?.distance || 0,
+                },
+            };
+
+            const entries = groupedByRoute[routeId][directionId];
+            // First match per direction
+            if (entries.length < 1) {
+                entries.push(tripEntry);
+            }
+            // Up to 3 additional at same stop as the first match
+            else if (
+                entries[0].stopTime.stopId === tripEntry.stopTime.stopId &&
+                entries.length < 4
+            ) {
+                entries.push(tripEntry);
+            }
+        }
+
+        return groupedByRoute;
     }
 
     public async *watchLivePositions({
@@ -593,94 +316,106 @@ export class TripInstancesRepository extends DataRepository {
         directionId,
         signal,
         getInitialData = true,
+        pollIntervalMs = 5000,
     }: {
         agencyId?: string;
         routeId?: string;
-        directionId?: Direction;
+        directionId?: schema.Direction;
         signal?: AbortSignal;
         getInitialData?: boolean;
-    }): AsyncGenerator<null> {
-        // }): AsyncGenerator<TripVehiclePositionEvent> {
-        // const pipeline: Document[] = [
-        //     {
-        //         $match: {
-        //             operationType: "update",
-        //             $or: [
-        //                 { "updateDescription.updatedFields.positions": { $exists: true } },
-        //                 { "updateDescription.truncatedArrays.field": "positions" },
-        //             ],
-        //         },
-        //     },
-        // ];
-        // // Add conditional stages only if filters are provided
-        // if (agencyId || routeId || directionId) {
-        //     pipeline.push({
-        //         $match: {
-        //             ...(agencyId ? { "fullDocument.agency_id": agencyId } : {}),
-        //             ...(routeId ? { "fullDocument.route_id": routeId } : {}),
-        //             ...(directionId ? { "fullDocument.direction_id": directionId } : {}),
-        //         },
-        //     });
-        // }
-        // if (getInitialData) {
-        //     // For performance reasons, the initial data is limited to trips that started less than 12 hours ago.
-        //     // If a trip that started more than 12 hours ago and is still active, it will show up when it is updated.
-        //     const mappedTripInstances = await this.db
-        //         .collection(this.collectionName)
-        //         .find({
-        //             ...(agencyId ? { agency_id: agencyId } : {}),
-        //             ...(routeId ? { route_id: routeId } : {}),
-        //             ...(directionId ? { direction_id: directionId } : {}),
-        //             start_datetime: { $gte: getHoursInFuture(-12), $lt: new Date() },
-        //         })
-        //         .map((tripInstance) => ({
-        //             tripInstanceId: tripInstance._id,
-        //             latestPosition: tripInstance.positions.at(-1),
-        //         }))
-        //         .toArray();
-        //     const tripVehicleEvents = await Promise.all(
-        //         mappedTripInstances.map(async ({ tripInstanceId, latestPosition }) => ({
-        //             tripInstanceId,
-        //             latestPosition: latestPosition
-        //                 ? await this.vehiclePositionRepository.findById(latestPosition)
-        //                 : null,
-        //         })),
-        //     );
-        //     const activeTripVehicleEvents = tripVehicleEvents.filter(
-        //         (tripVehicleEvent) =>
-        //             tripVehicleEvent.latestPosition &&
-        //             tripVehicleEvent.latestPosition.timestamp > getHoursInFuture(-0.0833333333), // 5 minutes
-        //     );
-        //     yield* activeTripVehicleEvents;
-        // }
-        // // TODO: we may only want 1 change stream per query.
-        // const changeStream = this.db.collection(this.collectionName).watch(pipeline, {
-        //     fullDocument: "updateLookup",
-        // });
-        // signal?.addEventListener("abort", () => changeStream.close());
-        // try {
-        //     for await (const change of changeStream) {
-        //         if (change.operationType !== "update") {
-        //             continue;
-        //         }
-        //         const latestPositionObjectId =
-        //             change.updateDescription.updatedFields?.positions?.at(-1);
-        //         if (!latestPositionObjectId) {
-        //             continue;
-        //         }
-        //         const latestPosition =
-        //             await this.vehiclePositionRepository.findById(latestPositionObjectId);
-        //         yield {
-        //             latestPosition,
-        //             tripInstanceId: change.documentKey._id,
-        //         } as const;
-        //     }
-        // } catch (error) {
-        //     if (error instanceof MongoAPIError && signal?.aborted) {
-        //         return;
-        //     }
-        //     throw error;
-        // }
+        pollIntervalMs?: number;
+    }): AsyncGenerator<{
+        tripInstanceId: number;
+        latestPosition: typeof schema.vehiclePositions.$inferSelect | null;
+    }> {
+        if (getInitialData) {
+            const conditions: ReturnType<typeof sql>[] = [];
+            if (agencyId) conditions.push(eq(schema.tripInstances.agencyId, agencyId));
+            if (routeId !== undefined) conditions.push(eq(schema.tripInstances.routeId, Number(routeId)));
+            if (directionId) conditions.push(eq(schema.trips.direction, directionId));
+
+            const recentTripInstances = await this.db
+                .selectDistinct({
+                    tripInstanceId: schema.tripInstances.id,
+                    positionId: schema.vehiclePositions.id,
+                    timestamp: schema.vehiclePositions.timestamp,
+                    location: schema.vehiclePositions.location,
+                    stopId: schema.vehiclePositions.stopId,
+                    currentStopSequence: schema.vehiclePositions.currentStopSequence,
+                    currentStatus: schema.vehiclePositions.currentStatus,
+                    congestionLevel: schema.vehiclePositions.congestionLevel,
+                    occupancyStatus: schema.vehiclePositions.occupancyStatus,
+                    occupancyPercentage: schema.vehiclePositions.occupancyPercentage,
+                    bearing: schema.vehiclePositions.bearing,
+                    odometer: schema.vehiclePositions.odometer,
+                    speed: schema.vehiclePositions.speed,
+                    ingestedAt: schema.vehiclePositions.ingestedAt,
+                })
+                .from(schema.tripInstances)
+                .innerJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
+                .innerJoin(
+                    schema.vehiclePositions,
+                    eq(schema.vehiclePositions.tripInstanceId, schema.tripInstances.id),
+                )
+                .where(
+                    and(
+                        ...conditions,
+                        gt(schema.vehiclePositions.timestamp, getHoursInFuture(-0.083)),
+                    ),
+                );
+
+            const latestPerTrip = recentTripInstances.reduce(
+                (acc, row) => {
+                    const existing = acc.get(row.tripInstanceId);
+                    if (!existing || row.timestamp > existing.timestamp) {
+                        acc.set(row.tripInstanceId, row);
+                    }
+                    return acc;
+                },
+                new Map<number, (typeof recentTripInstances)[number]>(),
+            );
+
+            for (const [tripInstanceId, position] of latestPerTrip) {
+                yield {
+                    tripInstanceId,
+                    latestPosition: {
+                        id: position.positionId,
+                        vehicleId: 0,
+                        tripInstanceId,
+                        timestamp: position.timestamp,
+                        location: position.location,
+                        stopId: position.stopId,
+                        currentStopSequence: position.currentStopSequence,
+                        currentStatus: position.currentStatus,
+                        congestionLevel: position.congestionLevel,
+                        occupancyStatus: position.occupancyStatus,
+                        occupancyPercentage: position.occupancyPercentage,
+                        bearing: position.bearing,
+                        odometer: position.odometer,
+                        speed: position.speed,
+                        ingestedAt: position.ingestedAt,
+                    } satisfies typeof schema.vehiclePositions.$inferSelect,
+                };
+            }
+        }
+
+        // Poll for new positions
+        let lastPoll = new Date(0);
+        while (!signal?.aborted) {
+            await new Promise((r) => setTimeout(r, pollIntervalMs));
+            if (signal?.aborted) return;
+
+            const newPositions = await this.db
+                .select()
+                .from(schema.vehiclePositions)
+                .where(gt(schema.vehiclePositions.ingestedAt, lastPoll));
+
+            lastPoll = new Date();
+
+            for (const pos of newPositions) {
+                yield { tripInstanceId: pos.tripInstanceId!, latestPosition: pos };
+            }
+        }
     }
 
     public async *watchLiveStopTimes(
@@ -689,44 +424,31 @@ export class TripInstancesRepository extends DataRepository {
             stopId: string;
         }[],
         signal?: AbortSignal,
-    ): AsyncGenerator<null> {
-        // ): AsyncGenerator<TripStopTimeEvent> {
-        // const pipeline = [
-        //     {
-        //         $match: {
-        //             "documentKey._id": {
-        //                 $in: watchTripStops.map((item) => new ObjectId(item.tripInstanceId)),
-        //             },
-        //             "updateDescription.updatedFields.stop_times.stop_id": {
-        //                 $in: watchTripStops.map((item) => item.stopId),
-        //             },
-        //         },
-        //     },
-        // ];
-        // // TODO: Only one change stream at a time... we should singleton this. Then we can't close until all signals are aborted.
-        // const changeStream = this.db.collection(this.collectionName).watch(pipeline);
-        // signal?.addEventListener("abort", () => changeStream.close());
-        // try {
-        //     for await (const change of changeStream) {
-        //         const changeWithUpdate = change as any;
-        //         const stopTimes: StopTimeInstance[] =
-        //             changeWithUpdate.updateDescription.updatedFields.stop_times;
-        //         const stopTime = stopTimes.find((st) =>
-        //             watchTripStops.some((ts) => ts.stopId == st.stop_id),
-        //         );
-        //         if (!stopTime) {
-        //             continue;
-        //         }
-        //         yield {
-        //             ...stopTime,
-        //             tripInstanceId: changeWithUpdate.documentKey._id,
-        //         } as const;
-        //     }
-        // } catch (error) {
-        //     if (error instanceof MongoAPIError && signal?.aborted) {
-        //         return;
-        //     }
-        //     throw error;
-        // }
+        pollIntervalMs = 5000,
+    ): AsyncGenerator<typeof schema.stopTimeRealtimeInstances.$inferSelect> {
+        const tripInstanceIds = watchTripStops.map((t) => Number(t.tripInstanceId)).filter((id) => !isNaN(id));
+        if (tripInstanceIds.length === 0) return;
+
+        let lastPoll = new Date(0);
+        while (!signal?.aborted) {
+            await new Promise((r) => setTimeout(r, pollIntervalMs));
+            if (signal?.aborted) return;
+
+            const newRows = await this.db
+                .select()
+                .from(schema.stopTimeRealtimeInstances)
+                .where(
+                    and(
+                        inArray(schema.stopTimeRealtimeInstances.tripInstanceId, tripInstanceIds),
+                        gt(schema.stopTimeRealtimeInstances.lastUpdatedAt, lastPoll),
+                    ),
+                );
+
+            lastPoll = new Date();
+
+            for (const row of newRows) {
+                yield row;
+            }
+        }
     }
 }

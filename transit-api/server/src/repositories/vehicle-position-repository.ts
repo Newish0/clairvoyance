@@ -1,8 +1,13 @@
 import { DataRepository } from "./data-repository";
+import { vehiclePositions } from "database";
+import { eq } from "drizzle-orm";
 
 export class VehiclePositionRepository extends DataRepository {
     public async findById(vehicleId: number) {
-        // return this.db.collection(this.collectionName).findOne({ _id: new ObjectId(id) });
-        return null; // TODO
+        const [result] = await this.db
+            .select()
+            .from(vehiclePositions)
+            .where(eq(vehiclePositions.id, vehicleId));
+        return result ?? null;
     }
 }
