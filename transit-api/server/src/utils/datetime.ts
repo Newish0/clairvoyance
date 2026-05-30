@@ -10,3 +10,7 @@ export const getHoursInFuture = (numberOfHours: number, date = new Date()) => {
 export const getFiveMinAgo = () => {
     return new Date(Date.now() - FIVE_MIN_IN_MS);
 };
+
+export const getMinAgo = (minutesInMs: number) => {
+    return new Date(Date.now() - minutesInMs);
+};

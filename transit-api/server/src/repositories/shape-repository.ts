@@ -1,6 +1,6 @@
 import { shapes } from "database";
 import { DataRepository } from "./data-repository";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Result, ok, err } from "neverthrow";
 import * as v from "valibot";
 import {
@@ -23,7 +23,7 @@ type ShapeProperties = v.InferOutput<typeof ShapePropertiesSchema>;
 type ShapeFeature = Feature<LineString, ShapeProperties>;
 
 export class ShapeRepository extends DataRepository {
-    public async findGeoJson(
+    public async findGeoJsonById(
         shapeId: typeof shapes.$inferSelect.id,
     ): Promise<Result<ShapeFeature | null, GeoJSONError>> {
         const result = await this.db
@@ -36,6 +36,30 @@ export class ShapeRepository extends DataRepository {
             })
             .from(shapes)
             .where(eq(shapes.id, shapeId));
+
+        const shape = result[0];
+
+        if (!shape) {
+            return ok(null);
+        }
+
+        return this.transformShapeToGeoJson(shape);
+    }
+
+    public async findGeoJsonByAgencyAndSid(
+        agencyId: string,
+        shapeSid: string,
+    ): Promise<Result<ShapeFeature | null, GeoJSONError>> {
+        const result = await this.db
+            .select({
+                id: shapes.id,
+                agencyId: shapes.agencyId,
+                shapeSid: shapes.shapeSid,
+                pathGeoJson: sql<string>`ST_AsGeoJSON(${shapes.path})`,
+                distancesTraveled: shapes.distancesTraveled,
+            })
+            .from(shapes)
+            .where(and(eq(shapes.agencyId, agencyId), eq(shapes.shapeSid, shapeSid)));
 
         const shape = result[0];
 

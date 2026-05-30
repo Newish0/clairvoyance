@@ -1,68 +1,74 @@
 import { Direction, RouteType } from "database";
 import { DataRepository } from "./data-repository";
+import { alerts } from "database";
+import { and, gte, sql } from "drizzle-orm";
 
 type AffectedEntitySelector = {
     agencyId?: string;
-    routeId?: string;
     routeType?: RouteType;
-    directionId?: Direction;
+    routeId?: number;
+    direction?: Direction;
     stopId?: string | string[];
     tripInstanceId?: string;
 };
 
 export class AlertRepository extends DataRepository {
     public async findAffectedActiveAlerts(query: AffectedEntitySelector, maxAgeSeconds = 300) {
-        // const now = new Date();
-        // const minDate = new Date(Date.now() - maxAgeSeconds * 1000);
+        const now = new Date();
+        const minDate = new Date(Date.now() - maxAgeSeconds * 1000);
 
-        // // Only include constraint if provided.(Otherwise allow it to be any value)
-        // const queryWithDbFields = {
-        //     ...(query.agencyId ? { agency_id: { $in: [query.agencyId, null, ""] } } : {}),
-        //     ...(query.routeId ? { route_id: { $in: [query.routeId, null, ""] } } : {}),
-        //     ...(query.routeType ? { route_type: { $in: [query.routeType, null, ""] } } : {}),
-        //     ...(query.directionId ? { direction_id: { $in: [query.directionId, null, ""] } } : {}),
-        //     ...(query.stopId
-        //         ? {
-        //               stop_id: {
-        //                   $in: [
-        //                       ...(Array.isArray(query.stopId) ? query.stopId : [query.stopId]),
-        //                       null,
-        //                       "",
-        //                   ],
-        //               },
-        //           }
-        //         : {}),
-        //     ...(query.tripInstanceId
-        //         ? { trip_instance: { $in: [query.tripInstanceId, null, ""] } }
-        //         : {}),
-        // };
+        const conditions: ReturnType<typeof sql>[] = [
+            gte(alerts.lastSeen, minDate),
+            sql`${alerts.activePeriods} IS NOT NULL`,
+            sql`${alerts.informedEntities} IS NOT NULL`,
+        ];
 
-        // const fullQuery = {
-        //     $and: [
-        //         {
-        //             $or: [
-        //                 { "active_periods.start": { $lte: now } },
-        //                 { "active_periods.start": { $exists: false } },
-        //                 { "active_periods.start": null },
-        //             ],
-        //         },
-        //         {
-        //             $or: [
-        //                 { "active_periods.end": { $gte: now } },
-        //                 { "active_periods.end": { $exists: false } },
-        //                 { "active_periods.end": null },
-        //             ],
-        //         },
-        //     ],
-        //     informed_entities: {
-        //         $elemMatch: queryWithDbFields,
-        //     },
-        //     last_seen: { $gte: minDate },
-        // };
+        // Active period: at least one period contains "now"
+        const nowIso = now.toISOString();
+        conditions.push(
+            sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${alerts.activePeriods}) AS period WHERE (period->>'start' IS NULL OR period->>'start' <= ${nowIso}) AND (period->>'end' IS NULL OR period->>'end' >= ${nowIso}))`,
+        );
 
-        // const alerts = await this.db.collection(this.collectionName).find(fullQuery).toArray();
+        // Informed entities: at least one element matches ALL provided filters
+        const entityChecks: ReturnType<typeof sql>[] = [];
+        if (query.agencyId !== undefined) {
+            entityChecks.push(
+                sql`(entity->>'agencyId' = ${query.agencyId} OR entity->>'agencyId' IS NULL OR entity->>'agencyId' = '')`,
+            );
+        }
+        if (query.routeId !== undefined) {
+            entityChecks.push(
+                sql`((entity->>'routeId')::int = ${query.routeId} OR entity->>'routeId' IS NULL OR entity->>'routeId' = '')`,
+            );
+        }
+        if (query.routeType !== undefined) {
+            entityChecks.push(
+                sql`(entity->>'routeType' = ${query.routeType} OR entity->>'routeType' IS NULL OR entity->>'routeType' = '')`,
+            );
+        }
+        if (query.direction !== undefined) {
+            entityChecks.push(
+                sql`(entity->>'direction' = ${query.direction} OR entity->>'direction' IS NULL OR entity->>'direction' = '')`,
+            );
+        }
+        if (query.stopId !== undefined) {
+            const ids = Array.isArray(query.stopId) ? query.stopId : [query.stopId];
+            const idChecks: ReturnType<typeof sql>[] = ids.map((id) => sql`entity->>'stopId' = ${id}`);
+            idChecks.push(sql`entity->>'stopId' IS NULL`, sql`entity->>'stopId' = ''`);
+            entityChecks.push(sql`(${sql.join(idChecks, sql` OR `)})`);
+        }
+        if (query.tripInstanceId !== undefined) {
+            entityChecks.push(
+                sql`(entity->>'tripInstance' = ${query.tripInstanceId} OR entity->>'tripInstance' IS NULL OR entity->>'tripInstance' = '')`,
+            );
+        }
 
-        // return alerts;
-        return [];
+        if (entityChecks.length > 0) {
+            conditions.push(
+                sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${alerts.informedEntities}) AS entity WHERE ${sql.join(entityChecks, sql` AND `)})`,
+            );
+        }
+
+        return this.db.select().from(alerts).where(and(...conditions));
     }
 }

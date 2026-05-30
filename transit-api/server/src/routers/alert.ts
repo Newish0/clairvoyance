@@ -5,12 +5,12 @@ import * as v from "valibot";
 import { vInteger } from "../validations/helpers";
 
 const entitySelectionQuery = v.object({
-    agencyId: v.optional(vInteger()),
+    agencyId: v.optional(v.string()),
     routeType: v.optional(v.enum(RouteType)),
     routeId: v.optional(vInteger()),
     direction: v.optional(v.enum(Direction)),
-    stopId: v.optional(v.union([vInteger(), v.array(vInteger())])),
-    tripInstanceId: v.optional(vInteger()),
+    stopId: v.optional(v.union([v.string(), v.array(v.string())])),
+    tripInstanceId: v.optional(v.string()),
 });
 
 export const alertRouter = router({

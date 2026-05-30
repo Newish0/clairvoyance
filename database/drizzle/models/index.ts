@@ -528,24 +528,24 @@ export const stopTimeStaticInstances = schema
                 stopId: stopTimes.stopId,
                 timepoint: stopTimes.timepoint,
                 scheduledArrivalTime: sql<Date>`(${tripInstances.startDatetime} + (
-                ${stopTimes.arrivalTime}::interval - (
-                    SELECT ${stopTimes.arrivalTime}::interval
-                    FROM ${stopTimes}
-                    WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
-                    AND ${stopTimes.stopSequence} = 1
-                )
-            ))::timestamptz`.as("scheduled_arrival_time"),
+                    ${stopTimes.arrivalTime}::interval - (
+                        SELECT ${stopTimes.arrivalTime}::interval
+                        FROM ${stopTimes}
+                        WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
+                        AND ${stopTimes.stopSequence} = 1
+                    )
+                ))::timestamptz`.as("scheduled_arrival_time"),
 
                 // Subtract first stop's arrival time (not departure) because tripInstances.startDatetime
                 // corresponds to when the trip arrives at the first stop, so all times are relative to that
                 scheduledDepartureTime: sql<Date>`(${tripInstances.startDatetime} + (
-                ${stopTimes.departureTime}::interval - (
-                    SELECT ${stopTimes.arrivalTime}::interval
-                    FROM ${stopTimes}
-                    WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
-                    AND ${stopTimes.stopSequence} = 1
-                )
-            ))::timestamptz`.as("scheduled_departure_time"),
+                    ${stopTimes.departureTime}::interval - (
+                        SELECT ${stopTimes.arrivalTime}::interval
+                        FROM ${stopTimes}
+                        WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
+                        AND ${stopTimes.stopSequence} = 1
+                    )
+                ))::timestamptz`.as("scheduled_departure_time"),
 
                 stopHeadsign: stopTimes.stopHeadsign,
                 pickupType: stopTimes.pickupType,

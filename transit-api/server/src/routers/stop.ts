@@ -14,7 +14,7 @@ export const stopRouter = router({
         .query(async ({ input, ctx }) => {
             const stopIds = Array.isArray(input.stopId) ? input.stopId : [input.stopId];
             const stopRepo = new StopRepository(ctx.db);
-            const stops = await stopRepo.findAllStops(input.agencyId, stopIds);
+            const stops = await stopRepo.findByAgencyAndSids(input.agencyId, stopIds);
             return stops;
         }),
 
@@ -28,7 +28,7 @@ export const stopRouter = router({
         .query(async ({ input, ctx }) => {
             const stopIds = Array.isArray(input.stopId) ? input.stopId : [input.stopId];
             const stopRepo = new StopRepository(ctx.db);
-            const geoJson = await stopRepo.findGeoJson(input.agencyId, stopIds);
+            const geoJson = await stopRepo.findGeoJsonByAgencyAndSids(input.agencyId, stopIds);
             return geoJson;
         }),
 

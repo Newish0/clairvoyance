@@ -1,1 +1,0 @@
-ALTER TABLE "transit"."shapes" ADD CONSTRAINT "uq_shapes_agency_shape_sid" UNIQUE("agency_id","shape_sid");
