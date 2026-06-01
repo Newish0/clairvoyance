@@ -65,7 +65,6 @@ clairvoyance/
 
       gtfs/
         datetime.ts           ← convert_to_datetime exact port
-        canonical-json.ts     ← _make_canonical + dict_hash exact port
         csv-decoder.ts        ← streaming CSV → batch iterator
         static-mapper.ts      ← CSV row → DB row (mapped)
         realtime-mapper.ts    ← protobuf → DB row
@@ -160,32 +159,6 @@ function convertToDatetime(
 ```
 
 **Key**: `{ in: tz(tzStr) }` context option — tells date-fns to perform DST-safe arithmetic in target timezone. Same semantics as Python's `tz.normalize(noon - 12h) + duration`. Test with Python fixture output.
-
----
-
-## Canonical JSON (alert dedup correctness)
-
-Port Python `_make_canonical` exactly:
-
-```ts
-function makeCanonical(obj: unknown): unknown {
-    if (obj === null || obj === undefined) return obj;
-    if (typeof obj === "object") {
-        if (Array.isArray(obj)) {
-            const canon = obj.map(makeCanonical);
-            return canon.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-        }
-        if (obj instanceof Date) return obj.toISOString();
-        const entries = Object.entries(obj as Record<string, unknown>).sort(([a], [b]) =>
-            a.localeCompare(b),
-        );
-        return Object.fromEntries(entries.map(([k, v]) => [k, makeCanonical(v)]));
-    }
-    return obj;
-}
-```
-
-Test: Python generates JSON of alert dicts + MD5 hashes. TS asserts exact match.
 
 ---
 
@@ -351,12 +324,10 @@ await db.transaction(async (tx) => {
 - `context.ts`: `Context` type with `db`, `AbortController`, `agencyId`, `config`
 - `error.ts`: `IngestError` (tagged union with `severity: 'recoverable' | 'fatal'` + `code` + `message` + `cause?`), `Result<T, E>` type, helpers (`ok(value)`, `err(error)`, `isOk`, `isErr`, `unwrapOr`)
 
-#### 1.3 GTFS Datetime + Canonical JSON
+#### 1.3 GTFS Datetime
 
 - `datetime.ts`: `convertToDatetime()` with `parseHHMMSS()`, DST-safe noon-minus-12h logic
 - Python fixture test: Python script generates JSON → Bun test reads + asserts
-- `canonical-json.ts`: `makeCanonical()` + `dictHash()`
-- Python fixture test: alert hashes
 
 #### 1.4 CSV Decoder
 
@@ -386,6 +357,7 @@ await db.transaction(async (tx) => {
 #### 1.7 Realtime Pipeline
 
 - `realtime-mapper.ts`: trip_descriptor, vehicle_position, alert, stop_time_update mappers
+- `computeAlertHash(alert)` for alert dedup: `crypto.createHash("md5").update(JSON.stringify({cause, effect, severity, headerText, descriptionText, url, activePeriods: sortByJSON(activePeriods), informedEntities: sortByJSON(informedEntities)})).digest("hex")`. Sorts arrays by `JSON.stringify` to handle protobuf repeated field ordering variance. No recursive `_make_canonical` — PG typed columns + literal object = deterministic keys; only 2 top-level arrays need sort.
 - Enum mapping dicts (route_type crash fix: ints 8-10 → undefined)
 - `cleanTimeValue(0) → null`, `extractCoreTripId`, `normalizeTimes`
 - `trip-update-merge.ts`: match by stop_id first, fallback stop_sequence, both-miss → return `err(Recoverable)`
@@ -461,7 +433,6 @@ await Promise.all(workers);
 | File                   | Python source                                     | Test method                                                        |
 | ---------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
 | `datetime.ts`          | `convert_to_datetime` on 20+ cases                | Python script → JSON fixture → Bun test asserts exact `Date` match |
-| `canonical-json.ts`    | `_make_canonical` + `_dict_hash` on alert structs | Python script → JSON fixture → Bun test asserts hash match         |
 | `trip-update-merge.ts` | `_process_stop_time_updates` behavior             | Unit tests: stop_id match, stop_sequence fallback, both-miss       |
 
 ---
@@ -495,7 +466,7 @@ await Promise.all(workers);
 - [ ] Stop `location` → Drizzle `{x: lng, y: lat}` (lng FIRST)
 - [ ] RouteType: ints 8-10 → undefined (ArkType catches)
 - [ ] Vehicle position change detection: 11 fields (lat, lng, bearing, speed, odometer, stop_id, stop_sequence, current_status, congestion, occupancy_status, occupancy_pct)
-- [ ] Alert dedup: `makeCanonical` + MD5 → match Python exactly
+- [ ] Alert dedup: `computeAlertHash()` — deterministic `JSON.stringify` sorted keys + `crypto.createHash("md5")`
 - [ ] `DATABASE_URL` env var fallback
 - [ ] Self-referential FK on stops: SET NULL before DELETE
 - [ ] Trip instance merge: match by stop_id first, fallback stop_sequence, both-miss → `err(Recoverable)`
