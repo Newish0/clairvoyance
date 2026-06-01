@@ -28,13 +28,13 @@ type Result<T, E = IngestError> = { ok: true; value: T } | { ok: false; error: E
 | Runtime    | Bun 1.2+ (Windows-compatible)                                                                         |
 | ORM        | Drizzle ORM (`drizzle-orm`) — reuse existing `database/drizzle/` schema                               |
 | Validation | ArkType v2+ via `drizzle-orm/arktype` (`createInsertSchema`, `createSelectSchema`)                    |
-| DateTime   | `date-fns` + `date-fns-tz`                                                                            |
+| DateTime | `date-fns` v4 + `@date-fns/tz` — TZDate class, `{ in: tz(tzStr) }` context option for DST-safe arithmetic |
 | Protobuf   | `@bufbuild/protobuf` — codegen via `buf` CLI from `gtfs-realtime.proto`                               |
 | CSV        | `csv-parse` (node stream API)                                                                         |
 | Geometry   | Drizzle `geometry()` type — point uses `mode:'xy'`, linestring uses raw `sql\`ST_GeomFromText(...)\`` |
 | HTTP       | Bun native `fetch`                                                                                    |
-| ZIP        | `unzipit` or native `Bun.write` + `deflate`                                                           |
-| CLI        | `cliffy` (Bun-native CLI framework) or `commander`                                                    |
+| ZIP        | native `Bun.write` + `deflate`                                                           |
+| CLI        | `cliffy` (Bun-native CLI framework)
 | Config     | YAML via `jsr:@std/yaml` or `js-yaml`                                                                 |
 
 ---
@@ -133,32 +133,33 @@ def convert_to_datetime(date_str, time_str, tz_str="UTC"):
     return result
 ```
 
-### TS port with `date-fns` + `date-fns-tz`
+### TS port with `date-fns` v4 + `@date-fns/tz`
 
 ```ts
-import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import { tz } from "@date-fns/tz";
+import { addHours, add, parse, set } from "date-fns";
 
 function convertToDatetime(
-    dateStr: string, // YYYYMMDD
-    timeStr: string, // HHH:MM:SS or H:MM:SS
-    tzStr: string = "UTC",
+  dateStr: string,    // YYYYMMDD
+  timeStr: string,    // HHH:MM:SS or H:MM:SS
+  tzStr: string = "UTC"
 ): Date | null {
-    const [h, m, s] = parseHHMMSS(timeStr);
-    if (h === null) return null;
+  const [h, m, s] = parseHHMMSS(timeStr);
+  if (h === null) return null;
 
-    const date = parse(dateStr, "yyyyMMdd", new Date());
-    const noonDate = set(date, { hours: 12, minutes: 0, seconds: 0, milliseconds: 0 });
+  const date = parse(dateStr, "yyyyMMdd", new Date());
+  const noonDate = set(date, { hours: 12, minutes: 0, seconds: 0, milliseconds: 0 });
 
-    // zonedTimeToUtc: interprets noonDate AS IF in tzStr timezone, converts to UTC
-    const noonInTz = zonedTimeToUtc(noonDate, tzStr);
-    const midnight = addHours(noonInTz, -12);
-    const result = add(midnight, { hours: h, minutes: m, seconds: s });
+  // `{ in: tz(tzStr) }` tells date-fns to do arithmetic in target timezone
+  // Handles DST transitions correctly (same as Python's tz.normalize)
+  const midnight = addHours(noonDate, -12, { in: tz(tzStr) });
+  const result = add(midnight, { hours: h, minutes: m, seconds: s }, { in: tz(tzStr) });
 
-    return result;
+  return result;
 }
 ```
 
-**Key**: `zonedTimeToUtc` handles DST correctly — interprets the naive date+time at noon in given timezone. Subtract 12h to get "noon minus 12h" per GTFS spec. Add duration. Test with Python fixture output.
+**Key**: `{ in: tz(tzStr) }` context option — tells date-fns to perform DST-safe arithmetic in target timezone. Same semantics as Python's `tz.normalize(noon - 12h) + duration`. Test with Python fixture output.
 
 ---
 
@@ -330,7 +331,7 @@ await db.transaction(async (tx) => {
 - `bun init` in `transit-ingest/`
 - `package.json` with `"type": "module"`, Bun workspaces root reference
 - `tsconfig.json`
-- dependencies: `drizzle-orm`, `drizzle-kit`, `arktype`, `@bufbuild/protobuf`, `csv-parse`, `date-fns`, `date-fns-tz`, `commander` or `cliffy`
+- dependencies: `drizzle-orm`, `drizzle-kit`, `arktype`, `@bufbuild/protobuf`, `csv-parse`, `date-fns` (v4+), `@date-fns/tz`, `commander` or `cliffy`
 - `buf.gen.yaml` + vendored `gtfs-realtime.proto`
 - `bun run buf:generate` → `src/proto/gtfs-realtime_pb.ts`
 - Verify: `bun run src/main.ts --help` prints help
@@ -473,7 +474,7 @@ await Promise.all(workers);
 | Runtime         | Bun 1.2+                                       | Native TS/TSX, built-in SQL driver, Worker support, fast                      |
 | ORM             | Drizzle                                        | Already owns schema. Workspace dep.                                           |
 | Validation      | ArkType via `drizzle-orm/arktype`              | Auto-generate from schema. Type-first. Smaller than Zod.                      |
-| DateTime        | `date-fns` + `date-fns-tz`                     | Modular, tree-shakeable, correct DST with `zonedTimeToUtc`                    |
+| DateTime | `date-fns` v4 + `@date-fns/tz` | Built-in timezone. `{ in: tz(tzStr) }` context for DST-safe arithmetic. No extra `date-fns-tz` dep. |
 | Protobuf        | `@bufbuild/protobuf`                           | Modern, TS-first, clean codegen. Active.                                      |
 | CSV             | `csv-parse`                                    | Stream-based, handles edge cases, works in Bun                                |
 | Geometry        | Drizzle `geometry()` type                      | Point → `{x,y}` object. Linestring → raw `sql\`ST_GeomFromText\``             |
