@@ -12,6 +12,7 @@
     "database/drizzle",
     "transit-api/server",
     "transit-api/test-client",
-    "transit-app"
+    "transit-app",
+    "transit-ingest"
   ]
 }
