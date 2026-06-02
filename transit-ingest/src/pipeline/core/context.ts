@@ -1,5 +1,5 @@
 import pino from "pino";
-import type { initDb } from "./db/client.ts";
+import type { Db } from "../db/client";
 
 export type PipelineConfig = {
     agencyId: string;
@@ -7,7 +7,7 @@ export type PipelineConfig = {
 };
 
 export type Context = {
-    db: ReturnType<typeof initDb>;
+    db: Db;
     config: PipelineConfig;
     signal: AbortSignal;
     logger: pino.Logger;
@@ -17,11 +17,7 @@ export type Context = {
     };
 };
 
-export function createContext(
-    db: ReturnType<typeof initDb>,
-    config: PipelineConfig,
-    signal?: AbortSignal,
-): Context {
+export function createContext(db: Db, config: PipelineConfig, signal?: AbortSignal): Context {
     return {
         db,
         config,

@@ -4,12 +4,15 @@ import * as tables from "database/models/tables";
 import * as views from "database/models/views";
 import { schemaRelations } from "database/models/relations";
 
-const url = process.env.DATABASE_URL;
+export function getDb(url = process.env.DATABASE_URL) {
+    if (!url) {
+        throw new Error("DATABASE_URL must be provided or set in environment");
+    }
 
-if (!url) {
-    throw new Error("DATABASE_URL must be provided or set in environment");
+    const client = new SQL(url);
+    const db = drizzle({ client, schema: { ...tables, ...views }, relations: schemaRelations });
+
+    return db;
 }
 
-const client = new SQL(url);
-
-export const db = drizzle({ client, schema: { ...tables, ...views }, relations: schemaRelations });
+export type Db = ReturnType<typeof getDb>;
