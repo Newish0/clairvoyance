@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { tmpdir } from "node:os";
 import AdmZip from "adm-zip";
 import { err, ok, type Result } from "neverthrow";
-import type { IngestError } from "../error.ts";
+import type { IngestError } from "../pipeline/core/error";
 
 export type SourceInfo = {
     dir: string;

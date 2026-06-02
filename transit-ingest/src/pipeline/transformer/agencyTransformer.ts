@@ -4,6 +4,7 @@ import type { CsvRow } from "../source/csvFileSource";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
+import { recoverableError } from "../core/error";
 
 export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inferInsert> {
     private agencyInsertSchema = createInsertSchema(agencies);
@@ -15,7 +16,6 @@ export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inf
         input: AsyncIterable<CsvRow>,
     ): AsyncIterable<typeof agencies.$inferInsert> {
         for await (const row of input) {
-            console.log("ROW", JSON.stringify(row, null, 2));
             const agency = this.agencyInsertSchema({
                 id: this.agencyId,
                 agencySid: row["agency_id"],
@@ -28,10 +28,13 @@ export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inf
                 email: row["agency_email"],
             });
             if (agency instanceof akType.errors) {
-                ctx.logger.error(
-                    "Failed to map agency row; insertion schema validation failed: " +
-                        agency.summary,
+                ctx.errors.push(
+                    recoverableError(
+                        "VALIDATION_ERROR",
+                        `Agency row validation failed: ${agency.summary}`,
+                    ),
                 );
+                ctx.skipped++;
             } else {
                 yield agency;
             }
