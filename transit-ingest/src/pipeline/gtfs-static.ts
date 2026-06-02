@@ -11,6 +11,7 @@ import { pipe } from "./core/pipe";
 import { UpsertSink } from "./sink/upsert";
 import { CsvFileSource } from "./source/csvFileSource";
 import { AgencyTransformer } from "./transformer/agencyTransformer";
+import { CalendarDateTransformer } from "./transformer/calendarDateTransformer";
 import { FeedInfoTransformer } from "./transformer/feedInfoTransformer";
 
 export type PipelineSummary = {
@@ -59,10 +60,21 @@ export async function runStatic(
         new UpsertSink(tables.feedInfo, [tables.feedInfo.hash]),
     );
 
+    const calendarDatesPipeline = pipe(
+        new CsvFileSource(path.join(source.dir, "calendar_dates.txt")),
+        new CalendarDateTransformer(ctx.config.agencyId),
+        new UpsertSink(tables.calendarDates, [
+            tables.calendarDates.agencyId,
+            tables.calendarDates.serviceSid,
+            tables.calendarDates.date,
+        ]),
+    );
+
     const allPipelinesResult = await (async () => {
         try {
             await agencyPipeline(ctx);
             await feedInfoPipeline(ctx);
+            await calendarDatesPipeline(ctx);
         } catch (e) {
             const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
             ctx.errors.push(error);
