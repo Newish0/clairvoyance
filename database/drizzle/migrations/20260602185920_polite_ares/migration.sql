@@ -1,0 +1,3 @@
+ALTER TABLE "transit"."shapes" ALTER COLUMN "path" SET DATA TYPE geometry(LineString,4326) USING "path"::geometry(LineString,4326);--> statement-breakpoint
+ALTER TABLE "transit"."stops" ALTER COLUMN "location" SET DATA TYPE geometry(Point,4326) USING "location"::geometry(Point,4326);--> statement-breakpoint
+ALTER TABLE "transit"."vehicle_positions" ALTER COLUMN "location" SET DATA TYPE geometry(Point,4326) USING "location"::geometry(Point,4326);
