@@ -8,6 +8,8 @@ import { CsvFileSource } from "./source/csvFileSource";
 import { AgencyTransformer } from "./transformer/agencyTransformer";
 
 import * as tables from "database/models/tables";
+import fs from "node:fs";
+import { deleteAll } from "../db/delete";
 
 const BATCH_SIZE = 1000;
 
@@ -134,7 +136,17 @@ const BATCH_SIZE = 1000;
 //     return ok(summary);
 // }
 
-export async function runStatic(ctx: Context, gtfsUrl: string) {
+export async function runStatic(ctx: Context, gtfsUrl: string, deleteRows = false) {
+    if (deleteRows) {
+        ctx.logger.info("Dropping existing rows");
+        const result = await deleteAll(ctx.db);
+        if (result.isErr()) {
+            ctx.logger.error(result.error);
+            process.exit(1);
+        }
+        ctx.logger.info("Existing rows dropped");
+    }
+
     ctx.logger.info({ url: gtfsUrl }, "Downloading GTFS archive");
 
     const sourceResult = await downloadAndExtract(gtfsUrl);
@@ -150,4 +162,7 @@ export async function runStatic(ctx: Context, gtfsUrl: string) {
     );
 
     await agencyPipeline(ctx);
+
+    // cleanup
+    fs.rmSync(source.dir, { recursive: true, force: true });
 }
