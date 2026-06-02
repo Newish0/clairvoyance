@@ -84,12 +84,34 @@ export function pipe(...stages: any[]): (ctx: Context) => Promise<void> {
     const transforms = stages.slice(1, -1) as Transform<any, any>[];
 
     return async (ctx: Context) => {
-        let stream = source.run(ctx);
+        let stream = monitorStream(source.run(ctx), source.constructor.name, ctx);
 
         for (const t of transforms) {
-            stream = t.run(ctx, stream);
+            const raw = t.run(ctx, stream);
+            stream = monitorStream(raw, t.constructor.name, ctx);
         }
 
         await sink.run(ctx, stream);
     };
+}
+
+async function* monitorStream<T>(
+    stream: AsyncIterable<T>,
+    stageName: string,
+    ctx: Context,
+): AsyncIterable<T> {
+    const start = performance.now();
+    let count = 0;
+
+    try {
+        for await (const item of stream) {
+            count++;
+            yield item;
+        }
+    } finally {
+        const ms = performance.now() - start;
+        ctx.telemetry.incr(`stage.${stageName}.items`, count);
+        ctx.telemetry.gauge(`stage.${stageName}.duration_ms`, ms);
+        ctx.logger.debug({ stage: stageName, items: count, ms }, "stage complete");
+    }
 }
