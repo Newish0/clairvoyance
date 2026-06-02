@@ -4,12 +4,16 @@ import { getDb, type Db } from "./db/client";
 import { createContext } from "./pipeline/core/context";
 import { runStatic } from "./pipeline/gtfs-static";
 
-
 type CliOptions = {
     databaseUrl?: string;
     deleteRows?: boolean;
     verbose?: boolean;
 };
+
+type StaticOptions = {
+    realizeInstances?: boolean;
+    ignoreFeedDup?: boolean;
+} & CliOptions;
 
 function resolveDb(databaseUrl?: string): Db {
     if (!databaseUrl) {
@@ -29,12 +33,13 @@ cli.option("--verbose, -v", "Enable debug logging");
 
 cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
     .option("--realize-instances", "Realize trip instances from GTFS static data")
-    .action((agencyId: string, gtfsUrl: string, options: CliOptions) => {
+    .option("--ignore-feed-dup", "Skip feed duplication check")
+    .action((agencyId: string, gtfsUrl: string, options: StaticOptions) => {
         const log = pino({ level: options.verbose ? "debug" : "info", name: "static" });
         const db = resolveDb(options.databaseUrl as string | undefined);
         const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
 
-        runStatic(ctx, gtfsUrl, options.deleteRows).then((result) => {
+        runStatic(ctx, gtfsUrl, options.deleteRows, options.ignoreFeedDup).then((result) => {
             if (result.isErr()) {
                 log.error({ err: result.error }, "Static processing failed");
                 process.exit(1);

@@ -1,16 +1,17 @@
+import * as tables from "database/models/tables";
 import { err, ok, type Result } from "neverthrow";
+import fs from "node:fs";
 import path from "node:path";
+import { deleteAll } from "../db/delete";
 import { downloadAndExtract } from "../source/gtfs-archive";
+import { checkFeedExist } from "../utils/feed_dup";
 import type { Context } from "./core/context";
+import { fatalError, type IngestError } from "./core/error";
 import { pipe } from "./core/pipe";
 import { UpsertSink } from "./sink/upsert";
 import { CsvFileSource } from "./source/csvFileSource";
 import { AgencyTransformer } from "./transformer/agencyTransformer";
-
-import * as tables from "database/models/tables";
-import fs from "node:fs";
-import { deleteAll } from "../db/delete";
-import { type IngestError, fatalError } from "./core/error";
+import { FeedInfoTransformer } from "./transformer/feedInfoTransformer";
 
 export type PipelineSummary = {
     errors: IngestError[];
@@ -21,6 +22,7 @@ export async function runStatic(
     ctx: Context,
     gtfsUrl: string,
     deleteRows = false,
+    ignoreFeedDup = false,
 ): Promise<Result<PipelineSummary, IngestError>> {
     if (deleteRows) {
         ctx.logger.info("Dropping existing rows");
@@ -39,21 +41,36 @@ export async function runStatic(
     const source = sourceResult.value;
     ctx.logger.info({ dir: source.dir, hash: source.hash }, "Archive extracted");
 
+    const feedExist = await checkFeedExist(ctx.db, source.hash);
+    if (feedExist && !ignoreFeedDup) {
+        ctx.logger.info({ hash: source.hash }, "Feed already processed. There has been no change. Skipping.");
+        return ok({ errors: [], skipped: 0 });
+    }
+
     const agencyPipeline = pipe(
         new CsvFileSource(path.join(source.dir, "agency.txt")),
         new AgencyTransformer(ctx.config.agencyId),
         new UpsertSink(tables.agencies, [tables.agencies.id]),
     );
 
-    try {
-        await agencyPipeline(ctx);
-    } catch (e) {
-        const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
-        ctx.errors.push(error);
-        return err(error);
-    }
+    const feedInfoPipeline = pipe(
+        new CsvFileSource(path.join(source.dir, "feed_info.txt")),
+        new FeedInfoTransformer(ctx.config.agencyId, source.hash),
+        new UpsertSink(tables.feedInfo, [tables.feedInfo.hash]),
+    );
+
+    const allPipelinesResult = await (async () => {
+        try {
+            await agencyPipeline(ctx);
+            await feedInfoPipeline(ctx);
+        } catch (e) {
+            const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
+            ctx.errors.push(error);
+            return err(error);
+        }
+    })();
 
     fs.rmSync(source.dir, { recursive: true, force: true });
 
-    return ok({ errors: ctx.errors, skipped: ctx.skipped });
+    return allPipelinesResult ?? ok({ errors: ctx.errors, skipped: ctx.skipped });
 }
