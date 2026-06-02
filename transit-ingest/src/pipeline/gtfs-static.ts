@@ -13,6 +13,7 @@ import { CsvFileSource } from "./source/csvFileSource";
 import { AgencyTransformer } from "./transformer/agencyTransformer";
 import { CalendarDateTransformer } from "./transformer/calendarDateTransformer";
 import { FeedInfoTransformer } from "./transformer/feedInfoTransformer";
+import { RouteTransformer } from "./transformer/routeTransformer";
 
 export type PipelineSummary = {
     errors: IngestError[];
@@ -70,11 +71,18 @@ export async function runStatic(
         ]),
     );
 
+    const routesPipeline = pipe(
+        new CsvFileSource(path.join(source.dir, "routes.txt")),
+        new RouteTransformer(ctx.config.agencyId),
+        new UpsertSink(tables.routes, [tables.routes.agencyId, tables.routes.routeSid]),
+    );
+
     const allPipelinesResult = await (async () => {
         try {
             await agencyPipeline(ctx);
             await feedInfoPipeline(ctx);
             await calendarDatesPipeline(ctx);
+            await routesPipeline(ctx);
         } catch (e) {
             const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
             ctx.errors.push(error);
