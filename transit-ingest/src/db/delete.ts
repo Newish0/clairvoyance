@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
-import type { drizzle } from "drizzle-orm/bun-sql";
 import { err, ok, type Result } from "neverthrow";
 import { type IngestError } from "../error.ts";
+import type { Db } from "./client.ts";
 
-type Tx = Parameters<Parameters<ReturnType<typeof drizzle>["transaction"]>[0]>[0];
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export async function deleteAll(tx: Tx): Promise<Result<void, IngestError>> {
     try {
