@@ -16,6 +16,7 @@ import { FeedInfoTransformer } from "./transformer/feedInfoTransformer";
 import { RouteTransformer } from "./transformer/routeTransformer";
 import { ShapeTransformer } from "./transformer/shapeTransformer";
 import { StopTransformer } from "./transformer/stopTransformer";
+import { TripTransformer } from "./transformer/tripTransformer";
 
 export type PipelineSummary = {
     errors: IngestError[];
@@ -91,6 +92,12 @@ export async function runStatic(
         new UpsertSink(tables.shapes, [tables.shapes.agencyId, tables.shapes.shapeSid]),
     );
 
+    const tripsPipeline = pipe(
+        new CsvFileSource(path.join(source.dir, "trips.txt")),
+        new TripTransformer(ctx.config.agencyId),
+        new UpsertSink(tables.trips, [tables.trips.agencyId, tables.trips.tripSid]),
+    );
+
     const allPipelinesResult = await (async () => {
         try {
             await agencyPipeline(ctx);
@@ -99,6 +106,7 @@ export async function runStatic(
             await routesPipeline(ctx);
             await stopsPipeline(ctx);
             await shapesPipeline(ctx);
+            await tripsPipeline(ctx);
         } catch (e) {
             const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
             ctx.errors.push(error);
