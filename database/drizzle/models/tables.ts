@@ -2,7 +2,6 @@ import {
     type AnyPgColumn,
     char,
     doublePrecision,
-    geometry,
     index,
     integer,
     jsonb,
@@ -28,8 +27,9 @@ import {
     timepointEnum,
     tripInstanceStateEnum,
     vehicleStopStatusEnum,
-    wheelchairBoardingEnum
+    wheelchairBoardingEnum,
 } from "./enums";
+import { geometryLineString, geometryPoint } from "./postgis-types";
 import { schema } from "./schema";
 import type { EntitySelector, TimePeriod, TranslationMap } from "./types";
 
@@ -97,7 +97,7 @@ export const shapes = schema.table(
             .references(() => agencies.id),
         shapeSid: text("shape_sid").notNull(),
 
-        path: geometry("path", { type: "linestring", srid: 4326 }).notNull(),
+        path: geometryLineString("path").notNull(),
         distancesTraveled: jsonb("distances_traveled").$type<number[]>(),
     },
     (t) => [
@@ -154,7 +154,7 @@ export const stops = schema.table(
         code: text("code"),
         name: text("name"),
         description: text("description"),
-        location: geometry("location", { type: "point", srid: 4326 }),
+        location: geometryPoint("location"),
         zoneId: text("zone_id"),
         url: text("url"),
         locationType: locationTypeEnum("location_type"),
@@ -317,7 +317,7 @@ export const vehiclePositions = schema.table(
         tripInstanceId: integer("trip_instance_id").references(() => tripInstances.id),
 
         timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
-        location: geometry("location", { type: "point", srid: 4326 }).notNull(),
+        location: geometryPoint("location").notNull(),
 
         stopId: integer("stop_id").references(() => stops.id),
         currentStopSequence: integer("current_stop_sequence"),
