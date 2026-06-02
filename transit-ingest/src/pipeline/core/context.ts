@@ -1,5 +1,5 @@
 import pino from "pino";
-import type { Db } from "../db/client";
+import type { Db } from "../../db/client";
 import type { IngestError } from "./error";
 
 export type PipelineConfig = {
