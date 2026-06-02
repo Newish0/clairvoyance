@@ -31,7 +31,7 @@ export class RouteTransformer implements Transform<CsvRow, typeof routes.$inferI
     ): AsyncIterable<typeof routes.$inferInsert> {
         for await (const row of input) {
             const rawRouteType = row["route_type"];
-            const routeType = rawRouteType ? ROUTE_TYPE_MAPPING[rawRouteType] : undefined;
+            const routeType = rawRouteType ? ROUTE_TYPE_MAPPING[rawRouteType] : null;
 
             if (!routeType) {
                 ctx.errors.push(

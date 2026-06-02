@@ -23,7 +23,7 @@ export class CalendarDateTransformer implements Transform<CsvRow, typeof calenda
     ): AsyncIterable<typeof calendarDates.$inferInsert> {
         for await (const row of input) {
             const rawExceptionType = row["exception_type"];
-            const exceptionType = rawExceptionType ? EXCEPTION_MAPPING[rawExceptionType] : undefined;
+            const exceptionType = rawExceptionType ? EXCEPTION_MAPPING[rawExceptionType] : null;
 
             if (!exceptionType) {
                 ctx.errors.push(
