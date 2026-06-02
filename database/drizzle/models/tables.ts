@@ -127,7 +127,9 @@ export const trips = schema.table(
     "trips",
     {
         id: serial("id").primaryKey(),
-        agencyId: text("agency_id").references(() => agencies.id),
+        agencyId: text("agency_id")
+            .references(() => agencies.id)
+            .notNull(),
         routeId: integer("route_id").references(() => routes.id),
         shapeId: integer("shape_id").references(() => shapes.id),
         tripSid: text("trip_sid").notNull(),
@@ -148,7 +150,9 @@ export const stops = schema.table(
     "stops",
     {
         id: serial("id").primaryKey(),
-        agencyId: text("agency_id").references(() => agencies.id),
+        agencyId: text("agency_id")
+            .references(() => agencies.id)
+            .notNull(),
         stopSid: text("stop_sid").notNull(),
 
         code: text("code"),
@@ -192,7 +196,9 @@ export const stopTimes = schema.table(
     {
         id: serial("id").primaryKey(),
 
-        agencyId: text("agency_id").references(() => agencies.id),
+        agencyId: text("agency_id")
+            .references(() => agencies.id)
+            .notNull(),
         tripId: integer("trip_id").references(() => trips.id),
         stopId: integer("stop_id").references(() => stops.id),
         tripSid: text("trip_sid").notNull(),
