@@ -5,8 +5,9 @@ import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
 import { recoverableError } from "../core/error";
+import { type calendarExceptionTypeEnum } from "database/models/enums";
 
-const EXCEPTION_MAPPING: Record<string, "ADDED" | "REMOVED"> = {
+const EXCEPTION_MAPPING: Record<string, (typeof calendarExceptionTypeEnum.enumValues)[number]> = {
     "1": "ADDED",
     "2": "REMOVED",
 };
