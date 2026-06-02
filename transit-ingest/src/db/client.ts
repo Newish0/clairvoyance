@@ -4,7 +4,7 @@ import * as tables from "database/models/tables";
 import * as views from "database/models/views";
 import { schemaRelations } from "database/models/relations";
 
-export function getDb(url = process.env.DATABASE_URL) {
+export function getDb(url: string) {
     if (!url) {
         throw new Error("DATABASE_URL must be provided or set in environment");
     }
