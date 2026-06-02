@@ -35,11 +35,19 @@ cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
         const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
 
         runStatic(ctx, gtfsUrl, options.deleteRows).then((result) => {
-            if (result?.isErr()) {
+            if (result.isErr()) {
                 log.error({ err: result.error }, "Static processing failed");
                 process.exit(1);
             }
-            log.info("Static data processed successfully.");
+            const summary = result.value;
+            if (summary.errors.length > 0) {
+                log.warn(
+                    { errors: summary.errors.length, skipped: summary.skipped },
+                    "Static data processed with recoverable errors",
+                );
+            } else {
+                log.info("Static data processed successfully.");
+            }
         });
     });
 

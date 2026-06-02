@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "neverthrow";
-import type { IngestError } from "../error.ts";
+import type { IngestError } from "../pipeline/core/error";
 import type { CsvRow } from "./csv-decoder.ts";
 import type { agencies, feedInfo, calendarDates } from "database/models/tables";
 import type { CalendarExceptionType } from "database/models/enums.ts";

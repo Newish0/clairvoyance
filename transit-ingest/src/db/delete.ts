@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { err, ok, type Result } from "neverthrow";
-import { type IngestError } from "../error.ts";
+import { type IngestError } from "../pipeline/core/error";
 import type { Db } from "./client.ts";
 
 

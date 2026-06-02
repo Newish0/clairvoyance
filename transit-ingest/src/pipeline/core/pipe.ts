@@ -1,13 +1,49 @@
 import type { Context } from "./context";
 
+/**
+ * A **recoverable** error means the pipeline can continue past it:
+ * skip the offending item, push an `IngestError` with
+ * `severity: "recoverable"` to `ctx.errors`, and keep yielding.
+ *
+ * A **fatal** error means the pipeline cannot make progress:
+ * let the exception propagate so the orchestrator catches it,
+ * pushes an `IngestError` with `severity: "fatal"` to
+ * `ctx.errors`, and returns `err()`.
+ */
+
+/**
+ * Produces items from an external source (file, API, etc.).
+ *
+ * - **Recoverable** (missing file, parse error): push
+ *   `recoverableError(...)` to `ctx.errors` and stop yielding.
+ * - **Fatal**: let the exception propagate to the orchestrator.
+ */
 export interface Source<O> {
     run(ctx: Context): AsyncIterable<O>;
 }
 
+/**
+ * Transforms each item from an upstream stage.
+ *
+ * - **Recoverable** (validation failure): push
+ *   `recoverableError(...)` to `ctx.errors`, increment
+ *   `ctx.skipped`, and skip the item (don't yield it).
+ * - **Fatal**: let the exception propagate.
+ */
 export interface Transform<I, O> {
     run(ctx: Context, input: AsyncIterable<I>): AsyncIterable<O>;
 }
 
+/**
+ * Persists items (DB write, file write, etc.).
+ *
+ * - **Recoverable** (batch write failure): push
+ *   `recoverableError(...)` to `ctx.errors`, add the failed
+ *   item count to `ctx.skipped`, clear the batch, and keep
+ *   consuming input. Degraded accuracy is preferable to
+ *   aborting — the pipeline can be rerun later.
+ * - **Fatal**: let the exception propagate.
+ */
 export interface Sink<I> {
     run(ctx: Context, input: AsyncIterable<I>): void | Promise<void>;
 }
