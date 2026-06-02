@@ -14,6 +14,7 @@ import { AgencyTransformer } from "./transformer/agencyTransformer";
 import { CalendarDateTransformer } from "./transformer/calendarDateTransformer";
 import { FeedInfoTransformer } from "./transformer/feedInfoTransformer";
 import { RouteTransformer } from "./transformer/routeTransformer";
+import { ShapeTransformer } from "./transformer/shapeTransformer";
 import { StopTransformer } from "./transformer/stopTransformer";
 
 export type PipelineSummary = {
@@ -84,6 +85,12 @@ export async function runStatic(
         new UpsertSink(tables.stops, [tables.stops.agencyId, tables.stops.stopSid]),
     );
 
+    const shapesPipeline = pipe(
+        new CsvFileSource(path.join(source.dir, "shapes.txt")),
+        new ShapeTransformer(ctx.config.agencyId),
+        new UpsertSink(tables.shapes, [tables.shapes.agencyId, tables.shapes.shapeSid]),
+    );
+
     const allPipelinesResult = await (async () => {
         try {
             await agencyPipeline(ctx);
@@ -91,6 +98,7 @@ export async function runStatic(
             await calendarDatesPipeline(ctx);
             await routesPipeline(ctx);
             await stopsPipeline(ctx);
+            await shapesPipeline(ctx);
         } catch (e) {
             const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
             ctx.errors.push(error);
