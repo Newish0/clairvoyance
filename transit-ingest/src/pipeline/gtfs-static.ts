@@ -18,6 +18,7 @@ import { ShapeTransformer } from "./transformer/shapeTransformer";
 import { StopTimeTransformer } from "./transformer/stopTimeTransformer";
 import { StopTransformer } from "./transformer/stopTransformer";
 import { TripTransformer } from "./transformer/tripTransformer";
+import { runRealizeInstances } from "./realize-instances";
 
 export type PipelineSummary = {
     errors: IngestError[];
@@ -29,6 +30,7 @@ export async function runStatic(
     gtfsUrl: string,
     deleteRows = false,
     ignoreFeedDup = false,
+    realizeInstances = false,
 ): Promise<Result<PipelineSummary, IngestError>> {
     if (deleteRows) {
         ctx.logger.info("Dropping existing rows");
@@ -130,6 +132,17 @@ export async function runStatic(
     })();
 
     fs.rmSync(source.dir, { recursive: true, force: true });
+
+    // Realize trip instances if requested
+    if (realizeInstances && (!allPipelinesResult || allPipelinesResult.isOk())) {
+        ctx.logger.info("Realizing trip instances");
+        const realizeResult = await runRealizeInstances(ctx);
+        if (realizeResult.isErr()) {
+            return err(realizeResult.error);
+        }
+        ctx.errors.push(...realizeResult.value.errors);
+        ctx.skipped += realizeResult.value.skipped;
+    }
 
     return allPipelinesResult ?? ok({ errors: ctx.errors, skipped: ctx.skipped });
 }
