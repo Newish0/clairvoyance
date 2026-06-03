@@ -1,25 +1,32 @@
 import { cac } from "cac";
 import pino from "pino";
+import { type, type as arkType } from "arktype";
 import { getDb, type Db } from "./db/client";
 import { createContext } from "./pipeline/core/context";
 import { runStatic } from "./pipeline/gtfs-static";
 import { runRealizeInstances } from "./pipeline/realize-instances";
 
-type CliOptions = {
-    databaseUrl?: string;
-    deleteRows?: boolean;
-    verbose?: boolean;
-};
+const CliOptions = arkType({
+    "databaseUrl?": "string | undefined",
+    "deleteRows?": "boolean | undefined",
+    "verbose?": "boolean | undefined",
+});
 
-type StaticOptions = {
-    realizeInstances?: boolean;
-    ignoreFeedDup?: boolean;
-} & CliOptions;
+const StaticOptions = CliOptions.merge({
+    "realizeInstances?": "boolean | undefined",
+    "ignoreFeedDup?": "boolean | undefined",
+});
 
-type RealizeOptions = {
-    minDate?: unknown;
-    maxDate?: unknown;
-} & CliOptions;
+const DateStr = type("string | number")
+    .pipe((v) => String(v))
+    .narrow((s): s is string =>
+        /^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(s),
+    );
+
+const RealizeOptions = CliOptions.merge({
+    "minDate?": DateStr,
+    "maxDate?": DateStr,
+});
 
 function resolveDb(databaseUrl?: string): Db {
     if (!databaseUrl) {
@@ -40,17 +47,22 @@ cli.option("--verbose, -v", "Enable debug logging");
 cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
     .option("--realize-instances", "Realize trip instances from GTFS static data")
     .option("--ignore-feed-dup", "Skip feed duplication check")
-    .action(async (agencyId: string, gtfsUrl: string, options: StaticOptions) => {
-        const log = pino({ level: options.verbose ? "debug" : "info", name: "static" });
-        const db = resolveDb(options.databaseUrl);
-        const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
+    .action(async (agencyId: string, gtfsUrl: string, options: unknown) => {
+        const validated = StaticOptions(options);
+        if (validated instanceof arkType.errors) {
+            console.error(`error: invalid options - ${validated.summary}`);
+            process.exit(1);
+        }
+        const log = pino({ level: validated.verbose ? "debug" : "info", name: "static" });
+        const db = resolveDb(validated.databaseUrl);
+        const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
 
         const result = await runStatic(
             ctx,
             gtfsUrl,
-            options.deleteRows,
-            options.ignoreFeedDup,
-            options.realizeInstances,
+            validated.deleteRows,
+            validated.ignoreFeedDup,
+            validated.realizeInstances,
         );
         if (result.isErr()) {
             log.error({ err: result.error }, "Static processing failed");
@@ -69,9 +81,17 @@ cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
 
 cli.command("realtime <agency-id> <gtfs-urls...>", "Process realtime GTFS data")
     .option("--poll <seconds>", "Poll interval in seconds (0 = run once)")
-    .action((agencyId: string, gtfsUrls: string[], options: Record<string, unknown>) => {
-        const log = pino({ level: options.verbose ? "debug" : "info", name: "realtime" });
-        log.info({ agencyId, gtfsUrls, poll: options.poll }, "Realtime config");
+    .action((agencyId: string, gtfsUrls: string[], options: unknown) => {
+        const validated = CliOptions(options);
+        if (validated instanceof arkType.errors) {
+            console.error(`error: invalid options - ${validated.summary}`);
+            process.exit(1);
+        }
+        const log = pino({ level: validated.verbose ? "debug" : "info", name: "realtime" });
+        log.info(
+            { agencyId, gtfsUrls, poll: (options as Record<string, unknown>).poll },
+            "Realtime config",
+        );
         log.info("Realtime data processed successfully.");
     });
 
@@ -82,15 +102,17 @@ cli.command(
     .alias("realize")
     .option("--min-date <date>", "Minimum date (YYYYMMDD) for trip instances")
     .option("--max-date <date>", "Maximum date (YYYYMMDD) for trip instances")
-    .action(async (agencyId: string, options: RealizeOptions) => {
-        const log = pino({ level: options.verbose ? "debug" : "info", name: "realize" });
-        const db = resolveDb(options.databaseUrl);
-        const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
+    .action(async (agencyId: string, options: unknown) => {
+        const validated = RealizeOptions(options);
+        if (validated instanceof arkType.errors) {
+            console.error(`error: invalid options - ${validated.summary}`);
+            process.exit(1);
+        }
+        const log = pino({ level: validated.verbose ? "debug" : "info", name: "realize" });
+        const db = resolveDb(validated.databaseUrl);
+        const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
 
-        const minDate = options.minDate ? String(options.minDate) : undefined;
-        const maxDate = options.maxDate ? String(options.maxDate) : undefined;
-
-        const result = await runRealizeInstances(ctx, minDate, maxDate);
+        const result = await runRealizeInstances(ctx, validated.minDate, validated.maxDate);
         if (result.isErr()) {
             log.error({ err: result.error }, "Realize instances failed");
             process.exit(1);
