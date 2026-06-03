@@ -50,7 +50,11 @@ export class UpsertSink<T extends PgTable, Q extends InferInsertModel<T>> implem
                 );
             } catch (e) {
                 ctx.errors.push(
-                    recoverableError("DB_UPSERT_ERROR", `Failed to upsert batch into ${this.table._.name}`, e),
+                    recoverableError(
+                        "DB_UPSERT_ERROR",
+                        `Failed to upsert batch into ${this.table._.name}`,
+                        e,
+                    ),
                 );
                 ctx.skipped += this.batch.length;
             }
