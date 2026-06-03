@@ -31,7 +31,7 @@ export async function runRealizeInstances(
         );
 
         await pipeline(ctx);
-        // await ctx.db.refreshMaterializedView(views.stopTimeStaticInstances).concurrently();
+        await ctx.db.refreshMaterializedView(views.stopTimeStaticInstances).concurrently();
 
         return ok({ errors: ctx.errors, skipped: ctx.skipped });
     } catch (e) {
