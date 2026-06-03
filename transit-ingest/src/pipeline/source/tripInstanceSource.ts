@@ -29,7 +29,10 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         public agencyId: string,
         public minDate: string,
         public maxDate: string,
-    ) {}
+    ) {
+        if (this.minDate.length !== 8) throw new Error(`Invalid minDate: ${this.minDate}`);
+        if (this.maxDate.length !== 8) throw new Error(`Invalid maxDate: ${this.maxDate}`);
+    }
 
     async *run(ctx: Context): AsyncIterable<TripInstanceRow> {
         const agency = await ctx.db.query.agencies.findFirst({

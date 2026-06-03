@@ -17,8 +17,8 @@ type StaticOptions = {
 } & CliOptions;
 
 type RealizeOptions = {
-    minDate?: string;
-    maxDate?: string;
+    minDate?: unknown;
+    maxDate?: unknown;
 } & CliOptions;
 
 function resolveDb(databaseUrl?: string): Db {
@@ -87,7 +87,10 @@ cli.command(
         const db = resolveDb(options.databaseUrl);
         const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
 
-        const result = await runRealizeInstances(ctx, options.minDate, options.maxDate);
+        const minDate = options.minDate ? String(options.minDate) : undefined;
+        const maxDate = options.maxDate ? String(options.maxDate) : undefined;
+
+        const result = await runRealizeInstances(ctx, minDate, maxDate);
         if (result.isErr()) {
             log.error({ err: result.error }, "Realize instances failed");
             process.exit(1);
