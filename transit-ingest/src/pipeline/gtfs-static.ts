@@ -48,7 +48,10 @@ export async function runStatic(
 
     const feedExist = await checkFeedExist(ctx.db, source.hash);
     if (feedExist && !ignoreFeedDup) {
-        ctx.logger.info({ hash: source.hash }, "Feed already processed. There has been no change. Skipping.");
+        ctx.logger.info(
+            { hash: source.hash },
+            "Feed already processed. There has been no change. Skipping.",
+        );
         return ok({ errors: [], skipped: 0 });
     }
 
@@ -77,25 +80,25 @@ export async function runStatic(
     const routesPipeline = pipe(
         new CsvFileSource(path.join(source.dir, "routes.txt")),
         new RouteTransformer(ctx.config.agencyId),
-        new UpsertSink(tables.routes, [tables.routes.agencyId, tables.routes.routeSid]),
+        new UpsertSink(tables.routes, [tables.routes.agencyId, tables.routes.routeSid], ["id"]),
     );
 
     const stopsPipeline = pipe(
         new CsvFileSource(path.join(source.dir, "stops.txt")),
         new StopTransformer(ctx.config.agencyId),
-        new UpsertSink(tables.stops, [tables.stops.agencyId, tables.stops.stopSid]),
+        new UpsertSink(tables.stops, [tables.stops.agencyId, tables.stops.stopSid], ["id"]),
     );
 
     const shapesPipeline = pipe(
         new CsvFileSource(path.join(source.dir, "shapes.txt")),
         new ShapeTransformer(ctx.config.agencyId),
-        new UpsertSink(tables.shapes, [tables.shapes.agencyId, tables.shapes.shapeSid]),
+        new UpsertSink(tables.shapes, [tables.shapes.agencyId, tables.shapes.shapeSid], ["id"]),
     );
 
     const tripsPipeline = pipe(
         new CsvFileSource(path.join(source.dir, "trips.txt")),
         new TripTransformer(ctx.config.agencyId),
-        new UpsertSink(tables.trips, [tables.trips.agencyId, tables.trips.tripSid]),
+        new UpsertSink(tables.trips, [tables.trips.agencyId, tables.trips.tripSid], ["id"]),
     );
 
     const allPipelinesResult = await (async () => {
