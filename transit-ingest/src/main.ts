@@ -3,6 +3,7 @@ import pino from "pino";
 import { getDb, type Db } from "./db/client";
 import { createContext } from "./pipeline/core/context";
 import { runStatic } from "./pipeline/gtfs-static";
+import { runRealizeInstances } from "./pipeline/realize-instances";
 
 type CliOptions = {
     databaseUrl?: string;
@@ -13,6 +14,11 @@ type CliOptions = {
 type StaticOptions = {
     realizeInstances?: boolean;
     ignoreFeedDup?: boolean;
+} & CliOptions;
+
+type RealizeOptions = {
+    minDate?: string;
+    maxDate?: string;
 } & CliOptions;
 
 function resolveDb(databaseUrl?: string): Db {
@@ -34,26 +40,31 @@ cli.option("--verbose, -v", "Enable debug logging");
 cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
     .option("--realize-instances", "Realize trip instances from GTFS static data")
     .option("--ignore-feed-dup", "Skip feed duplication check")
-    .action((agencyId: string, gtfsUrl: string, options: StaticOptions) => {
+    .action(async (agencyId: string, gtfsUrl: string, options: StaticOptions) => {
         const log = pino({ level: options.verbose ? "debug" : "info", name: "static" });
-        const db = resolveDb(options.databaseUrl as string | undefined);
+        const db = resolveDb(options.databaseUrl);
         const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
 
-        runStatic(ctx, gtfsUrl, options.deleteRows, options.ignoreFeedDup).then((result) => {
-            if (result.isErr()) {
-                log.error({ err: result.error }, "Static processing failed");
-                process.exit(1);
-            }
-            const summary = result.value;
-            if (summary.errors.length > 0) {
-                log.warn(
-                    { errors: summary.errors.length, skipped: summary.skipped },
-                    "Static data processed with recoverable errors",
-                );
-            } else {
-                log.info("Static data processed successfully.");
-            }
-        });
+        const result = await runStatic(
+            ctx,
+            gtfsUrl,
+            options.deleteRows,
+            options.ignoreFeedDup,
+            options.realizeInstances,
+        );
+        if (result.isErr()) {
+            log.error({ err: result.error }, "Static processing failed");
+            process.exit(1);
+        }
+        const summary = result.value;
+        if (summary.errors.length > 0) {
+            log.warn(
+                { errors: summary.errors.length, skipped: summary.skipped },
+                "Static data processed with recoverable errors",
+            );
+        } else {
+            log.info("Static data processed successfully.");
+        }
     });
 
 cli.command("realtime <agency-id> <gtfs-urls...>", "Process realtime GTFS data")
@@ -71,13 +82,25 @@ cli.command(
     .alias("realize")
     .option("--min-date <date>", "Minimum date (YYYYMMDD) for trip instances")
     .option("--max-date <date>", "Maximum date (YYYYMMDD) for trip instances")
-    .action((agencyId: string, options: Record<string, unknown>) => {
+    .action(async (agencyId: string, options: RealizeOptions) => {
         const log = pino({ level: options.verbose ? "debug" : "info", name: "realize" });
-        log.info(
-            { agencyId, minDate: options.minDate, maxDate: options.maxDate },
-            "Realize config",
-        );
-        log.info("Realize instances processing complete.");
+        const db = resolveDb(options.databaseUrl);
+        const ctx = createContext(db, { agencyId, verbose: !!options.verbose });
+
+        const result = await runRealizeInstances(ctx, options.minDate, options.maxDate);
+        if (result.isErr()) {
+            log.error({ err: result.error }, "Realize instances failed");
+            process.exit(1);
+        }
+        const summary = result.value;
+        if (summary.errors.length > 0) {
+            log.warn(
+                { errors: summary.errors.length, skipped: summary.skipped },
+                "Realize instances completed with recoverable errors",
+            );
+        } else {
+            log.info("Realize instances completed successfully.");
+        }
     });
 
 cli.help();

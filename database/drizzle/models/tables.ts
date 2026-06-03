@@ -204,6 +204,7 @@ export const stopTimes = schema.table(
         tripSid: text("trip_sid").notNull(),
         stopSid: text("stop_sid").notNull(),
 
+        /** GTFS doc: The values must increase along the trip but do not need to be consecutive. */
         stopSequence: integer("stop_sequence").notNull(),
 
         arrivalTime: char("arrival_time", { length: 8 }), // HH:MM:SS format, can exceed 24 hours

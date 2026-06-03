@@ -19,3 +19,11 @@ With pretty output for dev:
 bun run src/main.ts | bunx pino-pretty
 ```
 
+## Database Timezone
+
+The database is assumed to run with `TimeZone = 'UTC'`.
+
+**Note:** This assumption is for developer clarity, not functional correctness. `TIMESTAMPTZ` columns always store UTC internally regardless of the PostgreSQL server's `TimeZone` setting. The UTC assumption ensures consistent behavior across environments and simplifies debugging.
+
+All moment-in-time columns use `TIMESTAMPTZ`; never bare `TIMESTAMP`.
+
