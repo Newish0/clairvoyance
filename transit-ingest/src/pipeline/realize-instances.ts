@@ -4,8 +4,8 @@ import type { Context } from "./core/context";
 import { fatalError, type IngestError } from "./core/error";
 import { pipe } from "./core/pipe";
 import { UpsertSink } from "./sink/upsert";
-import { TripInstanceSource } from "./source/tripInstanceSource";
-import { TripInstanceTransformer } from "./transformer/tripInstanceTransformer";
+import { TripInstanceSource } from "./source/trip-instance-source";
+import { TripInstanceTransformer } from "./transformer/trip-instance-transformer";
 import * as views from "database/models/views";
 
 export type PipelineSummary = {

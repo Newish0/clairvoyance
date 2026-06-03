@@ -4,8 +4,8 @@ import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
 import { recoverableError } from "../core/error";
-import { gtfsTimeToDate } from "../../gtfs/datetime";
-import type { TripInstanceRow } from "../source/tripInstanceSource";
+import { gtfsTimeToDate } from "../../utils/datetime";
+import type { TripInstanceRow } from "../source/trip-instance-source";
 
 /** Maps TripInstanceRow tuples to trip_instances insert objects with validation. */
 export class TripInstanceTransformer implements Transform<

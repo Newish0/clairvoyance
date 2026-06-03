@@ -1,6 +1,6 @@
 import type { Transform } from "../core/pipe";
 import { agencies } from "database/models/tables";
-import type { CsvRow } from "../source/csvFileSource";
+import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
