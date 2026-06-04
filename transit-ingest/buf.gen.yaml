@@ -1,0 +1,8 @@
+# buf.gen.yaml
+version: v2
+inputs:
+    - directory: vendor
+plugins:
+    - local: protoc-gen-es
+      out: src/gen/proto
+      opt: target=ts
