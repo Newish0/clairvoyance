@@ -1,4 +1,5 @@
 import { and, eq, ne } from "drizzle-orm";
+import { LRUCache } from "lru-cache";
 import type { Source } from "../core/pipe";
 import type { Context } from "../core/context";
 import * as tables from "database/models/tables";
@@ -22,8 +23,9 @@ export type TripInstanceRow = {
 
 /** Cross-joins calendar_dates × trips, yields enriched tuples for the pipeline. */
 export class TripInstanceSource implements Source<TripInstanceRow> {
-    private routeCache = new Map<number, Route | null>();
-    private shapeCache = new Map<number, Shape | null>();
+    private routeCache = new LRUCache<number, Route>({ max: 3000 });
+    private shapeCache = new LRUCache<number, Shape>({ max: 6000 });
+    private stopTimeCache = new LRUCache<number, StopTime>({ max: 10000 });
 
     constructor(
         public agencyId: string,
@@ -107,25 +109,31 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
     }
 
     private async lookupStopTime(ctx: Context, tripId: number): Promise<StopTime | null> {
+        const cached = this.stopTimeCache.get(tripId);
+        if (cached) return cached;
+
         // GTFS spec: stop_sequence values must increase along the trip but do not need to be consecutive.
         const stopTime = await ctx.db.query.stopTimes.findFirst({
             where: { tripId },
             orderBy: { stopSequence: "asc" },
         });
+        if (stopTime) this.stopTimeCache.set(tripId, stopTime);
         return stopTime ?? null;
     }
 
     private async lookupRoute(ctx: Context, routeId: number): Promise<Route | null> {
-        if (this.routeCache.has(routeId)) return this.routeCache.get(routeId)!;
+        const cached = this.routeCache.get(routeId);
+        if (cached) return cached;
         const route = await ctx.db.query.routes.findFirst({ where: { id: routeId } });
-        this.routeCache.set(routeId, route ?? null);
+        if (route) this.routeCache.set(routeId, route);
         return route ?? null;
     }
 
     private async lookupShape(ctx: Context, shapeId: number): Promise<Shape | null> {
-        if (this.shapeCache.has(shapeId)) return this.shapeCache.get(shapeId)!;
+        const cached = this.shapeCache.get(shapeId);
+        if (cached) return cached;
         const shape = await ctx.db.query.shapes.findFirst({ where: { id: shapeId } });
-        this.shapeCache.set(shapeId, shape ?? null);
+        if (shape) this.shapeCache.set(shapeId, shape);
         return shape ?? null;
     }
 }

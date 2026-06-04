@@ -29,9 +29,13 @@ export async function runRealizeInstances(
                 tripInstances.startTime,
             ]),
         );
-
+        ctx.logger.debug({ minDate, maxDate }, "Realize trip instances pipeline started");
         await pipeline(ctx);
+        ctx.logger.debug({ minDate, maxDate }, "Realize trip instances pipeline finished");
+
+        ctx.logger.debug("Refreshing materialized views");
         await ctx.db.refreshMaterializedView(views.stopTimeStaticInstances).concurrently();
+        ctx.logger.debug("Refreshing materialized views finished");
 
         return ok({ errors: ctx.errors, skipped: ctx.skipped });
     } catch (e) {
