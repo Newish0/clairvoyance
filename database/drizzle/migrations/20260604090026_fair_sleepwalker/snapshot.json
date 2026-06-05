@@ -1,0 +1,2985 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "caec9407-da05-457f-888f-85371133cc78",
+  "prevIds": [
+    "93d7a77e-8d0e-42ff-8239-981368e18852"
+  ],
+  "ddl": [
+    {
+      "name": "transit",
+      "entityType": "schemas"
+    },
+    {
+      "values": [
+        "UNKNOWN_CAUSE",
+        "OTHER_CAUSE",
+        "TECHNICAL_PROBLEM",
+        "STRIKE",
+        "DEMONSTRATION",
+        "ACCIDENT",
+        "HOLIDAY",
+        "WEATHER",
+        "MAINTENANCE",
+        "CONSTRUCTION",
+        "POLICE_ACTIVITY",
+        "MEDICAL_EMERGENCY"
+      ],
+      "name": "alert_cause",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "NO_SERVICE",
+        "REDUCED_SERVICE",
+        "SIGNIFICANT_DELAYS",
+        "DETOUR",
+        "ADDITIONAL_SERVICE",
+        "MODIFIED_SERVICE",
+        "OTHER_EFFECT",
+        "UNKNOWN_EFFECT",
+        "STOP_MOVED",
+        "NO_EFFECT",
+        "ACCESSIBILITY_ISSUE"
+      ],
+      "name": "alert_effect",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "UNKNOWN_SEVERITY",
+        "INFO",
+        "WARNING",
+        "SEVERE"
+      ],
+      "name": "alert_severity",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "ADDED",
+        "REMOVED"
+      ],
+      "name": "calendar_exception_type",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "UNKNOWN_CONGESTION_LEVEL",
+        "RUNNING_SMOOTHLY",
+        "STOP_AND_GO",
+        "CONGESTION",
+        "SEVERE_CONGESTION"
+      ],
+      "name": "congestion_level",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "OUTBOUND",
+        "INBOUND"
+      ],
+      "name": "direction",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "STOP_OR_PLATFORM",
+        "STATION",
+        "ENTRANCE_EXIT",
+        "GENERIC_NODE",
+        "BOARDING_AREA"
+      ],
+      "name": "location_type",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "EMPTY",
+        "MANY_SEATS_AVAILABLE",
+        "FEW_SEATS_AVAILABLE",
+        "STANDING_ROOM_ONLY",
+        "CRUSHED_STANDING_ROOM_ONLY",
+        "FULL",
+        "NOT_ACCEPTING_PASSENGERS",
+        "NO_DATA_AVAILABLE",
+        "NOT_BOARDABLE"
+      ],
+      "name": "occupancy_status",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "REGULAR",
+        "NO_PICKUP_OR_DROP_OFF",
+        "PHONE_AGENCY",
+        "COORDINATE_WITH_DRIVER"
+      ],
+      "name": "pickup_drop_off",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "TRAM",
+        "SUBWAY",
+        "RAIL",
+        "BUS",
+        "FERRY",
+        "CABLE_TRAM",
+        "AERIAL_LIFT",
+        "FUNICULAR",
+        "TROLLEYBUS",
+        "MONORAIL"
+      ],
+      "name": "route_type",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "SCHEDULED",
+        "SKIPPED",
+        "NO_DATA",
+        "UNSCHEDULED"
+      ],
+      "name": "stop_time_update_schedule_relationship",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "APPROXIMATE",
+        "EXACT"
+      ],
+      "name": "timepoint",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "PRISTINE",
+        "DIRTY",
+        "REMOVED"
+      ],
+      "name": "trip_instance_state",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "INCOMING_AT",
+        "STOPPED_AT",
+        "IN_TRANSIT_TO"
+      ],
+      "name": "vehicle_stop_status",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "values": [
+        "NO_INFO",
+        "ACCESSIBLE",
+        "NOT_ACCESSIBLE"
+      ],
+      "name": "wheelchair_boarding",
+      "entityType": "enums",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "agencies",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "alerts",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "calendar_dates",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "feed_info",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "routes",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "shapes",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "stop_time_realtime_instances",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "stop_times",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "stops",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "trip_instances",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "trips",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "vehicle_positions",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "vehicles",
+      "entityType": "tables",
+      "schema": "transit"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "url",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "timezone",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "varchar(10)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "lang",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "phone",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "fare_url",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "email",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "agencies"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "content_hash",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "alert_cause",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": "'UNKNOWN_CAUSE'",
+      "generated": null,
+      "identity": null,
+      "name": "cause",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "alert_effect",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": "'UNKNOWN_EFFECT'",
+      "generated": null,
+      "identity": null,
+      "name": "effect",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "alert_severity",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": "'UNKNOWN_SEVERITY'",
+      "generated": null,
+      "identity": null,
+      "name": "severity",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "header_text",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "description_text",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "url",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "active_periods",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "informed_entities",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "last_seen",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "service_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "type": "varchar(8)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "date",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "type": "calendar_exception_type",
+      "typeSchema": "transit",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "exception_type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hash",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "publisher_name",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "publisher_url",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "varchar(10)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "lang",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "version",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "varchar(8)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start_date",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "varchar(8)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "end_date",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "route_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "short_name",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "long_name",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "route_type",
+      "typeSchema": "transit",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "varchar(6)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "color",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "varchar(6)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "text_color",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "shape_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "type": "geometry(LineString,4326)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "path",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "distances_traveled",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "trip_instance_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_time_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_sequence",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "scheduled_arrival_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "scheduled_departure_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "predicted_arrival_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "predicted_departure_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "predicted_arrival_uncertainty",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "predicted_departure_uncertainty",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "stop_time_update_schedule_relationship",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": "'SCHEDULED'",
+      "generated": null,
+      "identity": null,
+      "name": "schedule_relationship",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_headsign",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "pickup_drop_off",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "pickup_type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "pickup_drop_off",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "drop_off_type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "last_updated_at",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "trip_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "trip_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_sequence",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "char(8)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "arrival_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "char(8)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "departure_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_headsign",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "pickup_drop_off",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "pickup_type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "pickup_drop_off",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "drop_off_type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "timepoint",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": "'EXACT'",
+      "generated": null,
+      "identity": null,
+      "name": "timepoint",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "double precision",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "shape_dist_traveled",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "geometry(Point,4326)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "location",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "zone_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "url",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "location_type",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "location_type",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "parent_station_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "timezone",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "wheelchair_boarding",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "wheelchair_boarding",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "trip_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "route_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "shape_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "vehicle_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "varchar(8)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start_date",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "varchar(8)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start_time",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start_datetime",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "trip_instance_state",
+      "typeSchema": "transit",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'PRISTINE'",
+      "generated": null,
+      "identity": null,
+      "name": "state",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "last_trip_update_at",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "route_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "shape_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "trip_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "service_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "headsign",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "short_name",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "direction",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "direction",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "block_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "vehicle_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "trip_instance_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "timestamp",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "geometry(Point,4326)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "location",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stop_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "current_stop_sequence",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "vehicle_stop_status",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "current_status",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "congestion_level",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "congestion_level",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "occupancy_status",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "occupancy_status",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "occupancy_percentage",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "double precision",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bearing",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "double precision",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "odometer",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "double precision",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "speed",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "ingested_at",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "agency_id",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "vehicle_sid",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "label",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "license_plate",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "type": "wheelchair_boarding",
+      "typeSchema": "transit",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "wheelchair_accessible",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "informed_entities",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gin",
+      "concurrently": false,
+      "name": "idx_alerts_informed_entities_gin",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "active_periods",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gin",
+      "concurrently": false,
+      "name": "idx_alerts_active_periods_gin",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "agency_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "date",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_calendar_dates_agency_date",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "agency_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_feed_info_agency_id",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "path",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gist",
+      "concurrently": false,
+      "name": "idx_shapes_path_gist",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "shape_sid",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_shapes_shape_sid",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "trip_instance_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_stop_time_instances_trip_instance_id",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "trip_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "stop_sequence",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_stop_times_trip_id_sequence",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "location",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gist",
+      "concurrently": false,
+      "name": "idx_stops_location_gist",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "trip_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "start_date",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "start_time",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "state",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_trip_instances_trip_date_time_state",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "agency_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "service_sid",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_trips_agency_service",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "location",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gist",
+      "concurrently": false,
+      "name": "idx_vehicle_positions_location_gist",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "alerts_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "alerts"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "calendar_dates_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "feed_info_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "routes_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "shapes_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "trip_instance_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "trip_instances",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stop_time_realtime_instances_wte0gAYLURTc_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "stop_time_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "stop_times",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stop_time_realtime_instances_stop_time_id_stop_times_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "stop_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "stops",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stop_time_realtime_instances_stop_id_stops_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stop_times_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "trip_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "trips",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stop_times_trip_id_trips_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "stop_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "stops",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stop_times_stop_id_stops_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stops_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "parent_station_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "stops",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "stops_parent_station_id_stops_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trip_instances_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "trip_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "trips",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trip_instances_trip_id_trips_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "route_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "routes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trip_instances_route_id_routes_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "shape_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "shapes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trip_instances_shape_id_shapes_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "vehicle_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "vehicles",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trip_instances_vehicle_id_vehicles_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trips_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "route_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "routes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trips_route_id_routes_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "shape_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "shapes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "trips_shape_id_shapes_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "vehicle_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "vehicles",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "vehicle_positions_vehicle_id_vehicles_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "trip_instance_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "trip_instances",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "vehicle_positions_trip_instance_id_trip_instances_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "stop_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "stops",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "vehicle_positions_stop_id_stops_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "agency_id"
+      ],
+      "schemaTo": "transit",
+      "tableTo": "agencies",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "vehicles_agency_id_agencies_id_fkey",
+      "entityType": "fks",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "columns": [
+        "agency_id",
+        "service_sid",
+        "date"
+      ],
+      "nameExplicit": false,
+      "name": "calendar_dates_pkey",
+      "entityType": "pks",
+      "schema": "transit",
+      "table": "calendar_dates"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "agencies_pkey",
+      "schema": "transit",
+      "table": "agencies",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "alerts_pkey",
+      "schema": "transit",
+      "table": "alerts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "hash"
+      ],
+      "nameExplicit": false,
+      "name": "feed_info_pkey",
+      "schema": "transit",
+      "table": "feed_info",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "routes_pkey",
+      "schema": "transit",
+      "table": "routes",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "shapes_pkey",
+      "schema": "transit",
+      "table": "shapes",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "stop_time_realtime_instances_pkey",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "stop_times_pkey",
+      "schema": "transit",
+      "table": "stop_times",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "stops_pkey",
+      "schema": "transit",
+      "table": "stops",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "trip_instances_pkey",
+      "schema": "transit",
+      "table": "trip_instances",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "trips_pkey",
+      "schema": "transit",
+      "table": "trips",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "vehicle_positions_pkey",
+      "schema": "transit",
+      "table": "vehicle_positions",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "vehicles_pkey",
+      "schema": "transit",
+      "table": "vehicles",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "hash"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_feed_info_feed_hash",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "feed_info"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "agency_id",
+        "route_sid"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_routes_agency_route_sid",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "routes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "agency_id",
+        "shape_sid"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_shapes_agency_shape_sid",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "shapes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "trip_instance_id",
+        "stop_sequence"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_stop_time_instances__trip_instance_stop_sequence",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "stop_time_realtime_instances"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "agency_id",
+        "trip_sid",
+        "stop_sequence"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_stop_times_agency_trip_sequence",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "agency_id",
+        "stop_sid"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_stops_agency_stop_sid",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "stops"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "trip_id",
+        "start_date",
+        "start_time"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_trip_instances_trip_start_date_start_time",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "trip_instances"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "agency_id",
+        "trip_sid"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_trips_agency_trip_sid",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "trips"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "vehicle_id",
+        "timestamp"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_vehicle_positions_vehicle_timestamp",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "agency_id",
+        "vehicle_sid"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uq_vehicles_agency_vehicle_sid",
+      "entityType": "uniques",
+      "schema": "transit",
+      "table": "vehicles"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "content_hash"
+      ],
+      "nullsNotDistinct": false,
+      "name": "alerts_content_hash_key",
+      "schema": "transit",
+      "table": "alerts",
+      "entityType": "uniques"
+    },
+    {
+      "definition": "select rt.id as \"id\", COALESCE(rt.trip_instance_id, st.trip_instance_id) as \"trip_instance_id\", COALESCE(rt.stop_time_id, st.stop_time_id) as \"stop_time_id\", COALESCE(rt.stop_sequence, st.stop_sequence) as \"stop_sequence\", COALESCE(rt.stop_id, st.stop_id) as \"stop_id\", st.timepoint as \"timepoint\", COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time) as \"scheduled_arrival_time\", COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) as \"scheduled_departure_time\", rt.predicted_arrival_time as \"predicted_arrival_time\", rt.predicted_departure_time as \"predicted_departure_time\", rt.predicted_arrival_uncertainty as \"predicted_arrival_uncertainty\", rt.predicted_departure_uncertainty as \"predicted_departure_uncertainty\", rt.schedule_relationship as \"schedule_relationship\", COALESCE(rt.stop_headsign, st.stop_headsign) as \"stop_headsign\", COALESCE(rt.pickup_type, st.pickup_type) as \"pickup_type\", COALESCE(rt.drop_off_type, st.drop_off_type) as \"drop_off_type\", rt.last_updated_at as \"last_updated_at\" from transit.stop_time_realtime_instances rt full join transit.stop_time_static_instances st on rt.trip_instance_id = st.trip_instance_id AND (\n                CASE WHEN rt.stop_id IS NOT NULL\n                    THEN rt.stop_id = st.stop_id\n                    ELSE rt.stop_sequence = st.stop_sequence\n                END\n            )",
+      "with": null,
+      "withNoData": null,
+      "using": null,
+      "tablespace": null,
+      "materialized": false,
+      "name": "stop_time_instances",
+      "entityType": "views",
+      "schema": "transit"
+    },
+    {
+      "definition": "select \"transit\".\"trip_instances\".\"id\" as \"trip_instance_id\", \"transit\".\"stop_times\".\"id\" as \"stop_time_id\", \"transit\".\"stop_times\".\"stop_sequence\", \"transit\".\"stop_times\".\"stop_id\", \"transit\".\"stop_times\".\"timepoint\", (\"transit\".\"trip_instances\".\"start_datetime\" + (\n                    \"transit\".\"stop_times\".\"arrival_time\"::interval - (\n                        SELECT \"transit\".\"stop_times\".\"arrival_time\"::interval\n                        FROM \"transit\".\"stop_times\"\n                        WHERE \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trip_instances\".\"trip_id\"\n                        AND \"transit\".\"stop_times\".\"stop_sequence\" = 1\n                    )\n                ))::timestamptz as \"scheduled_arrival_time\", (\"transit\".\"trip_instances\".\"start_datetime\" + (\n                    \"transit\".\"stop_times\".\"departure_time\"::interval - (\n                        SELECT \"transit\".\"stop_times\".\"arrival_time\"::interval\n                        FROM \"transit\".\"stop_times\"\n                        WHERE \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trip_instances\".\"trip_id\"\n                        AND \"transit\".\"stop_times\".\"stop_sequence\" = 1\n                    )\n                ))::timestamptz as \"scheduled_departure_time\", \"transit\".\"stop_times\".\"stop_headsign\", \"transit\".\"stop_times\".\"pickup_type\", \"transit\".\"stop_times\".\"drop_off_type\" from \"transit\".\"trip_instances\" inner join \"transit\".\"stop_times\" on \"transit\".\"trip_instances\".\"trip_id\" = \"transit\".\"stop_times\".\"trip_id\"",
+      "with": null,
+      "withNoData": null,
+      "using": null,
+      "tablespace": null,
+      "materialized": true,
+      "name": "stop_time_static_instances",
+      "entityType": "views",
+      "schema": "transit"
+    }
+  ],
+  "renames": []
+}

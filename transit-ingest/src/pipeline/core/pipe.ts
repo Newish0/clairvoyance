@@ -84,14 +84,24 @@ export function pipe(...stages: any[]): (ctx: Context) => Promise<void> {
     const transforms = stages.slice(1, -1) as Transform<any, any>[];
 
     return async (ctx: Context) => {
-        let stream = monitorStream(source.run(ctx), source.constructor.name, ctx);
+        let stream: AsyncIterable<any> = monitorStream(source.run(ctx), source.constructor.name, ctx);
 
         for (const t of transforms) {
             const raw = t.run(ctx, stream);
             stream = monitorStream(raw, t.constructor.name, ctx);
         }
 
-        await sink.run(ctx, stream);
+        try {
+            await sink.run(ctx, stream);
+        } finally {
+            // Ensure upstream generators are closed on early termination or error
+            if (typeof stream[Symbol.asyncIterator] === "function") {
+                const iterator = stream[Symbol.asyncIterator]();
+                if (typeof iterator.return === "function") {
+                    await iterator.return();
+                }
+            }
+        }
     };
 }
 

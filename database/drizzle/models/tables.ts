@@ -279,9 +279,7 @@ export const stopTimeRealtimeInstances = schema.table(
         tripInstanceId: integer("trip_instance_id")
             .references(() => tripInstances.id)
             .notNull(),
-        stopTimeId: integer("stop_time_id")
-            .references(() => stopTimes.id)
-            .notNull(),
+        stopTimeId: integer("stop_time_id").references(() => stopTimes.id),
 
         stopSequence: integer("stop_sequence").notNull(),
         stopId: integer("stop_id").references(() => stops.id),

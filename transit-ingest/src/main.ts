@@ -1,12 +1,12 @@
 import { cac } from "cac";
-import pino from "pino";
-import { type, type as arkType } from "arktype";
+import { type } from "arktype";
 import { getDb, type Db } from "./db/client";
 import { createContext } from "./pipeline/core/context";
 import { runStatic } from "./pipeline/gtfs-static";
+import { runRealtime } from "./pipeline/gtfs-realtime";
 import { runRealizeInstances } from "./pipeline/realize-instances";
 
-const CliOptions = arkType({
+const CliOptions = type({
     "databaseUrl?": "string | undefined",
     "deleteRows?": "boolean | undefined",
     "verbose?": "boolean | undefined",
@@ -19,9 +19,11 @@ const StaticOptions = CliOptions.merge({
 
 const DateStr = type("string | number")
     .pipe((v) => String(v))
-    .narrow((s): s is string =>
-        /^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(s),
-    );
+    .narrow((s): s is string => /^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(s));
+
+const RealtimeOptions = CliOptions.merge({
+    "poll?": "string | number | undefined",
+});
 
 const RealizeOptions = CliOptions.merge({
     "minDate?": DateStr,
@@ -49,11 +51,10 @@ cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
     .option("--ignore-feed-dup", "Skip feed duplication check")
     .action(async (agencyId: string, gtfsUrl: string, options: unknown) => {
         const validated = StaticOptions(options);
-        if (validated instanceof arkType.errors) {
+        if (validated instanceof type.errors) {
             console.error(`error: invalid options - ${validated.summary}`);
             process.exit(1);
         }
-        const log = pino({ level: validated.verbose ? "debug" : "info", name: "static" });
         const db = resolveDb(validated.databaseUrl);
         const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
 
@@ -65,34 +66,57 @@ cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
             validated.realizeInstances,
         );
         if (result.isErr()) {
-            log.error({ err: result.error }, "Static processing failed");
+            ctx.logger.error({ err: result.error }, "Static processing failed");
             process.exit(1);
         }
         const summary = result.value;
         if (summary.errors.length > 0) {
-            log.warn(
+            ctx.logger.warn(
                 { errors: summary.errors.length, skipped: summary.skipped },
                 "Static data processed with recoverable errors",
             );
         } else {
-            log.info("Static data processed successfully.");
+            ctx.logger.info("Static data processed successfully.");
         }
     });
 
-cli.command("realtime <agency-id> <gtfs-urls...>", "Process realtime GTFS data")
-    .option("--poll <seconds>", "Poll interval in seconds (0 = run once)")
-    .action((agencyId: string, gtfsUrls: string[], options: unknown) => {
-        const validated = CliOptions(options);
-        if (validated instanceof arkType.errors) {
+cli.command("realtime <agency-id> <...gtfs-urls>", "Process realtime GTFS data")
+    .option("--poll <seconds>", "Poll interval in seconds (0 = run once)", { default: 0 })
+    .action(async (agencyId: string, gtfsUrls: string[], options: unknown) => {
+        const validated = RealtimeOptions(options);
+        if (validated instanceof type.errors) {
             console.error(`error: invalid options - ${validated.summary}`);
             process.exit(1);
         }
-        const log = pino({ level: validated.verbose ? "debug" : "info", name: "realtime" });
-        log.info(
-            { agencyId, gtfsUrls, poll: (options as Record<string, unknown>).poll },
-            "Realtime config",
-        );
-        log.info("Realtime data processed successfully.");
+        const db = resolveDb(validated.databaseUrl);
+        const pollInterval = Number(validated.poll ?? 0);
+
+        const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
+        const onSigint = () => ctx.controller.abort();
+        process.on("SIGINT", onSigint);
+
+        ctx.logger.info({ agencyId, gtfsUrls, poll: pollInterval }, "Realtime config");
+
+        try {
+            const result = await runRealtime(ctx, gtfsUrls, pollInterval);
+
+            if (result.isErr()) {
+                ctx.logger.error({ err: result.error }, "Realtime processing failed");
+                // Don't process.exit here — let the finally block clean up SIGINT listener
+                return;
+            }
+            const summary = result.value;
+            if (summary.errors.length > 0) {
+                ctx.logger.warn(
+                    { errors: summary.errors.length, skipped: summary.skipped },
+                    "Realtime data processed with recoverable errors",
+                );
+            } else {
+                ctx.logger.info("Realtime data processed successfully.");
+            }
+        } finally {
+            process.removeListener("SIGINT", onSigint);
+        }
     });
 
 cli.command(
@@ -104,27 +128,26 @@ cli.command(
     .option("--max-date <date>", "Maximum date (YYYYMMDD) for trip instances")
     .action(async (agencyId: string, options: unknown) => {
         const validated = RealizeOptions(options);
-        if (validated instanceof arkType.errors) {
+        if (validated instanceof type.errors) {
             console.error(`error: invalid options - ${validated.summary}`);
             process.exit(1);
         }
-        const log = pino({ level: validated.verbose ? "debug" : "info", name: "realize" });
         const db = resolveDb(validated.databaseUrl);
         const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
 
         const result = await runRealizeInstances(ctx, validated.minDate, validated.maxDate);
         if (result.isErr()) {
-            log.error({ err: result.error }, "Realize instances failed");
+            ctx.logger.error({ err: result.error }, "Realize instances failed");
             process.exit(1);
         }
         const summary = result.value;
         if (summary.errors.length > 0) {
-            log.warn(
+            ctx.logger.warn(
                 { errors: summary.errors.length, skipped: summary.skipped },
                 "Realize instances completed with recoverable errors",
             );
         } else {
-            log.info("Realize instances completed successfully.");
+            ctx.logger.info("Realize instances completed successfully.");
         }
     });
 
@@ -141,8 +164,9 @@ try {
     }
 
     await cli.runMatchedCommand();
-} catch (error: any) {
-    console.error(error.message);
+} catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(msg);
     cli.outputHelp();
     process.exit(1);
 }

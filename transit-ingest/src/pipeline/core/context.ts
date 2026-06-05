@@ -10,7 +10,7 @@ export type PipelineConfig = {
 export type Context = {
     db: Db;
     config: PipelineConfig;
-    signal: AbortSignal;
+    controller: AbortController;
     logger: pino.Logger;
     errors: IngestError[];
     skipped: number;
@@ -20,11 +20,12 @@ export type Context = {
     };
 };
 
-export function createContext(db: Db, config: PipelineConfig, signal?: AbortSignal): Context {
+export function createContext(db: Db, config: PipelineConfig): Context {
+    const controller = new AbortController();
     return {
         db,
         config,
-        signal: signal ?? new AbortController().signal,
+        controller,
         logger: pino({
             level: config.verbose ? "debug" : "info",
             name: config.agencyId,
