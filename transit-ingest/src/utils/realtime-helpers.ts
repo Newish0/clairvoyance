@@ -1,0 +1,351 @@
+import type {
+    AlertCause,
+    AlertEffect,
+    AlertSeverity,
+    CongestionLevel,
+    Direction,
+    OccupancyStatus,
+    PickupDropOff,
+    StopTimeUpdateScheduleRelationship,
+    TripInstanceState,
+    VehicleStopStatus,
+    WheelchairBoarding,
+} from "database/models/enums";
+import type { EntitySelector, TimePeriod, TranslationMap } from "database/models/types";
+import { createHash } from "node:crypto";
+import type {
+    EntitySelector as ProtoEntitySelector,
+    TranslatedString,
+} from "../gen/proto/gtfs-realtime_pb";
+import {
+    Alert_Cause,
+    Alert_Effect,
+    Alert_SeverityLevel,
+    TripDescriptor_ScheduleRelationship,
+    TripUpdate_StopTimeUpdate_ScheduleRelationship,
+    TripUpdate_StopTimeUpdate_StopTimeProperties_DropOffPickupType,
+    VehicleDescriptor_WheelchairAccessible,
+    VehiclePosition_CongestionLevel,
+    VehiclePosition_OccupancyStatus,
+    VehiclePosition_VehicleStopStatus,
+} from "../gen/proto/gtfs-realtime_pb";
+
+// =========================================================
+// Core helpers
+// =========================================================
+
+/** Strip trip_id suffixes like `#...` added by some GTFS-RT providers */
+export function extractCoreTripId(tripId: string): string {
+    const idx = tripId.indexOf("#");
+    return idx === -1 ? tripId : tripId.substring(0, idx);
+}
+
+function toNumber(v: bigint | number | null | undefined): number | null {
+    if (v == null) return null;
+    return typeof v === "bigint" ? Number(v) : v;
+}
+
+/**
+ * Fill missing time fields from the available two.
+ * GTFS-RT provides {time, delay, scheduled_time} but only two may be present.
+ * Consumer: convert bigint→number, fill 2-of-3 patterns. Don't filter 0.
+ */
+export function normalizeTimes(
+    scheduledTime: bigint | number | null | undefined,
+    time: bigint | number | null | undefined,
+    delay: bigint | number | null | undefined,
+    fallbackScheduledTime?: bigint | number | null,
+): { scheduledTime: number | null; time: number | null; delay: number | null } {
+    let s = toNumber(scheduledTime) ?? (fallbackScheduledTime != null ? toNumber(fallbackScheduledTime) : null);
+    let t = toNumber(time);
+    let d = toNumber(delay);
+
+    if (t != null && d != null && s == null) {
+        s = t - d;
+    } else if (t != null && s != null && d == null) {
+        d = t - s;
+    } else if (s != null && d != null && t == null) {
+        t = s + d;
+    }
+
+    return { scheduledTime: s, time: t, delay: d };
+}
+
+// =========================================================
+// TranslatedString → TranslationMap
+// =========================================================
+
+export function translatedStringToMap(ts: TranslatedString | undefined): TranslationMap {
+    if (!ts || ts.translation.length === 0) {
+        return { default: "" };
+    }
+    const map: TranslationMap = { default: "" };
+    for (const t of ts.translation) {
+        if (!t.language || t.language === "") {
+            map.default = t.text;
+        } else if (!(t.language in map)) {
+            map[t.language] = t.text;
+        }
+    }
+    // Ensure default is set — use first translation if no explicit default
+    if (!map.default && ts.translation.length > 0) {
+        const first = ts.translation[0];
+        if (first) map.default = first.text;
+    }
+    return map;
+}
+
+// =========================================================
+// Proto EntitySelector → DB EntitySelector
+// =========================================================
+
+export function protoEntitySelectorToDb(
+    es: ProtoEntitySelector,
+    tripInstanceId?: number | null,
+): EntitySelector {
+    return {
+        agencyId: es.agencyId || undefined,
+        routeId: es.routeId ? Number(es.routeId) : undefined,
+        routeType: undefined, // routeType is int in proto, needs mapping if used
+        direction: es.directionId === 0 ? "OUTBOUND" : es.directionId === 1 ? "INBOUND" : undefined,
+        tripInstance: tripInstanceId != null ? String(tripInstanceId) : undefined,
+        stopId: es.stopId || undefined,
+    };
+}
+
+// =========================================================
+// Enum maps: Proto → PG enum strings
+// =========================================================
+
+export function mapTripDescriptorScheduleRelationship(
+    sr: TripDescriptor_ScheduleRelationship,
+): TripInstanceState {
+    switch (sr) {
+        case TripDescriptor_ScheduleRelationship.SCHEDULED:
+            return "PRISTINE";
+        case TripDescriptor_ScheduleRelationship.ADDED:
+            return "PRISTINE"; // deprecated
+        case TripDescriptor_ScheduleRelationship.UNSCHEDULED:
+            return "DIRTY";
+        case TripDescriptor_ScheduleRelationship.REPLACEMENT:
+            return "DIRTY";
+        case TripDescriptor_ScheduleRelationship.DUPLICATED:
+            return "PRISTINE";
+        case TripDescriptor_ScheduleRelationship.CANCELED:
+            return "REMOVED";
+        case TripDescriptor_ScheduleRelationship.DELETED:
+            return "REMOVED";
+        case TripDescriptor_ScheduleRelationship.NEW:
+            return "DIRTY";
+        default:
+            return "PRISTINE";
+    }
+}
+
+export function mapStopTimeUpdateScheduleRelationship(
+    sr: TripUpdate_StopTimeUpdate_ScheduleRelationship,
+): StopTimeUpdateScheduleRelationship {
+    switch (sr) {
+        case TripUpdate_StopTimeUpdate_ScheduleRelationship.SCHEDULED:
+            return "SCHEDULED";
+        case TripUpdate_StopTimeUpdate_ScheduleRelationship.SKIPPED:
+            return "SKIPPED";
+        case TripUpdate_StopTimeUpdate_ScheduleRelationship.NO_DATA:
+            return "NO_DATA";
+        case TripUpdate_StopTimeUpdate_ScheduleRelationship.UNSCHEDULED:
+            return "UNSCHEDULED";
+        default:
+            return "SCHEDULED";
+    }
+}
+
+export function mapPickupDropoffType(
+    t: TripUpdate_StopTimeUpdate_StopTimeProperties_DropOffPickupType,
+): PickupDropOff {
+    switch (t) {
+        case TripUpdate_StopTimeUpdate_StopTimeProperties_DropOffPickupType.REGULAR:
+            return "REGULAR";
+        case TripUpdate_StopTimeUpdate_StopTimeProperties_DropOffPickupType.NONE:
+            return "NO_PICKUP_OR_DROP_OFF";
+        case TripUpdate_StopTimeUpdate_StopTimeProperties_DropOffPickupType.PHONE_AGENCY:
+            return "PHONE_AGENCY";
+        case TripUpdate_StopTimeUpdate_StopTimeProperties_DropOffPickupType.COORDINATE_WITH_DRIVER:
+            return "COORDINATE_WITH_DRIVER";
+        default:
+            return "REGULAR";
+    }
+}
+
+export function mapDirection(directionId: number | undefined): Direction | undefined {
+    if (directionId === 0) return "OUTBOUND";
+    if (directionId === 1) return "INBOUND";
+    return undefined;
+}
+
+export function mapVehicleStopStatus(s: VehiclePosition_VehicleStopStatus): VehicleStopStatus {
+    switch (s) {
+        case VehiclePosition_VehicleStopStatus.INCOMING_AT:
+            return "INCOMING_AT";
+        case VehiclePosition_VehicleStopStatus.STOPPED_AT:
+            return "STOPPED_AT";
+        case VehiclePosition_VehicleStopStatus.IN_TRANSIT_TO:
+            return "IN_TRANSIT_TO";
+        default:
+            return "IN_TRANSIT_TO";
+    }
+}
+
+export function mapCongestionLevel(c: VehiclePosition_CongestionLevel): CongestionLevel {
+    switch (c) {
+        case VehiclePosition_CongestionLevel.UNKNOWN_CONGESTION_LEVEL:
+            return "UNKNOWN_CONGESTION_LEVEL";
+        case VehiclePosition_CongestionLevel.RUNNING_SMOOTHLY:
+            return "RUNNING_SMOOTHLY";
+        case VehiclePosition_CongestionLevel.STOP_AND_GO:
+            return "STOP_AND_GO";
+        case VehiclePosition_CongestionLevel.CONGESTION:
+            return "CONGESTION";
+        case VehiclePosition_CongestionLevel.SEVERE_CONGESTION:
+            return "SEVERE_CONGESTION";
+        default:
+            return "UNKNOWN_CONGESTION_LEVEL";
+    }
+}
+
+export function mapOccupancyStatus(o: VehiclePosition_OccupancyStatus): OccupancyStatus {
+    switch (o) {
+        case VehiclePosition_OccupancyStatus.EMPTY:
+            return "EMPTY";
+        case VehiclePosition_OccupancyStatus.MANY_SEATS_AVAILABLE:
+            return "MANY_SEATS_AVAILABLE";
+        case VehiclePosition_OccupancyStatus.FEW_SEATS_AVAILABLE:
+            return "FEW_SEATS_AVAILABLE";
+        case VehiclePosition_OccupancyStatus.STANDING_ROOM_ONLY:
+            return "STANDING_ROOM_ONLY";
+        case VehiclePosition_OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
+            return "CRUSHED_STANDING_ROOM_ONLY";
+        case VehiclePosition_OccupancyStatus.FULL:
+            return "FULL";
+        case VehiclePosition_OccupancyStatus.NOT_ACCEPTING_PASSENGERS:
+            return "NOT_ACCEPTING_PASSENGERS";
+        case VehiclePosition_OccupancyStatus.NO_DATA_AVAILABLE:
+            return "NO_DATA_AVAILABLE";
+        case VehiclePosition_OccupancyStatus.NOT_BOARDABLE:
+            return "NOT_BOARDABLE";
+        default:
+            return "NO_DATA_AVAILABLE";
+    }
+}
+
+export function mapAlertCause(c: Alert_Cause): AlertCause {
+    const map: Record<number, AlertCause> = {
+        [Alert_Cause.UNKNOWN_CAUSE]: "UNKNOWN_CAUSE",
+        [Alert_Cause.OTHER_CAUSE]: "OTHER_CAUSE",
+        [Alert_Cause.TECHNICAL_PROBLEM]: "TECHNICAL_PROBLEM",
+        [Alert_Cause.STRIKE]: "STRIKE",
+        [Alert_Cause.DEMONSTRATION]: "DEMONSTRATION",
+        [Alert_Cause.ACCIDENT]: "ACCIDENT",
+        [Alert_Cause.HOLIDAY]: "HOLIDAY",
+        [Alert_Cause.WEATHER]: "WEATHER",
+        [Alert_Cause.MAINTENANCE]: "MAINTENANCE",
+        [Alert_Cause.CONSTRUCTION]: "CONSTRUCTION",
+        [Alert_Cause.POLICE_ACTIVITY]: "POLICE_ACTIVITY",
+        [Alert_Cause.MEDICAL_EMERGENCY]: "MEDICAL_EMERGENCY",
+    };
+    return map[c] ?? "UNKNOWN_CAUSE";
+}
+
+export function mapAlertEffect(e: Alert_Effect): AlertEffect {
+    const map: Record<number, AlertEffect> = {
+        [Alert_Effect.NO_SERVICE]: "NO_SERVICE",
+        [Alert_Effect.REDUCED_SERVICE]: "REDUCED_SERVICE",
+        [Alert_Effect.SIGNIFICANT_DELAYS]: "SIGNIFICANT_DELAYS",
+        [Alert_Effect.DETOUR]: "DETOUR",
+        [Alert_Effect.ADDITIONAL_SERVICE]: "ADDITIONAL_SERVICE",
+        [Alert_Effect.MODIFIED_SERVICE]: "MODIFIED_SERVICE",
+        [Alert_Effect.OTHER_EFFECT]: "OTHER_EFFECT",
+        [Alert_Effect.UNKNOWN_EFFECT]: "UNKNOWN_EFFECT",
+        [Alert_Effect.STOP_MOVED]: "STOP_MOVED",
+        [Alert_Effect.NO_EFFECT]: "NO_EFFECT",
+        [Alert_Effect.ACCESSIBILITY_ISSUE]: "ACCESSIBILITY_ISSUE",
+    };
+    return map[e] ?? "UNKNOWN_EFFECT";
+}
+
+export function mapAlertSeverity(s: Alert_SeverityLevel): AlertSeverity {
+    switch (s) {
+        case Alert_SeverityLevel.UNKNOWN_SEVERITY:
+            return "UNKNOWN_SEVERITY";
+        case Alert_SeverityLevel.INFO:
+            return "INFO";
+        case Alert_SeverityLevel.WARNING:
+            return "WARNING";
+        case Alert_SeverityLevel.SEVERE:
+            return "SEVERE";
+        default:
+            return "UNKNOWN_SEVERITY";
+    }
+}
+
+export function mapWheelchairAccessible(
+    w: VehicleDescriptor_WheelchairAccessible,
+): WheelchairBoarding | undefined {
+    switch (w) {
+        case VehicleDescriptor_WheelchairAccessible.NO_VALUE:
+            return undefined;
+        case VehicleDescriptor_WheelchairAccessible.UNKNOWN:
+            return "NO_INFO";
+        case VehicleDescriptor_WheelchairAccessible.WHEELCHAIR_ACCESSIBLE:
+            return "ACCESSIBLE";
+        case VehicleDescriptor_WheelchairAccessible.WHEELCHAIR_INACCESSIBLE:
+            return "NOT_ACCESSIBLE";
+        default:
+            return undefined;
+    }
+}
+
+// =========================================================
+// Alert content hash (for dedup)
+// =========================================================
+
+function sortedTranslationMap(map: TranslationMap): TranslationMap {
+    const keys = Object.keys(map).sort();
+    const sorted: TranslationMap = { default: map.default };
+    for (const k of keys) {
+        if (k !== "default" && map[k] != null) sorted[k] = map[k]!;
+    }
+    return sorted;
+}
+
+function bigintSafeStringify(obj: unknown): string {
+    return JSON.stringify(obj, (_key, value) =>
+        typeof value === "bigint" ? value.toString() : value,
+    );
+}
+
+export function computeAlertHash(data: {
+    cause: string;
+    effect: string;
+    severity: string;
+    headerText: TranslationMap;
+    descriptionText: TranslationMap;
+    url: TranslationMap | null;
+    activePeriods: TimePeriod[];
+    informedEntities: EntitySelector[];
+}): string {
+    const canonical = {
+        cause: data.cause,
+        effect: data.effect,
+        severity: data.severity,
+        headerText: sortedTranslationMap(data.headerText),
+        descriptionText: sortedTranslationMap(data.descriptionText),
+        url: data.url ? sortedTranslationMap(data.url) : null,
+        activePeriods: [...data.activePeriods].sort((a, b) =>
+            a.start < b.start ? -1 : a.start > b.start ? 1 : a.end < b.end ? -1 : a.end > b.end ? 1 : 0,
+        ),
+        informedEntities: [...data.informedEntities].sort((a, b) =>
+            JSON.stringify(a).localeCompare(JSON.stringify(b)),
+        ),
+    };
+    return createHash("sha256").update(bigintSafeStringify(canonical)).digest("hex");
+}

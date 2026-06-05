@@ -9,7 +9,10 @@ export type TranslationMap = {
     [languageCode: string]: string;
 };
 
-export type TimePeriod = { start?: string; end?: string };
+/** 
+ * POSIX time.
+ */
+export type TimePeriod = { start: bigint; end: bigint };
 
 export type EntitySelector = {
     agencyId?: string;
