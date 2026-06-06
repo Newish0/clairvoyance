@@ -1,6 +1,7 @@
 import type { Source } from "../core/pipe";
 import type { Context } from "../core/context";
-import { fatalError } from "../core/error";
+import { fatalError, itemOk } from "../core/error";
+import type { ItemResult } from "../core/error";
 
 export interface ProtobufData {
     bytes: Uint8Array;
@@ -14,8 +15,8 @@ export interface ProtobufData {
 export class ProtobufSource implements Source<ProtobufData> {
     constructor(private data: ProtobufData) {}
 
-    async *run(_ctx: Context): AsyncIterable<ProtobufData> {
-        yield this.data;
+    async *run(_ctx: Context): AsyncIterable<ItemResult<ProtobufData>> {
+        yield itemOk(this.data);
     }
 }
 

@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import { type routeTypeEnum } from "database/models/enums";
 
 const ROUTE_TYPE_MAPPING: Record<string, (typeof routeTypeEnum.enumValues)[number]> = {
@@ -28,16 +28,13 @@ export class RouteTransformer implements Transform<CsvRow, typeof routes.$inferI
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof routes.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof routes.$inferInsert>> {
         for await (const row of input) {
             const rawRouteType = row["route_type"];
             const routeType = rawRouteType ? ROUTE_TYPE_MAPPING[rawRouteType] : null;
 
             if (!routeType) {
-                ctx.errors.push(
-                    recoverableError("VALIDATION_ERROR", `Invalid route_type: ${rawRouteType}`),
-                );
-                ctx.skipped++;
+                yield skipItem("VALIDATION_ERROR", `Invalid route_type: ${rawRouteType}`);
                 continue;
             }
 
@@ -52,15 +49,12 @@ export class RouteTransformer implements Transform<CsvRow, typeof routes.$inferI
             });
 
             if (route instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Route row validation failed: ${route.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Route row validation failed: ${route.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield route;
+                yield itemOk(route);
             }
         }
     }

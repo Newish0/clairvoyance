@@ -1,3 +1,4 @@
+import { fromAsyncThrowable } from "neverthrow";
 import type { TripInstanceState } from "database";
 import * as tables from "database/models/tables";
 import type { TripUpdate } from "../../gen/proto/gtfs-realtime_pb";
@@ -10,7 +11,7 @@ import {
     normalizeTimes,
 } from "../../utils/realtime-helpers";
 import type { Context } from "../core/context";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import type { Transform } from "../core/pipe";
 import type { ParsedEntity } from "./protobuf-decoder";
 
@@ -30,23 +31,10 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
     async *run(
         ctx: Context,
         input: AsyncIterable<ParsedEntity>,
-    ): AsyncIterable<TransformedTripUpdate> {
+    ): AsyncIterable<ItemResult<TransformedTripUpdate>> {
         for await (const { entity, feedTimestamp } of input) {
             if (!entity.tripUpdate) continue;
-
-            try {
-                const result = await this.transform(ctx, entity.tripUpdate, feedTimestamp);
-                if (result) yield result;
-            } catch (e) {
-                ctx.errors.push(
-                    recoverableError(
-                        "TRIP_UPDATE_MAP_ERROR",
-                        `Failed to map trip update for entity ${entity.id}`,
-                        e,
-                    ),
-                );
-                ctx.skipped++;
-            }
+            yield await this.transform(ctx, entity.tripUpdate, feedTimestamp);
         }
     }
 
@@ -70,64 +58,79 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
         };
     }
 
-    private async getTrip(ctx: Context, tripSid: string) {
-        const trip = await ctx.db.query.trips.findFirst({
-            where: { agencyId: ctx.config.agencyId, tripSid },
-            columns: { id: true, routeId: true, shapeId: true },
-        });
-
-        return trip;
+    private getTrip(ctx: Context, tripSid: string) {
+        return fromAsyncThrowable(
+            () => ctx.db.query.trips.findFirst({
+                where: { agencyId: ctx.config.agencyId, tripSid },
+                columns: { id: true, routeId: true, shapeId: true },
+            }),
+            (e: unknown) => e,
+        )();
     }
 
-    private async getTripInstance(
+    private getTripInstance(
         ctx: Context,
         tripId: number,
         startDate: string,
         startTime: string,
     ) {
-        const tripInstance = await ctx.db.query.tripInstances.findFirst({
-            where: { tripId, startDate, startTime },
-        });
-
-        return tripInstance;
+        return fromAsyncThrowable(
+            () => ctx.db.query.tripInstances.findFirst({
+                where: { tripId, startDate, startTime },
+            }),
+            (e: unknown) => e,
+        )();
     }
 
     private async transform(
         ctx: Context,
         tripUpdate: TripUpdate,
         feedTimestamp: bigint,
-    ): Promise<TransformedTripUpdate | null> {
+    ): Promise<ItemResult<TransformedTripUpdate>> {
         const resolvedTripIdentity = this.resolveTripIdentity(tripUpdate);
 
         if (!resolvedTripIdentity) {
-            //  TODO: use neverthrow
-            return null;
+            return skipItem("NO_TRIP_IDENTITY", "Trip update has no resolvable trip identity");
         }
 
         const { coreTripSid, startDate, startTime } = resolvedTripIdentity;
         if (!startDate || !startTime) {
-            // TODO: use neverthrow
-            return null;
+            return skipItem(
+                "MISSING_START_DATE_OR_TIME",
+                `Trip ${coreTripSid} has no startDate or startTime`,
+            );
         }
 
         const newTripInstanceState: TripInstanceState = tripUpdate.trip
             ? mapTripDescriptorScheduleRelationship(tripUpdate.trip?.scheduleRelationship)
             : "DIRTY";
 
-        const trip = await this.getTrip(ctx, coreTripSid);
+        const tripResult = await this.getTrip(ctx, coreTripSid);
+        if (tripResult.isErr()) {
+            return skipItem("TRIP_DB_ERROR", `DB error fetching trip ${coreTripSid}`, tripResult.error);
+        }
+        const trip = tripResult.value;
         if (!trip) {
             ctx.logger.debug({ tripSid: coreTripSid }, "Trip not found in static data, skipping");
-            return null; // TODO: use neverthrow
+            return skipItem("TRIP_NOT_FOUND", `Trip ${coreTripSid} not in static data`);
         }
 
-        const tripInstance = await this.getTripInstance(ctx, trip.id, startDate, startTime);
+        const tripInstanceResult = await this.getTripInstance(ctx, trip.id, startDate, startTime);
+        if (tripInstanceResult.isErr()) {
+            return skipItem(
+                "TRIP_INSTANCE_DB_ERROR",
+                `DB error fetching trip instance for trip ${coreTripSid}`,
+                tripInstanceResult.error,
+            );
+        }
+        const tripInstance = tripInstanceResult.value;
 
         // Design decision: accept that if this is a new trip being created, on the first RT update,
         //                  tripInstance has NOT been created. Hence, at this point, stopTimeInstances
         //                  will be empty (no rows in stopTimeStaticInstances view).
         //                  That is, we accept 2 RT data ingest before data is fully correct.
         if (!tripInstance) {
-            return {
+            return itemOk({
                 tripSid: coreTripSid,
                 startDate,
                 startTime,
@@ -135,7 +138,7 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
                 routeId: trip.routeId,
                 shapeId: trip.shapeId,
                 state: newTripInstanceState,
-            };
+            });
         }
 
         const stopTimeInstances = await ctx.db.query.stopTimeInstances.findMany({
@@ -154,7 +157,6 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
             typeof tables.stopTimeRealtimeInstances.$inferInsert
         > = {};
         for (const stu of sortedStopTimeUpdates) {
-            // Match by stop id first and then by stop sequence if no stop id
             const sti = stopTimeInstances.find(
                 (stiToComp) =>
                     (stiToComp.stop?.stopSid &&
@@ -164,11 +166,9 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
             );
 
             if (!sti) {
-                continue; // This really should happen per design decision above.
-                // TODO: figure out how to handle this
+                continue;
             }
 
-            // Resolve new stop id if needed (i.e was matched by stop seq instead of stop id)
             let stopId = sti.stopId;
             if (stu.stopId !== sti?.stop?.stopSid) {
                 const stop = await ctx.db.query.stops.findFirst({
@@ -177,13 +177,11 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
                 });
 
                 if (!stop) {
-                    continue; // TODO: figure out how to handle this
+                    continue;
                 }
                 stopId = stop.id;
             }
 
-            // IMPORTANT: Some agencies uses 0 for scheduledTime to imply no scheduled time.
-            //            Thus we use || to handle that case.
             const arrival = normalizeTimes(
                 stu.arrival?.scheduledTime || sti.scheduledArrivalTime,
                 stu.arrival?.time,
@@ -260,7 +258,7 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
             }
         }
 
-        return {
+        return itemOk({
             tripInstanceId: tripInstance.id,
             state: newTripInstanceState,
             tripSid: coreTripSid,
@@ -270,7 +268,7 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
             routeId: trip.routeId,
             shapeId: trip.shapeId,
             stopTimeInstancesToUpsert: Object.values(updatedStopTimeInstances),
-        };
+        });
     }
 
     private posixToDate(posix: number | null | undefined): Date | null {

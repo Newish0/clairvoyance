@@ -4,8 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { sql } from "drizzle-orm";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import { type locationTypeEnum, type wheelchairBoardingEnum } from "database/models/enums";
 
 const LOCATION_TYPE_MAPPING: Record<string, (typeof locationTypeEnum.enumValues)[number]> = {
@@ -38,7 +37,7 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof stops.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof stops.$inferInsert>> {
         type T = typeof this.stopInsertSchema.infer;
 
         for await (const row of input) {
@@ -46,13 +45,10 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
             const locationType = rawLocationType ? LOCATION_TYPE_MAPPING[rawLocationType] : null;
 
             if (rawLocationType && !locationType) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Invalid location_type: ${rawLocationType}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Invalid location_type: ${rawLocationType}`,
                 );
-                ctx.skipped++;
                 continue;
             }
 
@@ -62,13 +58,10 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
                 : null;
 
             if (rawWheelchairBoarding && !wheelchairBoarding) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Invalid wheelchair_boarding: ${rawWheelchairBoarding}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Invalid wheelchair_boarding: ${rawWheelchairBoarding}`,
                 );
-                ctx.skipped++;
                 continue;
             }
 
@@ -102,15 +95,12 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
             });
 
             if (stop instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Stop row validation failed: ${stop.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Stop row validation failed: ${stop.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield stop;
+                yield itemOk(stop);
             }
         }
     }

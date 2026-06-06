@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import { type calendarExceptionTypeEnum } from "database/models/enums";
 
 const EXCEPTION_MAPPING: Record<string, (typeof calendarExceptionTypeEnum.enumValues)[number]> = {
@@ -20,19 +20,16 @@ export class CalendarDateTransformer implements Transform<CsvRow, typeof calenda
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof calendarDates.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof calendarDates.$inferInsert>> {
         for await (const row of input) {
             const rawExceptionType = row["exception_type"];
             const exceptionType = rawExceptionType ? EXCEPTION_MAPPING[rawExceptionType] : null;
 
             if (!exceptionType) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Invalid exception_type: ${row["exception_type"]}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Invalid exception_type: ${row["exception_type"]}`,
                 );
-                ctx.skipped++;
                 continue;
             }
 
@@ -44,15 +41,12 @@ export class CalendarDateTransformer implements Transform<CsvRow, typeof calenda
             });
 
             if (calendarDate instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Calendar date row validation failed: ${calendarDate.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Calendar date row validation failed: ${calendarDate.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield calendarDate;
+                yield itemOk(calendarDate);
             }
         }
     }

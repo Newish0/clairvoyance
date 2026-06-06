@@ -3,7 +3,7 @@ import { tripInstances } from "database/models/tables";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import { gtfsTimeToDate } from "../../utils/datetime";
 import type { TripInstanceRow } from "../source/trip-instance-source";
 
@@ -17,7 +17,7 @@ export class TripInstanceTransformer implements Transform<
     async *run(
         ctx: Context,
         input: AsyncIterable<TripInstanceRow>,
-    ): AsyncIterable<typeof tripInstances.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof tripInstances.$inferInsert>> {
         for await (const row of input) {
             const { agency, calendarDate, trip, stopTime, route, shape } = row;
 
@@ -40,12 +40,9 @@ export class TripInstanceTransformer implements Transform<
             });
 
             if (insertObj instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError("VALIDATION_ERROR", `Validation failed: ${insertObj.summary}`),
-                );
-                ctx.skipped++;
+                yield skipItem("VALIDATION_ERROR", `Validation failed: ${insertObj.summary}`);
             } else {
-                yield insertObj;
+                yield itemOk(insertObj);
             }
         }
     }

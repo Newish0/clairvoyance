@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import { type directionEnum } from "database/models/enums";
 
 const DIRECTION_MAPPING: Record<string, (typeof directionEnum.enumValues)[number]> = {
@@ -22,7 +22,7 @@ export class TripTransformer implements Transform<CsvRow, typeof trips.$inferIns
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof trips.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof trips.$inferInsert>> {
         for await (const row of input) {
             const routeSid = row["route_id"];
             const shapeSid = row["shape_id"];
@@ -43,15 +43,12 @@ export class TripTransformer implements Transform<CsvRow, typeof trips.$inferIns
             });
 
             if (trip instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Trip row validation failed: ${trip.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Trip row validation failed: ${trip.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield trip;
+                yield itemOk(trip);
             }
         }
     }

@@ -1,48 +1,28 @@
 import type { Context } from "./context";
+import type { ItemResult } from "./error";
 
 /**
  * A **recoverable** error means the pipeline can continue past it:
- * skip the offending item, push an `IngestError` with
- * `severity: "recoverable"` to `ctx.errors`, and keep yielding.
+ * return err(recoverableError(...)) from the stage. routeResults will
+ * push it to ctx.errors, increment ctx.skipped, and continue.
  *
  * A **fatal** error means the pipeline cannot make progress:
- * let the exception propagate so the orchestrator catches it,
- * pushes an `IngestError` with `severity: "fatal"` to
- * `ctx.errors`, and returns `err()`.
+ * return err(fatalError(...)) from the stage. routeResults will
+ * throw the IngestError directly (without pushing to ctx.errors),
+ * causing the orchestrator to catch, push, and return err().
  */
 
-/**
- * Produces items from an external source (file, API, etc.).
- *
- * - **Recoverable** (missing file, parse error): push
- *   `recoverableError(...)` to `ctx.errors` and stop yielding.
- * - **Fatal**: let the exception propagate to the orchestrator.
- */
 export interface Source<O> {
-    run(ctx: Context): AsyncIterable<O>;
+    run(ctx: Context): AsyncIterable<ItemResult<O>>;
 }
 
-/**
- * Transforms each item from an upstream stage.
- *
- * - **Recoverable** (validation failure): push
- *   `recoverableError(...)` to `ctx.errors`, increment
- *   `ctx.skipped`, and skip the item (don't yield it).
- * - **Fatal**: let the exception propagate.
- */
 export interface Transform<I, O> {
-    run(ctx: Context, input: AsyncIterable<I>): AsyncIterable<O>;
+    run(ctx: Context, input: AsyncIterable<I>): AsyncIterable<ItemResult<O>>;
 }
 
-/**
- * Persists items (DB write, file write, etc.).
- *
- * - **Recoverable** (batch write failure): push
- *   `recoverableError(...)` to `ctx.errors`, add the failed
- *   item count to `ctx.skipped`, clear the batch, and keep
- *   consuming input. Degraded accuracy is preferable to
- *   aborting — the pipeline can be rerun later.
- * - **Fatal**: let the exception propagate.
+/** 
+ * Must handle errors internally instead of with `itemOk` and `skipItem` like in 
+ * Transform and Source since `run` returns void/Promise<void>. 
  */
 export interface Sink<I> {
     run(ctx: Context, input: AsyncIterable<I>): void | Promise<void>;
@@ -84,25 +64,43 @@ export function pipe(...stages: any[]): (ctx: Context) => Promise<void> {
     const transforms = stages.slice(1, -1) as Transform<any, any>[];
 
     return async (ctx: Context) => {
-        let stream: AsyncIterable<any> = monitorStream(source.run(ctx), source.constructor.name, ctx);
+        let stream: AsyncIterable<any> = routeResults(
+            monitorStream(source.run(ctx), source.constructor.name, ctx),
+            ctx,
+        );
 
         for (const t of transforms) {
             const raw = t.run(ctx, stream);
-            stream = monitorStream(raw, t.constructor.name, ctx);
+            stream = routeResults(monitorStream(raw, t.constructor.name, ctx), ctx);
         }
 
         try {
             await sink.run(ctx, stream);
         } finally {
-            // Ensure upstream generators are closed on early termination or error
-            if (typeof stream[Symbol.asyncIterator] === "function") {
-                const iterator = stream[Symbol.asyncIterator]();
-                if (typeof iterator.return === "function") {
-                    await iterator.return();
-                }
-            }
+            // Generator cleanup is handled implicitly by the for-await-of protocol.
+            // When the sink's loop exits (normally, via break, or via throw), the
+            // implicit iterator.return() propagates through routeResults -> monitorStream
+            // -> upstream stages, closing each generator in turn.
         }
     };
+}
+
+async function* routeResults<T>(
+    stream: AsyncIterable<ItemResult<T>>,
+    ctx: Context,
+): AsyncIterable<T> {
+    for await (const result of stream) {
+        if (result.isOk()) {
+            yield result.value;
+        } else {
+            const e = result.error;
+            if (e.severity === "fatal") {
+                throw e;
+            }
+            ctx.errors.push(e);
+            ctx.skipped++;
+        }
+    }
 }
 
 async function* monitorStream<T>(
