@@ -130,7 +130,9 @@ export const trips = schema.table(
         agencyId: text("agency_id")
             .references(() => agencies.id)
             .notNull(),
-        routeId: integer("route_id").references(() => routes.id),
+        routeId: integer("route_id")
+            .references(() => routes.id)
+            .notNull(),
         shapeId: integer("shape_id").references(() => shapes.id),
         tripSid: text("trip_sid").notNull(),
         serviceSid: text("service_sid").notNull(),

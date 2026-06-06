@@ -1,7 +1,28 @@
 import { eq, SQL, sql } from "drizzle-orm";
 import { schema } from "./schema";
-import type { PickupDropOff, StopTimeUpdateScheduleRelationship, Timepoint } from "./enums";
+import {
+    pickupDropOffEnum,
+    stopTimeUpdateScheduleRelationshipEnum,
+    timepointEnum,
+    type PickupDropOff,
+    type StopTimeUpdateScheduleRelationship,
+    type Timepoint,
+} from "./enums";
 import { stopTimes, tripInstances, type stopTimeRealtimeInstances } from "./tables";
+import {
+    type AnyPgColumn,
+    char,
+    doublePrecision,
+    index,
+    integer,
+    jsonb,
+    primaryKey,
+    serial,
+    text,
+    timestamp,
+    unique,
+    varchar,
+} from "drizzle-orm/pg-core";
 
 // =========================================================
 // HELPER TYPES
@@ -78,74 +99,90 @@ export const stopTimeStaticInstances = schema
     );
 
 /**
- * Merges stopTimeRealtimeInstances with stopTimesStaticInstances.
- * If stopTimeRealtimeInstances exist, use them. Else use stopTimesStaticInstances
+ * Merges stopTimeRealtimeInstances with stopTimeStaticInstances.
+ * If stopTimeRealtimeInstances exist, use them. Else fall back to stopTimeStaticInstances.
  *
- * IMPORTANT NOTE:
- * Using mostly raw SQL here because there is a known Drizzle issue when joining views.
- * The problem is that Drizzle's SQL generation doesn't properly qualify column references from views in FULL JOINs.
+ * Uses UNION ALL of two FULL JOINs because PostgreSQL does not support FULL JOIN with
+ * CASE-based join conditions - only simple equality (hash/merge-joinable) conditions are allowed.
+ *
+ *   Branch 1: rt.stop_id IS NOT NULL -> join on (trip_instance_id, stop_id)
+ *   Branch 2: rt.stop_id IS NULL     -> join on (trip_instance_id, stop_sequence)
+ *
+ * WARNING:
+ * When updating SQL, be sure Drizzle and raw SQL is NOT out of sync to avoid type inference problems.
  */
-export const stopTimeInstances = schema.view("stop_time_instances").as((qb) =>
-    qb
-        .select({
-            id: sql<number>`rt.id`.as("id"),
-            tripInstanceId: sql<number>`COALESCE(rt.trip_instance_id, st.trip_instance_id)`.as(
-                "trip_instance_id",
-            ),
-            stopTimeId: sql<number>`COALESCE(rt.stop_time_id, st.stop_time_id)`.as("stop_time_id"),
-            stopSequence: sql<number>`COALESCE(rt.stop_sequence, st.stop_sequence)`.as(
-                "stop_sequence",
-            ),
-            stopId: sql<number | null>`COALESCE(rt.stop_id, st.stop_id)`.as("stop_id"),
-            timepoint: sql<Timepoint | null>`st.timepoint`.as("timepoint"),
-            scheduledArrivalTime:
-                sql<Date | null>`COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)`.as(
-                    "scheduled_arrival_time",
-                ),
-            scheduledDepartureTime:
-                sql<Date | null>`COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time)`.as(
-                    "scheduled_departure_time",
-                ),
-            predictedArrivalTime: sql<Date | null>`rt.predicted_arrival_time`.as(
-                "predicted_arrival_time",
-            ),
-            predictedDepartureTime: sql<Date | null>`rt.predicted_departure_time`.as(
-                "predicted_departure_time",
-            ),
-            predictedArrivalUncertainty: sql<number | null>`rt.predicted_arrival_uncertainty`.as(
-                "predicted_arrival_uncertainty",
-            ),
-            predictedDepartureUncertainty: sql<
-                number | null
-            >`rt.predicted_departure_uncertainty`.as("predicted_departure_uncertainty"),
-            scheduleRelationship:
-                sql<StopTimeUpdateScheduleRelationship | null>`rt.schedule_relationship`.as(
-                    "schedule_relationship",
-                ),
-            stopHeadsign: sql<string | null>`COALESCE(rt.stop_headsign, st.stop_headsign)`.as(
-                "stop_headsign",
-            ),
-            pickupType: sql<PickupDropOff | null>`COALESCE(rt.pickup_type, st.pickup_type)`.as(
-                "pickup_type",
-            ),
-            dropOffType: sql<PickupDropOff | null>`COALESCE(rt.drop_off_type, st.drop_off_type)`.as(
-                "drop_off_type",
-            ),
-            lastUpdatedAt: sql<Date | null>`rt.last_updated_at`.as("last_updated_at"),
-        } satisfies AliasFields<
-            MergeFieldTypes<
-                typeof stopTimeRealtimeInstances.$inferSelect,
-                typeof stopTimeStaticInstances.$inferSelect
-            >
-        >)
-        .from(sql`transit.stop_time_realtime_instances rt`)
-        .fullJoin(
-            sql`transit.stop_time_static_instances st`,
-            sql`rt.trip_instance_id = st.trip_instance_id AND (
-                CASE WHEN rt.stop_id IS NOT NULL
-                    THEN rt.stop_id = st.stop_id
-                    ELSE rt.stop_sequence = st.stop_sequence
-                END
-            )`,
-        ),
-);
+export const stopTimeInstances = schema.view("stop_time_instances", {
+    id: integer("id"),
+    tripInstanceId: integer("trip_instance_id").notNull(),
+    stopTimeId: integer("stop_time_id"),
+    stopSequence: integer("stop_sequence").notNull(),
+    stopId: integer("stop_id"),
+    timepoint: timepointEnum("timepoint"),
+    scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
+    scheduledDepartureTime: timestamp("scheduled_departure_time", { withTimezone: true }),
+    predictedArrivalTime: timestamp("predicted_arrival_time", { withTimezone: true }),
+    predictedDepartureTime: timestamp("predicted_departure_time", { withTimezone: true }),
+    predictedArrivalUncertainty: integer("predicted_arrival_uncertainty"),
+    predictedDepartureUncertainty: integer("predicted_departure_uncertainty"),
+    scheduleRelationship: stopTimeUpdateScheduleRelationshipEnum("schedule_relationship"),
+    stopHeadsign: text("stop_headsign"),
+    pickupType: pickupDropOffEnum("pickup_type"),
+    dropOffType: pickupDropOffEnum("drop_off_type"),
+    lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }),
+}).as(sql`
+        -- Branch 1: rt.stop_id IS NOT NULL → join on (trip_instance_id, stop_id)
+        -- Covers: rt+st matched rows, rt-only ADDED/unmatched rows, and st-only rows
+        SELECT
+            rt.id,
+            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,
+            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,
+            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
+            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
+            st.timepoint,
+            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
+            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
+            rt.predicted_arrival_time,
+            rt.predicted_departure_time,
+            rt.predicted_arrival_uncertainty,
+            rt.predicted_departure_uncertainty,
+            rt.schedule_relationship,
+            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
+            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
+            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
+            rt.last_updated_at
+        FROM transit.stop_time_realtime_instances rt
+        FULL JOIN transit.stop_time_static_instances st
+            ON  rt.trip_instance_id = st.trip_instance_id
+            AND rt.stop_id          = st.stop_id           
+        WHERE rt.stop_id IS NOT NULL                        -- rt rows matched by stop_id
+           OR rt.trip_instance_id IS NULL                   -- st-only rows (no rt counterpart)
+ 
+        UNION ALL
+ 
+        -- Branch 2: rt.stop_id IS NULL → join on (trip_instance_id, stop_sequence)
+        -- Covers: rt+st matched rows and rt-only rows where stop_id was omitted
+        SELECT
+            rt.id,
+            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,
+            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,
+            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
+            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
+            st.timepoint,
+            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
+            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
+            rt.predicted_arrival_time,
+            rt.predicted_departure_time,
+            rt.predicted_arrival_uncertainty,
+            rt.predicted_departure_uncertainty,
+            rt.schedule_relationship,
+            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
+            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
+            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
+            rt.last_updated_at
+        FROM transit.stop_time_realtime_instances rt
+        FULL JOIN transit.stop_time_static_instances st
+            ON  rt.trip_instance_id = st.trip_instance_id
+            AND rt.stop_sequence    = st.stop_sequence      
+        WHERE rt.stop_id IS NULL                            -- only rt rows without a stop_id
+            AND rt.id IS NOT NULL  -- exclude st-only rows (handled by Branch 1)
+    `);
