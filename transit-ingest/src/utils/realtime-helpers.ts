@@ -34,10 +34,10 @@ import {
 // Core helpers
 // =========================================================
 
-/** Strip trip_id suffixes like `#...` added by some GTFS-RT providers */
-export function extractCoreTripId(tripId: string): string {
-    const idx = tripId.indexOf("#");
-    return idx === -1 ? tripId : tripId.substring(0, idx);
+/** Strip GTFS trip_id suffixes like `#...` added by some GTFS-RT providers */
+export function extractCoreTripSid(tripSid: string): string {
+    const idx = tripSid.indexOf("#");
+    return idx === -1 ? tripSid : tripSid.substring(0, idx);
 }
 
 function toNumber(v: bigint | number | null | undefined): number | null {
@@ -49,15 +49,16 @@ function toNumber(v: bigint | number | null | undefined): number | null {
  * Fill missing time fields from the available two.
  * GTFS-RT provides {time, delay, scheduled_time} but only two may be present.
  * Consumer: convert bigint→number, fill 2-of-3 patterns. Don't filter 0.
+ * @returns in POSIX epoch (seconds)
  */
 export function normalizeTimes(
-    scheduledTime: bigint | number | null | undefined,
-    time: bigint | number | null | undefined,
+    scheduledTime: bigint | number | Date | null | undefined,
+    time: bigint | number | Date | null | undefined,
     delay: bigint | number | null | undefined,
-    fallbackScheduledTime?: bigint | number | null,
-): { scheduledTime: number | null; time: number | null; delay: number | null } {
-    let s = toNumber(scheduledTime) ?? (fallbackScheduledTime != null ? toNumber(fallbackScheduledTime) : null);
-    let t = toNumber(time);
+): { scheduledTime: number; time: number; delay: number } {
+    let s =
+        scheduledTime instanceof Date ? scheduledTime.getTime() / 1000 : toNumber(scheduledTime);
+    let t = time instanceof Date ? time.getTime() / 1000 : toNumber(time);
     let d = toNumber(delay);
 
     if (t != null && d != null && s == null) {
@@ -66,9 +67,12 @@ export function normalizeTimes(
         d = t - s;
     } else if (s != null && d != null && t == null) {
         t = s + d;
+    } else if (s == null && t == null && d == null) {
+        // All three are null, return
+        throw new Error("Not enough info: requires 2-of-3 in time, delay, scheduled time");
     }
 
-    return { scheduledTime: s, time: t, delay: d };
+    return { scheduledTime: s!, time: t!, delay: d! };
 }
 
 // =========================================================
@@ -120,25 +124,15 @@ export function protoEntitySelectorToDb(
 export function mapTripDescriptorScheduleRelationship(
     sr: TripDescriptor_ScheduleRelationship,
 ): TripInstanceState {
+    // We consider all modification via RT data as "dirty"
+    // except for removal of a trip
     switch (sr) {
-        case TripDescriptor_ScheduleRelationship.SCHEDULED:
-            return "PRISTINE";
-        case TripDescriptor_ScheduleRelationship.ADDED:
-            return "PRISTINE"; // deprecated
-        case TripDescriptor_ScheduleRelationship.UNSCHEDULED:
-            return "DIRTY";
-        case TripDescriptor_ScheduleRelationship.REPLACEMENT:
-            return "DIRTY";
-        case TripDescriptor_ScheduleRelationship.DUPLICATED:
-            return "PRISTINE";
         case TripDescriptor_ScheduleRelationship.CANCELED:
             return "REMOVED";
         case TripDescriptor_ScheduleRelationship.DELETED:
             return "REMOVED";
-        case TripDescriptor_ScheduleRelationship.NEW:
-            return "DIRTY";
         default:
-            return "PRISTINE";
+            return "DIRTY";
     }
 }
 
@@ -341,7 +335,15 @@ export function computeAlertHash(data: {
         descriptionText: sortedTranslationMap(data.descriptionText),
         url: data.url ? sortedTranslationMap(data.url) : null,
         activePeriods: [...data.activePeriods].sort((a, b) =>
-            a.start < b.start ? -1 : a.start > b.start ? 1 : a.end < b.end ? -1 : a.end > b.end ? 1 : 0,
+            a.start < b.start
+                ? -1
+                : a.start > b.start
+                  ? 1
+                  : a.end < b.end
+                    ? -1
+                    : a.end > b.end
+                      ? 1
+                      : 0,
         ),
         informedEntities: [...data.informedEntities].sort((a, b) =>
             JSON.stringify(a).localeCompare(JSON.stringify(b)),

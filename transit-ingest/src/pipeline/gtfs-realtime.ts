@@ -4,7 +4,7 @@ import { fatalError, type IngestError } from "./core/error";
 import { pipe } from "./core/pipe";
 import { ProtobufSource, fetchProtobuf } from "./source/protobuf-source";
 import { ProtobufDecoder } from "./transformer/protobuf-decoder";
-import { TripUpdateMapper } from "./transformer/trip-update-mapper";
+import { TripUpdateTransformer } from "./transformer/trip-update-transformer";
 import { TripUpdateSink } from "./sink/trip-update-sink";
 
 export type RealtimeSummary = {
@@ -46,8 +46,8 @@ export async function runRealtime(
 
             const source = new ProtobufSource(data);
             const decoder = new ProtobufDecoder();
-            const mapper = new TripUpdateMapper();
-            const sink = new TripUpdateSink(ctx.db, ctx.config.agencyId);
+            const mapper = new TripUpdateTransformer();
+            const sink = new TripUpdateSink();
 
             const run = pipe(source, decoder, mapper, sink);
 

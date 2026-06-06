@@ -63,6 +63,16 @@ export const schemaRelations = defineRelations(
                 from: r.stopTimeInstances.stopTimeId,
                 to: r.stopTimes.id,
             }),
+            stop: r.one.stops({
+                from: r.stopTimeInstances.stopId,
+                to: r.stops.id,
+            }),
+        },
+        stopTimeRealtimeInstances: {
+            stop: r.one.stops({
+                from: r.stopTimeRealtimeInstances.stopId,
+                to: r.stops.id,
+            }),
         },
         vehiclePositions: {
             tripInstance: r.one.tripInstances({

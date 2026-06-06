@@ -1,4 +1,4 @@
-import { fromBinary } from "@bufbuild/protobuf";
+import { fromBinary, toJson } from "@bufbuild/protobuf";
 import { FeedMessageSchema, FeedHeader_Incrementality } from "../../gen/proto/gtfs-realtime_pb";
 import type { FeedEntity } from "../../gen/proto/gtfs-realtime_pb";
 import type { Transform } from "../core/pipe";
@@ -23,6 +23,9 @@ export class ProtobufDecoder implements Transform<ProtobufData, ParsedEntity> {
             let feedMessage;
             try {
                 feedMessage = fromBinary(FeedMessageSchema, bytes);
+                // const json = toJson(FeedMessageSchema, feedMessage);
+                // console.log(JSON.stringify(json, null, 2));
+                // return
             } catch (e) {
                 ctx.errors.push(
                     recoverableError("PROTOBUF_DECODE_ERROR", "Failed to decode FeedMessage", e),
