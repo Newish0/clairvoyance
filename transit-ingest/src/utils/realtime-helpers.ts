@@ -48,7 +48,7 @@ function toNumber(v: bigint | number | null | undefined): number | null {
 /**
  * Fill missing time fields from the available two.
  * GTFS-RT provides {time, delay, scheduled_time} but only two may be present.
- * Consumer: convert bigint→number, fill 2-of-3 patterns. Don't filter 0.
+ * Consumer: convert bigint->number, fill 2-of-3 patterns. Don't filter 0.
  * @returns in POSIX epoch (seconds)
  */
 export function normalizeTimes(
@@ -76,7 +76,7 @@ export function normalizeTimes(
 }
 
 // =========================================================
-// TranslatedString → TranslationMap
+// TranslatedString -> TranslationMap
 // =========================================================
 
 export function translatedStringToMap(ts: TranslatedString | undefined): TranslationMap {
@@ -100,7 +100,7 @@ export function translatedStringToMap(ts: TranslatedString | undefined): Transla
 }
 
 // =========================================================
-// Proto EntitySelector → DB EntitySelector
+// Proto EntitySelector -> DB EntitySelector
 // =========================================================
 
 export function protoEntitySelectorToDb(
@@ -118,7 +118,7 @@ export function protoEntitySelectorToDb(
 }
 
 // =========================================================
-// Enum maps: Proto → PG enum strings
+// Enum maps: Proto -> PG enum strings
 // =========================================================
 
 export function mapTripDescriptorScheduleRelationship(

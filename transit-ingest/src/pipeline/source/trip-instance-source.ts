@@ -4,6 +4,7 @@ import type { Source } from "../core/pipe";
 import type { Context } from "../core/context";
 import * as tables from "database/models/tables";
 import type { InferSelectModel } from "drizzle-orm";
+import { type ItemResult, itemOk, fatalItem } from "../core/error";
 
 type Agency = InferSelectModel<typeof tables.agencies>;
 type CalendarDate = InferSelectModel<typeof tables.calendarDates>;
@@ -36,11 +37,14 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         if (this.maxDate.length !== 8) throw new Error(`Invalid maxDate: ${this.maxDate}`);
     }
 
-    async *run(ctx: Context): AsyncIterable<TripInstanceRow> {
+    async *run(ctx: Context): AsyncIterable<ItemResult<TripInstanceRow>> {
         const agency = await ctx.db.query.agencies.findFirst({
             where: { id: this.agencyId },
         });
-        if (!agency) throw new Error(`Agency not found: ${this.agencyId}`);
+        if (!agency) {
+            yield fatalItem("AGENCY_NOT_FOUND", `Agency not found: ${this.agencyId}`);
+            return;
+        }
 
         const calendarDates = await ctx.db.query.calendarDates.findMany({
             where: {
@@ -103,7 +107,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                     continue;
                 }
 
-                yield { agency, calendarDate, trip, stopTime, route, shape };
+                yield itemOk({ agency, calendarDate, trip, stopTime, route, shape });
             }
         }
     }

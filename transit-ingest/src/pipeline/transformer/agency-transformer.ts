@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 
 export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inferInsert> {
     private agencyInsertSchema = createInsertSchema(agencies);
@@ -14,7 +14,7 @@ export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inf
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof agencies.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof agencies.$inferInsert>> {
         for await (const row of input) {
             const agency = this.agencyInsertSchema({
                 id: this.agencyId,
@@ -28,15 +28,12 @@ export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inf
                 email: row["agency_email"],
             });
             if (agency instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Agency row validation failed: ${agency.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Agency row validation failed: ${agency.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield agency;
+                yield itemOk(agency);
             }
         }
     }

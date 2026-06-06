@@ -170,7 +170,7 @@ describe("gtfsTimeToDate", () => {
         expect(toLocalISO(result!, "America/New_York")).toBe("2024-06-15T08:30:00");
     });
 
-    test("handles year boundary (Dec 31 with 25:00:00 → Jan 1)", () => {
+    test("handles year boundary (Dec 31 with 25:00:00 -> Jan 1)", () => {
         const result = gtfsTimeToDate("20231231", "25:00:00", "America/New_York");
         expect(result).not.toBeNull();
         expect(toLocalISO(result!, "America/New_York")).toBe("2024-01-01T01:00:00");

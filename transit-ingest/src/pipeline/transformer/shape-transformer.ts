@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 
 interface ShapeAccumulator {
     points: Map<number, [number, number]>;
@@ -20,7 +20,7 @@ export class ShapeTransformer implements Transform<CsvRow, typeof shapes.$inferI
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof shapes.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof shapes.$inferInsert>> {
         for await (const row of input) {
             const shapeId = row["shape_id"];
             const ptLat = row["shape_pt_lat"];
@@ -29,13 +29,10 @@ export class ShapeTransformer implements Transform<CsvRow, typeof shapes.$inferI
             const distTraveled = row["shape_dist_traveled"];
 
             if (!shapeId || !ptLat || !ptLon || !ptSequence) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Missing required shape fields: shape_id=${shapeId}, pt_lat=${ptLat}, pt_lon=${ptLon}, pt_sequence=${ptSequence}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Missing required shape fields: shape_id=${shapeId}, pt_lat=${ptLat}, pt_lon=${ptLon}, pt_sequence=${ptSequence}`,
                 );
-                ctx.skipped++;
                 continue;
             }
 
@@ -44,13 +41,10 @@ export class ShapeTransformer implements Transform<CsvRow, typeof shapes.$inferI
             const sequence = parseInt(ptSequence, 10);
 
             if (isNaN(lat) || isNaN(lon) || isNaN(sequence)) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Invalid numeric values in shape: lat=${ptLat}, lon=${ptLon}, sequence=${ptSequence}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Invalid numeric values in shape: lat=${ptLat}, lon=${ptLon}, sequence=${ptSequence}`,
                 );
-                ctx.skipped++;
                 continue;
             }
 
@@ -79,11 +73,6 @@ export class ShapeTransformer implements Transform<CsvRow, typeof shapes.$inferI
             if (sortedSequences.length > 1) {
                 coordinates = sortedSequences.map((seq) => acc.points.get(seq) as [number, number]);
             } else {
-                // HACK: PostGIS LineString requires at least 2 vertices. When a shape has only
-                // a single point (which shouldn't happen in valid GTFS but does in the wild),
-                // we duplicate it with a tiny offset so PostGIS doesn't reject the geometry.
-                // This is a gross workaround — the resulting "line" is functionally meaningless
-                // but at least prevents the entire shape from being dropped.
                 const firstSeq = sortedSequences[0];
                 if (firstSeq === undefined) continue;
                 const single = acc.points.get(firstSeq) as [number, number];
@@ -93,8 +82,6 @@ export class ShapeTransformer implements Transform<CsvRow, typeof shapes.$inferI
                 ];
             }
 
-            // Same hack for distances: if there's only one distance value, duplicate it
-            // to match the duplicated point count so the arrays stay aligned.
             let distancesTraveled: number[] | null = null;
             if (acc.distances.size > 1) {
                 distancesTraveled = sortedSequences
@@ -116,15 +103,12 @@ export class ShapeTransformer implements Transform<CsvRow, typeof shapes.$inferI
             });
 
             if (shape instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Shape validation failed for ${shapeId}: ${shape.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Shape validation failed for ${shapeId}: ${shape.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield shape as typeof shapes.$inferInsert;
+                yield itemOk(shape as typeof shapes.$inferInsert);
             }
         }
 

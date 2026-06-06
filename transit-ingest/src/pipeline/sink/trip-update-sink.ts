@@ -1,3 +1,4 @@
+import { fromAsyncThrowable } from "neverthrow";
 import type { TripInstanceState } from "database/models/enums";
 import * as tables from "database/models/tables";
 import { eq } from "drizzle-orm";
@@ -38,7 +39,7 @@ export class TripUpdateSink implements Sink<TransformedTripUpdate> {
             columns: { timezone: true },
         });
 
-        // Unrecoverable error
+        // Fatal: no agency means we cannot process any item. Let this throw.
         if (!agency) {
             throw new Error(`Failed to find agency ${ctx.config.agencyId}`);
         }
@@ -46,35 +47,31 @@ export class TripUpdateSink implements Sink<TransformedTripUpdate> {
         this.agencyTz = agency.timezone;
     }
 
-    private async processTripUpdate(ctx: Context, tu: TransformedTripUpdate) {
-        // Create trip instance if it doesn't exist (NEW trip)
-        // Else update trip instance state and lastTripUpdateAt
+    private async processTripUpdate(ctx: Context, tu: TransformedTripUpdate): Promise<void> {
         if (tu.tripInstanceId === undefined) {
-            try {
-                await this.createTripInstance(
-                    ctx,
-                    tu.tripId,
-                    tu.routeId,
-                    tu.shapeId,
-                    tu.startDate,
-                    tu.startTime,
-                    tu.state,
-                );
-            } catch (e) {
-                return recoverableError(
-                    "TRIP_INSTANCE_CREATE_ERROR",
-                    "Failed to create trip instance",
-                    e,
-                );
-            }
+            await this.createTripInstance(
+                ctx,
+                tu.tripId,
+                tu.routeId,
+                tu.shapeId,
+                tu.startDate,
+                tu.startTime,
+                tu.state,
+            );
         } else {
-            await ctx.db
-                .update(tables.tripInstances)
-                .set({ state: tu.state, lastTripUpdateAt: new Date() })
-                .where(eq(tables.tripInstances.id, tu.tripInstanceId));
+            const updateResult = await fromAsyncThrowable(
+                () => ctx.db
+                    .update(tables.tripInstances)
+                    .set({ state: tu.state, lastTripUpdateAt: new Date() })
+                    .where(eq(tables.tripInstances.id, tu.tripInstanceId!)),
+                (e: unknown) => e,
+            )();
+
+            if (updateResult.isErr()) {
+                throw updateResult.error;
+            }
         }
 
-        // Process stop time updates
         if (tu.stopTimeInstancesToUpsert) {
             upsertMany(
                 ctx.db,
@@ -94,7 +91,7 @@ export class TripUpdateSink implements Sink<TransformedTripUpdate> {
         serviceDate: string,
         startTime: string,
         state: TripInstanceState,
-    ) {
+    ): Promise<void> {
         const startDatetime = gtfsTimeToDate(serviceDate, startTime, this.agencyTz);
 
         if (!startDatetime) throw new Error("Failed to compute start datetime");

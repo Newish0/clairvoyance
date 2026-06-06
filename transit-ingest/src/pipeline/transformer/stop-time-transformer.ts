@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 import {
     type pickupDropOffEnum,
     type timepointEnum,
@@ -35,7 +35,7 @@ export class StopTimeTransformer implements Transform<CsvRow, typeof stopTimes.$
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof stopTimes.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof stopTimes.$inferInsert>> {
         for await (const row of input) {
             const tripSid = row["trip_id"];
             const stopSid = row["stop_id"];
@@ -68,15 +68,12 @@ export class StopTimeTransformer implements Transform<CsvRow, typeof stopTimes.$
             });
 
             if (stopTime instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `Stop time row validation failed: ${stopTime.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `Stop time row validation failed: ${stopTime.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield stopTime;
+                yield itemOk(stopTime);
             }
         }
     }

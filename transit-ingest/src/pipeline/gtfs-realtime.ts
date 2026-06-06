@@ -1,4 +1,4 @@
-import { err, ok, type Result } from "neverthrow";
+import { fromAsyncThrowable, ok, type Result } from "neverthrow";
 import type { Context } from "./core/context";
 import { fatalError, type IngestError } from "./core/error";
 import { pipe } from "./core/pipe";
@@ -12,6 +12,11 @@ export type RealtimeSummary = {
     skipped: number;
 };
 
+const safeFetchProtobuf = fromAsyncThrowable(
+    fetchProtobuf,
+    (e: unknown) => e as IngestError,
+);
+
 export async function runRealtime(
     ctx: Context,
     urls: string[],
@@ -21,23 +26,22 @@ export async function runRealtime(
 
     while (!ctx.controller.signal.aborted) {
         for (const url of urls) {
-            // Fetch + hash + dedup
-            let data;
-            try {
-                data = await fetchProtobuf(url, ctx.controller.signal);
-            } catch (e) {
-                ctx.errors.push(fatalError("REALTIME_FETCH_ERROR", `Failed to fetch ${url}`, e));
+            const fetchResult = await safeFetchProtobuf(url, ctx.controller.signal);
+
+            if (fetchResult.isErr()) {
+                ctx.errors.push(fetchResult.error);
                 ctx.skipped++;
-                ctx.logger.error({ url, err: e }, "Feed fetch failed, continuing to next");
+                ctx.logger.error({ url, err: fetchResult.error }, "Feed fetch failed, continuing to next");
                 continue;
             }
 
+            const data = fetchResult.value;
             const prevHash = lastHashes.get(url);
+
             if (prevHash === data.hash) {
                 ctx.logger.debug({ url, hash: data.hash }, "Feed unchanged, skipping");
                 continue;
             }
-            lastHashes.set(url, data.hash);
 
             ctx.logger.debug(
                 { url, bytes: data.bytes.length, hash: data.hash },
@@ -51,21 +55,20 @@ export async function runRealtime(
 
             const run = pipe(source, decoder, mapper, sink);
 
-            try {
-                await run(ctx);
-                // Only record hash after successful pipeline run — failed feeds should be retried
-                lastHashes.set(url, data.hash);
-            } catch (e) {
-                const error = fatalError(
-                    "REALTIME_PIPELINE_ERROR",
-                    `Realtime pipeline failed for ${url}`,
-                    e,
-                );
-                ctx.errors.push(error);
+            const pipelineResult = await fromAsyncThrowable(
+                () => run(ctx),
+                (e) => fatalError("REALTIME_PIPELINE_ERROR", `Realtime pipeline failed for ${url}`, e),
+            )();
+
+            if (pipelineResult.isErr()) {
+                ctx.errors.push(pipelineResult.error);
                 ctx.skipped++;
-                ctx.logger.error({ url, err: e }, "Feed failed, continuing to next");
+                ctx.logger.error({ url, err: pipelineResult.error }, "Feed failed, continuing to next");
                 continue;
             }
+
+            // Only record hash after successful pipeline run — failed feeds should be retried
+            lastHashes.set(url, data.hash);
 
             ctx.logger.debug(
                 { url, errors: ctx.errors.length, skipped: ctx.skipped },

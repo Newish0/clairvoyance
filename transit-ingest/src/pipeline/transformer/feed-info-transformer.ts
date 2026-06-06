@@ -4,7 +4,7 @@ import type { CsvRow } from "../source/csv-file-source";
 import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
-import { recoverableError } from "../core/error";
+import { type ItemResult, itemOk, skipItem } from "../core/error";
 
 export class FeedInfoTransformer implements Transform<CsvRow, typeof feedInfo.$inferInsert> {
     private feedInsertSchema = createInsertSchema(feedInfo);
@@ -17,7 +17,7 @@ export class FeedInfoTransformer implements Transform<CsvRow, typeof feedInfo.$i
     async *run(
         ctx: Context,
         input: AsyncIterable<CsvRow>,
-    ): AsyncIterable<typeof feedInfo.$inferInsert> {
+    ): AsyncIterable<ItemResult<typeof feedInfo.$inferInsert>> {
         for await (const row of input) {
             const info = this.feedInsertSchema({
                 hash: this.feedHash,
@@ -30,15 +30,12 @@ export class FeedInfoTransformer implements Transform<CsvRow, typeof feedInfo.$i
                 endDate: row["feed_end_date"],
             });
             if (info instanceof akType.errors) {
-                ctx.errors.push(
-                    recoverableError(
-                        "VALIDATION_ERROR",
-                        `FeedInfo row validation failed: ${info.summary}`,
-                    ),
+                yield skipItem(
+                    "VALIDATION_ERROR",
+                    `FeedInfo row validation failed: ${info.summary}`,
                 );
-                ctx.skipped++;
             } else {
-                yield info;
+                yield itemOk(info);
             }
         }
     }
