@@ -9,16 +9,19 @@ export type TranslationMap = {
     [languageCode: string]: string;
 };
 
-/** 
+/**
  * POSIX time.
  */
-export type TimePeriod = { start: bigint; end: bigint };
+export type TimePeriod =
+    | { start: number; end: number }
+    | { start: null; end: number }
+    | { start: number; end: null };
 
 export type EntitySelector = {
     agencyId?: string;
     routeId?: number;
     routeType?: RouteType;
     direction?: Direction;
-    tripInstance?: string;
-    stopId?: string;
+    tripInstanceId?: number;
+    stopId?: number;
 };

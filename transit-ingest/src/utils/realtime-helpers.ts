@@ -6,6 +6,7 @@ import type {
     Direction,
     OccupancyStatus,
     PickupDropOff,
+    RouteType,
     StopTimeUpdateScheduleRelationship,
     TripInstanceState,
     VehicleStopStatus,
@@ -14,8 +15,7 @@ import type {
 import type { EntitySelector, TimePeriod, TranslationMap } from "database/models/types";
 import { createHash } from "node:crypto";
 import type {
-    EntitySelector as ProtoEntitySelector,
-    TranslatedString,
+    TranslatedString
 } from "../gen/proto/gtfs-realtime_pb";
 import {
     Alert_Cause,
@@ -100,24 +100,6 @@ export function translatedStringToMap(ts: TranslatedString | undefined): Transla
 }
 
 // =========================================================
-// Proto EntitySelector -> DB EntitySelector
-// =========================================================
-
-export function protoEntitySelectorToDb(
-    es: ProtoEntitySelector,
-    tripInstanceId?: number | null,
-): EntitySelector {
-    return {
-        agencyId: es.agencyId || undefined,
-        routeId: es.routeId ? Number(es.routeId) : undefined,
-        routeType: undefined, // routeType is int in proto, needs mapping if used
-        direction: es.directionId === 0 ? "OUTBOUND" : es.directionId === 1 ? "INBOUND" : undefined,
-        tripInstance: tripInstanceId != null ? String(tripInstanceId) : undefined,
-        stopId: es.stopId || undefined,
-    };
-}
-
-// =========================================================
 // Enum maps: Proto -> PG enum strings
 // =========================================================
 
@@ -174,6 +156,33 @@ export function mapDirection(directionId: number | undefined): Direction | undef
     if (directionId === 0) return "OUTBOUND";
     if (directionId === 1) return "INBOUND";
     return undefined;
+}
+
+export function mapRouteType(routeType: number | undefined): RouteType | undefined {
+    switch (routeType) {
+        case 0:
+            return "TRAM";
+        case 1:
+            return "SUBWAY";
+        case 2:
+            return "RAIL";
+        case 3:
+            return "BUS";
+        case 4:
+            return "FERRY";
+        case 5:
+            return "CABLE_TRAM";
+        case 6:
+            return "AERIAL_LIFT";
+        case 7:
+            return "FUNICULAR";
+        case 11:
+            return "TROLLEYBUS";
+        case 12:
+            return "MONORAIL";
+        default:
+            return undefined;
+    }
 }
 
 export function mapVehicleStopStatus(s: VehiclePosition_VehicleStopStatus): VehicleStopStatus {
@@ -302,19 +311,24 @@ export function mapWheelchairAccessible(
 // Alert content hash (for dedup)
 // =========================================================
 
-function sortedTranslationMap(map: TranslationMap): TranslationMap {
-    const keys = Object.keys(map).sort();
-    const sorted: TranslationMap = { default: map.default };
-    for (const k of keys) {
-        if (k !== "default" && map[k] != null) sorted[k] = map[k]!;
+/** WARNING: This is not a general purpose canonicalizer. Only intended for use with input object in computeAlertHash */
+function canonicalize<T>(value: T): T {
+    if (Array.isArray(value)) {
+        return value
+            .map(canonicalize)
+            .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) as T;
     }
-    return sorted;
-}
 
-function bigintSafeStringify(obj: unknown): string {
-    return JSON.stringify(obj, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value,
-    );
+    if (value && typeof value === "object") {
+        return Object.fromEntries(
+            Object.entries(value)
+                .filter(([, v]) => v !== undefined)
+                .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+                .map(([k, v]) => [k, canonicalize(v)]),
+        ) as T;
+    }
+
+    return value;
 }
 
 export function computeAlertHash(data: {
@@ -327,27 +341,6 @@ export function computeAlertHash(data: {
     activePeriods: TimePeriod[];
     informedEntities: EntitySelector[];
 }): string {
-    const canonical = {
-        cause: data.cause,
-        effect: data.effect,
-        severity: data.severity,
-        headerText: sortedTranslationMap(data.headerText),
-        descriptionText: sortedTranslationMap(data.descriptionText),
-        url: data.url ? sortedTranslationMap(data.url) : null,
-        activePeriods: [...data.activePeriods].sort((a, b) =>
-            a.start < b.start
-                ? -1
-                : a.start > b.start
-                  ? 1
-                  : a.end < b.end
-                    ? -1
-                    : a.end > b.end
-                      ? 1
-                      : 0,
-        ),
-        informedEntities: [...data.informedEntities].sort((a, b) =>
-            JSON.stringify(a).localeCompare(JSON.stringify(b)),
-        ),
-    };
-    return createHash("sha256").update(bigintSafeStringify(canonical)).digest("hex");
+    const canonical = canonicalize(data);
+    return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
