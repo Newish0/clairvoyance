@@ -12,7 +12,7 @@ import type { Db } from "./client";
  * @param ignore  - Column keys to leave untouched on conflict (e.g. 'createdAt')
  *
  * @example
- * // Simple — conflict on id, update everything else
+ * // Simple - conflict on id, update everything else
  * await upsertMany(db, users, rows, users.id);
  *
  * @example

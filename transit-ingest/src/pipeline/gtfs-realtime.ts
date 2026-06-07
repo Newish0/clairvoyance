@@ -2,10 +2,12 @@ import { fromAsyncThrowable, ok, type Result } from "neverthrow";
 import type { Context } from "./core/context";
 import { fatalError, type IngestError } from "./core/error";
 import { pipe } from "./core/pipe";
-import { ProtobufSource, fetchProtobuf } from "./source/protobuf-source";
+import { TripUpdateSink } from "./sink/trip-update-sink";
+import { VehiclePositionSink } from "./sink/vehicle-position-sink";
+import { ProtobufSource, fetchProtobuf, type ProtobufData } from "./source/protobuf-source";
 import { ProtobufDecoder } from "./transformer/protobuf-decoder";
 import { TripUpdateTransformer } from "./transformer/trip-update-transformer";
-import { TripUpdateSink } from "./sink/trip-update-sink";
+import { VehiclePositionTransformer } from "./transformer/vehicle-position-transformer";
 
 export type RealtimeSummary = {
     errors: IngestError[];
@@ -48,17 +50,7 @@ export async function runRealtime(
                 "Processing realtime feed",
             );
 
-            const source = new ProtobufSource(data);
-            const decoder = new ProtobufDecoder();
-            const mapper = new TripUpdateTransformer();
-            const sink = new TripUpdateSink();
-
-            const run = pipe(source, decoder, mapper, sink);
-
-            const pipelineResult = await fromAsyncThrowable(
-                () => run(ctx),
-                (e) => fatalError("REALTIME_PIPELINE_ERROR", `Realtime pipeline failed for ${url}`, e),
-            )();
+            const pipelineResult = await runPipelines(ctx, data, url);
 
             if (pipelineResult.isErr()) {
                 ctx.errors.push(pipelineResult.error);
@@ -67,7 +59,7 @@ export async function runRealtime(
                 continue;
             }
 
-            // Only record hash after successful pipeline run — failed feeds should be retried
+            // Only record hash after successful pipeline run - failed feeds should be retried
             lastHashes.set(url, data.hash);
 
             ctx.logger.debug(
@@ -95,4 +87,34 @@ export async function runRealtime(
     }
 
     return ok({ errors: ctx.errors, skipped: ctx.skipped });
+}
+
+async function runPipelines(
+    ctx: Context,
+    data: ProtobufData,
+    url: string,
+): Promise<Result<void, IngestError>> {
+    const vpPipe = pipe(
+        new ProtobufSource(data),
+        new ProtobufDecoder(),
+        new VehiclePositionTransformer(),
+        new VehiclePositionSink(),
+    );
+
+    const tuPipe = pipe(
+        new ProtobufSource(data),
+        new ProtobufDecoder(),
+        new TripUpdateTransformer(),
+        new TripUpdateSink(),
+    );
+
+    return fromAsyncThrowable(
+        async () => {
+            const results = await Promise.allSettled([vpPipe(ctx), tuPipe(ctx)]);
+            for (const r of results) {
+                if (r.status === "rejected") throw r.reason;
+            }
+        },
+        (e) => fatalError("REALTIME_PIPELINE_ERROR", `Realtime pipeline failed for ${url}`, e),
+    )();
 }
