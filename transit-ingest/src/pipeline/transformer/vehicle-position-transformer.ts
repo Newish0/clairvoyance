@@ -114,8 +114,8 @@ export class VehiclePositionTransformer implements Transform<
             }
             if (!tripResult.value) {
                 ctx.logger.debug(
-                    { vehicleSid, tripSid: coreTripSid },
-                    "Trip not found in static data",
+                    { vehicleSid, tripSid: coreTripSid, agencyId: ctx.config.agencyId },
+                    "Trip not found in static data; vehicle tracked without trip",
                 );
             } else {
                 const tiResult = await this.getTripInstance(
