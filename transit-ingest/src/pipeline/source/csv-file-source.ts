@@ -31,7 +31,7 @@ export class CsvFileSource implements Source<CsvRow> {
         );
 
         // Stream-level errors (e.g. disk read failure mid-stream) propagate
-        // out of the for-await and are fatal — let them throw so pipe()'s
+        // out of the for-await and are fatal - let them throw so pipe()'s
         // orchestrator records them as REALTIME_PIPELINE_ERROR.
         for await (const row of parser) {
             yield itemOk(row as CsvRow);

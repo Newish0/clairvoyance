@@ -66,7 +66,6 @@ export class ProtobufDecoder implements Transform<ProtobufData, ParsedEntity> {
             );
 
             for (const entity of feedMessage.entity) {
-                if (!entity.tripUpdate) continue;
                 if (!entity.id) {
                     yield skipItem(
                         "PROTOBUF_VALIDATION_ERROR",

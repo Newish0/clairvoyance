@@ -329,8 +329,10 @@ export const vehiclePositions = schema.table(
         stopId: integer("stop_id").references(() => stops.id),
         currentStopSequence: integer("current_stop_sequence"),
         currentStatus: vehicleStopStatusEnum("current_status"),
-        congestionLevel: congestionLevelEnum("congestion_level"),
-        occupancyStatus: occupancyStatusEnum("occupancy_status"),
+        congestionLevel: congestionLevelEnum("congestion_level").default(
+            "UNKNOWN_CONGESTION_LEVEL",
+        ),
+        occupancyStatus: occupancyStatusEnum("occupancy_status").default("NO_DATA_AVAILABLE"),
         occupancyPercentage: integer("occupancy_percentage"),
 
         bearing: doublePrecision("bearing"),

@@ -91,7 +91,7 @@ export function translatedStringToMap(ts: TranslatedString | undefined): Transla
             map[t.language] = t.text;
         }
     }
-    // Ensure default is set — use first translation if no explicit default
+    // Ensure default is set - use first translation if no explicit default
     if (!map.default && ts.translation.length > 0) {
         const first = ts.translation[0];
         if (first) map.default = first.text;

@@ -66,7 +66,7 @@ describe("gtfsTimeToDate", () => {
         expect(result!.getUTCHours()).toBe(12);
     });
 
-    test("02:30:00 on spring-forward day (gap time — valid UTC)", () => {
+    test("02:30:00 on spring-forward day (gap time - valid UTC)", () => {
         const result = gtfsTimeToDate("20240310", "02:30:00", "America/New_York");
         expect(result).not.toBeNull();
         expect(result!.getUTCHours()).toBe(6);
