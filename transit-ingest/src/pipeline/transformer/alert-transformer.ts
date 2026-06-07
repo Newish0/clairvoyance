@@ -149,46 +149,47 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
                 }
             });
 
-        const informedEntities: EntitySelector[] = [];
-        for (const ie of alert.informedEntity) {
-            const tripInstanceId =
-                ie.trip?.tripId && ie.trip.startDate && ie.trip.startTime
-                    ? await this.resolveTripInstanceId(ctx, {
-                          tripId: ie.trip.tripId,
-                          startDate: ie.trip.startDate,
-                          startTime: ie.trip.startTime,
-                      })
+        const informedEntities: EntitySelector[] = await Promise.all(
+            alert.informedEntity.map(async (ie) => {
+                const tripInstanceId =
+                    ie.trip?.tripId && ie.trip.startDate && ie.trip.startTime
+                        ? await this.resolveTripInstanceId(ctx, {
+                              tripId: ie.trip.tripId,
+                              startDate: ie.trip.startDate,
+                              startTime: ie.trip.startTime,
+                          })
+                        : undefined;
+
+                const routeId = ie.routeId
+                    ? await this.getRoute(ctx, ie.routeId).match(
+                          (r) => r?.id,
+                          (_) => undefined,
+                      )
+                    : undefined;
+                const stopId = ie.stopId
+                    ? await this.getStop(ctx, ie.stopId).match(
+                          (s) => s?.id,
+                          (_) => undefined,
+                      )
                     : undefined;
 
-            const routeId = ie.routeId
-                ? await this.getRoute(ctx, ie.routeId).match(
-                      (r) => r?.id,
-                      (_) => undefined,
-                  )
-                : undefined;
-            const stopId = ie.stopId
-                ? await this.getStop(ctx, ie.stopId).match(
-                      (s) => s?.id,
-                      (_) => undefined,
-                  )
-                : undefined;
+                const agencyId = ie.agencyId
+                    ? await this.getAgency(ctx, ie.agencyId).match(
+                          (a) => a?.id,
+                          (_) => undefined,
+                      )
+                    : undefined;
 
-            const agencyId = ie.agencyId
-                ? await this.getAgency(ctx, ie.agencyId).match(
-                      (a) => a?.id,
-                      (_) => undefined,
-                  )
-                : undefined;
-
-            informedEntities.push({
-                agencyId,
-                tripInstanceId,
-                routeId,
-                stopId,
-                routeType: mapRouteType(ie.routeType),
-                direction: mapDirection(ie.directionId),
-            });
-        }
+                return {
+                    agencyId,
+                    tripInstanceId,
+                    routeId,
+                    stopId,
+                    routeType: mapRouteType(ie.routeType),
+                    direction: mapDirection(ie.directionId),
+                };
+            }),
+        );
 
         const headerText = translatedStringToMap(alert.headerText);
         const descriptionText = translatedStringToMap(alert.descriptionText);
