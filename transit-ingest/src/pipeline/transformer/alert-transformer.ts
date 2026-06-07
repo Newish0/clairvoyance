@@ -1,7 +1,11 @@
 import type { AlertCause, AlertEffect, AlertSeverity } from "database/models/enums";
 import type { EntitySelector, TimePeriod, TranslationMap } from "database/models/types";
 import { fromAsyncThrowable } from "neverthrow";
-import type { Alert as ProtoAlert } from "../../gen/proto/gtfs-realtime_pb";
+import type {
+    Alert as ProtoAlert,
+    EntitySelector as ProtoEntitySelector,
+    TimeRange as ProtoTimeRange,
+} from "../../gen/proto/gtfs-realtime_pb";
 import {
     computeAlertHash,
     extractCoreTripSid,
@@ -123,6 +127,68 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
         return tiResult.value.id;
     }
 
+    private async mapEntitySelector(
+        ctx: Context,
+        ie: ProtoEntitySelector,
+    ): Promise<EntitySelector> {
+        const tripInstanceId =
+            ie.trip?.tripId && ie.trip.startDate && ie.trip.startTime
+                ? await this.resolveTripInstanceId(ctx, {
+                      tripId: ie.trip.tripId,
+                      startDate: ie.trip.startDate,
+                      startTime: ie.trip.startTime,
+                  })
+                : undefined;
+
+        const routeId = ie.routeId
+            ? await this.getRoute(ctx, ie.routeId).match(
+                  (r) => r?.id,
+                  (_) => undefined,
+              )
+            : undefined;
+        const stopId = ie.stopId
+            ? await this.getStop(ctx, ie.stopId).match(
+                  (s) => s?.id,
+                  (_) => undefined,
+              )
+            : undefined;
+
+        const agencyId = ie.agencyId
+            ? await this.getAgency(ctx, ie.agencyId).match(
+                  (a) => a?.id,
+                  (_) => undefined,
+              )
+            : undefined;
+
+        return {
+            agencyId,
+            tripInstanceId,
+            routeId,
+            stopId,
+            routeType: mapRouteType(ie.routeType),
+            direction: mapDirection(ie.directionId),
+        };
+    }
+
+    private mapTimeRange(p: ProtoTimeRange): TimePeriod {
+        if (p.start === 0n) {
+            return {
+                start: null,
+                end: Number(p.end),
+            };
+        } else if (p.end === 0n) {
+            return {
+                start: Number(p.start),
+                end: null,
+            };
+        } else {
+            return {
+                start: Number(p.start),
+                end: Number(p.end),
+            };
+        }
+    }
+
     private async transform(
         ctx: Context,
         alert: ProtoAlert,
@@ -130,65 +196,10 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
     ): Promise<ItemResult<TransformedAlert>> {
         const activePeriods: TimePeriod[] = alert.activePeriod
             .filter((p) => p.start !== 0n || p.end !== 0n)
-            .map((p) => {
-                if (p.start === 0n) {
-                    return {
-                        start: null,
-                        end: Number(p.end),
-                    };
-                } else if (p.end === 0n) {
-                    return {
-                        start: Number(p.start),
-                        end: null,
-                    };
-                } else {
-                    return {
-                        start: Number(p.start),
-                        end: Number(p.end),
-                    };
-                }
-            });
+            .map(this.mapTimeRange);
 
         const informedEntities: EntitySelector[] = await Promise.all(
-            alert.informedEntity.map(async (ie) => {
-                const tripInstanceId =
-                    ie.trip?.tripId && ie.trip.startDate && ie.trip.startTime
-                        ? await this.resolveTripInstanceId(ctx, {
-                              tripId: ie.trip.tripId,
-                              startDate: ie.trip.startDate,
-                              startTime: ie.trip.startTime,
-                          })
-                        : undefined;
-
-                const routeId = ie.routeId
-                    ? await this.getRoute(ctx, ie.routeId).match(
-                          (r) => r?.id,
-                          (_) => undefined,
-                      )
-                    : undefined;
-                const stopId = ie.stopId
-                    ? await this.getStop(ctx, ie.stopId).match(
-                          (s) => s?.id,
-                          (_) => undefined,
-                      )
-                    : undefined;
-
-                const agencyId = ie.agencyId
-                    ? await this.getAgency(ctx, ie.agencyId).match(
-                          (a) => a?.id,
-                          (_) => undefined,
-                      )
-                    : undefined;
-
-                return {
-                    agencyId,
-                    tripInstanceId,
-                    routeId,
-                    stopId,
-                    routeType: mapRouteType(ie.routeType),
-                    direction: mapDirection(ie.directionId),
-                };
-            }),
+            alert.informedEntity.map((ie) => this.mapEntitySelector(ctx, ie)),
         );
 
         const headerText = translatedStringToMap(alert.headerText);
