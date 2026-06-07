@@ -60,24 +60,21 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
 
     private getTrip(ctx: Context, tripSid: string) {
         return fromAsyncThrowable(
-            () => ctx.db.query.trips.findFirst({
-                where: { agencyId: ctx.config.agencyId, tripSid },
-                columns: { id: true, routeId: true, shapeId: true },
-            }),
+            () =>
+                ctx.db.query.trips.findFirst({
+                    where: { agencyId: ctx.config.agencyId, tripSid },
+                    columns: { id: true, routeId: true, shapeId: true },
+                }),
             (e: unknown) => e,
         )();
     }
 
-    private getTripInstance(
-        ctx: Context,
-        tripId: number,
-        startDate: string,
-        startTime: string,
-    ) {
+    private getTripInstance(ctx: Context, tripId: number, startDate: string, startTime: string) {
         return fromAsyncThrowable(
-            () => ctx.db.query.tripInstances.findFirst({
-                where: { tripId, startDate, startTime },
-            }),
+            () =>
+                ctx.db.query.tripInstances.findFirst({
+                    where: { tripId, startDate, startTime },
+                }),
             (e: unknown) => e,
         )();
     }
@@ -107,11 +104,18 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
 
         const tripResult = await this.getTrip(ctx, coreTripSid);
         if (tripResult.isErr()) {
-            return skipItem("TRIP_DB_ERROR", `DB error fetching trip ${coreTripSid}`, tripResult.error);
+            return skipItem(
+                "TRIP_DB_ERROR",
+                `DB error fetching trip ${coreTripSid}`,
+                tripResult.error,
+            );
         }
         const trip = tripResult.value;
         if (!trip) {
-            ctx.logger.debug({ tripSid: coreTripSid }, "Trip not found in static data, skipping");
+            ctx.logger.debug(
+                { tripSid: coreTripSid, agencyId: ctx.config.agencyId },
+                "Trip not found in static data, skipping",
+            );
             return skipItem("TRIP_NOT_FOUND", `Trip ${coreTripSid} not in static data`);
         }
 
