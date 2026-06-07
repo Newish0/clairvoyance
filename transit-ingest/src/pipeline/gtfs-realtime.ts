@@ -8,16 +8,15 @@ import { ProtobufSource, fetchProtobuf, type ProtobufData } from "./source/proto
 import { ProtobufDecoder } from "./transformer/protobuf-decoder";
 import { TripUpdateTransformer } from "./transformer/trip-update-transformer";
 import { VehiclePositionTransformer } from "./transformer/vehicle-position-transformer";
+import { AlertTransformer } from "./transformer/alert-transformer";
+import { AlertSink } from "./sink/alert-sink";
 
 export type RealtimeSummary = {
     errors: IngestError[];
     skipped: number;
 };
 
-const safeFetchProtobuf = fromAsyncThrowable(
-    fetchProtobuf,
-    (e: unknown) => e as IngestError,
-);
+const safeFetchProtobuf = fromAsyncThrowable(fetchProtobuf, (e: unknown) => e as IngestError);
 
 export async function runRealtime(
     ctx: Context,
@@ -33,7 +32,10 @@ export async function runRealtime(
             if (fetchResult.isErr()) {
                 ctx.errors.push(fetchResult.error);
                 ctx.skipped++;
-                ctx.logger.error({ url, err: fetchResult.error }, "Feed fetch failed, continuing to next");
+                ctx.logger.error(
+                    { url, err: fetchResult.error },
+                    "Feed fetch failed, continuing to next",
+                );
                 continue;
             }
 
@@ -55,7 +57,10 @@ export async function runRealtime(
             if (pipelineResult.isErr()) {
                 ctx.errors.push(pipelineResult.error);
                 ctx.skipped++;
-                ctx.logger.error({ url, err: pipelineResult.error }, "Feed failed, continuing to next");
+                ctx.logger.error(
+                    { url, err: pipelineResult.error },
+                    "Feed failed, continuing to next",
+                );
                 continue;
             }
 
@@ -108,9 +113,16 @@ async function runPipelines(
         new TripUpdateSink(),
     );
 
+    const alertPipe = pipe(
+        new ProtobufSource(data),
+        new ProtobufDecoder(),
+        new AlertTransformer(),
+        new AlertSink(),
+    );
+
     return fromAsyncThrowable(
         async () => {
-            const results = await Promise.allSettled([vpPipe(ctx), tuPipe(ctx)]);
+            const results = await Promise.allSettled([vpPipe(ctx), tuPipe(ctx), alertPipe(ctx)]);
             for (const r of results) {
                 if (r.status === "rejected") throw r.reason;
             }
