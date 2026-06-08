@@ -338,6 +338,7 @@ export const vehiclePositions = schema.table(
         bearing: doublePrecision("bearing"),
         odometer: doublePrecision("odometer"),
         speed: doublePrecision("speed"),
+        shapeDistTraveled: doublePrecision("shape_dist_traveled"),
 
         ingestedAt: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
     },
