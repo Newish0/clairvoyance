@@ -1,0 +1,12 @@
+agencies:
+    - id: BCT-VIC
+      static:
+          url: https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48
+          realizeInstances: true
+      realtime:
+          urls:
+              - https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48
+              - https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=51
+              - https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=51
+          poll: 30
+      realizeInstances: {}
