@@ -53,6 +53,10 @@ export const schemaRelations = defineRelations(
                 from: r.tripInstances.id,
                 to: r.vehiclePositions.tripInstanceId,
             }),
+            shape: r.one.shapes({
+                from: r.tripInstances.shapeId,
+                to: r.shapes.id,
+            })
         },
         stopTimeInstances: {
             tripInstance: r.one.tripInstances({

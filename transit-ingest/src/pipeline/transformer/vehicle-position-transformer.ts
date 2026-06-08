@@ -4,6 +4,8 @@ import type {
     VehicleStopStatus,
     WheelchairBoarding,
 } from "database/models/enums";
+import * as tables from "database/models/tables";
+import { eq, sql } from "drizzle-orm";
 import { fromAsyncThrowable } from "neverthrow";
 import type { VehiclePosition } from "../../gen/proto/gtfs-realtime_pb";
 import {
@@ -37,6 +39,7 @@ export interface TransformedVehiclePosition {
     bearing: number | null;
     odometer: number | null;
     speed: number | null;
+    shapeDistTraveled: number | null;
 }
 
 export class VehiclePositionTransformer implements Transform<
@@ -69,7 +72,7 @@ export class VehiclePositionTransformer implements Transform<
             () =>
                 ctx.db.query.tripInstances.findFirst({
                     where: { tripId, startDate, startTime },
-                    columns: { id: true },
+                    columns: { id: true, shapeId: true },
                 }),
             (e: unknown) => e,
         )();
@@ -82,6 +85,25 @@ export class VehiclePositionTransformer implements Transform<
                     where: { agencyId: ctx.config.agencyId, stopSid },
                     columns: { id: true },
                 }),
+            (e: unknown) => e,
+        )();
+    }
+
+    private getShapeDistTraveled(ctx: Context, shapeId: number, lng: number, lat: number) {
+        return fromAsyncThrowable(
+            () =>
+                ctx.db
+                    .select({
+                        distTraveled: sql<number>`
+                                ST_LineLocatePoint(
+                                    ${tables.shapes.path},
+                                    ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)
+                                ) * ST_Length(${tables.shapes.path}::geography)
+                            `,
+                    })
+                    .from(tables.shapes)
+                    .where(eq(tables.shapes.id, shapeId))
+                    .limit(1),
             (e: unknown) => e,
         )();
     }
@@ -101,6 +123,7 @@ export class VehiclePositionTransformer implements Transform<
         const vehicleSid = vehicleDescriptor.id;
 
         let tripInstanceId: number | null = null;
+        let shapeId: number | null = null;
         const tripDescriptor = vehicle.trip;
         if (tripDescriptor?.tripId && tripDescriptor.startDate && tripDescriptor.startTime) {
             const coreTripSid = extractCoreTripSid(tripDescriptor.tripId);
@@ -133,6 +156,7 @@ export class VehiclePositionTransformer implements Transform<
                 }
                 if (tiResult.value) {
                     tripInstanceId = tiResult.value.id;
+                    shapeId = tiResult.value.shapeId;
                 }
             }
         }
@@ -183,6 +207,19 @@ export class VehiclePositionTransformer implements Transform<
         const occupancyStatus = mapOccupancyStatus(vehicle.occupancyStatus);
         const occupancyPercentage = vehicle.occupancyPercentage;
 
+        let shapeDistTraveled: number | null = null;
+        if (shapeId && position.latitude && position.longitude) {
+            const distResult = await this.getShapeDistTraveled(
+                ctx,
+                shapeId,
+                position.longitude,
+                position.latitude,
+            );
+            if (distResult.isOk() && distResult.value.length > 0) {
+                shapeDistTraveled = distResult.value[0]?.distTraveled ?? null;
+            }
+        }
+
         return itemOk({
             vehicleSid,
             vehicleLabel: vehicleDescriptor.label || null,
@@ -203,6 +240,7 @@ export class VehiclePositionTransformer implements Transform<
             bearing,
             odometer,
             speed,
+            shapeDistTraveled,
         });
     }
 }

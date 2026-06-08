@@ -87,6 +87,7 @@ export class VehiclePositionSink implements Sink<TransformedVehiclePosition> {
                     bearing: vp.bearing,
                     odometer: vp.odometer,
                     speed: vp.speed,
+                    shapeDistTraveled: vp.shapeDistTraveled,
                 },
             ],
             [tables.vehiclePositions.vehicleId, tables.vehiclePositions.timestamp],
