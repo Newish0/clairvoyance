@@ -1,10 +1,11 @@
 import { cac } from "cac";
 import { type } from "arktype";
-import { getDb, type Db } from "./db/client";
-import { createContext } from "./pipeline/core/context";
-import { runStatic } from "./pipeline/gtfs-static";
-import { runRealtime } from "./pipeline/gtfs-realtime";
-import { runRealizeInstances } from "./pipeline/realize-instances";
+import {
+    resolveDb,
+    runStaticPipeline,
+    runRealtimePipeline,
+    runRealizePipeline,
+} from "./pipeline/run";
 
 const CliOptions = type({
     "databaseUrl?": "string | undefined",
@@ -30,14 +31,6 @@ const RealizeOptions = CliOptions.merge({
     "maxDate?": DateStr,
 });
 
-function resolveDb(databaseUrl?: string): Db {
-    if (!databaseUrl) {
-        console.error("error: --database-url <url> or DATABASE_URL env var is required");
-        process.exit(1);
-    }
-    return getDb(databaseUrl);
-}
-
 const cli = cac("transit-ingest");
 
 cli.option("--database-url <url>", "Connection string for the database", {
@@ -56,28 +49,15 @@ cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
             process.exit(1);
         }
         const db = resolveDb(validated.databaseUrl);
-        const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
-
-        const result = await runStatic(
-            ctx,
+        await runStaticPipeline(
+            db,
+            agencyId,
             gtfsUrl,
-            validated.deleteRows,
+            validated.deleteRows ?? false,
             validated.ignoreFeedDup,
             validated.realizeInstances,
+            !!validated.verbose,
         );
-        if (result.isErr()) {
-            ctx.logger.error({ err: result.error }, "Static processing failed");
-            process.exit(1);
-        }
-        const summary = result.value;
-        if (summary.errors.length > 0) {
-            ctx.logger.warn(
-                { errors: summary.errors.length, skipped: summary.skipped },
-                "Static data processed with recoverable errors",
-            );
-        } else {
-            ctx.logger.info("Static data processed successfully.");
-        }
     });
 
 cli.command("realtime <agency-id> <...gtfs-urls>", "Process realtime GTFS data")
@@ -89,34 +69,13 @@ cli.command("realtime <agency-id> <...gtfs-urls>", "Process realtime GTFS data")
             process.exit(1);
         }
         const db = resolveDb(validated.databaseUrl);
-        const pollInterval = Number(validated.poll ?? 0);
-
-        const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
-        const onSigint = () => ctx.controller.abort();
-        process.on("SIGINT", onSigint);
-
-        ctx.logger.info({ agencyId, gtfsUrls, poll: pollInterval }, "Realtime config");
-
-        try {
-            const result = await runRealtime(ctx, gtfsUrls, pollInterval);
-
-            if (result.isErr()) {
-                ctx.logger.error({ err: result.error }, "Realtime processing failed");
-                // Don't process.exit here — let the finally block clean up SIGINT listener
-                return;
-            }
-            const summary = result.value;
-            if (summary.errors.length > 0) {
-                ctx.logger.warn(
-                    { errors: summary.errors.length, skipped: summary.skipped },
-                    "Realtime data processed with recoverable errors",
-                );
-            } else {
-                ctx.logger.info("Realtime data processed successfully.");
-            }
-        } finally {
-            process.removeListener("SIGINT", onSigint);
-        }
+        await runRealtimePipeline(
+            db,
+            agencyId,
+            gtfsUrls,
+            Number(validated.poll ?? 0),
+            !!validated.verbose,
+        );
     });
 
 cli.command(
@@ -133,28 +92,42 @@ cli.command(
             process.exit(1);
         }
         const db = resolveDb(validated.databaseUrl);
-        const ctx = createContext(db, { agencyId, verbose: !!validated.verbose });
+        await runRealizePipeline(
+            db,
+            agencyId,
+            validated.minDate,
+            validated.maxDate,
+            !!validated.verbose,
+        );
+    });
 
-        const result = await runRealizeInstances(ctx, validated.minDate, validated.maxDate);
-        if (result.isErr()) {
-            ctx.logger.error({ err: result.error }, "Realize instances failed");
+cli.command("from-config <config-file>", "Run pipeline from a YAML config file").action(
+    async (configFile: string, options: unknown) => {
+        const validated = CliOptions(options);
+        if (validated instanceof type.errors) {
+            console.error(`error: invalid options - ${validated.summary}`);
             process.exit(1);
         }
-        const summary = result.value;
-        if (summary.errors.length > 0) {
-            ctx.logger.warn(
-                { errors: summary.errors.length, skipped: summary.skipped },
-                "Realize instances completed with recoverable errors",
-            );
-        } else {
-            ctx.logger.info("Realize instances completed successfully.");
-        }
-    });
+        const db = resolveDb(validated.databaseUrl);
+        const { runFromConfig } = await import("./config");
+        await runFromConfig(
+            configFile,
+            db,
+            validated.deleteRows ?? false,
+            !!validated.verbose,
+        );
+    },
+);
 
 cli.help();
 
 try {
-    // Parse CLI args without running the command
+    // Handle --help explicitly since { run: false } suppresses CAC's built-in help handler
+    if (process.argv.includes("--help") || process.argv.includes("-h")) {
+        cli.outputHelp();
+        process.exit(0);
+    }
+
     cli.parse(process.argv, { run: false });
 
     if (!cli.matchedCommand) {
