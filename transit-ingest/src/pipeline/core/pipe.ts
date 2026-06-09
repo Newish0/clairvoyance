@@ -20,9 +20,9 @@ export interface Transform<I, O> {
     run(ctx: Context, input: AsyncIterable<I>): AsyncIterable<ItemResult<O>>;
 }
 
-/** 
- * Must handle errors internally instead of with `itemOk` and `skipItem` like in 
- * Transform and Source since `run` returns void/Promise<void>. 
+/**
+ * Must handle errors internally instead of with `itemOk` and `skipItem` like in
+ * Transform and Source since `run` returns void/Promise<void>.
  */
 export interface Sink<I> {
     run(ctx: Context, input: AsyncIterable<I>): void | Promise<void>;
@@ -77,10 +77,7 @@ export function pipe(...stages: any[]): (ctx: Context) => Promise<void> {
         try {
             await sink.run(ctx, stream);
         } finally {
-            // Generator cleanup is handled implicitly by the for-await-of protocol.
-            // When the sink's loop exits (normally, via break, or via throw), the
-            // implicit iterator.return() propagates through routeResults -> monitorStream
-            // -> upstream stages, closing each generator in turn.
+            Bun.gc(true);
         }
     };
 }
