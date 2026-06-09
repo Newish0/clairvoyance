@@ -28,15 +28,24 @@ const trpc = createTRPCClient<AppRouter>({
     ],
 });
 
-const result = await trpc.tripInstance.getByRouteStopTime.query({
-    routeId: 25,
-    stopId: 807,
-    maxDatetime: new Date(Date.now() + 86400 * 1000),
-    minDatetime: new Date(),
+const result = await trpc.tripInstance.getNearby.query({
+    // borden st
+    lat: 48.470398,
+    lng: -123.360676,
+    radiusMeters: 200,
 });
 
 console.log(JSON.stringify(result, null, 2));
-console.log(result.length);
+
+// const result = await trpc.tripInstance.getByRouteStopTime.query({
+//     routeId: 25,
+//     stopId: 807,
+//     maxDatetime: new Date(Date.now() + 86400 * 1000),
+//     minDatetime: new Date(),
+// });
+
+// console.log(JSON.stringify(result, null, 2));
+// console.log(result.length);
 
 // await new Promise((r) => {
 //     trpc.shape.testSubscription.subscribe("", {

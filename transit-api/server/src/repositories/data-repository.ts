@@ -1,9 +1,9 @@
-import { BunSQLDatabase } from "drizzle-orm/bun-sql";
-import * as schema from "database";
-export abstract class DataRepository {
-    protected db: BunSQLDatabase<typeof schema>;
+import { Db } from "../db";
 
-    constructor(db: BunSQLDatabase<typeof schema>) {
+export abstract class DataRepository {
+    protected db: Db;
+
+    constructor(db: Db) {
         this.db = db;
     }
 }

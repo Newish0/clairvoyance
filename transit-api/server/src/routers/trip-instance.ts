@@ -24,101 +24,84 @@ export const tripInstanceRouter = router({
 
     getNearby: publicProcedure
         .input(
-            v.union([
-                v.object({
-                    lat: v.number(),
-                    lng: v.number(),
-                    radius: v.pipe(
-                        v.number(),
-                        v.minValue(100),
-                        v.maxValue(5000),
-                        v.description("Radius in meters"),
-                    ),
-                }),
-                v.object({
-                    lat: v.number(),
-                    lng: v.number(),
-                    bbox: v.pipe(
-                        v.object({
-                            minLat: v.number(),
-                            maxLat: v.number(),
-                            minLng: v.number(),
-                            maxLng: v.number(),
-                        }),
-                        v.check((bbox) => {
-                            const latDiff = bbox.maxLat - bbox.minLat;
-                            const lngDiff = bbox.maxLng - bbox.minLng;
-                            return latDiff <= 0.0301 && lngDiff <= 0.0301; // Account for floating point error
-                        }, "Bounding box must not exceed 0.03 degrees in any dimension"),
-                    ),
-                }),
-            ]),
+            v.object({
+                lat: v.number(),
+                lng: v.number(),
+                radiusMeters: v.pipe(
+                    v.number(),
+                    v.minValue(100),
+                    v.maxValue(5000),
+                    v.description("Radius in meters"),
+                ),
+            }),
         )
         .query(async ({ input, ctx }) => {
             const repo = new TripInstancesRepository(ctx.db);
             const data = await repo.findNearbyTrips(input);
             return data;
         }),
-    getNext: publicProcedure
-        .input(
-            v.object({
-                agencyId: v.string(),
-                routeId: v.string(),
-                directionId: v.optional(v.enum(Direction)),
-                stopId: v.string(),
-                excludedTripInstanceIds: v.optional(v.array(v.string())),
-            }),
-        )
-        .query(async ({ input, ctx }) => {
-            const trips = await new TripInstancesRepository(ctx.db).findNextAtStop(input);
-            return trips;
-        }),
-    getByRouteStopTime: publicProcedure
-        .input(
-            v.object({
-                routeId: vInteger(),
-                direction: v.optional(v.enum(Direction)),
-                stopId: vInteger(),
-                minDatetime: v.date(),
-                maxDatetime: v.date(),
-            }),
-        )
-        .query(async ({ input, ctx }) => {
-            const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTimeAtStop(input);
-            return trips;
-        }),
+    // getNext: publicProcedure
+    //     .input(
+    //         v.object({
+    //             agencyId: v.string(),
+    //             routeId: v.string(),
+    //             directionId: v.optional(v.enum(Direction)),
+    //             stopId: v.string(),
+    //             excludedTripInstanceIds: v.optional(v.array(v.string())),
+    //         }),
+    //     )
+    //     .query(async ({ input, ctx }) => {
+    //         const trips = await new TripInstancesRepository(ctx.db).findNextAtStop(input);
+    //         return trips;
+    //     }),
+    // getByRouteStopTime: publicProcedure
+    //     .input(
+    //         v.object({
+    //             routeId: vInteger(),
+    //             direction: v.optional(v.enum(Direction)),
+    //             stopId: vInteger(),
+    //             minDatetime: v.date(),
+    //             maxDatetime: v.date(),
+    //         }),
+    //     )
+    //     .query(async ({ input, ctx }) => {
+    //         const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTimeAtStop(
+    //             input,
+    //         );
+    //         return trips;
+    //     }),
 
-    liveTripPositions: publicProcedure
-        .input(
-            v.object({
-                agencyId: v.optional(v.string()),
-                routeId: v.optional(v.string()),
-                directionId: v.optional(v.enum(Direction)),
-            }),
-        )
-        .subscription(async function* ({ input, ctx, signal }) {
-            const repo = new TripInstancesRepository(ctx.db);
-            for await (const trip of repo.watchLivePositions({
-                ...input,
-                signal,
-            })) {
-                yield trip as unknown as AsSuperjsonSerialized<typeof trip>;
-            }
-        }),
+    // liveTripPositions: publicProcedure
+    //     .input(
+    //         v.object({
+    //             agencyId: v.optional(v.string()),
+    //             routeId: v.optional(v.string()),
+    //             directionId: v.optional(v.enum(Direction)),
+    //         }),
+    //     )
+    //     .subscription(async function* ({ input, ctx, signal }) {
+    //         const repo = new TripInstancesRepository(ctx.db);
+    //         for await (const trip of repo.watchLivePositions({
+    //             ...input,
+    //             signal,
+    //         })) {
+    //             yield trip as unknown as AsSuperjsonSerialized<typeof trip>;
+    //         }
+    //     }),
 
-    liveTripStopTime: publicProcedure
-        .input(
-            v.array(
-                v.object({
-                    tripInstanceId: v.string(),
-                    stopId: v.string(),
-                }),
-            ),
-        )
-        .subscription(async function* ({ input, ctx, signal }) {
-            const repo = new TripInstancesRepository(ctx.db);
-            for await (const trip of repo.watchLiveStopTimes(input, signal)) {
-                yield trip;
-            }
-        }),
+    // liveTripStopTime: publicProcedure
+    //     .input(
+    //         v.array(
+    //             v.object({
+    //                 tripInstanceId: v.string(),
+    //                 stopId: v.string(),
+    //             }),
+    //         ),
+    //     )
+    //     .subscription(async function* ({ input, ctx, signal }) {
+    //         const repo = new TripInstancesRepository(ctx.db);
+    //         for await (const trip of repo.watchLiveStopTimes(input, signal)) {
+    //             yield trip;
+    //         }
+    //     }),
 });
