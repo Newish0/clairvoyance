@@ -112,6 +112,7 @@ export const stopTimeStaticInstances = schema
  * When updating SQL, be sure Drizzle and raw SQL is NOT out of sync to avoid type inference problems.
  */
 export const stopTimeInstances = schema.view("stop_time_instances", {
+    /** `id` is `stopTimeRealtimeInstances.id`; is only on those with `stopTimeRealtimeInstances` */
     id: integer("id"),
     tripInstanceId: integer("trip_instance_id").notNull(),
     stopTimeId: integer("stop_time_id"),

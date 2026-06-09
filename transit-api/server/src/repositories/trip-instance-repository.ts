@@ -199,15 +199,13 @@ export class TripInstancesRepository extends DataRepository {
     //         stopTime: null,
     //     }));
     // }
-
     public async findNearbyTrips({
         lat,
         lng,
         radiusMeters,
         after = new Date(),
         stillAtStopToleranceMeters = 50,
-        maxDate = getHoursInFuture(36),
-        minDate = getHoursInFuture(-12),
+        effectiveTimeToleranceSec = 20,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
     }: {
         lat: number;
@@ -215,84 +213,107 @@ export class TripInstancesRepository extends DataRepository {
         radiusMeters: number;
         after?: Date;
         stillAtStopToleranceMeters?: number;
-        maxDate?: Date;
-        minDate?: Date;
+        effectiveTimeToleranceSec?: number;
         realtimeMaxAgeMs?: number;
     }) {
         const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
 
-        const nearbyStopIds = this.db
-            .select({ id: tables.stops.id })
-            .from(tables.stops)
-            .where(
-                sql`ST_DWithin(
-                ${tables.stops.location}::geography,
-                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-                ${radiusMeters}
-            )`,
-            );
+        // Shift `after` back by the tolerance so a bus that left a few seconds
+        // ago still shows up. Only applied to the time-based filter — isStillAtStop
+        // is a physical position check and doesn't need a time fudge.
+        const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
 
-        // Most recent vehicle position per trip instance
-        const latestVehiclePosition = this.db
-            .selectDistinctOn([tables.vehiclePositions.tripInstanceId], {
-                tripInstanceId: tables.vehiclePositions.tripInstanceId,
-                shapeDistTraveled: tables.vehiclePositions.shapeDistTraveled,
-                currentStopSequence: tables.vehiclePositions.currentStopSequence,
-            })
-            .from(tables.vehiclePositions)
-            .orderBy(
-                tables.vehiclePositions.tripInstanceId,
-                sql`${tables.vehiclePositions.timestamp} DESC`,
-            )
-            .as("latest_vp");
-
-        const effectiveTime = sql<Date>`COALESCE(
-        ${views.stopTimeInstances.predictedDepartureTime},
-        ${views.stopTimeInstances.scheduledDepartureTime},
-        ${views.stopTimeInstances.predictedArrivalTime},
-        ${views.stopTimeInstances.scheduledArrivalTime}
-    )`.as("effective_time");
-
-        const distanceMeters = sql<number>`ST_Distance(
-        ${tables.stops.location}::geography,
-        ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-    )`.as("distance_meters");
-
-        // Priority order for "still at stop":
-        //   1. vehicle shapeDistTraveled <= stop shapeDistTraveled + tolerance  (both non-null)
-        //   2. vehicle currentStopSequence <= stopTimeInstance stopSequence      (stop shape dist null)
-        //   3. false — no vehicle position, fall through to effective_time filter
-        const isStillAtStop = sql<boolean>`CASE
-        WHEN
-            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
-        THEN
-            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
-        WHEN
-            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
-        THEN
-            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
-        ELSE
-            false
-    END`.as("is_still_at_stop");
-
-        return (
+        // -----------------------------------------------------------------------
+        // CTE 1: most recent vehicle position per trip instance
+        // -----------------------------------------------------------------------
+        const latestVehiclePosition = this.db.$with("latest_vp").as(
             this.db
-                .selectDistinctOn([tables.routes.id, tables.trips.direction], {
-                    stopId: tables.stops.id,
+                .selectDistinctOn([tables.vehiclePositions.tripInstanceId], {
+                    tripInstanceId: tables.vehiclePositions.tripInstanceId,
+                    shapeDistTraveled: tables.vehiclePositions.shapeDistTraveled,
+                    currentStopSequence: tables.vehiclePositions.currentStopSequence,
+                })
+                .from(tables.vehiclePositions)
+                .where(gt(tables.vehiclePositions.timestamp, realtimeThresholdDate))
+                .orderBy(
+                    tables.vehiclePositions.tripInstanceId,
+                    sql`${tables.vehiclePositions.timestamp} DESC`,
+                ),
+        );
+
+        // -----------------------------------------------------------------------
+        // CTE 2: candidate stop time instances
+        //
+        //   effectiveTime   - the best available time for "when does this bus leave (or arrive if no departure)"
+        //   isStillAtStop   - true if the vehicle hasn't passed this stop yet
+        //
+        // -----------------------------------------------------------------------
+        const candidates = this.db.$with("candidates").as(
+            this.db
+                .select({
+                    // Stop
+                    // Explicit .as() aliases are required on all three id columns —
+                    // without them Drizzle emits the raw column name "id" for all three,
+                    // which makes DISTINCT ON target the wrong column (stop id instead
+                    // of route id) and produces a broken SELECT with three "id" columns.
+                    stopId: tables.stops.id.as("stop_id"),
                     stopName: tables.stops.name,
-                    distanceMeters,
-                    routeId: tables.routes.id,
+                    distanceMeters: sql<number>`ST_Distance(
+                        ${tables.stops.location}::geography,
+                        ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+                    )`.as("distance_meters"),
+
+                    // Route
+                    routeId: tables.routes.id.as("route_id"),
                     routeShortName: tables.routes.shortName,
                     routeLongName: tables.routes.longName,
                     direction: tables.trips.direction,
-                    stopTimeInstanceId: views.stopTimeInstances.id,
+
+                    // Stop time instance
+                    stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
+                    tripInstanceId: views.stopTimeInstances.tripInstanceId,
                     scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
-                    effectiveTime,
-                    isStillAtStop,
+
+                    effectiveTime: sql<Date>`COALESCE(
+                        ${views.stopTimeInstances.predictedDepartureTime},
+                        ${views.stopTimeInstances.scheduledDepartureTime},
+                        ${views.stopTimeInstances.predictedArrivalTime},
+                        ${views.stopTimeInstances.scheduledArrivalTime}
+                    )`.as("effective_time"),
+
+                    // "Is the vehicle still at/before this stop?"
+                    //
+                    // Priority:
+                    //   1. Compare shape distance traveled - most accurate,
+                    //      but both sides must be non-null to use it.
+                    //      vehicle.shapeDistTraveled <= stop.shapeDistTraveled + tolerance
+                    //      means the vehicle hasn't gone more than `tolerance` metres
+                    //      past the stop's position on the shape.
+                    //
+                    //   2. Compare stop sequence - works when shape distances
+                    //      aren't available (some agencies don't report them or don't report accurately).
+                    //      vehicle.currentStopSequence <= stop.stopSequence
+                    //      means the vehicle hasn't passed this stop yet.
+                    //
+                    //   3. false - no vehicle position at all (trip has no
+                    //      realtime data), fall through to effectiveTime filter
+                    //      in the main query.
+                    isStillAtStop: sql<boolean>`CASE
+                        WHEN
+                            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
+                            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
+                        THEN
+                            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                        WHEN
+                            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
+                        THEN
+                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                        ELSE
+                            false
+                    END`.as("is_still_at_stop"),
                 })
                 .from(views.stopTimeInstances)
                 .innerJoin(
@@ -311,48 +332,40 @@ export class TripInstancesRepository extends DataRepository {
                     tables.routes,
                     sql`${tables.trips.routeId}               = ${tables.routes.id}`,
                 )
-                // Left join so stop times with no vehicle position still appear (fall through to effective_time)
+                // LEFT join - trips with no realtime data have no vehicle positions.
                 .leftJoin(
                     latestVehiclePosition,
                     sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
-                )
-                .where(
-                    sql`
-                ${views.stopTimeInstances.stopId} IN ${nearbyStopIds}
-                AND (
-                    -- Future departure: effective time is upcoming
-                    COALESCE(
-                        ${views.stopTimeInstances.predictedDepartureTime},
-                        ${views.stopTimeInstances.scheduledDepartureTime},
-                        ${views.stopTimeInstances.predictedArrivalTime},
-                        ${views.stopTimeInstances.scheduledArrivalTime}
-                    ) >= ${after}
-                    OR
-                    -- Vehicle is still at/before this stop even if past effective time
-                    CASE
-                        WHEN
-                            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
-                        THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
-                        WHEN
-                            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
-                        THEN
-                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
-                        ELSE
-                            false
-                    END
-                )
-            `,
-                )
-                .orderBy(
-                    tables.routes.id,
-                    tables.trips.direction,
-                    distanceMeters,
-                    sql`is_still_at_stop DESC`,
-                    effectiveTime,
-                )
+                ).where(sql`${views.stopTimeInstances.stopId} IN (
+                    SELECT id FROM ${tables.stops}
+                    WHERE ST_DWithin(
+                        ${tables.stops.location}::geography,
+                        ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+                        ${radiusMeters}
+                    )
+                )`),
         );
+
+        // -----------------------------------------------------------------------
+        // Main query: one row per route+direction
+        // -----------------------------------------------------------------------
+        return this.db
+            .with(latestVehiclePosition, candidates)
+            .selectDistinctOn([candidates.routeId, candidates.direction])
+            .from(candidates)
+            .where(
+                sql`
+                    ${candidates.isStillAtStop} = true
+                    OR ${candidates.effectiveTime} >= ${afterWithTolerance}
+                `,
+            )
+            .orderBy(
+                candidates.routeId,
+                candidates.direction,
+                candidates.distanceMeters,
+                sql`${candidates.isStillAtStop} DESC`,
+                candidates.effectiveTime,
+            );
     }
 
     // public async *watchLivePositions({
