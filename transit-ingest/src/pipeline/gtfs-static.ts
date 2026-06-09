@@ -43,7 +43,7 @@ export async function runStatic(
 
     ctx.logger.info({ url: gtfsUrl }, "Downloading GTFS archive");
 
-    const sourceResult = await downloadAndExtract(gtfsUrl);
+    const sourceResult = await downloadAndExtract(ctx.logger, gtfsUrl);
     if (sourceResult.isErr()) return err(sourceResult.error);
 
     const source = sourceResult.value;
