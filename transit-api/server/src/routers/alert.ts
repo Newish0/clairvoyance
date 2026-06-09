@@ -1,4 +1,4 @@
-import { Direction, RouteType } from "database";
+import { directionEnum, routeTypeEnum } from "database";
 import { AlertRepository } from "../repositories/alert-repository";
 import { publicProcedure, router } from "../trpc";
 import * as v from "valibot";
@@ -6,9 +6,9 @@ import { vInteger } from "../validations/helpers";
 
 const entitySelectionQuery = v.object({
     agencyId: v.optional(v.string()),
-    routeType: v.optional(v.enum(RouteType)),
+    routeType: v.optional(v.picklist(routeTypeEnum.enumValues)),
     routeId: v.optional(vInteger()),
-    direction: v.optional(v.enum(Direction)),
+    direction: v.optional(v.picklist(directionEnum.enumValues)),
     stopId: v.optional(v.union([v.string(), v.array(v.string())])),
     tripInstanceId: v.optional(v.string()),
 });
