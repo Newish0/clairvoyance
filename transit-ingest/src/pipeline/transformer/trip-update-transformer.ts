@@ -161,13 +161,11 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
             typeof tables.stopTimeRealtimeInstances.$inferInsert
         > = {};
         for (const stu of sortedStopTimeUpdates) {
-            const sti = stopTimeInstances.find(
-                (stiToComp) =>
-                    (stiToComp.stop?.stopSid &&
-                        stu.stopId &&
-                        stiToComp.stop.stopSid === stu.stopId) ||
-                    stiToComp.stopSequence === stu.stopSequence,
-            );
+            const sti =
+                stopTimeInstances.find((s) => s.stopSequence === stu.stopSequence) ??
+                stopTimeInstances.find(
+                    (s) => s.stop?.stopSid && stu.stopId && s.stop.stopSid === stu.stopId,
+                );
 
             if (!sti) {
                 continue;
@@ -247,7 +245,7 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
 
                 updatedStopTimeInstances[sti.stopSequence] = {
                     ...sti,
-                    id: undefined,
+                    id: sti.id ?? undefined,
                     predictedArrivalTime: this.posixToDate(
                         sti.scheduledArrivalTime && arrivalDelayMs !== null
                             ? (sti.scheduledArrivalTime.getTime() + arrivalDelayMs) / 1000
