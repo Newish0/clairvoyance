@@ -221,6 +221,7 @@ export const stopTimes = schema.table(
     (t) => [
         unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence),
         index("idx_stop_times_trip_id_sequence").on(t.tripId, t.stopSequence),
+        index("idx_stop_times_stop_id").on(t.stopId),
     ],
 );
 
