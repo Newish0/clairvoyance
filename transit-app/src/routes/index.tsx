@@ -50,7 +50,7 @@ function TransitApp() {
         refetch: refetchNearbyTrips,
         isFetching: isFetchingNearbyTrips,
     } = useQuery({
-        ...trpc.tripInstance.getNearby.queryOptions(throttledNearbyTripsQueryParams),
+        ...trpc.tripInstance.getNearbyActive.queryOptions(throttledNearbyTripsQueryParams),
         staleTime: 0,
         gcTime: 0,
         placeholderData: (prev) => prev, // prevent flickering

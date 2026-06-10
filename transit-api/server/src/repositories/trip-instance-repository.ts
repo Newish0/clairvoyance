@@ -5,6 +5,18 @@ import { and, asc, eq, getColumns, gt, gte, lte, sql } from "drizzle-orm";
 import { FIVE_MIN_IN_MS, getMinAgo } from "../utils/datetime";
 import { DataRepository } from "./data-repository";
 
+type NearbyTripsParams = {
+    lat: number;
+    lng: number;
+    radiusMeters: number;
+    after?: Date;
+    stillAtStopToleranceMeters?: number;
+    effectiveTimeToleranceSec?: number;
+    realtimeMaxAgeMs?: number;
+    tripInstanceLookbackHours?: number;
+    tripInstanceLookaheadHours?: number;
+};
+type NearbyTripsExclude = Array<{ routeId: number; direction: enums.Direction }>;
 export class TripInstancesRepository extends DataRepository {
     public async findById(tripInstanceId: number) {
         return this.db.query.tripInstances.findFirst({
@@ -20,7 +32,7 @@ export class TripInstancesRepository extends DataRepository {
     }
 
     /**
-     * Shared helper - reused by both findNearbyTrips and findUpcomingDepartures
+     * Shared helper - reused by findNearbyActiveTrips and findNearbyInactiveTrips
      */
     private buildLatestVehiclePositionCTE(realtimeThresholdDate: Date) {
         return this.db.$with("latest_vp").as(
@@ -39,8 +51,14 @@ export class TripInstancesRepository extends DataRepository {
         );
     }
 
-    /** one result per route+direction at nearest stop */
-    public async findNearbyTrips({
+    /**
+     * Core nearby trips implementation. Private - call findNearbyActiveTrips or
+     * findNearbyInactiveTrips instead.
+     *
+     * Returns one result per route+direction: the soonest departure at the nearest
+     * stop within radius, anchored to the given time window.
+     */
+    private async findNearbyTrips({
         lat,
         lng,
         radiusMeters,
@@ -48,23 +66,16 @@ export class TripInstancesRepository extends DataRepository {
         stillAtStopToleranceMeters = 50,
         effectiveTimeToleranceSec = 20,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
-        tripInstanceLookbackHours = 16,
-        tripInstanceLookaheadHours = 36,
-    }: {
-        lat: number;
-        lng: number;
-        radiusMeters: number;
-        after?: Date;
-        stillAtStopToleranceMeters?: number;
-        effectiveTimeToleranceSec?: number;
-        realtimeMaxAgeMs?: number;
-        tripInstanceLookbackHours?: number;
-        tripInstanceLookaheadHours?: number;
+        tripInstanceLookbackHours,
+        tripInstanceLookaheadHours,
+        exclude = [],
+    }: NearbyTripsParams & {
+        tripInstanceLookbackHours: number;
+        tripInstanceLookaheadHours: number;
+        exclude?: NearbyTripsExclude;
     }) {
         const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
         const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
-        // Prefilter tripInstances to a rolling window around `after` to cut the
-        // candidate set before the expensive joins and window function run.
         const tripInstanceFrom = new Date(
             after.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
         );
@@ -159,18 +170,16 @@ export class TripInstancesRepository extends DataRepository {
                 )
                 .where(
                     and(
-                        // Prefilter: only consider trip instances within the rolling window.
-                        // Cuts the candidate set dramatically before joins + window function run.
                         gte(tables.tripInstances.startDatetime, tripInstanceFrom),
                         lte(tables.tripInstances.startDatetime, tripInstanceTo),
                         sql`${views.stopTimeInstances.stopId} IN (
-                    SELECT id FROM ${tables.stops}
-                    WHERE ST_DWithin(
-                        ${tables.stops.location}::geography,
-                        ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-                        ${radiusMeters}
-                    )
-                )`,
+                            SELECT id FROM ${tables.stops}
+                            WHERE ST_DWithin(
+                                ${tables.stops.location}::geography,
+                                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+                                ${radiusMeters}
+                            )
+                        )`,
                     ),
                 ),
         );
@@ -193,15 +202,27 @@ export class TripInstancesRepository extends DataRepository {
                 .from(candidates),
         );
 
+        // Build the exclude filter only when needed - Postgres tuple NOT IN is clean
+        // but there's no point generating it for an empty array.
+        const excludeFilter =
+            exclude.length > 0
+                ? sql`(${annotated.routeId}, ${annotated.direction}) NOT IN (
+                    ${sql.join(
+                        exclude.map(({ routeId, direction }) => sql`(${routeId}, ${direction})`),
+                        sql`, `,
+                    )}
+                )`
+                : undefined;
+
         return this.db
             .with(latestVehiclePosition, candidates, annotated)
             .selectDistinctOn([annotated.routeId, annotated.direction])
             .from(annotated)
             .where(
-                sql`
-                ${annotated.isStillAtStop} = true
-                OR ${annotated.effectiveTime} >= ${afterWithTolerance}
-            `,
+                and(
+                    sql`${annotated.isStillAtStop} = true OR ${annotated.effectiveTime} >= ${afterWithTolerance}`,
+                    excludeFilter,
+                ),
             )
             .orderBy(
                 annotated.routeId,
@@ -210,6 +231,47 @@ export class TripInstancesRepository extends DataRepository {
                 sql`${annotated.isStillAtStop} DESC`,
                 annotated.effectiveTime,
             );
+    }
+
+    /**
+     * Active trips: routes with service in a tight window around now.
+     * Fast - small candidate set, catches anything running in the next ~36 hours.
+     */
+    public async findNearbyActiveTrips({
+        tripInstanceLookbackHours = 16,
+        tripInstanceLookaheadHours = 36,
+        ...rest
+    }: NearbyTripsParams) {
+        return this.findNearbyTrips({
+            ...rest,
+            tripInstanceLookbackHours,
+            tripInstanceLookaheadHours,
+        });
+    }
+
+    /**
+     * Inactive trips: routes with NO service in the active window but with service
+     * somewhere in a wide window (e.g. bi-weekly routes, seasonal services).
+     *
+     * Typical usage - call after findNearbyActiveTrips and pass its results as `exclude`
+     * so routes already shown in the active view don't appear here too:
+     *
+     * @example
+     *   const active = await repo.findNearbyActiveTrips({ lat, lng, radiusMeters });
+     *   const inactive = await repo.findNearbyInactiveTrips({ lat, lng, radiusMeters, exclude: active });
+     */
+    public async findNearbyInactiveTrips({
+        tripInstanceLookbackHours = 48,
+        tripInstanceLookaheadHours = 24 * 7,
+        ...rest
+    }: NearbyTripsParams & {
+        exclude?: NearbyTripsExclude;
+    }) {
+        return this.findNearbyTrips({
+            ...rest,
+            tripInstanceLookbackHours,
+            tripInstanceLookaheadHours,
+        });
     }
 
     /**
@@ -316,7 +378,7 @@ export class TripInstancesRepository extends DataRepository {
         const annotated = this.db.$with("annotated").as(
             this.db
                 .select({
-                    ...candidates._.selectedFields,
+                    ...getColumns(candidates),
                     isLast: sql<boolean>`RANK() OVER (
                         PARTITION BY
                             ${candidates.tripInstanceId},
