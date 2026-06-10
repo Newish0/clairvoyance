@@ -1,27 +1,9 @@
 import * as v from "valibot";
-import { RouteRepository } from "../repositories/route-repository";
 import { TripInstancesRepository } from "../repositories/trip-instance-repository";
-import { TripRepository } from "../repositories/trip-repository";
 import { publicProcedure, router } from "../trpc";
-import { AsSuperjsonSerialized } from "../types/utils";
-import { Direction } from "database";
 import { vInteger } from "../validations/helpers";
 
 export const tripInstanceRouter = router({
-    getFullById: publicProcedure.input(vInteger()).query(async ({ input: tripInstanceId, ctx }) => {
-        const tripInstanceRepo = new TripInstancesRepository(ctx.db);
-        const tripRepo = new TripRepository(ctx.db);
-        const routeRepo = new RouteRepository(ctx.db);
-
-        const tripInstance = await tripInstanceRepo.findById(tripInstanceId);
-        if (!tripInstance) return null;
-
-        const trip = await tripRepo.findById(tripInstance.tripId);
-        const route = await routeRepo.findById(tripInstance.routeId);
-
-        return { ...tripInstance, trip, route };
-    }),
-
     getNearby: publicProcedure
         .input(
             v.object({
@@ -40,68 +22,4 @@ export const tripInstanceRouter = router({
             const data = await repo.findNearbyTrips(input);
             return data;
         }),
-    // getNext: publicProcedure
-    //     .input(
-    //         v.object({
-    //             agencyId: v.string(),
-    //             routeId: v.string(),
-    //             directionId: v.optional(v.enum(Direction)),
-    //             stopId: v.string(),
-    //             excludedTripInstanceIds: v.optional(v.array(v.string())),
-    //         }),
-    //     )
-    //     .query(async ({ input, ctx }) => {
-    //         const trips = await new TripInstancesRepository(ctx.db).findNextAtStop(input);
-    //         return trips;
-    //     }),
-    // getByRouteStopTime: publicProcedure
-    //     .input(
-    //         v.object({
-    //             routeId: vInteger(),
-    //             direction: v.optional(v.enum(Direction)),
-    //             stopId: vInteger(),
-    //             minDatetime: v.date(),
-    //             maxDatetime: v.date(),
-    //         }),
-    //     )
-    //     .query(async ({ input, ctx }) => {
-    //         const trips = await new TripInstancesRepository(ctx.db).findByRouteStopTimeAtStop(
-    //             input,
-    //         );
-    //         return trips;
-    //     }),
-
-    // liveTripPositions: publicProcedure
-    //     .input(
-    //         v.object({
-    //             agencyId: v.optional(v.string()),
-    //             routeId: v.optional(v.string()),
-    //             directionId: v.optional(v.enum(Direction)),
-    //         }),
-    //     )
-    //     .subscription(async function* ({ input, ctx, signal }) {
-    //         const repo = new TripInstancesRepository(ctx.db);
-    //         for await (const trip of repo.watchLivePositions({
-    //             ...input,
-    //             signal,
-    //         })) {
-    //             yield trip as unknown as AsSuperjsonSerialized<typeof trip>;
-    //         }
-    //     }),
-
-    // liveTripStopTime: publicProcedure
-    //     .input(
-    //         v.array(
-    //             v.object({
-    //                 tripInstanceId: v.string(),
-    //                 stopId: v.string(),
-    //             }),
-    //         ),
-    //     )
-    //     .subscription(async function* ({ input, ctx, signal }) {
-    //         const repo = new TripInstancesRepository(ctx.db);
-    //         for await (const trip of repo.watchLiveStopTimes(input, signal)) {
-    //             yield trip;
-    //         }
-    //     }),
 });

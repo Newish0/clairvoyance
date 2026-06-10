@@ -1,7 +1,7 @@
 import * as enums from "database/models/enums";
 import * as tables from "database/models/tables";
 import * as views from "database/models/views";
-import { and, asc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lte, sql } from "drizzle-orm";
 import { FIVE_MIN_IN_MS, getMinAgo } from "../utils/datetime";
 import { DataRepository } from "./data-repository";
 
@@ -257,6 +257,105 @@ export class TripInstancesRepository extends DataRepository {
             )
             .orderBy(sql`${candidates.isStillAtStop} DESC`, candidates.effectiveTime)
             .limit(limit);
+    }
+
+    public async findDepartures({
+        stopId,
+        routeId,
+        direction,
+        from,
+        to,
+        limit = 20,
+        offset = 0,
+        stillAtStopToleranceMeters = 50,
+        realtimeMaxAgeMs = FIVE_MIN_IN_MS,
+    }: {
+        stopId: number;
+        routeId: number;
+        direction: enums.Direction;
+        from: Date;
+        to?: Date;
+        limit?: number;
+        offset?: number;
+        stillAtStopToleranceMeters?: number;
+        realtimeMaxAgeMs?: number;
+    }) {
+        const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
+        const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
+
+        const candidates = this.db.$with("candidates").as(
+            this.db
+                .select({
+                    stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
+                    tripInstanceId: views.stopTimeInstances.tripInstanceId,
+                    stopSequence: views.stopTimeInstances.stopSequence,
+                    scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
+                    predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
+                    scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
+                    predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
+
+                    effectiveTime: sql<Date>`COALESCE(
+                        ${views.stopTimeInstances.predictedDepartureTime},
+                        ${views.stopTimeInstances.scheduledDepartureTime},
+                        ${views.stopTimeInstances.predictedArrivalTime},
+                        ${views.stopTimeInstances.scheduledArrivalTime}
+                    )`.as("effective_time"),
+
+                    // Metadata only — not used for filtering here.
+                    // UI can use this to distinguish "bus is here now" from scheduled/historic.
+                    isStillAtStop: sql<boolean>`CASE
+                        WHEN
+                            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
+                            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
+                        THEN
+                            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                        WHEN
+                            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
+                        THEN
+                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                        ELSE
+                            false
+                    END`.as("is_still_at_stop"),
+                })
+                .from(views.stopTimeInstances)
+                .innerJoin(
+                    tables.stopTimes,
+                    sql`${views.stopTimeInstances.stopTimeId} = ${tables.stopTimes.id}`,
+                )
+                .innerJoin(
+                    tables.trips,
+                    sql`${tables.stopTimes.tripId}            = ${tables.trips.id}`,
+                )
+                .innerJoin(
+                    tables.routes,
+                    sql`${tables.trips.routeId}               = ${tables.routes.id}`,
+                )
+                .leftJoin(
+                    latestVehiclePosition,
+                    sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
+                )
+                .where(
+                    and(
+                        eq(views.stopTimeInstances.stopId, stopId),
+                        eq(tables.routes.id, routeId),
+                        eq(tables.trips.direction, direction),
+                    ),
+                ),
+        );
+
+        return this.db
+            .with(latestVehiclePosition, candidates)
+            .select()
+            .from(candidates)
+            .where(
+                and(
+                    gte(candidates.effectiveTime, from),
+                    to ? lte(candidates.effectiveTime, to) : undefined,
+                ),
+            )
+            .orderBy(candidates.effectiveTime)
+            .limit(limit)
+            .offset(offset);
     }
 
     // public async *watchLivePositions({
