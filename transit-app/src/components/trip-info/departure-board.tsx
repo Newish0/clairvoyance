@@ -3,6 +3,7 @@ import type { inferProcedureOutput } from "@trpc/server";
 import { AnimatePresence, motion } from "framer-motion";
 import type { AppRouter } from "../../../../transit-api/server/src";
 import { DepartureCard } from "./departure-card";
+import { differenceInMinutes } from "date-fns";
 
 type DepartureBoardProps = {
     departures: inferProcedureOutput<AppRouter["tripInstance"]["getNearby"]>;
@@ -11,19 +12,22 @@ type DepartureBoardProps = {
 export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) => {
     if (!departures.length) return <div className="p-2">No departures</div>;
 
+    const now = new Date();
+
+    const timeMin = Math.min(...departures.map((d) => differenceInMinutes(d.effectiveTime, now)));
+    const timeMax = Math.max(...departures.map((d) => differenceInMinutes(d.effectiveTime, now)));
+    const distMin = Math.min(...departures.map((d) => d.distanceMeters));
+    const distMax = Math.max(...departures.map((d) => d.distanceMeters));
+
     const grouped = Object.entries(
         departures
-            // 50/50 between time and distance
+            // 50/50 time/distance
             .toSorted((a, b) => {
-                const timeA = a.effectiveTime.getTime();
-                const timeB = b.effectiveTime.getTime();
-                const timeMin = Math.min(...departures.map((d) => d.effectiveTime.getTime()));
-                const timeMax = Math.max(...departures.map((d) => d.effectiveTime.getTime()));
-                const distMin = Math.min(...departures.map((d) => d.distanceMeters));
-                const distMax = Math.max(...departures.map((d) => d.distanceMeters));
+                const minutesA = differenceInMinutes(a.effectiveTime, now);
+                const minutesB = differenceInMinutes(b.effectiveTime, now);
 
-                const timeNormA = (timeA - timeMin) / (timeMax - timeMin) || 0;
-                const timeNormB = (timeB - timeMin) / (timeMax - timeMin) || 0;
+                const timeNormA = (minutesA - timeMin) / (timeMax - timeMin) || 0;
+                const timeNormB = (minutesB - timeMin) / (timeMax - timeMin) || 0;
                 const distNormA = (a.distanceMeters - distMin) / (distMax - distMin) || 0;
                 const distNormB = (b.distanceMeters - distMin) / (distMax - distMin) || 0;
 
@@ -33,7 +37,7 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
                 return scoreA - scoreB;
             })
             .reduce<Record<string, (typeof departures)[number][]>>((acc, departure) => {
-                const k = departure.routeId;
+                const k = departure.routeId + "-" + departure.direction;
                 acc[k] = acc[k] || [];
                 acc[k].push(departure);
                 return acc;
@@ -73,7 +77,7 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
                                         scheduledDepartureTime={departure.scheduledDepartureTime}
                                         predictedDepartureTime={departure.predictedDepartureTime}
                                         isSkipped={departure.scheduleRelationship === "SKIPPED"}
-                                        isLastTripOfDay={false /* TODO: implement this */}
+                                        isLastTripOfDay={departure.isLast}
                                     />
                                 </CarouselItem>
                             ))}
