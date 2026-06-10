@@ -3,10 +3,10 @@ agencies:
       static:
           url: https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48
           realizeInstances: true
-          ignoreFeedDup: true
+          ignoreFeedDup: false
       realtime:
           urls:
               - https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48
               - https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48
               - https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48
-          poll: 0
+          poll: 30
