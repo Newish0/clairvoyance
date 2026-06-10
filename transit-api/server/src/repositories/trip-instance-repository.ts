@@ -48,6 +48,8 @@ export class TripInstancesRepository extends DataRepository {
         stillAtStopToleranceMeters = 50,
         effectiveTimeToleranceSec = 20,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
+        tripInstanceLookbackHours = 16,
+        tripInstanceLookaheadHours = 36,
     }: {
         lat: number;
         lng: number;
@@ -56,9 +58,19 @@ export class TripInstancesRepository extends DataRepository {
         stillAtStopToleranceMeters?: number;
         effectiveTimeToleranceSec?: number;
         realtimeMaxAgeMs?: number;
+        tripInstanceLookbackHours?: number;
+        tripInstanceLookaheadHours?: number;
     }) {
         const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
         const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
+        // Prefilter tripInstances to a rolling window around `after` to cut the
+        // candidate set before the expensive joins and window function run.
+        const tripInstanceFrom = new Date(
+            after.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
+        );
+        const tripInstanceTo = new Date(
+            after.getTime() + tripInstanceLookaheadHours * 60 * 60 * 1000,
+        );
         const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
 
         const candidates = this.db.$with("candidates").as(
@@ -66,7 +78,7 @@ export class TripInstancesRepository extends DataRepository {
                 .select({
                     agencyId: tables.stops.agencyId,
 
-                    // Explicit .as() required — stops, routes, stopTimeInstances all
+                    // Explicit .as() required - stops, routes, stopTimeInstances all
                     // have an "id" column; without aliases DISTINCT ON targets the wrong one.
                     stopId: tables.stops.id.as("stop_id"),
                     stopName: tables.stops.name,
@@ -85,6 +97,7 @@ export class TripInstancesRepository extends DataRepository {
 
                     stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
                     tripInstanceId: views.stopTimeInstances.tripInstanceId,
+                    startDate: tables.tripInstances.startDate,
                     scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
@@ -136,35 +149,66 @@ export class TripInstancesRepository extends DataRepository {
                     tables.routes,
                     sql`${tables.trips.routeId}               = ${tables.routes.id}`,
                 )
+                .innerJoin(
+                    tables.tripInstances,
+                    sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
+                )
                 .leftJoin(
                     latestVehiclePosition,
                     sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
-                ).where(sql`${views.stopTimeInstances.stopId} IN (
+                )
+                .where(
+                    and(
+                        // Prefilter: only consider trip instances within the rolling window.
+                        // Cuts the candidate set dramatically before joins + window function run.
+                        gte(tables.tripInstances.startDatetime, tripInstanceFrom),
+                        lte(tables.tripInstances.startDatetime, tripInstanceTo),
+                        sql`${views.stopTimeInstances.stopId} IN (
                     SELECT id FROM ${tables.stops}
                     WHERE ST_DWithin(
                         ${tables.stops.location}::geography,
                         ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
                         ${radiusMeters}
                     )
-                )`),
+                )`,
+                    ),
+                ),
+        );
+
+        // isLast = no later departure exists for the same route+direction+stop on the same service date.
+        // RANK() instead of ROW_NUMBER() so two trips with identical effectiveTime both get marked last.
+        const annotated = this.db.$with("annotated").as(
+            this.db
+                .select({
+                    ...candidates._.selectedFields,
+                    isLast: sql<boolean>`RANK() OVER (
+                        PARTITION BY
+                            ${candidates.routeId},
+                            ${candidates.direction},
+                            ${candidates.stopId},
+                            ${candidates.startDate}
+                        ORDER BY ${candidates.effectiveTime} DESC
+                    ) = 1`.as("is_last"),
+                })
+                .from(candidates),
         );
 
         return this.db
-            .with(latestVehiclePosition, candidates)
-            .selectDistinctOn([candidates.routeId, candidates.direction])
-            .from(candidates)
+            .with(latestVehiclePosition, candidates, annotated)
+            .selectDistinctOn([annotated.routeId, annotated.direction])
+            .from(annotated)
             .where(
                 sql`
-                ${candidates.isStillAtStop} = true
-                OR ${candidates.effectiveTime} >= ${afterWithTolerance}
+                ${annotated.isStillAtStop} = true
+                OR ${annotated.effectiveTime} >= ${afterWithTolerance}
             `,
             )
             .orderBy(
-                candidates.routeId,
-                candidates.direction,
-                candidates.distanceMeters,
-                sql`${candidates.isStillAtStop} DESC`,
-                candidates.effectiveTime,
+                annotated.routeId,
+                annotated.direction,
+                annotated.distanceMeters,
+                sql`${annotated.isStillAtStop} DESC`,
+                annotated.effectiveTime,
             );
     }
 
@@ -180,6 +224,8 @@ export class TripInstancesRepository extends DataRepository {
         stillAtStopToleranceMeters = 50,
         effectiveTimeToleranceSec = 20,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
+        tripInstanceLookbackHours = 16,
+        tripInstanceLookaheadHours = 36,
     }: {
         stopId: number;
         routeId: number;
@@ -189,9 +235,17 @@ export class TripInstancesRepository extends DataRepository {
         stillAtStopToleranceMeters?: number;
         effectiveTimeToleranceSec?: number;
         realtimeMaxAgeMs?: number;
+        tripInstanceLookbackHours?: number;
+        tripInstanceLookaheadHours?: number;
     }) {
         const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
         const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
+        const tripInstanceFrom = new Date(
+            after.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
+        );
+        const tripInstanceTo = new Date(
+            after.getTime() + tripInstanceLookaheadHours * 60 * 60 * 1000,
+        );
         const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
 
         const candidates = this.db.$with("candidates").as(
@@ -200,6 +254,7 @@ export class TripInstancesRepository extends DataRepository {
                     stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
                     tripInstanceId: views.stopTimeInstances.tripInstanceId,
                     stopSequence: views.stopTimeInstances.stopSequence,
+                    startDate: tables.tripInstances.startDate,
                     scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
@@ -239,12 +294,18 @@ export class TripInstancesRepository extends DataRepository {
                     tables.routes,
                     sql`${tables.trips.routeId}               = ${tables.routes.id}`,
                 )
+                .innerJoin(
+                    tables.tripInstances,
+                    sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
+                )
                 .leftJoin(
                     latestVehiclePosition,
                     sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
                 )
                 .where(
                     and(
+                        gte(tables.tripInstances.startDatetime, tripInstanceFrom),
+                        lte(tables.tripInstances.startDatetime, tripInstanceTo),
                         eq(views.stopTimeInstances.stopId, stopId),
                         eq(tables.routes.id, routeId),
                         eq(tables.trips.direction, direction),
@@ -252,17 +313,31 @@ export class TripInstancesRepository extends DataRepository {
                 ),
         );
 
+        const annotated = this.db.$with("annotated").as(
+            this.db
+                .select({
+                    ...candidates._.selectedFields,
+                    isLast: sql<boolean>`RANK() OVER (
+                        PARTITION BY
+                            ${candidates.tripInstanceId},
+                            ${candidates.startDate}
+                        ORDER BY ${candidates.effectiveTime} DESC
+                    ) = 1`.as("is_last"),
+                })
+                .from(candidates),
+        );
+
         return this.db
-            .with(latestVehiclePosition, candidates)
+            .with(latestVehiclePosition, candidates, annotated)
             .select()
-            .from(candidates)
+            .from(annotated)
             .where(
                 sql`
-                ${candidates.isStillAtStop} = true
-                OR ${candidates.effectiveTime} >= ${afterWithTolerance}
+                ${annotated.isStillAtStop} = true
+                OR ${annotated.effectiveTime} >= ${afterWithTolerance}
             `,
             )
-            .orderBy(sql`${candidates.isStillAtStop} DESC`, candidates.effectiveTime)
+            .orderBy(sql`${annotated.isStillAtStop} DESC`, annotated.effectiveTime)
             .limit(limit);
     }
 
@@ -276,6 +351,8 @@ export class TripInstancesRepository extends DataRepository {
         offset = 0,
         stillAtStopToleranceMeters = 50,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
+        tripInstanceLookbackHours = 16,
+        tripInstanceLookaheadHours = 36,
     }: {
         stopId: number;
         routeId: number;
@@ -286,8 +363,16 @@ export class TripInstancesRepository extends DataRepository {
         offset?: number;
         stillAtStopToleranceMeters?: number;
         realtimeMaxAgeMs?: number;
+        tripInstanceLookbackHours?: number;
+        tripInstanceLookaheadHours?: number;
     }) {
         const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
+        const tripInstanceFrom = new Date(
+            from.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
+        );
+        const tripInstanceTo = new Date(
+            from.getTime() + tripInstanceLookaheadHours * 60 * 60 * 1000,
+        );
         const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
 
         const candidates = this.db.$with("candidates").as(
@@ -296,6 +381,7 @@ export class TripInstancesRepository extends DataRepository {
                     stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
                     tripInstanceId: views.stopTimeInstances.tripInstanceId,
                     stopSequence: views.stopTimeInstances.stopSequence,
+                    startDate: tables.tripInstances.startDate,
                     scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
@@ -308,7 +394,7 @@ export class TripInstancesRepository extends DataRepository {
                         ${views.stopTimeInstances.scheduledArrivalTime}
                     )`.as("effective_time"),
 
-                    // Metadata only — not used for filtering here.
+                    // Metadata only - not used for filtering here.
                     // UI can use this to distinguish "bus is here now" from scheduled/historic.
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
@@ -337,12 +423,18 @@ export class TripInstancesRepository extends DataRepository {
                     tables.routes,
                     sql`${tables.trips.routeId}               = ${tables.routes.id}`,
                 )
+                .innerJoin(
+                    tables.tripInstances,
+                    sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
+                )
                 .leftJoin(
                     latestVehiclePosition,
                     sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
                 )
                 .where(
                     and(
+                        gte(tables.tripInstances.startDatetime, tripInstanceFrom),
+                        lte(tables.tripInstances.startDatetime, tripInstanceTo),
                         eq(views.stopTimeInstances.stopId, stopId),
                         eq(tables.routes.id, routeId),
                         eq(tables.trips.direction, direction),
@@ -350,17 +442,31 @@ export class TripInstancesRepository extends DataRepository {
                 ),
         );
 
+        const annotated = this.db.$with("annotated").as(
+            this.db
+                .select({
+                    ...candidates._.selectedFields,
+                    isLast: sql<boolean>`RANK() OVER (
+                        PARTITION BY
+                            ${candidates.tripInstanceId},
+                            ${candidates.startDate}
+                        ORDER BY ${candidates.effectiveTime} DESC
+                    ) = 1`.as("is_last"),
+                })
+                .from(candidates),
+        );
+
         return this.db
-            .with(latestVehiclePosition, candidates)
+            .with(latestVehiclePosition, candidates, annotated)
             .select()
-            .from(candidates)
+            .from(annotated)
             .where(
                 and(
-                    gte(candidates.effectiveTime, from),
-                    to ? lte(candidates.effectiveTime, to) : undefined,
+                    gte(annotated.effectiveTime, from),
+                    to ? lte(annotated.effectiveTime, to) : undefined,
                 ),
             )
-            .orderBy(candidates.effectiveTime)
+            .orderBy(annotated.effectiveTime)
             .limit(limit)
             .offset(offset);
     }
