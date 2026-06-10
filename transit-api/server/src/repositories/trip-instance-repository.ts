@@ -1,7 +1,7 @@
 import * as enums from "database/models/enums";
 import * as tables from "database/models/tables";
 import * as views from "database/models/views";
-import { and, asc, eq, gt, gte, lte, sql } from "drizzle-orm";
+import { and, asc, eq, getColumns, gt, gte, lte, sql } from "drizzle-orm";
 import { FIVE_MIN_IN_MS, getMinAgo } from "../utils/datetime";
 import { DataRepository } from "./data-repository";
 
@@ -180,7 +180,7 @@ export class TripInstancesRepository extends DataRepository {
         const annotated = this.db.$with("annotated").as(
             this.db
                 .select({
-                    ...candidates._.selectedFields,
+                    ...getColumns(candidates),
                     isLast: sql<boolean>`RANK() OVER (
                         PARTITION BY
                             ${candidates.routeId},
@@ -351,8 +351,6 @@ export class TripInstancesRepository extends DataRepository {
         offset = 0,
         stillAtStopToleranceMeters = 50,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
-        tripInstanceLookbackHours = 16,
-        tripInstanceLookaheadHours = 36,
     }: {
         stopId: number;
         routeId: number;
@@ -363,16 +361,8 @@ export class TripInstancesRepository extends DataRepository {
         offset?: number;
         stillAtStopToleranceMeters?: number;
         realtimeMaxAgeMs?: number;
-        tripInstanceLookbackHours?: number;
-        tripInstanceLookaheadHours?: number;
     }) {
         const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
-        const tripInstanceFrom = new Date(
-            from.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
-        );
-        const tripInstanceTo = new Date(
-            from.getTime() + tripInstanceLookaheadHours * 60 * 60 * 1000,
-        );
         const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
 
         const candidates = this.db.$with("candidates").as(
@@ -433,8 +423,6 @@ export class TripInstancesRepository extends DataRepository {
                 )
                 .where(
                     and(
-                        gte(tables.tripInstances.startDatetime, tripInstanceFrom),
-                        lte(tables.tripInstances.startDatetime, tripInstanceTo),
                         eq(views.stopTimeInstances.stopId, stopId),
                         eq(tables.routes.id, routeId),
                         eq(tables.trips.direction, direction),
@@ -445,7 +433,7 @@ export class TripInstancesRepository extends DataRepository {
         const annotated = this.db.$with("annotated").as(
             this.db
                 .select({
-                    ...candidates._.selectedFields,
+                    ...getColumns(candidates),
                     isLast: sql<boolean>`RANK() OVER (
                         PARTITION BY
                             ${candidates.tripInstanceId},
