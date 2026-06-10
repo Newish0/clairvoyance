@@ -53,7 +53,9 @@ export class AlertRepository extends DataRepository {
         }
         if (query.stopId !== undefined) {
             const ids = Array.isArray(query.stopId) ? query.stopId : [query.stopId];
-            const idChecks: ReturnType<typeof sql>[] = ids.map((id) => sql`entity->>'stopId' = ${id}`);
+            const idChecks: ReturnType<typeof sql>[] = ids.map(
+                (id) => sql`entity->>'stopId' = ${id}`,
+            );
             idChecks.push(sql`entity->>'stopId' IS NULL`, sql`entity->>'stopId' = ''`);
             entityChecks.push(sql`(${sql.join(idChecks, sql` OR `)})`);
         }
@@ -69,6 +71,9 @@ export class AlertRepository extends DataRepository {
             );
         }
 
-        return this.db.select().from(alerts).where(and(...conditions));
+        return this.db
+            .select()
+            .from(alerts)
+            .where(and(...conditions));
     }
 }

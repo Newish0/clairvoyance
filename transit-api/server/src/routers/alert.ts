@@ -15,8 +15,8 @@ const entitySelectionQuery = v.object({
 
 export const alertRouter = router({
     getActiveAlerts: publicProcedure.input(entitySelectionQuery).query(async ({ input, ctx }) => {
-        const repo = new AlertRepository(ctx.db);
-        return repo.findAffectedActiveAlerts(input);
+        // const repo = new AlertRepository(ctx.db);
+        // return repo.findAffectedActiveAlerts(input);
     }),
     // onActiveChange: publicProcedure
     //     .input(entitySelectionQuery)

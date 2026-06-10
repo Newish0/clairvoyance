@@ -1,21 +1,19 @@
 import { shapes } from "database";
-import { DataRepository } from "./data-repository";
-import { and, eq, sql } from "drizzle-orm";
-import { Result, ok, err } from "neverthrow";
+import { sql } from "drizzle-orm";
+import { Result, err, ok } from "neverthrow";
 import * as v from "valibot";
 import {
-    parseGeoJSON,
     LineStringSchema,
-    type LineString,
+    parseGeoJSON,
     type Feature,
     type GeoJSONError,
+    type LineString,
 } from "../validations/geojson-validation";
+import { DataRepository } from "./data-repository";
 
 // Define the properties schema for Shape features
 const ShapePropertiesSchema = v.object({
     shapeId: v.number(),
-    shapeSid: v.string(),
-    agencyId: v.string(),
     distancesTraveled: v.nullable(v.array(v.number())),
 });
 
@@ -26,42 +24,18 @@ export class ShapeRepository extends DataRepository {
     public async findGeoJsonById(
         shapeId: typeof shapes.$inferSelect.id,
     ): Promise<Result<ShapeFeature | null, GeoJSONError>> {
-        const result = await this.db
-            .select({
-                id: shapes.id,
-                agencyId: shapes.agencyId,
-                shapeSid: shapes.shapeSid,
+        const shape = await this.db.query.shapes.findFirst({
+            columns: {
+                id: true,
+                distancesTraveled: true,
+            },
+            extras: {
                 pathGeoJson: sql<string>`ST_AsGeoJSON(${shapes.path})`,
-                distancesTraveled: shapes.distancesTraveled,
-            })
-            .from(shapes)
-            .where(eq(shapes.id, shapeId));
-
-        const shape = result[0];
-
-        if (!shape) {
-            return ok(null);
-        }
-
-        return this.transformShapeToGeoJson(shape);
-    }
-
-    public async findGeoJsonByAgencyAndSid(
-        agencyId: string,
-        shapeSid: string,
-    ): Promise<Result<ShapeFeature | null, GeoJSONError>> {
-        const result = await this.db
-            .select({
-                id: shapes.id,
-                agencyId: shapes.agencyId,
-                shapeSid: shapes.shapeSid,
-                pathGeoJson: sql<string>`ST_AsGeoJSON(${shapes.path})`,
-                distancesTraveled: shapes.distancesTraveled,
-            })
-            .from(shapes)
-            .where(and(eq(shapes.agencyId, agencyId), eq(shapes.shapeSid, shapeSid)));
-
-        const shape = result[0];
+            },
+            where: {
+                id: shapeId,
+            },
+        });
 
         if (!shape) {
             return ok(null);
@@ -72,8 +46,6 @@ export class ShapeRepository extends DataRepository {
 
     private transformShapeToGeoJson(shape: {
         id: number;
-        agencyId: string;
-        shapeSid: string;
         pathGeoJson: string;
         distancesTraveled: number[] | null;
     }): Result<ShapeFeature, GeoJSONError> {
@@ -89,8 +61,6 @@ export class ShapeRepository extends DataRepository {
             geometry: geometryResult.value,
             properties: {
                 shapeId: shape.id,
-                shapeSid: shape.shapeSid,
-                agencyId: shape.agencyId,
                 distancesTraveled: shape.distancesTraveled,
             },
         };
