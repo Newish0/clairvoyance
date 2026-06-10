@@ -1,7 +1,6 @@
 import * as v from "valibot";
 import { TripInstancesRepository } from "../repositories/trip-instance-repository";
 import { publicProcedure, router } from "../trpc";
-import { vInteger } from "../validations/helpers";
 
 export const tripInstanceRouter = router({
     getNearby: publicProcedure
