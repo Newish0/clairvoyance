@@ -5,7 +5,7 @@
  */
 export const limitBBox = (
     bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    n: number
+    n: number,
 ) => {
     // Normalize longitudes to [-180, 180]
     const normalizeLng = (lng: number) => ((((lng + 180) % 360) + 360) % 360) - 180;
@@ -51,4 +51,27 @@ export const limitBBox = (
         minLng: newMinLng,
         maxLng: newMaxLng,
     };
+};
+
+/**
+ * Get distance between two coordinates in km
+ */
+export const haversine = (
+    coord1: { lat: number; lng: number },
+    coord2: { lat: number; lng: number },
+): number => {
+    const R = 6371;
+
+    const lat1Rad = (coord1.lat * Math.PI) / 180;
+    const lat2Rad = (coord2.lat * Math.PI) / 180;
+    const deltaLat = ((coord2.lat - coord1.lat) * Math.PI) / 180;
+    const deltaLng = ((coord2.lng - coord1.lng) * Math.PI) / 180;
+
+    const a =
+        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
 };

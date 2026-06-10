@@ -64,6 +64,8 @@ export class TripInstancesRepository extends DataRepository {
         const candidates = this.db.$with("candidates").as(
             this.db
                 .select({
+                    agencyId: tables.stops.agencyId,
+
                     // Explicit .as() required — stops, routes, stopTimeInstances all
                     // have an "id" column; without aliases DISTINCT ON targets the wrong one.
                     stopId: tables.stops.id.as("stop_id"),
@@ -77,12 +79,17 @@ export class TripInstancesRepository extends DataRepository {
                     routeShortName: tables.routes.shortName,
                     routeLongName: tables.routes.longName,
                     direction: tables.trips.direction,
+                    routeColor: tables.routes.color,
+                    routeTextColor: tables.routes.textColor,
+                    tripHeadsign: tables.trips.headsign,
 
                     stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
+                    tripInstanceId: views.stopTimeInstances.tripInstanceId,
                     scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
+                    scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
 
                     effectiveTime: sql<Date>`COALESCE(
                         ${views.stopTimeInstances.predictedDepartureTime},

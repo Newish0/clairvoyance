@@ -5,25 +5,25 @@ import { Clock } from "lucide-react";
 import { RealTimeIndicator } from "../ui/realtime-indicator";
 import { DepartureTime } from "./depature-time";
 import { Link } from "@tanstack/react-router";
-import type { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
+import { type Direction } from "database/models/enums";
 
 export interface DepartureCardProps {
     agencyId: string;
-    routeId: string;
+    routeId: number;
     routeShortName: string;
-    routeColor?: string | null;
-    routeTextColor?: string | null;
-    tripInstanceId: string;
+    routeColor: string | null;
+    routeTextColor: string | null;
+    tripInstanceId: number;
     tripHeadsign: string;
-    stopId: string;
+    stopId: number;
     stopName: string;
-    direction?: Direction | null;
-    scheduledArrivalTime?: DateArg<Date> | null;
-    predictedArrivalTime?: DateArg<Date> | null;
-    scheduledDepartureTime?: DateArg<Date> | null;
-    predictedDepartureTime?: DateArg<Date> | null;
-    isCancelled?: boolean;
-    isLastTripOfDay?: boolean;
+    direction: Direction | null;
+    scheduledArrivalTime: DateArg<Date> | null;
+    predictedArrivalTime: DateArg<Date> | null;
+    scheduledDepartureTime: DateArg<Date> | null;
+    predictedDepartureTime: DateArg<Date> | null;
+    isSkipped: boolean;
+    isLastTripOfDay: boolean;
 }
 
 export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
@@ -41,22 +41,21 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
     const delayInSeconds =
         scheduledTime && predictedTime ? differenceInSeconds(predictedTime, scheduledTime) : null;
 
-    // TODO: Use real URL
     return (
         <Link
             to="/nt"
             search={{
                 agencyId: props.agencyId,
-                routeId: props.routeId,
-                stopId: props.stopId,
-                tripInstanceId: props.tripInstanceId,
+                routeId: props.routeId + "",
+                stopId: props.stopId + "",
+                tripInstanceId: props.tripInstanceId + "",
                 directionId: props.direction || undefined,
             }}
         >
             <div className="flex items-center justify-between py-2 border-b last:border-b-0">
                 <div className="overflow-hidden">
                     <div className="flex items-center gap-2">
-                        <div className="w-12 flex-shrink-0 flex justify-center">
+                        <div className="w-12 shrink-0 flex justify-center">
                             <Badge
                                 variant="secondary"
                                 className="text-sm font-bold"
@@ -86,8 +85,8 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                 <div className="relative overflow-visible p-2 mr-1 min-w-16">
                     <div
                         className={cn(
-                        "flex items-center justify-end space-x-1 h-8",
-                            props.isCancelled ? "line-through text-muted-foreground" : ""
+                            "flex items-center justify-end space-x-1 h-8",
+                            props.isSkipped ? "line-through text-muted-foreground" : "",
                         )}
                     >
                         {lastStopDropOffOnly && (

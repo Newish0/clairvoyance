@@ -5,10 +5,7 @@ import { motion } from "framer-motion";
 import { BusFront, Cable, Ship, Train, Drama as Tram, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Marker, type MarkerProps } from "react-map-gl/maplibre";
-import {
-    OccupancyStatus,
-    type VehiclePosition,
-} from "../../../../gtfs-processor/shared/gtfs-db-types";
+
 import { VehiclePositionDetails } from "../trip-info/vehicle-position-details";
 import {
     ResponsiveModal,
@@ -51,7 +48,7 @@ function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
             <Badge
                 variant="outline"
                 className={cn(
-                    "bg-primary-foreground/60 text-[10px] text-muted-foreground font-medium px-2 py-0.5 leading-none rounded-full backdrop-blur-sm shadow-xl border whitespace-nowrap"
+                    "bg-primary-foreground/60 text-[10px] text-muted-foreground font-medium px-2 py-0.5 leading-none rounded-full backdrop-blur-sm shadow-xl border whitespace-nowrap",
                 )}
             >
                 {displayText}
@@ -156,7 +153,7 @@ export function VehiclePositionMapMarker({
                             className={cn(
                                 "bg-primary-foreground/60 backdrop-blur-sm",
                                 "shadow-xl relative flex h-12 w-12 items-center justify-center rounded-full",
-                                hasData ? "border" : "border-2"
+                                hasData ? "border" : "border-2",
                             )}
                             style={{
                                 border: hasData
