@@ -1,5 +1,3 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-
 import { AppSettings } from "@/components/app-settings";
 import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
@@ -12,15 +10,16 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
+import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
-import { limitBBox } from "@/utils/geo";
+import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useThrottle } from "@uidotdev/usehooks";
-import { Loader, Loader2, MapPin, PinIcon, SettingsIcon, X } from "lucide-react";
+import { Loader2, MapPin, SettingsIcon, X } from "lucide-react";
+import { LngLat } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import z from "zod";
-import { LngLat } from "maplibre-gl";
-import { cn } from "@/lib/utils";
 
 const SearchSchema = z.object({
     lat: z.number().optional(),
@@ -42,12 +41,7 @@ function TransitApp() {
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
         lat: lat ?? 0,
         lng: lng ?? 0,
-        bbox: {
-            minLat: (lat ?? 0) - 0.01,
-            maxLat: (lat ?? 0) + 0.01,
-            minLng: (lng ?? 0) - 0.01,
-            maxLng: (lng ?? 0) + 0.01,
-        },
+        radiusMeters: 100,
     });
     const throttledNearbyTripsQueryParams = useThrottle(nearbyTripsQueryParams, 1000);
 
@@ -66,19 +60,11 @@ function TransitApp() {
     const closestStopName = useMemo(
         () =>
             nearbyTrips &&
-            Object.values(nearbyTrips)
-                .flatMap((directionRec) => Object.values(directionRec))
-                .flat()
-                .reduce<[number, string]>(
-                    ([distance, stopName], cur) => {
-                        const curDistance = cur.stop_time.distance;
-                        return curDistance < distance
-                            ? [curDistance, cur.stop_time.stop_name]
-                            : [distance, stopName];
-                    },
-                    [Infinity, ""]
-                )?.[1],
-        [nearbyTrips]
+            nearbyTrips.reduce(
+                (prev, curr) => (prev && prev.distanceMeters < curr.distanceMeters ? prev : curr),
+                nearbyTrips.at(0),
+            )?.stopName,
+        [nearbyTrips],
     );
 
     useEffect(() => {
@@ -95,22 +81,21 @@ function TransitApp() {
     const handleLocationChange: NonNullable<ExploreMapProps["onLocationChange"]> = useCallback(
         (lat, lng, viewBounds) => {
             if (fixedUserLocation) return;
+            const diagonalDistanceKm = haversine(
+                viewBounds.getNorthEast(),
+                viewBounds.getSouthWest(),
+            );
+            const radiusMeters = (diagonalDistanceKm * 1000) / 2;
+            const clampedRadiusMeters = Math.min(radiusMeters, 3000);
+
             setNearbyTripsQueryParams((prev) => ({
                 ...prev,
                 lat,
                 lng,
-                bbox: limitBBox(
-                    {
-                        minLat: viewBounds.getSouthWest().lat,
-                        maxLat: viewBounds.getNorthEast().lat,
-                        minLng: viewBounds.getSouthWest().lng,
-                        maxLng: viewBounds.getNorthEast().lng,
-                    },
-                    0.03
-                ),
+                radiusMeters: clampedRadiusMeters,
             }));
         },
-        [setNearbyTripsQueryParams, fixedUserLocation]
+        [setNearbyTripsQueryParams, fixedUserLocation],
     );
 
     const handleReturnToPrevPage = useCallback(() => {
@@ -170,13 +155,13 @@ function TransitApp() {
                             size={16}
                             className={cn(
                                 "animate-spin",
-                                isFetchingNearbyTrips ? "visible" : "invisible"
+                                isFetchingNearbyTrips ? "visible" : "invisible",
                             )}
                         />
                     </div>
                 </div>
                 <div className="p-2 overflow-auto rounded-xl bg-primary-foreground/60 backdrop-blur-md">
-                    <DepartureBoard departures={nearbyTrips || null} />
+                    <DepartureBoard departures={nearbyTrips || []} />
                 </div>
             </div>
         </div>
