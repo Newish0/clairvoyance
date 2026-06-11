@@ -80,6 +80,7 @@ export const stopTimeStaticInstances = schema
                 stopHeadsign: stopTimes.stopHeadsign,
                 pickupType: stopTimes.pickupType,
                 dropOffType: stopTimes.dropOffType,
+                shapeDistTraveled: stopTimes.shapeDistTraveled,
             } satisfies Record<
                 keyof Omit<
                     typeof stopTimeRealtimeInstances.$inferSelect,
@@ -119,6 +120,7 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
     stopSequence: integer("stop_sequence").notNull(),
     stopId: integer("stop_id"),
     timepoint: timepointEnum("timepoint"),
+    shapeDistTraveled: doublePrecision("shape_dist_traveled"),
     scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
     scheduledDepartureTime: timestamp("scheduled_departure_time", { withTimezone: true }),
     predictedArrivalTime: timestamp("predicted_arrival_time", { withTimezone: true }),
@@ -140,6 +142,7 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
             COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
             COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
             st.timepoint,
+            st.shape_dist_traveled,
             COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
             COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
             rt.predicted_arrival_time,
@@ -169,6 +172,7 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
             COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
             COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
             st.timepoint,
+            st.shape_dist_traveled,
             COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
             COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
             rt.predicted_arrival_time,

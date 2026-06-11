@@ -24,8 +24,31 @@ export class TripInstancesRepository extends DataRepository {
                 id: tripInstanceId,
             },
             with: {
+                trip: {
+                    columns: {
+                        headsign: true,
+                    },
+                    with: {
+                        route: {
+                            columns: {
+                                shortName: true,
+                                color: true,
+                                textColor: true,
+                            },
+                        },
+                    },
+                },
                 stopTimeInstances: {
-                    orderBy: asc(views.stopTimeInstances.stopSequence) as any,
+                    orderBy: { stopSequence: "asc" },
+                    with: {
+                        stop: {
+                            columns: {
+                                id: true,
+                                name: true,
+                                location: true,
+                            },
+                        },
+                    },
                 },
             },
         });
@@ -321,6 +344,7 @@ export class TripInstancesRepository extends DataRepository {
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
+                    lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
 
                     effectiveTime: sql<Date>`COALESCE(
                         ${views.stopTimeInstances.predictedDepartureTime},
@@ -438,6 +462,7 @@ export class TripInstancesRepository extends DataRepository {
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
+                    lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
 
                     effectiveTime: sql<Date>`COALESCE(
                         ${views.stopTimeInstances.predictedDepartureTime},

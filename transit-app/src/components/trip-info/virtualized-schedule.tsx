@@ -12,7 +12,6 @@ import {
     startOfHour,
 } from "date-fns";
 import { useEffect, useRef, useState } from "react";
-import { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 import { DatePickerDropdown } from "../ui/date-picker-dropdown";
 import { cn } from "@/lib/utils";
 import { RealTimeIndicator } from "../ui/realtime-indicator";
@@ -47,7 +46,7 @@ type HourHeaderItem = {
 type TripItem = {
     type: "trip";
     id: string;
-    tripInstance: TrpcRouterOutputs["tripInstance"]["getByRouteStopTime"][number];
+    tripInstance: TrpcRouterOutputs["tripInstance"]["getDepartures"][number];
     isActive?: boolean;
 };
 
@@ -327,7 +326,7 @@ const TripInstanceRow: React.FC<{
         <div
             className={cn(
                 "px-4 py-3 border-b hover:bg-muted/50 transition-colors",
-                isActive && "bg-muted/60"
+                isActive && "bg-muted/60",
             )}
         >
             <div className="flex items-center gap-5">
