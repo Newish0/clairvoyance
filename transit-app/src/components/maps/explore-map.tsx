@@ -21,6 +21,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { haversine } from "@/utils/geo";
 import Icon from "@mdi/react";
 import { mdiBusStop } from "@mdi/js";
+import { Link } from "@tanstack/react-router";
 
 export type ExploreMapProps = {
     fixedUserLocation?: LngLat;
@@ -147,7 +148,12 @@ const StopMarker: React.FC<{
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                 >
-                    <button
+                    <Link
+                        to="/"
+                        search={{
+                            lat,
+                            lng,
+                        }}
                         className={cn(
                             "relative flex flex-col items-center justify-center",
                             "cursor-pointer transition-transform hover:scale-110 active:scale-95",
@@ -157,7 +163,7 @@ const StopMarker: React.FC<{
                         )}
                     >
                         <Icon path={mdiBusStop} size={0.8} className="drop-shadow-md opacity-75" />
-                    </button>
+                    </Link>
 
                     <div className="absolute left-8 m-2 w-24 line-clamp-2 leading-tight opacity-75">
                         {stopName}
