@@ -15,7 +15,7 @@ import { trpc } from "@/main";
 import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useThrottle } from "@uidotdev/usehooks";
+import { useDebounce, useThrottle } from "@uidotdev/usehooks";
 import { Loader2, MapPin, SettingsIcon, X } from "lucide-react";
 import { LngLat } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +31,9 @@ export const Route = createFileRoute("/")({
     validateSearch: SearchSchema,
 });
 
+const MIN_RADIUS_METERS = 300;
+const MAX_RADIUS_METERS = 3000;
+
 function TransitApp() {
     const search = Route.useSearch();
     const router = useRouter();
@@ -45,7 +48,10 @@ function TransitApp() {
         lng: search.lng ?? 0,
         radiusMeters: 100,
     });
-    const throttledNearbyTripsQueryParams = useThrottle(nearbyTripsQueryParams, 1000);
+    const throttledNearbyTripsQueryParams = useThrottle(
+        useDebounce(nearbyTripsQueryParams, 50),
+        1000,
+    );
 
     const {
         data: nearbyTrips,
@@ -88,7 +94,10 @@ function TransitApp() {
                 viewBounds.getSouthWest(),
             );
             const radiusMeters = (diagonalDistanceKm * 1000) / 2;
-            const clampedRadiusMeters = Math.min(radiusMeters, 3000);
+            const clampedRadiusMeters = Math.min(
+                Math.max(radiusMeters, MIN_RADIUS_METERS),
+                MAX_RADIUS_METERS,
+            );
 
             setNearbyTripsQueryParams((prev) => ({
                 ...prev,

@@ -46,7 +46,7 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
     const [viewState, setViewState] = useState({
         longitude: DEFAULT_LOCATION.lng,
         latitude: DEFAULT_LOCATION.lat,
-        zoom: 15,
+        zoom: 16.5,
     });
 
     const { data: stops } = useQuery({
