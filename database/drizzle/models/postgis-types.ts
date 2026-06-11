@@ -18,6 +18,7 @@ import { customType } from "drizzle-orm/pg-core";
 // Types
 // ---------------------------------------------------------------------------
 
+/** x = longitude, y = latitude */
 export type XY = { x: number; y: number };
 export type LineCoords = [number, number][];
 

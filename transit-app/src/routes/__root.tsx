@@ -6,7 +6,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import type { AppRouter } from "../../../transit-api/server/src/index";
+import type { AppRouter } from "transit-api";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";

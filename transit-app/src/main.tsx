@@ -11,7 +11,7 @@ import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import superjson from "superjson";
-import type { AppRouter } from "../../transit-api/server/src/index.ts";
+import type { AppRouter } from "transit-api";
 
 import reportWebVitals from "./reportWebVitals.ts";
 import "./globals.css";
@@ -81,7 +81,7 @@ if (rootElement && !rootElement.innerHTML) {
     root.render(
         <StrictMode>
             <RouterProvider router={router} />
-        </StrictMode>
+        </StrictMode>,
     );
 }
 

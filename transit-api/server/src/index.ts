@@ -2,7 +2,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createContext } from "./context";
 import { appRouter } from "./app-router";
 
-export type { AppRouter } from "./app-router";
+export type { AppRouter } from "./types";
 
 const port = Bun.env.PORT || 8000;
 
