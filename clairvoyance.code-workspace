@@ -5,12 +5,8 @@
             "path": "./"
         },
         {
-            "name": "Transit API Serivce",
+            "name": "Transit API",
             "path": "./transit-api"
-        },
-        {
-            "name": "GTFS Processor",
-            "path": "./gtfs-processor"
         },
         {
             "name": "Transit Ingest",
@@ -21,11 +17,7 @@
             "path": "./transit-app"
         },
         {
-            "name": "DB Models - Python",
-            "path": "./database/python"
-        },
-        {
-            "name": "DB Models - Drizzle",
+            "name": "DB Models: Drizzle",
             "path": "./database/drizzle"
         },
     ],
