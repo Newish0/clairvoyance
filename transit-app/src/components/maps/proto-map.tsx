@@ -20,10 +20,11 @@ export const ProtoMap = (props: ComponentProps<typeof Map>) => {
             attributionControl={false}
         >
             <AttributionControl
-                position="bottom-left"
+                position="bottom-right"
                 compact={true}
                 style={{
                     opacity: 0.7,
+                    margin: 0,
                 }}
             />
             {props.children}

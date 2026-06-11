@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@mdi/js": "^7.4.47",
+    "@mdi/react": "^1.6.1",
     "@protomaps/basemaps": "^5.5.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
