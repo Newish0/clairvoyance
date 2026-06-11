@@ -14,10 +14,11 @@ import {
     type LngLatBounds,
     type ViewStateChangeEvent,
 } from "react-map-gl/maplibre";
-import type { AppRouter } from "../../../../transit-api/server/src";
+import type { AppRouter } from "transit-api";
 import { UserLocationControl, UserLocationMarker } from "./user-location";
 import { Badge } from "../ui/badge";
 import { AnimatePresence, motion } from "framer-motion";
+import { haversine } from "@/utils/geo";
 
 export type ExploreMapProps = {
     fixedUserLocation?: LngLat;
@@ -34,12 +35,7 @@ export const ExploreMap: React.FC<ExploreMapProps> = (props) => {
     const [nearbyStopQueryParams, setNearbyStopQueryParams] = useState({
         lat: viewState.latitude,
         lng: viewState.longitude,
-        bbox: {
-            minLat: 0,
-            maxLat: 0,
-            minLng: 0,
-            maxLng: 0,
-        },
+        radiusMeters: 100,
     });
     const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 2000);
 
@@ -54,24 +50,20 @@ export const ExploreMap: React.FC<ExploreMapProps> = (props) => {
     const handleMove = useCallback(
         (evt: ViewStateChangeEvent) => {
             const bounds = evt.target.getBounds();
-            const sw = bounds.getSouthWest();
-            const ne = bounds.getNorthEast();
+            const diagonalDistanceKm = haversine(bounds.getNorthEast(), bounds.getSouthWest());
+            const radiusMeters = (diagonalDistanceKm * 1000) / 2;
+            const clampedRadiusMeters = Math.min(radiusMeters, 3000);
 
             setNearbyStopQueryParams({
                 lat: evt.viewState.latitude,
                 lng: evt.viewState.longitude,
-                bbox: {
-                    minLat: sw.lat - 0.001,
-                    maxLat: ne.lat + 0.001,
-                    minLng: sw.lng - 0.001,
-                    maxLng: ne.lng + 0.001,
-                },
+                radiusMeters: clampedRadiusMeters,
             });
 
             setViewState(evt.viewState);
             props.onLocationChange?.(evt.viewState.latitude, evt.viewState.longitude, bounds);
         },
-        [setNearbyStopQueryParams, setViewState]
+        [setNearbyStopQueryParams, setViewState],
     );
 
     const handleLoad = useCallback(
@@ -79,7 +71,7 @@ export const ExploreMap: React.FC<ExploreMapProps> = (props) => {
             const bounds = evt.target.getBounds();
             props.onLocationChange?.(viewState.latitude, viewState.longitude, bounds);
         },
-        [viewState]
+        [viewState],
     );
 
     return (
@@ -110,38 +102,44 @@ const StopMarkers: React.FC<{
 }> = ({ stops, showRoutes }) => {
     const { current: map } = useMap();
 
-    const isInBound = (coord: [number, number]) => map?.getBounds().contains(coord);
+    const isInBound = (coord: { x: number; y: number }) =>
+        map?.getBounds().contains(new LngLat(coord.x, coord.y));
 
     return (
         <>
             {stops.map(
                 (stop) =>
-                    isInBound(stop.location.coordinates) && (
-                        <StopMarker key={stop._id} stop={stop} showRoutes={showRoutes} />
-                    )
+                    stop.location &&
+                    isInBound(stop.location) && (
+                        <StopMarker
+                            key={stop.id}
+                            stopId={stop.id}
+                            lng={stop.location.x}
+                            lat={stop.location.y}
+                            showRoutes={showRoutes}
+                        />
+                    ),
             )}
         </>
     );
 };
 
 const StopMarker: React.FC<{
-    stop: inferProcedureOutput<AppRouter["stop"]["getNearby"]>[number];
+    stopId: number;
+    lng: number;
+    lat: number;
     showRoutes: boolean;
-}> = ({ stop, showRoutes }) => {
-    const { data: routesAtStop } = useQuery({
-        ...trpc.stop.getNearbyRoutesByStop.queryOptions({
-            agencyId: stop.agency_id,
-            stopId: stop.stop_id,
-        }),
-        enabled: showRoutes,
-    });
+}> = ({ stopId, lng, lat, showRoutes }) => {
+    // const { data: routesAtStop } = useQuery({
+    //     ...trpc.stop.getNearbyRoutesByStop.queryOptions({
+    //         agencyId: stop.agency_id,
+    //         stopId: stop.stop_id,
+    //     }),
+    //     enabled: showRoutes,
+    // });
     return (
         <>
-            <Marker
-                longitude={stop.location.coordinates[0]}
-                latitude={stop.location.coordinates[1]}
-                anchor="bottom"
-            >
+            <Marker longitude={lng} latitude={lat} anchor="bottom">
                 <div className="relative flex items-center gap-1">
                     <button
                         className={cn(
@@ -149,13 +147,13 @@ const StopMarker: React.FC<{
                             "cursor-pointer transition-transform hover:scale-110 active:scale-95",
                             "bg-primary-foreground/60 backdrop-blur-sm",
                             "border shadow-xl h-10 w-10",
-                            "rounded-tl-full rounded-bl-full rounded-tr-full rotate-45"
+                            "rounded-tl-full rounded-bl-full rounded-tr-full rotate-45",
                         )}
                     >
                         <BusIcon size={18} className="drop-shadow-md -rotate-45" />
                     </button>
 
-                    <AnimatePresence>
+                    {/* <AnimatePresence>
                         {showRoutes && (
                             <motion.div
                                 className="absolute -right-36 w-36 space-x-0.5 space-y-0.5"
@@ -174,7 +172,7 @@ const StopMarker: React.FC<{
                                 ))}
                             </motion.div>
                         )}
-                    </AnimatePresence>
+                    </AnimatePresence> */}
                 </div>
             </Marker>
         </>

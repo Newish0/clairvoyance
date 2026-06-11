@@ -1,12 +1,12 @@
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import type { inferProcedureOutput } from "@trpc/server";
 import { AnimatePresence, motion } from "framer-motion";
-import type { AppRouter } from "../../../../transit-api/server/src";
+import type { AppRouter } from "transit-api";
 import { DepartureCard } from "./departure-card";
 import { differenceInMinutes } from "date-fns";
 
 type DepartureBoardProps = {
-    departures: inferProcedureOutput<AppRouter["tripInstance"]["getNearby"]>;
+    departures: inferProcedureOutput<AppRouter["tripInstance"]["getNearbyActive"]>;
 };
 
 export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) => {

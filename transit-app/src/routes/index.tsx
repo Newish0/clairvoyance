@@ -32,15 +32,17 @@ export const Route = createFileRoute("/")({
 });
 
 function TransitApp() {
-    const { lat, lng } = Route.useSearch();
+    const search = Route.useSearch();
     const router = useRouter();
 
     const fixedUserLocation =
-        lat !== undefined && lng !== undefined ? new LngLat(lng, lat) : undefined;
+        search.lat !== undefined && search.lng !== undefined
+            ? new LngLat(search.lng, search.lat)
+            : undefined;
 
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
-        lat: lat ?? 0,
-        lng: lng ?? 0,
+        lat: search.lat ?? 0,
+        lng: search.lng ?? 0,
         radiusMeters: 100,
     });
     const throttledNearbyTripsQueryParams = useThrottle(nearbyTripsQueryParams, 1000);
