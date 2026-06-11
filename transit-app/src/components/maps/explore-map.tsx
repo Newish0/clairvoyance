@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { useQuery } from "@tanstack/react-query";
 import type { inferProcedureOutput } from "@trpc/server";
-import { useThrottle } from "@uidotdev/usehooks";
+import { useThrottle } from "ahooks";
 import { BusIcon } from "lucide-react";
 import { LngLat, type MapLibreEvent } from "maplibre-gl";
 import { useCallback, useState } from "react";
@@ -45,7 +45,7 @@ export const ExploreMap: React.FC<ExploreMapProps> = ({
         lng: viewState.longitude,
         radiusMeters: 100,
     });
-    const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, 2000);
+    const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, { wait: 2000 });
 
     const { data: nearbyStops } = useQuery({
         ...trpc.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),

@@ -1,4 +1,5 @@
 import { AppSettings } from "@/components/app-settings";
+import { GeolocationBanner } from "@/components/geolocation-banner";
 import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,13 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
+import { useGeolocation } from "@/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useDebounce, useThrottle } from "@uidotdev/usehooks";
+import { useDebounce, useThrottle } from "ahooks";
 import { Loader2, MapPin, SettingsIcon, X } from "lucide-react";
 import { LngLat } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -42,15 +44,15 @@ function TransitApp() {
         search.lat !== undefined && search.lng !== undefined
             ? new LngLat(search.lng, search.lat)
             : undefined;
-
+    const geolocation = useGeolocation();
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
         lat: search.lat ?? 0,
         lng: search.lng ?? 0,
         radiusMeters: 100,
     });
     const throttledNearbyTripsQueryParams = useThrottle(
-        useDebounce(nearbyTripsQueryParams, 50),
-        1000,
+        useDebounce(nearbyTripsQueryParams, { wait: 50 }),
+        { wait: 1000 },
     );
 
     const {
@@ -121,6 +123,13 @@ function TransitApp() {
                     fixedUserLocation={fixedUserLocation}
                 />
             </div>
+
+            {/* <GeolocationBanner
+                className="absolute top-4 ml-100 w-sm"
+                status={geolocation.status}
+                error={geolocation.error}
+                onRequestPermission={geolocation.requestPermission}
+            /> */}
 
             <ResponsiveModal>
                 <ResponsiveModalTrigger asChild>

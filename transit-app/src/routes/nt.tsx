@@ -27,7 +27,7 @@ import { differenceInSeconds, format } from "date-fns";
 import { SettingsIcon, X } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { z } from "zod";
-import { useHover } from "@uidotdev/usehooks";
+import { useHover } from "ahooks";
 import { directionEnum } from "database/models/enums";
 
 const nextTripsSchema = z.object({
@@ -47,12 +47,6 @@ function RouteComponent() {
     const { agencyId, stopId, routeId, directionId, tripInstanceId } = Route.useSearch();
     const router = useRouter();
 
-    const { data: tripInstance } = useQuery({
-        ...trpc.tripInstance.getFullById.queryOptions(tripInstanceId!),
-        enabled: !!tripInstanceId,
-        staleTime: 30, // 30 seconds because of realtime data
-    });
-
     const { data: stops } = useQuery({
         ...trpc.stop.getStops.queryOptions({
             agencyId,
@@ -61,8 +55,8 @@ function RouteComponent() {
         enabled: !!tripInstance,
     });
 
-    const { data: nextTripInstances } = useQuery({
-        ...trpc.tripInstance.getNext.queryOptions({
+    const { data: upcomingDepartures } = useQuery({
+        ...trpc.tripInstance..queryOptions({
             agencyId,
             stopId,
             routeId,
@@ -90,7 +84,8 @@ function RouteComponent() {
         tripInstance?.stop_times.find((st) => st.stop_id === stopId)?.shape_dist_traveled ??
         undefined;
 
-    const [hoverRef, hovering] = useHover();
+    const hoverRef = useRef<HTMLDivElement>(null);
+    const hovering = useHover(hoverRef);
 
     const handleCloseNtPage = () => {
         router.history.back();

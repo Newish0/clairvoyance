@@ -1,6 +1,7 @@
+import { useGeolocation } from "@/hooks/use-geolocation";
 import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
 import { cn } from "@/lib/utils";
-import { useDebounce, useGeolocation } from "@uidotdev/usehooks";
+import { useDebounce } from "ahooks";
 import { LngLat } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, useMap } from "react-map-gl/maplibre";
@@ -59,7 +60,11 @@ export const UserLocationControl: React.FC<{
 }> = ({ geolocationAttachmentThreshold = 25 }) => {
     // --- States ---
     const { current: map } = useMap();
-    const geolocation = useGeolocation({
+    const {
+        position,
+        error: geolocationError,
+        status,
+    } = useGeolocation({
         enableHighAccuracy: true,
     });
     const [userSetLocation, setUserSetLocation] = usePersistUserSetLocation();
@@ -67,13 +72,15 @@ export const UserLocationControl: React.FC<{
     const hasSyncedUserGeolocation = useRef(false); // Ensure sync map center & userSetLocation to geolocation is done only once
 
     // --- Derived values ---
-    const debouncedGeolocation = useDebounce(geolocation, 50); // Ignore transient geolocation errors
+    const debouncedPosition = useDebounce(position, { wait: 50 });
     const userLocation = useMemo(
         () =>
-            debouncedGeolocation.longitude !== null && debouncedGeolocation.latitude !== null
-                ? new LngLat(debouncedGeolocation.longitude, debouncedGeolocation.latitude)
+            debouncedPosition &&
+            debouncedPosition.coords.longitude !== null &&
+            debouncedPosition.coords.latitude !== null
+                ? new LngLat(debouncedPosition.coords.longitude, debouncedPosition.coords.latitude)
                 : null,
-        [debouncedGeolocation]
+        [debouncedPosition],
     );
 
     // NAME: EffectOne
@@ -144,11 +151,12 @@ export const UserLocationControl: React.FC<{
     // NAME: EffectFive
     // Handle displaying errors only once instead of map update
     useEffect(() => {
-        if (debouncedGeolocation.error) {
-            console.error(debouncedGeolocation.error);
-            toast.error(`Error acquiring GPS location. ${debouncedGeolocation.error.message}`);
+        if (geolocationError) {
+            toast.error(
+                `Error acquiring GPS location. ${geolocationError.message} (${geolocationError.code})`,
+            );
         }
-    }, [debouncedGeolocation.error]);
+    }, [geolocationError]);
 
     if (!map) {
         return null;
@@ -160,7 +168,7 @@ export const UserLocationControl: React.FC<{
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat}>
                     <div
                         className={cn(
-                            "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110"
+                            "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110",
                         )}
                     ></div>
                 </Marker>
@@ -171,7 +179,7 @@ export const UserLocationControl: React.FC<{
                     className={cn(
                         "w-6 h-6 rounded-full bg-fuchsia-400 border-4 border-white hover:scale-110 active:scale-120 active:-translate-y-1 active:shadow-4xl transition-opacity duration-300",
                         isUserSetLocationActive ? "opacity-100" : "opacity-0",
-                        "hover:opacity-100"
+                        "hover:opacity-100",
                     )}
                 ></div>
             </Marker>
@@ -199,18 +207,22 @@ export const UserLocationMarker: React.FC<{
     centerMapToUserSetLocation,
 }) => {
     const { current: map } = useMap();
-    const geolocation = useGeolocation({
+    const { position } = useGeolocation({
         enableHighAccuracy: true,
     });
     const [persistedUserSetLocation] = usePersistUserSetLocation();
 
-    const debouncedGeolocation = useDebounce(geolocation, 50); // Ignore transient geolocation errors
+    const debouncedPosition = useDebounce(position, {
+        wait: 50,
+    });
     const userLocation = useMemo(
         () =>
-            debouncedGeolocation.longitude !== null && debouncedGeolocation.latitude !== null
-                ? new LngLat(debouncedGeolocation.longitude, debouncedGeolocation.latitude)
+            debouncedPosition &&
+            debouncedPosition.coords.longitude !== null &&
+            debouncedPosition.coords.latitude !== null
+                ? new LngLat(debouncedPosition.coords.longitude, debouncedPosition.coords.latitude)
                 : null,
-        [debouncedGeolocation]
+        [debouncedPosition],
     );
 
     const userSetLocation = externalUserSetLocation || persistedUserSetLocation;
@@ -229,7 +241,7 @@ export const UserLocationMarker: React.FC<{
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat}>
                     <div
                         className={cn(
-                            "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110"
+                            "w-6 h-6 rounded-full bg-sky-400 border-4 border-white hover:scale-110",
                         )}
                     ></div>
                 </Marker>
@@ -240,7 +252,7 @@ export const UserLocationMarker: React.FC<{
                     className={cn(
                         "w-6 h-6 rounded-full bg-fuchsia-400 border-4 border-white hover:scale-110 active:scale-120 active:-translate-y-1 active:shadow-4xl transition-opacity duration-300",
                         isUserSetLocationActive ? "opacity-100" : "opacity-0",
-                        "hover:opacity-100"
+                        "hover:opacity-100",
                     )}
                 ></div>
             </Marker>

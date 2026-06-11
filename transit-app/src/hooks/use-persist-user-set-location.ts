@@ -1,11 +1,13 @@
 import { DEFAULT_LOCATION } from "@/constants/location";
-import { useLocalStorage } from "@uidotdev/usehooks";
+import { useLocalStorageState } from "ahooks";
 import { LngLat } from "maplibre-gl";
 
 export function usePersistUserSetLocation() {
-    const [_userSetLocation, _saveUserSetLocation] = useLocalStorage("userSetLocation", {
-        lng: DEFAULT_LOCATION.lng,
-        lat: DEFAULT_LOCATION.lat,
+    const [_userSetLocation, _saveUserSetLocation] = useLocalStorageState("userSetLocation", {
+        defaultValue: {
+            lng: DEFAULT_LOCATION.lng,
+            lat: DEFAULT_LOCATION.lat,
+        },
     });
 
     const userSetLocation = new LngLat(_userSetLocation.lng, _userSetLocation.lat);

@@ -7,10 +7,10 @@ import { getMutedColor, withOpacity } from "@/utils/css";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { useClickAway } from "@uidotdev/usehooks";
+import { useClickAway } from "ahooks";
 import { format as formatDate, isFuture, type DateArg } from "date-fns";
 import { ChevronRight } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     Layer,
     Marker,
@@ -78,7 +78,7 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
         (evt: ViewStateChangeEvent) => {
             setViewState(evt.viewState);
         },
-        [setViewState]
+        [setViewState],
     );
 
     return (
@@ -146,13 +146,14 @@ const StopsGeojsonLayer: React.FC<{
         name?: string;
         tripStopTime?: DateArg<Date>;
     } | null>(null);
-    const stopInfoRef = useClickAway<HTMLDivElement>(() => {
+    const stopInfoRef = useRef<HTMLDivElement>(null);
+    useClickAway(() => {
         if (stopInfo) setStopInfo(null);
-    });
+    }, stopInfoRef);
 
     const atStopIndex =
         stopsGeojson?.features.findIndex(
-            (feature) => feature.properties?.stopId === props.atStopId
+            (feature) => feature.properties?.stopId === props.atStopId,
         ) ?? Infinity;
 
     const indexedStopsGeojson = stopsGeojson
@@ -214,7 +215,7 @@ const StopsGeojsonLayer: React.FC<{
 
             const stopId = feature.properties?.stopId;
             const geometry = stopsGeojson?.features.find(
-                (f) => f.properties?.stopId === stopId
+                (f) => f.properties?.stopId === stopId,
             )?.geometry;
             const lngLat = (geometry as any)?.coordinates;
             const stopTime = props.stopTimes?.find((st) => st.stop_id === stopId);
@@ -307,7 +308,7 @@ const ShapesGeojsonLayer: React.FC<{
 
     const atShapeIndex =
         shapeGeojson?.properties.distances_traveled.findIndex(
-            (dist) => dist >= atShapeDistTraveled
+            (dist) => dist >= atShapeDistTraveled,
         ) ?? 0;
 
     const beforeAtShapeGeojson = shapeGeojson
@@ -317,7 +318,7 @@ const ShapesGeojsonLayer: React.FC<{
                   ...shapeGeojson.properties,
                   distances_traveled: shapeGeojson.properties.distances_traveled.slice(
                       0,
-                      atShapeIndex + 1
+                      atShapeIndex + 1,
                   ),
               },
               geometry: {
@@ -399,8 +400,8 @@ const LiveVehiclesLayer: React.FC<{
                 onConnectionStateChange: (state) => {
                     console.log("onConnectionStateChange", state);
                 },
-            }
-        )
+            },
+        ),
     );
 
     // console.log("positions", positions);
@@ -417,7 +418,7 @@ const LiveVehiclesLayer: React.FC<{
                             position={position}
                             atStopId={atStopId}
                         />
-                    )
+                    ),
             )}
         </>
     );
