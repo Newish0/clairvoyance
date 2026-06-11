@@ -7,7 +7,7 @@ export function getCssProperty(cssVar: string) {
 }
 
 export function ensureHexColorStartsWithHash(color: string | null | undefined) {
-    if (!color) return null;
+    if (!color) return;
     return color.startsWith("#") ? color : `#${color}`;
 }
 

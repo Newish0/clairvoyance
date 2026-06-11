@@ -46,10 +46,10 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
             to="/nt"
             search={{
                 agencyId: props.agencyId,
-                routeId: props.routeId + "",
-                stopId: props.stopId + "",
-                tripInstanceId: props.tripInstanceId + "",
-                directionId: props.direction || undefined,
+                routeId: props.routeId,
+                stopId: props.stopId,
+                tripInstanceId: props.tripInstanceId,
+                direction: props.direction || undefined,
             }}
         >
             <div className="flex items-center justify-between py-2 border-b last:border-b-0">

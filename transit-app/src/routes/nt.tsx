@@ -1,9 +1,9 @@
 import { AppSettings } from "@/components/app-settings";
-import { TripMap } from "@/components/maps/trip-map";
-import { AlertCarousel } from "@/components/trip-info/alert-carousel";
+// import { TripMap } from "@/components/maps/trip-map";
+// import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
-import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
+// import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,13 +29,15 @@ import { useMemo, useRef } from "react";
 import { z } from "zod";
 import { useHover } from "ahooks";
 import { directionEnum } from "database/models/enums";
+import { Separator } from "@/components/ui/separator";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
-    stopId: z.string(),
-    routeId: z.string(),
-    directionId: z.enum(directionEnum.enumValues).optional(),
-    tripInstanceId: z.string().optional(),
+    stopId: z.coerce.number().int(),
+    stopSequence: z.coerce.number().int().optional(), // TODO: need to consider circular trips (same stopId twice)
+    routeId: z.coerce.number().int(),
+    direction: z.enum(directionEnum.enumValues).optional(),
+    tripInstanceId: z.coerce.number().int().optional(),
 });
 
 export const Route = createFileRoute("/nt")({
@@ -44,45 +46,75 @@ export const Route = createFileRoute("/nt")({
 });
 
 function RouteComponent() {
-    const { agencyId, stopId, routeId, directionId, tripInstanceId } = Route.useSearch();
+    // TODO: Check if we actually always need direction
+    const { agencyId, stopId, routeId, direction = "OUTBOUND", tripInstanceId } = Route.useSearch();
     const router = useRouter();
 
-    const { data: stops } = useQuery({
-        ...trpc.stop.getStops.queryOptions({
-            agencyId,
-            stopId: tripInstance?.stop_times.map((st) => st.stop_id)!,
-        }),
-        enabled: !!tripInstance,
+    const { data: targetTripInst } = useQuery({
+        ...trpc.tripInstance.getById.queryOptions(tripInstanceId!!),
+        enabled: tripInstanceId !== undefined,
     });
 
     const { data: upcomingDepartures } = useQuery({
-        ...trpc.tripInstance..queryOptions({
-            agencyId,
+        ...trpc.tripInstance.getUpcomingDepartures.queryOptions({
             stopId,
             routeId,
-            directionId,
-            excludedTripInstanceIds: tripInstanceId ? [tripInstanceId] : undefined,
+            direction,
+            limit: 5,
         }),
     });
 
-    const stopsMap = useMemo(
-        () => (stops ? new Map(stops.map((stop) => [stop.stop_id, stop])) : null),
-        [stops],
-    );
+    // TODO: Consider circular trips with stopSequence
+    const targetStopTimeInst = targetTripInst?.stopTimeInstances.find((st) => st.stopId === stopId);
 
-    const combinedTripInstances = useMemo(() => {
-        if (tripInstance) {
-            return [tripInstance, ...(nextTripInstances || [])].sort((a, b) => {
-                return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime();
-            });
+    const combinedResolvedDepartures = useMemo(() => {
+        if (!upcomingDepartures || !targetTripInst || !targetStopTimeInst) return [];
+
+        const resolvedUpcoming = upcomingDepartures.map(
+            (d) =>
+                ({
+                    type: "departure",
+                    departure: d,
+                }) as const,
+        );
+
+        const targetInDepartures = upcomingDepartures.some(
+            (d) => d.tripInstanceId === targetTripInst.id,
+        );
+        if (targetInDepartures) return resolvedUpcoming;
+
+        const targetAsDeparture: (typeof upcomingDepartures)[number] = {
+            tripInstanceId: targetTripInst.id,
+            stopTimeInstanceId: targetStopTimeInst.id,
+            stopSequence: targetStopTimeInst.stopSequence,
+            predictedArrivalTime: targetStopTimeInst.predictedArrivalTime,
+            predictedDepartureTime: targetStopTimeInst.predictedDepartureTime,
+            scheduledArrivalTime: targetStopTimeInst.scheduledArrivalTime,
+            scheduledDepartureTime: targetStopTimeInst.scheduledDepartureTime,
+            effectiveTime: (targetStopTimeInst.predictedDepartureTime ??
+                targetStopTimeInst.scheduledDepartureTime ??
+                targetStopTimeInst.predictedArrivalTime ??
+                targetStopTimeInst.scheduledArrivalTime)!,
+            startDate: targetTripInst.startDate,
+            lastUpdatedAt: targetStopTimeInst.lastUpdatedAt,
+            isLast: false, // Unused (any arb value)
+            isStillAtStop: false, // Unused (any arb value)
+        };
+
+        if (targetAsDeparture.effectiveTime < upcomingDepartures[0]?.effectiveTime) {
+            return [
+                { type: "departure", departure: targetAsDeparture } as const,
+                { type: "divider" } as const,
+                ...resolvedUpcoming,
+            ];
         } else {
-            return nextTripInstances || [];
+            return [
+                ...resolvedUpcoming,
+                { type: "divider" } as const,
+                { type: "departure", departure: targetAsDeparture } as const,
+            ];
         }
-    }, [tripInstance, nextTripInstances]);
-
-    const atStopDistTraveled =
-        tripInstance?.stop_times.find((st) => st.stop_id === stopId)?.shape_dist_traveled ??
-        undefined;
+    }, [targetTripInst, upcomingDepartures]);
 
     const hoverRef = useRef<HTMLDivElement>(null);
     const hovering = useHover(hoverRef);
@@ -91,14 +123,14 @@ function RouteComponent() {
         router.history.back();
     };
 
-    if (tripInstance && tripInstance.stop_times.every((st) => st.stop_id !== stopId)) {
+    if (targetTripInst && targetTripInst.stopTimeInstances.every((st) => st.stopId !== stopId)) {
         return <div>Invalid stop</div>;
     }
 
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
             <div className="w-full h-full absolute top-0 left-0">
-                <TripMap
+                {/* <TripMap
                     agencyId={agencyId}
                     routeId={routeId}
                     direction={directionId}
@@ -114,7 +146,7 @@ function RouteComponent() {
                         ensureHexColorStartsWithHash(tripInstance?.route?.route_text_color) ??
                         undefined
                     }
-                />
+                /> */}
             </div>
 
             <ResponsiveModal>
@@ -152,24 +184,24 @@ function RouteComponent() {
                             variant="secondary"
                             className="text-sm font-bold"
                             style={{
-                                backgroundColor: tripInstance?.route?.route_color
-                                    ? `#${tripInstance.route.route_color}`
-                                    : undefined,
-                                color: tripInstance?.route?.route_text_color
-                                    ? `#${tripInstance.route.route_text_color}`
-                                    : undefined,
+                                backgroundColor: ensureHexColorStartsWithHash(
+                                    targetTripInst?.trip?.route?.color,
+                                ),
+                                color: ensureHexColorStartsWithHash(
+                                    targetTripInst?.trip?.route?.textColor,
+                                ),
                             }}
                         >
-                            {tripInstance?.route?.route_short_name || "---"}
+                            {targetTripInst?.trip?.route?.shortName || "---"}
                         </Badge>
 
                         <div className="overflow-hidden">
                             <p className="font-semibold truncate">
-                                {tripInstance?.trip?.trip_headsign || "---"}
+                                {targetTripInst?.trip?.headsign || "---"}
                             </p>
 
                             <p className="text-xs text-muted-foreground truncate">
-                                At {stopsMap?.get(stopId)?.stop_name || "---"}
+                                At {targetStopTimeInst?.stop?.name || "---"}
                             </p>
                         </div>
                     </div>
@@ -187,58 +219,59 @@ function RouteComponent() {
                     }}
                 >
                     <CarouselContent>
-                        {combinedTripInstances?.map((nextTripInstance) => {
-                            const stopTime = nextTripInstance.stop_times.find(
-                                (st) => st.stop_id === stopId,
-                            );
-
-                            if (!stopTime) {
-                                // Should not get here
-                                console.error("Stop time not found");
-                                return null;
+                        {combinedResolvedDepartures.map((r) => {
+                            if (r.type === "divider") {
+                                return (
+                                    <div className="ml-4 flex gap-0.5 py-2">
+                                        <Separator key="divider" orientation="vertical" />
+                                        <Separator key="divider" orientation="vertical" />
+                                    </div>
+                                );
                             }
 
-                            const lastStopDropOffOnly = !stopTime.departure_datetime;
+                            const { departure } = r;
+
+                            const lastStopDropOffOnly =
+                                !departure.predictedDepartureTime ||
+                                !departure.scheduledDepartureTime;
 
                             const scheduledTime = lastStopDropOffOnly
-                                ? stopTime.arrival_datetime
-                                : stopTime.departure_datetime;
+                                ? departure.scheduledArrivalTime
+                                : departure.scheduledDepartureTime;
                             const predictedTime = lastStopDropOffOnly
-                                ? stopTime.predicted_arrival_datetime
-                                : stopTime.predicted_departure_datetime;
+                                ? departure.predictedArrivalTime
+                                : departure.predictedDepartureTime;
 
                             const time = predictedTime ?? scheduledTime;
-
-                            const stopTimeLastUpdated = nextTripInstance.stop_times_updated_at;
 
                             const delayInSeconds =
                                 scheduledTime &&
                                 predictedTime &&
-                                stopTimeLastUpdated &&
-                                isDataRealtime(stopTimeLastUpdated)
+                                departure.lastUpdatedAt &&
+                                isDataRealtime(departure.lastUpdatedAt)
                                     ? differenceInSeconds(predictedTime, scheduledTime)
                                     : null;
 
                             return (
                                 <CarouselItem
-                                    key={nextTripInstance._id.toString()}
+                                    key={departure.tripInstanceId}
                                     className="basis-1/3 lg:basis-1/4"
                                 >
                                     <Link
                                         to="."
                                         search={{
-                                            tripInstanceId: nextTripInstance._id.toString(),
+                                            tripInstanceId: departure.tripInstanceId,
                                             agencyId,
                                             stopId,
                                             routeId,
-                                            directionId,
+                                            direction,
                                         }}
                                         replace={true}
                                     >
                                         <Card
                                             className={cn(
-                                                "p-0 bg-card/15",
-                                                nextTripInstance._id === tripInstance?._id
+                                                "p-0 my-1 bg-card/15",
+                                                departure.tripInstanceId === targetTripInst?.id
                                                     ? "bg-card/80 dark:bg-card/60"
                                                     : "",
                                             )}
@@ -273,13 +306,13 @@ function RouteComponent() {
                                         <ResponsiveModalDescription></ResponsiveModalDescription>
                                     </ResponsiveModalHeader>
                                     <div className="p-4 overflow-auto">
-                                        <VirtualizedSchedule
+                                        {/* <VirtualizedSchedule
                                             agencyId={agencyId}
                                             routeId={routeId}
                                             stopId={stopId}
                                             activeTripInstanceId={tripInstanceId}
                                             directionId={directionId}
-                                        />
+                                        /> */}
                                     </div>
                                 </ResponsiveModalContent>
                             </ResponsiveModal>
@@ -287,52 +320,51 @@ function RouteComponent() {
                     </CarouselContent>
                 </Carousel>
 
-                <AlertCarousel
+                {/* <AlertCarousel
                     agencyId={agencyId}
                     routeId={routeId}
                     directionId={directionId}
                     tripInstanceId={tripInstanceId}
                     stopIds={tripInstance?.stop_times.map((st) => st.stop_id)}
                     // routeType={routeType}
-                />
+                /> */}
 
                 {/* Stop times */}
                 <div ref={hoverRef} className="overflow-auto">
                     <TransitRouteTimeline
                         stops={
-                            tripInstance?.stop_times.map((st) => {
-                                const stop = stopsMap?.get(st.stop_id);
-                                const stopCoordinates = stop?.location?.coordinates;
+                            targetTripInst?.stopTimeInstances.map((st) => {
                                 return {
-                                    stopName: stopCoordinates ? (
+                                    stopName: (
                                         <Link
-                                            to={`/`}
+                                            to="/"
                                             search={{
-                                                lng: stopCoordinates[0],
-                                                lat: stopCoordinates[1],
+                                                lng: st.stop?.location?.x,
+                                                lat: st.stop?.location?.y,
                                             }}
                                         >
-                                            {stop?.stop_name || "---"}
+                                            {st.stop?.name || "---"}
                                         </Link>
-                                    ) : (
-                                        <>{stop?.stop_name || "---"}</>
                                     ),
                                     stopTime: format(
-                                        st.predicted_arrival_datetime || st.arrival_datetime || "",
+                                        st.predictedArrivalTime || st.scheduledArrivalTime || "",
                                         "p",
                                     ),
                                     stopInfo: (
-                                        <TimelineStopInfo
-                                            agencyId={agencyId}
-                                            stopTimeInstance={st}
-                                            currentRouteObjectId={tripInstance.route?._id.toString()}
-                                        />
+                                        <></>
+                                        // <TimelineStopInfo
+                                        //     agencyId={agencyId}
+                                        //     stopTimeInstance={st}
+                                        //     currentRouteObjectId={tripInstance.route?._id.toString()}
+                                        // />
                                     ),
                                 };
                             }) || []
                         }
                         activeStop={
-                            tripInstance?.stop_times.findIndex((st) => st.stop_id === stopId) || -1
+                            targetTripInst?.stopTimeInstances.findIndex(
+                                (st) => st === targetStopTimeInst,
+                            ) ?? -1
                         }
                     />
                 </div>
@@ -341,33 +373,32 @@ function RouteComponent() {
     );
 }
 
-const TimelineStopInfo = ({
-    agencyId,
-    stopTimeInstance,
-    currentRouteObjectId,
-}: {
-    agencyId: string;
-    stopTimeInstance: StopTimeInstance;
-    currentRouteObjectId?: string;
-}) => {
-    const { data: routesAtStop } = useQuery({
-        ...trpc.stop.getNearbyRoutesByStop.queryOptions({
-            agencyId,
-            stopId: stopTimeInstance.stop_id,
-        }),
-    });
+// const TimelineStopInfo = ({
+//     agencyId,
+//     stopTimeInstance,
+//     currentRouteObjectId,
+// }: {
+//     agencyId: string;
+//     currentRouteObjectId?: string;
+// }) => {
+//     const { data: routesAtStop } = useQuery({
+//         ...trpc.stop.getNearbyRoutesByStop.queryOptions({
+//             agencyId,
+//             stopId: stopTimeInstance.stop_id,
+//         }),
+//     });
 
-    const filteredRoutesAtStop = routesAtStop?.filter(
-        (r) => r._id.toString() !== currentRouteObjectId,
-    );
+//     const filteredRoutesAtStop = routesAtStop?.filter(
+//         (r) => r._id.toString() !== currentRouteObjectId,
+//     );
 
-    return (
-        <div className="space-x-1 mt-1">
-            {filteredRoutesAtStop?.map((r) => (
-                <Badge key={r.route_id} variant={"outline"}>
-                    {r.route_short_name}
-                </Badge>
-            ))}
-        </div>
-    );
-};
+//     return (
+//         <div className="space-x-1 mt-1">
+//             {filteredRoutesAtStop?.map((r) => (
+//                 <Badge key={r.route_id} variant={"outline"}>
+//                     {r.route_short_name}
+//                 </Badge>
+//             ))}
+//         </div>
+//     );
+// };
