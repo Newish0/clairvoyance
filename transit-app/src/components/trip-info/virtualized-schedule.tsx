@@ -1,8 +1,10 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useBidirectionalTripInstancesByRouteStopTimes } from "@/hooks/data/use-bidirectional-trips";
+import { cn } from "@/lib/utils";
 import type { TrpcRouterOutputs } from "@/main";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { Direction } from "database/models/enums";
 import {
     addHours,
     differenceInMilliseconds,
@@ -13,15 +15,14 @@ import {
 } from "date-fns";
 import { useEffect, useRef, useState } from "react";
 import { DatePickerDropdown } from "../ui/date-picker-dropdown";
-import { cn } from "@/lib/utils";
 import { RealTimeIndicator } from "../ui/realtime-indicator";
 
 type VirtualizedScheduleProps = {
     agencyId: string;
-    routeId: string;
-    stopId: string;
-    directionId?: Direction;
-    activeTripInstanceId?: string;
+    routeId: number;
+    stopId: number;
+    direction?: Direction;
+    activeTripInstanceId?: number;
 };
 
 // Define discriminated union types for render items
@@ -46,7 +47,7 @@ type HourHeaderItem = {
 type TripItem = {
     type: "trip";
     id: string;
-    tripInstance: TrpcRouterOutputs["tripInstance"]["getDepartures"][number];
+    departure: TrpcRouterOutputs["tripInstance"]["getDepartures"][number];
     isActive?: boolean;
 };
 
@@ -57,7 +58,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
     const [currentViewingDate, setCurrentViewingDate] = useState<Date>(new Date());
     const [initialDate, setInitialDate] = useState<Date>(addHours(currentViewingDate, -3));
     const {
-        data: tripInstancePages,
+        data: departurePages,
         fetchNextPage,
         fetchPreviousPage,
         isFetchingPreviousPage,
@@ -68,10 +69,10 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         agencyId: props.agencyId,
         routeId: props.routeId,
         stopId: props.stopId,
-        directionId: props.directionId,
+        direction: props.direction,
         initialDate: initialDate,
     });
-    const tripsInstances = tripInstancePages?.pages.flat() ?? [];
+    const departures = departurePages?.pages.flat() ?? [];
     const [currentVisibleDate, setCurrentVisibleDate] = useState<Date>();
     const parentRef = useRef<HTMLDivElement>(null);
 
@@ -86,43 +87,40 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
             });
         }
 
-        let prevTripDate: Date | null = null;
-        for (const ti of tripsInstances) {
-            const departureTime =
-                ti.stop_time?.predicted_departure_datetime ?? ti.stop_time?.departure_datetime;
-
+        let prevEffectiveTime: Date | null = null;
+        for (const d of departures) {
             // Add date header if date changes
-            if (prevTripDate!?.getDate() !== departureTime?.getDate()) {
-                const headerText = departureTime
-                    ? format(departureTime, "PPPP")
+            if (prevEffectiveTime!?.getDate() !== d.effectiveTime?.getDate()) {
+                const headerText = d.effectiveTime
+                    ? format(d.effectiveTime, "PPPP")
                     : "No Departure Date";
                 workingItems.push({
                     type: "date-header",
-                    id: `header-${departureTime?.toISOString() ?? "unknown"}`,
+                    id: `header-${d.effectiveTime?.toISOString() ?? "unknown"}`,
                     headerText,
                 });
             }
 
             // Add hour header if hour changes
-            if (prevTripDate!?.getHours() !== departureTime?.getHours()) {
-                const hourText = departureTime
-                    ? format(startOfHour(departureTime), "p")
+            if (prevEffectiveTime!?.getHours() !== d.effectiveTime?.getHours()) {
+                const hourText = d.effectiveTime
+                    ? format(startOfHour(d.effectiveTime), "p")
                     : "No Departure Time";
                 workingItems.push({
                     type: "hour-header",
-                    id: `hour-${departureTime?.toISOString() ?? "unknown"}`,
+                    id: `hour-${d.effectiveTime?.toISOString() ?? "unknown"}`,
                     headerText: hourText,
                 });
             }
 
             workingItems.push({
                 type: "trip",
-                id: ti._id! + "",
-                tripInstance: ti as any,
-                isActive: props.activeTripInstanceId === ti._id.toString(),
+                id: d.tripInstanceId! + "",
+                departure: d as any,
+                isActive: props.activeTripInstanceId === d.tripInstanceId,
             });
 
-            prevTripDate = departureTime ?? null;
+            prevEffectiveTime = d.effectiveTime ?? null;
         }
 
         if (hasNextPage) {
@@ -148,16 +146,13 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
     // Scroll to the next upcoming trip on initial load.
     // Because first trip in data may NOT be the next upcoming trip (from preemptive loading of earlier trips).
     useEffect(() => {
-        if (virtualizer && tripInstancePages && parentRef.current && !hasInitialized.current) {
-            const stopTimeDiffs = tripsInstances
-                .map((ti) => {
-                    const st = ti.stop_time;
-                    return st ? (st.predicted_departure_datetime ?? st.departure_datetime) : null;
-                })
+        if (virtualizer && departurePages && parentRef.current && !hasInitialized.current) {
+            const stopTimeDiffs = departures
+                .map((d) => d.effectiveTime)
                 .filter((time) => !!time)
                 .map((time) => differenceInMilliseconds(time, currentViewingDate));
             const nextFutureTripIndex = stopTimeDiffs.findIndex((diff) => diff >= 0);
-            const tripInstanceId = tripsInstances.at(nextFutureTripIndex)?._id + "";
+            const tripInstanceId = departures.at(nextFutureTripIndex)?.tripInstanceId + "";
             const renderItemIndex = itemsToRender.findIndex((item) => item.id === tripInstanceId);
             const indexWithOffset = renderItemIndex - 2; // Show a couple items before for context (either headers or prior trips)
             virtualizer.scrollToIndex(indexWithOffset, {
@@ -165,21 +160,18 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
             });
             hasInitialized.current = true;
         }
-    }, [virtualizer, tripInstancePages]);
+    }, [virtualizer, departurePages]);
 
     // Sync current visible trip ID
     useEffect(() => {
-        if (!tripsInstances.length) return;
+        if (!departures.length) return;
         const midIndex = Math.floor(virtualItems.length / 2);
         const renderItem = itemsToRender[virtualItems[midIndex]?.index];
         if (renderItem && renderItem.type === "trip") {
-            const tripInstance = renderItem.tripInstance;
-            const stopTime = tripInstance?.stop_time;
-            const departureTime =
-                stopTime?.predicted_departure_datetime ?? stopTime?.departure_datetime;
-            if (departureTime) setCurrentVisibleDate(departureTime);
+            const effectiveTime = renderItem.departure.effectiveTime;
+            if (effectiveTime) setCurrentVisibleDate(effectiveTime);
         }
-    }, [virtualItems, tripsInstances]);
+    }, [virtualItems, departures]);
 
     // Load more data when scrolling to the end
     useEffect(() => {
@@ -246,9 +238,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
             case "hour-header":
                 return <HourHeaderRow headerText={item.headerText} />;
             case "trip":
-                return (
-                    <TripInstanceRow tripInstance={item.tripInstance} isActive={item.isActive} />
-                );
+                return <TripInstanceRow departure={item.departure} isActive={item.isActive} />;
         }
     };
 
@@ -311,13 +301,11 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
 };
 
 const TripInstanceRow: React.FC<{
-    tripInstance: TrpcRouterOutputs["tripInstance"]["getByRouteStopTime"][number];
+    departure: TrpcRouterOutputs["tripInstance"]["getDepartures"][number];
     isActive?: boolean;
-}> = ({ tripInstance, isActive }) => {
-    const stopTime = tripInstance.stop_time;
-    const scheduledTime = stopTime?.departure_datetime;
-    const predictedTime = stopTime?.predicted_departure_datetime;
-    const departureTime = predictedTime ?? scheduledTime;
+}> = ({ departure, isActive }) => {
+    const scheduledTime = departure.scheduledDepartureTime ?? departure.scheduledArrivalTime;
+    const predictedTime = departure.predictedDepartureTime ?? departure.predictedArrivalTime;
 
     const delayInSeconds =
         scheduledTime && predictedTime ? differenceInSeconds(predictedTime, scheduledTime) : null;
@@ -332,16 +320,14 @@ const TripInstanceRow: React.FC<{
             <div className="flex items-center gap-5">
                 <div className="relative">
                     <span className="font-medium">
-                        {departureTime ? format(departureTime, "p") : "---"}
+                        {departure.effectiveTime ? format(departure.effectiveTime, "p") : "---"}
                     </span>
                     {delayInSeconds !== null && (
                         <RealTimeIndicator delaySeconds={delayInSeconds} className="-mt-1 -mr-3" />
                     )}
                 </div>
 
-                <span className="text-sm text-muted-foreground">
-                    {tripInstance.trip?.trip_headsign}
-                </span>
+                <span className="text-sm text-muted-foreground">{departure.tripHeadsign}</span>
             </div>
         </div>
     );

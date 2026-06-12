@@ -1,14 +1,14 @@
 import { trpcClient } from "@/main";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import type { Direction } from "database/models/enums";
 import { addHours, addSeconds } from "date-fns";
 import { useMemo } from "react";
-import type { Direction } from "../../../../gtfs-processor/shared/gtfs-db-types";
 
 export const useBidirectionalTripInstancesByRouteStopTimes = (props: {
     agencyId: string;
-    routeId: string;
-    stopId: string;
-    directionId?: Direction;
+    routeId: number;
+    stopId: number;
+    direction?: Direction;
     initialDate?: Date;
     chunksSizeHours?: number;
 }) => {
@@ -21,20 +21,19 @@ export const useBidirectionalTripInstancesByRouteStopTimes = (props: {
             props.agencyId,
             props.routeId,
             props.stopId,
-            props.directionId,
+            props.direction,
             initialDate.getTime(),
         ],
 
         queryFn: async ({ pageParam }) => {
             const { startDate, endDate } = pageParam;
 
-            return trpcClient.tripInstance.getByRouteStopTime.query({
-                agencyId: props.agencyId,
+            return trpcClient.tripInstance.getDepartures.query({
                 routeId: props.routeId,
                 stopId: props.stopId,
-                directionId: props.directionId,
-                minDatetime: startDate,
-                maxDatetime: endDate,
+                direction: props.direction,
+                from: startDate,
+                to: endDate,
             });
         },
 

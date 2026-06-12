@@ -3,7 +3,7 @@ import { TripMap, type TripMapStopInfo } from "@/components/maps/trip-map";
 // import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
-// import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
+import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,8 +50,7 @@ export const Route = createFileRoute("/nt")({
         direction,
     }),
 
-    // TODO: Check if we actually always need direction
-    loader: async ({ deps: { stopId, routeId, direction = "OUTBOUND", tripInstanceId } }) => {
+    loader: async ({ deps: { stopId, routeId, direction, tripInstanceId } }) => {
         const upcomingDepartures = await trpcClient.tripInstance.getUpcomingDepartures.query({
             stopId,
             routeId,
@@ -125,6 +124,7 @@ function RouteComponent() {
                 targetStopTimeInst.scheduledArrivalTime)!,
             startDate: targetTripInst.startDate,
             lastUpdatedAt: targetStopTimeInst.lastUpdatedAt,
+            tripHeadsign: targetTripInst.trip?.headsign ?? null,
             isLast: false, // Unused (any arb value)
             isStillAtStop: false, // Unused (any arb value)
         };
@@ -342,13 +342,13 @@ function RouteComponent() {
                                         <ResponsiveModalDescription></ResponsiveModalDescription>
                                     </ResponsiveModalHeader>
                                     <div className="p-4 overflow-auto">
-                                        {/* <VirtualizedSchedule
-                                            agencyId={agencyId}
-                                            routeId={routeId}
-                                            stopId={stopId}
-                                            activeTripInstanceId={tripInstanceId}
-                                            directionId={directionId}
-                                        /> */}
+                                        <VirtualizedSchedule
+                                            agencyId={searchParams.agencyId}
+                                            routeId={searchParams.routeId}
+                                            stopId={searchParams.stopId}
+                                            direction={searchParams.direction}
+                                            activeTripInstanceId={targetTripInst.id}
+                                        />
                                     </div>
                                 </ResponsiveModalContent>
                             </ResponsiveModal>

@@ -56,7 +56,7 @@ export const tripInstanceRouter = router({
             v.object({
                 stopId: v.pipe(v.number(), v.integer()),
                 routeId: v.pipe(v.number(), v.integer()),
-                direction: v.picklist(directionEnum.enumValues),
+                direction: v.optional(v.picklist(directionEnum.enumValues)),
                 after: v.optional(v.date()),
                 limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(50))),
                 stillAtStopToleranceMeters: v.optional(v.number()),
@@ -76,7 +76,7 @@ export const tripInstanceRouter = router({
             v.object({
                 stopId: v.pipe(v.number(), v.integer()),
                 routeId: v.pipe(v.number(), v.integer()),
-                direction: v.picklist(directionEnum.enumValues),
+                direction: v.optional(v.picklist(directionEnum.enumValues)),
                 from: v.date(),
                 to: v.optional(v.date()),
                 limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))),
