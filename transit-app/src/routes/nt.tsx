@@ -166,7 +166,7 @@ function RouteComponent() {
                     lng: st.stop!.location!.x,
                     lat: st.stop!.location!.y,
                     shapeDistTraveled: st.shapeDistTraveled,
-                    isTarget: st.id === targetStopTimeInst?.id,
+                    isTarget: st.stopSequence === targetStopTimeInst?.stopSequence,
                 }) satisfies TripMapStopInfo,
         );
 
