@@ -314,7 +314,7 @@ export class TripInstancesRepository extends DataRepository {
     }: {
         stopId: number;
         routeId: number;
-        direction: enums.Direction;
+        direction?: enums.Direction;
         after?: Date;
         limit?: number;
         stillAtStopToleranceMeters?: number;
@@ -345,6 +345,8 @@ export class TripInstancesRepository extends DataRepository {
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
                     lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
+
+                    tripHeadsign: tables.trips.headsign,
 
                     effectiveTime: sql<Date>`COALESCE(
                         ${views.stopTimeInstances.predictedDepartureTime},
@@ -394,7 +396,7 @@ export class TripInstancesRepository extends DataRepository {
                         lte(tables.tripInstances.startDatetime, tripInstanceTo),
                         eq(views.stopTimeInstances.stopId, stopId),
                         eq(tables.routes.id, routeId),
-                        eq(tables.trips.direction, direction),
+                        direction && eq(tables.trips.direction, direction),
                     ),
                 ),
         );
@@ -440,7 +442,7 @@ export class TripInstancesRepository extends DataRepository {
     }: {
         stopId: number;
         routeId: number;
-        direction: enums.Direction;
+        direction?: enums.Direction;
         from: Date;
         to?: Date;
         limit?: number;
@@ -463,6 +465,8 @@ export class TripInstancesRepository extends DataRepository {
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
                     lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
+
+                    tripHeadsign: tables.trips.headsign,
 
                     effectiveTime: sql<Date>`COALESCE(
                         ${views.stopTimeInstances.predictedDepartureTime},
@@ -512,7 +516,7 @@ export class TripInstancesRepository extends DataRepository {
                     and(
                         eq(views.stopTimeInstances.stopId, stopId),
                         eq(tables.routes.id, routeId),
-                        eq(tables.trips.direction, direction),
+                        direction && eq(tables.trips.direction, direction),
                     ),
                 ),
         );
