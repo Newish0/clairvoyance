@@ -21,6 +21,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import * as React from "react";
 
+const ResponsiveModalContext = React.createContext<boolean>(false);
+
 interface ResponsiveModalProps extends React.ComponentPropsWithoutRef<typeof Dialog> {
     children?: React.ReactNode;
 }
@@ -65,25 +67,29 @@ function ResponsiveModal({ children, ...props }: ResponsiveModalProps) {
     const isMobile = useIsMobile();
     const ResponsiveModalComponent = isMobile ? Drawer : Dialog;
 
-    return <ResponsiveModalComponent {...props}>{children}</ResponsiveModalComponent>;
+    return (
+        <ResponsiveModalContext.Provider value={isMobile}>
+            <ResponsiveModalComponent {...props}>{children}</ResponsiveModalComponent>
+        </ResponsiveModalContext.Provider>
+    );
 }
 
 function ResponsiveModalTrigger({ className, ...props }: ResponsiveModalTriggerProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalTriggerComponent = isMobile ? DrawerTrigger : DialogTrigger;
 
     return <ResponsiveModalTriggerComponent className={className} {...props} />;
 }
 
 function ResponsiveModalClose({ className, ...props }: ResponsiveModalCloseProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalCloseComponent = isMobile ? DrawerClose : DialogClose;
 
     return <ResponsiveModalCloseComponent className={className} {...props} />;
 }
 
 function ResponsiveModalContent({ className, children, ...props }: ResponsiveModalContentProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalContentComponent = isMobile ? DrawerContent : DialogContent;
 
     return (
@@ -94,28 +100,28 @@ function ResponsiveModalContent({ className, children, ...props }: ResponsiveMod
 }
 
 function ResponsiveModalHeader({ className, ...props }: ResponsiveModalHeaderProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalHeaderComponent = isMobile ? DrawerHeader : DialogHeader;
 
     return <ResponsiveModalHeaderComponent className={className} {...props} />;
 }
 
 function ResponsiveModalFooter({ className, ...props }: ResponsiveModalFooterProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalFooterComponent = isMobile ? DrawerFooter : DialogFooter;
 
     return <ResponsiveModalFooterComponent className={className} {...props} />;
 }
 
 function ResponsiveModalTitle({ className, ...props }: ResponsiveModalTitleProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalTitleComponent = isMobile ? DrawerTitle : DialogTitle;
 
     return <ResponsiveModalTitleComponent className={className} {...props} />;
 }
 
 function ResponsiveModalDescription({ className, ...props }: ResponsiveModalDescriptionProps) {
-    const isMobile = useIsMobile();
+    const isMobile = React.useContext(ResponsiveModalContext);
     const ResponsiveModalDescriptionComponent = isMobile ? DrawerDescription : DialogDescription;
 
     return <ResponsiveModalDescriptionComponent className={className} {...props} />;
