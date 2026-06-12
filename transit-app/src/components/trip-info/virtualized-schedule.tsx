@@ -13,9 +13,10 @@ import {
     startOfDay,
     startOfHour,
 } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DatePickerDropdown } from "../ui/date-picker-dropdown";
 import { RealTimeIndicator } from "../ui/realtime-indicator";
+import { Link } from "@tanstack/react-router";
 
 type VirtualizedScheduleProps = {
     agencyId: string;
@@ -25,7 +26,6 @@ type VirtualizedScheduleProps = {
     activeTripInstanceId?: number;
 };
 
-// Define discriminated union types for render items
 type LoaderItem = {
     type: "loader";
     id: string;
@@ -54,9 +54,12 @@ type TripItem = {
 type RenderItem = LoaderItem | DateHeaderItem | HourHeaderItem | TripItem;
 
 export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) => {
-    const hasInitialized = useRef(false);
     const [currentViewingDate, setCurrentViewingDate] = useState<Date>(new Date());
     const [initialDate, setInitialDate] = useState<Date>(addHours(currentViewingDate, -3));
+
+    // Ref so toggling it doesn't re-render
+    const hasScrolledToNow = useRef(false);
+
     const {
         data: departurePages,
         fetchNextPage,
@@ -72,50 +75,43 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         direction: props.direction,
         initialDate: initialDate,
     });
+
     const departures = departurePages?.pages.flat() ?? [];
     const [currentVisibleDate, setCurrentVisibleDate] = useState<Date>();
     const parentRef = useRef<HTMLDivElement>(null);
 
+    // Flat list with date/hour headers inserted whenever the value changes
     const itemsToRender: RenderItem[] = (() => {
-        const workingItems: RenderItem[] = [];
+        const items: RenderItem[] = [];
 
         if (hasPreviousPage) {
-            workingItems.push({
-                type: "loader",
-                id: "previous-loader",
-                direction: "previous",
-            });
+            items.push({ type: "loader", id: "previous-loader", direction: "previous" });
         }
 
         let prevEffectiveTime: Date | null = null;
+
         for (const d of departures) {
-            // Add date header if date changes
             if (prevEffectiveTime!?.getDate() !== d.effectiveTime?.getDate()) {
-                const headerText = d.effectiveTime
-                    ? format(d.effectiveTime, "PPPP")
-                    : "No Departure Date";
-                workingItems.push({
+                items.push({
                     type: "date-header",
-                    id: `header-${d.effectiveTime?.toISOString() ?? "unknown"}`,
-                    headerText,
+                    id: `date-header-${d.effectiveTime?.toISOString() ?? "unknown"}`,
+                    headerText: d.effectiveTime ? format(d.effectiveTime, "PPPP") : "No date",
                 });
             }
 
-            // Add hour header if hour changes
             if (prevEffectiveTime!?.getHours() !== d.effectiveTime?.getHours()) {
-                const hourText = d.effectiveTime
-                    ? format(startOfHour(d.effectiveTime), "p")
-                    : "No Departure Time";
-                workingItems.push({
+                items.push({
                     type: "hour-header",
-                    id: `hour-${d.effectiveTime?.toISOString() ?? "unknown"}`,
-                    headerText: hourText,
+                    id: `hour-header-${d.effectiveTime?.toISOString() ?? "unknown"}`,
+                    headerText: d.effectiveTime
+                        ? format(startOfHour(d.effectiveTime), "p")
+                        : "No time",
                 });
             }
 
-            workingItems.push({
+            items.push({
                 type: "trip",
-                id: d.tripInstanceId! + "",
+                id: String(d.tripInstanceId),
                 departure: d as any,
                 isActive: props.activeTripInstanceId === d.tripInstanceId,
             });
@@ -124,14 +120,10 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         }
 
         if (hasNextPage) {
-            workingItems.push({
-                type: "loader",
-                id: "next-loader",
-                direction: "next",
-            });
+            items.push({ type: "loader", id: "next-loader", direction: "next" });
         }
 
-        return workingItems;
+        return items;
     })();
 
     const virtualizer = useVirtualizer({
@@ -139,94 +131,75 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         getScrollElement: () => parentRef.current,
         estimateSize: () => 48,
         overscan: 5,
+        // Stable item identity across prepends. Without this, every index shifts
+        // on prepend and the virtualizer can't track what was on screen.
+        getItemKey: (index) => itemsToRender[index]?.id ?? index,
+        // End-anchored mode (TanStack Virtual v3, May 2026): when items are prepended,
+        // the virtualizer finds the same keyed item and adjusts scrollTop automatically.
+        // No manual scroll math needed.
+        anchorTo: "end",
     });
 
     const virtualItems = virtualizer.getVirtualItems();
 
-    // Scroll to the next upcoming trip on initial load.
-    // Because first trip in data may NOT be the next upcoming trip (from preemptive loading of earlier trips).
-    useEffect(() => {
-        if (virtualizer && departurePages && parentRef.current && !hasInitialized.current) {
-            const stopTimeDiffs = departures
-                .map((d) => d.effectiveTime)
-                .filter((time) => !!time)
-                .map((time) => differenceInMilliseconds(time, currentViewingDate));
-            const nextFutureTripIndex = stopTimeDiffs.findIndex((diff) => diff >= 0);
-            const tripInstanceId = departures.at(nextFutureTripIndex)?.tripInstanceId + "";
-            const renderItemIndex = itemsToRender.findIndex((item) => item.id === tripInstanceId);
-            const indexWithOffset = renderItemIndex - 2; // Show a couple items before for context (either headers or prior trips)
-            virtualizer.scrollToIndex(indexWithOffset, {
-                align: "start",
-            });
-            hasInitialized.current = true;
-        }
-    }, [virtualizer, departurePages]);
+    // Scroll to the next upcoming trip on first load. useLayoutEffect so it
+    // happens before paint — no flash of the top of the list.
+    useLayoutEffect(() => {
+        if (!departurePages || !parentRef.current || hasScrolledToNow.current) return;
 
-    // Sync current visible trip ID
+        const nextTripIndex = departures.findIndex(
+            (d) =>
+                d.effectiveTime &&
+                differenceInMilliseconds(d.effectiveTime, currentViewingDate) >= 0,
+        );
+
+        if (nextTripIndex === -1) return;
+
+        const tripId = String(departures[nextTripIndex]?.tripInstanceId);
+        const renderIndex = itemsToRender.findIndex((item) => item.id === tripId);
+
+        if (renderIndex === -1) return;
+
+        // Back up 2 so the user sees a header or the prior trip for context
+        virtualizer.scrollToIndex(Math.max(0, renderIndex - 2), { align: "start" });
+        hasScrolledToNow.current = true;
+    }, [departurePages]);
+
+    // Keep the date picker in sync with whatever's in the middle of the viewport
     useEffect(() => {
         if (!departures.length) return;
-        const midIndex = Math.floor(virtualItems.length / 2);
-        const renderItem = itemsToRender[virtualItems[midIndex]?.index];
-        if (renderItem && renderItem.type === "trip") {
-            const effectiveTime = renderItem.departure.effectiveTime;
-            if (effectiveTime) setCurrentVisibleDate(effectiveTime);
+        const mid = itemsToRender[virtualItems[Math.floor(virtualItems.length / 2)]?.index];
+        if (mid?.type === "trip" && mid.departure.effectiveTime) {
+            setCurrentVisibleDate(mid.departure.effectiveTime);
         }
     }, [virtualItems, departures]);
 
-    // Load more data when scrolling to the end
+    // Fetch next page when the last rendered item is the last item in the list
     useEffect(() => {
-        if (isFetching || !hasInitialized.current) {
-            return;
-        }
-
-        const [lastItem] = [...virtualizer.getVirtualItems()].reverse();
-        if (!lastItem) {
-            return;
-        }
-
-        if (lastItem.index >= itemsToRender.length - 1) {
+        if (isFetching || !hasScrolledToNow.current) return;
+        const lastItem = virtualItems.at(-1);
+        if (lastItem && lastItem.index >= itemsToRender.length - 1 && hasNextPage) {
             fetchNextPage();
         }
-    }, [fetchNextPage, isFetching, itemsToRender.length, virtualizer.getVirtualItems()]);
+    }, [fetchNextPage, isFetching, hasNextPage, itemsToRender.length, virtualItems]);
 
-    // Load previous data when scrolling to the start
+    // Fetch previous page when close to the top. index <= 2 instead of === 0
+    // so we trigger slightly before the user hits the loader row (overscan: 5
+    // keeps index 0 rendered well before it's visible).
+    // Scroll restoration is handled by anchorTo: 'end' above — no manual math.
     useEffect(() => {
-        if (isFetching || !hasInitialized.current) {
-            return;
+        if (isFetching || !hasScrolledToNow.current) return;
+        const firstItem = virtualItems[0];
+        if (firstItem && firstItem.index <= 2 && hasPreviousPage) {
+            fetchPreviousPage();
         }
-
-        const [firstItem] = virtualizer.getVirtualItems();
-        if (!firstItem) {
-            return;
-        }
-
-        if (firstItem.index === 0) {
-            const scrollElement = parentRef.current;
-            const prevScrollHeight = scrollElement?.scrollHeight ?? 0;
-            fetchPreviousPage().then(() => {
-                // Maintain scroll position. 2 frame delays to wait for React to re-render and virtualizer to measure.
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        setTimeout(() => {
-                            if (scrollElement) {
-                                const newScrollHeight = scrollElement.scrollHeight;
-                                scrollElement.scrollTop += newScrollHeight - prevScrollHeight;
-                            }
-                        }, 0);
-                    });
-                });
-            });
-        }
-    }, [fetchPreviousPage, isFetching, virtualizer.getVirtualItems(), parentRef.current]);
+    }, [fetchPreviousPage, isFetching, hasPreviousPage, virtualItems]);
 
     const handleDatePickerChange = (date: Date | undefined) => {
-        if (date) {
-            console.log("Date picker changed to:", date);
-            // Fully reset data to load around new date
-            setCurrentViewingDate(date);
-            setInitialDate(startOfDay(date));
-            hasInitialized.current = false;
-        }
+        if (!date) return;
+        setCurrentViewingDate(date);
+        setInitialDate(startOfDay(date));
+        hasScrolledToNow.current = false; // re-run the initial scroll for the new date
     };
 
     const renderItem = (item: RenderItem) => {
@@ -238,7 +211,13 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
             case "hour-header":
                 return <HourHeaderRow headerText={item.headerText} />;
             case "trip":
-                return <TripInstanceRow departure={item.departure} isActive={item.isActive} />;
+                return (
+                    <TripInstanceRow
+                        departure={item.departure}
+                        isActive={item.isActive}
+                        {...props}
+                    />
+                );
         }
     };
 
@@ -246,14 +225,12 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         <div className="space-y-4">
             <Card className="p-4 bg-primary/5">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <DatePickerDropdown
-                            date={currentVisibleDate}
-                            onDateChange={handleDatePickerChange}
-                            label="Current Date"
-                            variant="outline"
-                        />
-                    </div>
+                    <DatePickerDropdown
+                        date={currentVisibleDate}
+                        onDateChange={handleDatePickerChange}
+                        label="Current Date"
+                        variant="outline"
+                    />
                     {isFetching && (
                         <div className="flex items-center gap-2">
                             <Spinner className="h-5 w-5" />
@@ -278,7 +255,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
                             const item = itemsToRender[virtualItem.index];
                             return (
                                 <div
-                                    key={virtualItem.index}
+                                    key={virtualItem.key} // key from getItemKey, not the array index
                                     data-index={virtualItem.index}
                                     ref={virtualizer.measureElement}
                                     style={{
@@ -303,62 +280,69 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
 const TripInstanceRow: React.FC<{
     departure: TrpcRouterOutputs["tripInstance"]["getDepartures"][number];
     isActive?: boolean;
-}> = ({ departure, isActive }) => {
+    agencyId: string;
+    routeId: number;
+    stopId: number;
+    direction?: Direction;
+}> = ({ departure, isActive, ...props }) => {
     const scheduledTime = departure.scheduledDepartureTime ?? departure.scheduledArrivalTime;
     const predictedTime = departure.predictedDepartureTime ?? departure.predictedArrivalTime;
-
     const delayInSeconds =
         scheduledTime && predictedTime ? differenceInSeconds(predictedTime, scheduledTime) : null;
 
     return (
-        <div
-            className={cn(
-                "px-4 py-3 border-b hover:bg-muted/50 transition-colors",
-                isActive && "bg-muted/60",
-            )}
+        <Link
+            to="/nt"
+            search={{
+                agencyId: props.agencyId,
+                routeId: props.routeId,
+                stopId: props.stopId,
+                direction: props.direction,
+                stopSequence: departure.stopSequence,
+                tripInstanceId: departure.tripInstanceId,
+            }}
         >
-            <div className="flex items-center gap-5">
-                <div className="relative">
-                    <span className="font-medium">
-                        {departure.effectiveTime ? format(departure.effectiveTime, "p") : "---"}
-                    </span>
-                    {delayInSeconds !== null && (
-                        <RealTimeIndicator delaySeconds={delayInSeconds} className="-mt-1 -mr-3" />
-                    )}
+            <div
+                className={cn(
+                    "px-4 py-3 border-b hover:bg-muted/50 transition-colors",
+                    isActive && "bg-muted/60",
+                )}
+            >
+                <div className="flex items-center gap-5">
+                    <div className="relative">
+                        <span className="font-medium">
+                            {departure.effectiveTime ? format(departure.effectiveTime, "p") : "---"}
+                        </span>
+                        {delayInSeconds !== null && (
+                            <RealTimeIndicator
+                                delaySeconds={delayInSeconds}
+                                className="-mt-1 -mr-3"
+                            />
+                        )}
+                    </div>
+                    <span className="text-sm text-muted-foreground">{departure.tripHeadsign}</span>
                 </div>
-
-                <span className="text-sm text-muted-foreground">{departure.tripHeadsign}</span>
             </div>
-        </div>
+        </Link>
     );
 };
 
-const LoadingRow: React.FC<{ direction: "previous" | "next" }> = ({ direction }) => {
-    return (
-        <div className="px-4 py-3 border-b bg-secondary/70">
-            <div className="font-medium">
-                Loading {direction === "previous" ? "previous" : "more"} trips...
-            </div>
+const LoadingRow: React.FC<{ direction: "previous" | "next" }> = ({ direction }) => (
+    <div className="px-4 py-3 border-b bg-secondary/70">
+        <div className="font-medium">
+            Loading {direction === "previous" ? "previous" : "more"} trips...
         </div>
-    );
-};
+    </div>
+);
 
-const DateHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => {
-    return (
-        <div className="px-4 py-3 border-b bg-background/70">
-            <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold">{headerText}</span>
-            </div>
-        </div>
-    );
-};
+const DateHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => (
+    <div className="px-4 py-3 border-b bg-background/70">
+        <span className="text-lg font-semibold">{headerText}</span>
+    </div>
+);
 
-const HourHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => {
-    return (
-        <div className="px-4 py-2 border-b bg-muted/50">
-            <div className="flex items-center h-full">
-                <span className="text-sm text-muted-foreground">{headerText}</span>
-            </div>
-        </div>
-    );
-};
+const HourHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => (
+    <div className="px-4 py-2 border-b bg-muted/50">
+        <span className="text-sm text-muted-foreground">{headerText}</span>
+    </div>
+);

@@ -236,8 +236,6 @@ const StopsGeojsonLayer: React.FC<{
         };
     }, [map, setFocusedStopInfo, props.stopInfos]);
 
-    console.log("set focused stop", focusedStopInfo);
-
     return (
         <>
             <Source type="geojson" data={indexedStopsGeojson}>
