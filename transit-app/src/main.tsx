@@ -18,6 +18,7 @@ import "./globals.css";
 
 import { routeTree } from "./routeTree.gen";
 import type { inferRouterOutputs } from "@trpc/server";
+import PageLoader from "./components/page-loader.tsx";
 
 export const queryClient = new QueryClient();
 
@@ -61,7 +62,7 @@ const router = createRouter({
     scrollRestoration: true,
     defaultStructuralSharing: true,
     defaultPreloadStaleTime: 0,
-    defaultPendingComponent: () => <div className={`p-2 text-2xl`}>Loading spinner goes here</div>,
+    defaultPendingComponent: () => <PageLoader />,
     Wrap: function WrapComponent({ children }) {
         return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
     },
