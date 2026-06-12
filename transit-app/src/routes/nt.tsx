@@ -1,5 +1,5 @@
 import { AppSettings } from "@/components/app-settings";
-// import { TripMap } from "@/components/maps/trip-map";
+import { TripMap, type TripMapStopInfo } from "@/components/maps/trip-map";
 // import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
@@ -18,11 +18,11 @@ import {
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
 import { cn } from "@/lib/utils";
-import { trpc } from "@/main";
+import { trpc, trpcClient } from "@/main";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
 import { isDataRealtime } from "@/utils/date";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter, redirect } from "@tanstack/react-router";
 import { differenceInSeconds, format } from "date-fns";
 import { SettingsIcon, X } from "lucide-react";
 import { useMemo, useRef } from "react";
@@ -43,29 +43,57 @@ const nextTripsSchema = z.object({
 export const Route = createFileRoute("/nt")({
     component: RouteComponent,
     validateSearch: nextTripsSchema,
-});
+    loaderDeps: ({ search: { tripInstanceId, stopId, routeId, direction } }) => ({
+        tripInstanceId,
+        stopId,
+        routeId,
+        direction,
+    }),
 
-function RouteComponent() {
     // TODO: Check if we actually always need direction
-    const { agencyId, stopId, routeId, direction = "OUTBOUND", tripInstanceId } = Route.useSearch();
-    const router = useRouter();
-
-    const { data: targetTripInst } = useQuery({
-        ...trpc.tripInstance.getById.queryOptions(tripInstanceId!!),
-        enabled: tripInstanceId !== undefined,
-    });
-
-    const { data: upcomingDepartures } = useQuery({
-        ...trpc.tripInstance.getUpcomingDepartures.queryOptions({
+    loader: async ({ deps: { stopId, routeId, direction = "OUTBOUND", tripInstanceId } }) => {
+        const upcomingDepartures = await trpcClient.tripInstance.getUpcomingDepartures.query({
             stopId,
             routeId,
             direction,
             limit: 5,
-        }),
-    });
+        });
 
-    // TODO: Consider circular trips with stopSequence
-    const targetStopTimeInst = targetTripInst?.stopTimeInstances.find((st) => st.stopId === stopId);
+        if (!upcomingDepartures.length) {
+            throw new Error(
+                `No departures found for stopId: ${stopId}, routeId: ${routeId}, direction: ${direction}`,
+            );
+        }
+
+        const resolvedTripInstanceId = tripInstanceId ?? upcomingDepartures[0].tripInstanceId;
+
+        const targetTripInst = await trpcClient.tripInstance.getById.query(resolvedTripInstanceId);
+
+        if (!targetTripInst) {
+            throw new Error(`No trip found for tripInstanceId: ${resolvedTripInstanceId}`);
+        }
+
+        // TODO: Consider circular trips with stopSequence
+        const targetStopTimeInst = targetTripInst?.stopTimeInstances.find(
+            (st) => st.stopId === stopId,
+        );
+
+        if (targetTripInst.stopTimeInstances.every((st) => st.stopId !== stopId)) {
+            throw new Error(
+                `No stopTime found for stopId: ${stopId} on tripInstanceId: ${tripInstanceId}`,
+            );
+        }
+
+        return { upcomingDepartures, targetTripInst, targetStopTimeInst };
+    },
+    // TODO: Add real error component
+    errorComponent: ({ error }) => <div>{error.message}</div>,
+});
+
+function RouteComponent() {
+    const searchParams = Route.useSearch();
+    const { upcomingDepartures, targetTripInst, targetStopTimeInst } = Route.useLoaderData();
+    const router = useRouter();
 
     const combinedResolvedDepartures = useMemo(() => {
         if (!upcomingDepartures || !targetTripInst || !targetStopTimeInst) return [];
@@ -123,30 +151,37 @@ function RouteComponent() {
         router.history.back();
     };
 
-    if (targetTripInst && targetTripInst.stopTimeInstances.every((st) => st.stopId !== stopId)) {
-        return <div>Invalid stop</div>;
-    }
+    const tripMapStopInfos: TripMapStopInfo[] = targetTripInst.stopTimeInstances
+        .filter((st) => st.stop && st.stop.location)
+        .map(
+            (st) =>
+                ({
+                    stopId: st.stop!.id,
+                    sequence: st.stopSequence,
+                    effectiveTime: (st.predictedArrivalTime ??
+                        st.scheduledArrivalTime ??
+                        st.predictedDepartureTime ??
+                        st.scheduledDepartureTime)!,
+                    name: st.stop!.name || "Unknown Stop",
+                    lng: st.stop!.location!.x,
+                    lat: st.stop!.location!.y,
+                    shapeDistTraveled: st.shapeDistTraveled,
+                    isTarget: st.id === targetStopTimeInst?.id,
+                }) satisfies TripMapStopInfo,
+        );
 
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
             <div className="w-full h-full absolute top-0 left-0">
-                {/* <TripMap
-                    agencyId={agencyId}
-                    routeId={routeId}
-                    direction={directionId}
-                    atStopId={stopId}
-                    atStopDistTraveled={atStopDistTraveled}
-                    stopIds={tripInstance?.stop_times.map((st) => st.stop_id) ?? []}
-                    stopTimes={tripInstance?.stop_times}
-                    shapeObjectId={tripInstance?.shape ?? undefined}
-                    routeColor={
-                        ensureHexColorStartsWithHash(tripInstance?.route?.route_color) ?? undefined
-                    }
-                    routeTextColor={
-                        ensureHexColorStartsWithHash(tripInstance?.route?.route_text_color) ??
-                        undefined
-                    }
-                /> */}
+                <TripMap
+                    routeId={targetTripInst.routeId}
+                    shapeId={targetTripInst.shapeId}
+                    stopInfos={tripMapStopInfos}
+                    routeColor={ensureHexColorStartsWithHash(targetTripInst.trip?.route?.color)}
+                    routeTextColor={ensureHexColorStartsWithHash(
+                        targetTripInst.trip?.route?.textColor,
+                    )}
+                />
             </div>
 
             <ResponsiveModal>
@@ -222,9 +257,9 @@ function RouteComponent() {
                         {combinedResolvedDepartures.map((r) => {
                             if (r.type === "divider") {
                                 return (
-                                    <div className="ml-4 flex gap-0.5 py-2">
-                                        <Separator key="divider" orientation="vertical" />
-                                        <Separator key="divider" orientation="vertical" />
+                                    <div key="divider" className="ml-4 flex gap-0.5 py-2">
+                                        <Separator orientation="vertical" />
+                                        <Separator orientation="vertical" />
                                     </div>
                                 );
                             }
@@ -261,10 +296,11 @@ function RouteComponent() {
                                         to="."
                                         search={{
                                             tripInstanceId: departure.tripInstanceId,
-                                            agencyId,
-                                            stopId,
-                                            routeId,
-                                            direction,
+                                            agencyId: searchParams.agencyId,
+                                            stopId: searchParams.stopId,
+                                            stopSequence: searchParams.stopSequence,
+                                            routeId: searchParams.routeId,
+                                            direction: searchParams.direction,
                                         }}
                                         replace={true}
                                     >
