@@ -55,17 +55,13 @@ function TransitApp() {
         { wait: 1000 },
     );
 
-    const {
-        data: nearbyTrips,
-        refetch: refetchNearbyTrips,
-        isFetching: isFetchingNearbyTrips,
-    } = useQuery({
+    const { data: nearbyTrips, isFetching: isFetchingNearbyTrips } = useQuery({
         ...trpc.tripInstance.getNearbyActive.queryOptions(throttledNearbyTripsQueryParams),
         staleTime: 0,
         gcTime: 0,
-        placeholderData: (prev) => prev, // prevent flickering
+        placeholderData: (prev) => prev, // prevent flickering,
+        refetchInterval: 60_000,
     });
-    const nearbyTripsRefetchIntervalId = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const closestStopName = useMemo(
         () =>
@@ -76,17 +72,6 @@ function TransitApp() {
             )?.stopName,
         [nearbyTrips],
     );
-
-    useEffect(() => {
-        nearbyTripsRefetchIntervalId.current = setInterval(() => {
-            refetchNearbyTrips();
-        }, 60000);
-        return () => {
-            if (nearbyTripsRefetchIntervalId.current) {
-                clearInterval(nearbyTripsRefetchIntervalId.current);
-            }
-        };
-    }, [nearbyTripsRefetchIntervalId, refetchNearbyTrips]);
 
     const handleLocationChange: NonNullable<ExploreMapProps["onLocationChange"]> = useCallback(
         (lat, lng, viewBounds) => {

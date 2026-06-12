@@ -1,5 +1,6 @@
 import { shapes } from "database";
-import { sql } from "drizzle-orm";
+import * as tables from "database/models/tables";
+import { sql, eq } from "drizzle-orm";
 import { Result, err, ok } from "neverthrow";
 import * as v from "valibot";
 import {
@@ -24,18 +25,15 @@ export class ShapeRepository extends DataRepository {
     public async findGeoJsonById(
         shapeId: typeof shapes.$inferSelect.id,
     ): Promise<Result<ShapeFeature | null, GeoJSONError>> {
-        const shape = await this.db.query.shapes.findFirst({
-            columns: {
-                id: true,
-                distancesTraveled: true,
-            },
-            extras: {
-                pathGeoJson: sql<string>`ST_AsGeoJSON(${shapes.path})`,
-            },
-            where: {
-                id: shapeId,
-            },
-        });
+        const [shape] = await this.db
+            .select({
+                id: tables.shapes.id,
+                distancesTraveled: tables.shapes.distancesTraveled,
+                pathGeoJson: sql<string>`ST_AsGeoJSON(${tables.shapes.path})`.as("path_geo_json"),
+            })
+            .from(tables.shapes)
+            .where(eq(tables.shapes.id, shapeId))
+            .limit(1);
 
         if (!shape) {
             return ok(null);

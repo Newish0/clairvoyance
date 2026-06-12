@@ -7,7 +7,8 @@ export const shapeRouter = router({
         .input(v.pipe(v.number(), v.integer()))
         .query(async ({ input: shapeId, ctx }) => {
             const shapeRepo = new ShapeRepository(ctx.db);
-            const geoJson = await shapeRepo.findGeoJsonById(shapeId);
-            return geoJson;
+            const geoJsonResult = await shapeRepo.findGeoJsonById(shapeId);
+
+            return geoJsonResult.match((geoJson) => geoJson, () => null);
         }),
 });

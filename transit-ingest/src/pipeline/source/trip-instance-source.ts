@@ -98,8 +98,9 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                     )
                     .limit(1);
 
+                // We expect a fair number of non-pristine instances, so this is debug level logging
                 if (existNotPristine.length > 0) {
-                    ctx.logger.info(
+                    ctx.logger.debug(
                         { tripId: trip.id, date: calendarDate.date, startTime },
                         "Skip: non-pristine",
                     );
