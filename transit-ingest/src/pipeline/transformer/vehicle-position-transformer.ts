@@ -1,3 +1,4 @@
+import { isFieldSet } from "@bufbuild/protobuf";
 import type {
     CongestionLevel,
     OccupancyStatus,
@@ -7,7 +8,12 @@ import type {
 import * as tables from "database/models/tables";
 import { eq, sql } from "drizzle-orm";
 import { fromAsyncThrowable } from "neverthrow";
-import type { VehiclePosition } from "../../gen/proto/gtfs-realtime_pb";
+import {
+    PositionSchema,
+    VehicleDescriptorSchema,
+    VehiclePositionSchema,
+    type VehiclePosition,
+} from "../../gen/proto/gtfs-realtime_pb";
 import {
     extractCoreTripSid,
     mapCongestionLevel,
@@ -16,7 +22,7 @@ import {
     mapWheelchairAccessible,
 } from "../../utils/realtime-helpers";
 import type { Context } from "../core/context";
-import { type ItemResult, itemOk, skipItem } from "../core/error";
+import { itemOk, skipItem, type ItemResult } from "../core/error";
 import type { Transform } from "../core/pipe";
 import type { ParsedEntity } from "./protobuf-decoder";
 
@@ -162,7 +168,7 @@ export class VehiclePositionTransformer implements Transform<
         }
 
         let stopId: number | null = null;
-        if (vehicle.stopId) {
+        if (isFieldSet(vehicle, VehiclePositionSchema.field.stopId)) {
             const stopResult = await this.getStop(ctx, vehicle.stopId);
             if (stopResult.isErr()) {
                 return skipItem(
@@ -181,10 +187,9 @@ export class VehiclePositionTransformer implements Transform<
             }
         }
 
-        const timestamp =
-            vehicle.timestamp !== 0n
-                ? new Date(Number(vehicle.timestamp) * 1000)
-                : new Date(Number(feedTimestamp) * 1000);
+        const timestamp = isFieldSet(vehicle, VehiclePositionSchema.field.timestamp)
+            ? new Date(Number(vehicle.timestamp) * 1000)
+            : new Date(Number(feedTimestamp) * 1000);
 
         if (!vehicle.position) {
             return skipItem("NO_POSITION_DATA", "Vehicle position has no coordinates");
@@ -197,15 +202,37 @@ export class VehiclePositionTransformer implements Transform<
             );
         }
         const location: { x: number; y: number } = { x: position.longitude, y: position.latitude };
-        const bearing: number | null = position.bearing ?? null;
-        const odometer: number | null = position.odometer ?? null;
-        const speed: number | null = position.speed ?? null;
+        const bearing: number | null = isFieldSet(position, PositionSchema.field.bearing)
+            ? position.bearing
+            : null;
+        const odometer: number | null = isFieldSet(position, PositionSchema.field.odometer)
+            ? position.odometer
+            : null;
+        const speed: number | null = isFieldSet(position, PositionSchema.field.speed)
+            ? position.speed
+            : null;
 
-        const currentStopSequence = vehicle.currentStopSequence;
-        const currentStatus = mapVehicleStopStatus(vehicle.currentStatus);
-        const congestionLevel = mapCongestionLevel(vehicle.congestionLevel);
-        const occupancyStatus = mapOccupancyStatus(vehicle.occupancyStatus);
-        const occupancyPercentage = vehicle.occupancyPercentage;
+        const currentStopSequence = isFieldSet(
+            vehicle,
+            VehiclePositionSchema.field.currentStopSequence,
+        )
+            ? vehicle.currentStopSequence
+            : null;
+        const currentStatus = isFieldSet(vehicle, VehiclePositionSchema.field.currentStatus)
+            ? mapVehicleStopStatus(vehicle.currentStatus)
+            : null;
+        const congestionLevel = isFieldSet(vehicle, VehiclePositionSchema.field.congestionLevel)
+            ? mapCongestionLevel(vehicle.congestionLevel)
+            : null;
+        const occupancyStatus = isFieldSet(vehicle, VehiclePositionSchema.field.occupancyStatus)
+            ? mapOccupancyStatus(vehicle.occupancyStatus)
+            : "NO_DATA_AVAILABLE";
+        const occupancyPercentage = isFieldSet(
+            vehicle,
+            VehiclePositionSchema.field.occupancyPercentage,
+        )
+            ? vehicle.occupancyPercentage
+            : null;
 
         let shapeDistTraveled: number | null = null;
         if (shapeId && position.latitude && position.longitude) {
@@ -222,10 +249,21 @@ export class VehiclePositionTransformer implements Transform<
 
         return itemOk({
             vehicleSid,
-            vehicleLabel: vehicleDescriptor.label || null,
-            vehicleLicensePlate: vehicleDescriptor.licensePlate || null,
-            vehicleWheelchairAccessible:
-                mapWheelchairAccessible(vehicleDescriptor.wheelchairAccessible) ?? null,
+            vehicleLabel: isFieldSet(vehicleDescriptor, VehicleDescriptorSchema.field.label)
+                ? vehicleDescriptor.label
+                : null,
+            vehicleLicensePlate: isFieldSet(
+                vehicleDescriptor,
+                VehicleDescriptorSchema.field.licensePlate,
+            )
+                ? vehicleDescriptor.licensePlate
+                : null,
+            vehicleWheelchairAccessible: isFieldSet(
+                vehicleDescriptor,
+                VehicleDescriptorSchema.field.wheelchairAccessible,
+            )
+                ? (mapWheelchairAccessible(vehicleDescriptor.wheelchairAccessible) ?? null)
+                : null,
 
             tripInstanceId,
             stopId,

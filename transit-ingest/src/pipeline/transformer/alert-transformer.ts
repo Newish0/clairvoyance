@@ -1,10 +1,13 @@
+import { isFieldSet } from "@bufbuild/protobuf";
 import type { AlertCause, AlertEffect, AlertSeverity } from "database/models/enums";
 import type { EntitySelector, TimePeriod, TranslationMap } from "database/models/types";
 import { fromAsyncThrowable } from "neverthrow";
-import type {
-    Alert as ProtoAlert,
-    EntitySelector as ProtoEntitySelector,
-    TimeRange as ProtoTimeRange,
+import {
+    EntitySelectorSchema,
+    TimeRangeSchema,
+    type Alert as ProtoAlert,
+    type EntitySelector as ProtoEntitySelector,
+    type TimeRange as ProtoTimeRange,
 } from "../../gen/proto/gtfs-realtime_pb";
 import {
     computeAlertHash,
@@ -17,7 +20,7 @@ import {
     translatedStringToMap,
 } from "../../utils/realtime-helpers";
 import type { Context } from "../core/context";
-import { type ItemResult, itemOk } from "../core/error";
+import { itemOk, type ItemResult } from "../core/error";
 import type { Transform } from "../core/pipe";
 import type { ParsedEntity } from "./protobuf-decoder";
 
@@ -132,7 +135,10 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
         ie: ProtoEntitySelector,
     ): Promise<EntitySelector> {
         const tripInstanceId =
-            ie.trip?.tripId && ie.trip.startDate && ie.trip.startTime
+            isFieldSet(ie, EntitySelectorSchema.field.trip) &&
+            ie.trip?.tripId &&
+            ie.trip.startDate &&
+            ie.trip.startTime
                 ? await this.resolveTripInstanceId(ctx, {
                       tripId: ie.trip.tripId,
                       startDate: ie.trip.startDate,
@@ -140,20 +146,20 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
                   })
                 : undefined;
 
-        const routeId = ie.routeId
+        const routeId = isFieldSet(ie, EntitySelectorSchema.field.routeId)
             ? await this.getRoute(ctx, ie.routeId).match(
                   (r) => r?.id,
                   (_) => undefined,
               )
             : undefined;
-        const stopId = ie.stopId
+        const stopId = isFieldSet(ie, EntitySelectorSchema.field.stopId)
             ? await this.getStop(ctx, ie.stopId).match(
                   (s) => s?.id,
                   (_) => undefined,
               )
             : undefined;
 
-        const agencyId = ie.agencyId
+        const agencyId = isFieldSet(ie, EntitySelectorSchema.field.agencyId)
             ? await this.getAgency(ctx, ie.agencyId).match(
                   (a) => a?.id,
                   (_) => undefined,
@@ -165,28 +171,23 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
             tripInstanceId,
             routeId,
             stopId,
-            routeType: mapRouteType(ie.routeType),
-            direction: mapDirection(ie.directionId),
+            routeType: isFieldSet(ie, EntitySelectorSchema.field.routeType)
+                ? mapRouteType(ie.routeType)
+                : undefined,
+            direction: isFieldSet(ie, EntitySelectorSchema.field.directionId)
+                ? mapDirection(ie.directionId)
+                : undefined,
         };
     }
 
     private mapTimeRange(p: ProtoTimeRange): TimePeriod {
-        if (p.start === 0n) {
-            return {
-                start: null,
-                end: Number(p.end),
-            };
-        } else if (p.end === 0n) {
-            return {
-                start: Number(p.start),
-                end: null,
-            };
-        } else {
-            return {
-                start: Number(p.start),
-                end: Number(p.end),
-            };
+        if (!isFieldSet(p, TimeRangeSchema.field.start)) {
+            return { start: null, end: Number(p.end) };
         }
+        if (!isFieldSet(p, TimeRangeSchema.field.end)) {
+            return { start: Number(p.start), end: null };
+        }
+        return { start: Number(p.start), end: Number(p.end) };
     }
 
     private async transform(
@@ -195,7 +196,11 @@ export class AlertTransformer implements Transform<ParsedEntity, TransformedAler
         feedTimestamp: bigint,
     ): Promise<ItemResult<TransformedAlert>> {
         const activePeriods: TimePeriod[] = alert.activePeriod
-            .filter((p) => p.start !== 0n || p.end !== 0n)
+            .filter(
+                (p) =>
+                    isFieldSet(p, TimeRangeSchema.field.start) ||
+                    isFieldSet(p, TimeRangeSchema.field.end),
+            )
             .map(this.mapTimeRange);
 
         const informedEntities: EntitySelector[] = await Promise.all(
