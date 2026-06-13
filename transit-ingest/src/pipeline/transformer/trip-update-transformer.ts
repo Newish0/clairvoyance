@@ -1,8 +1,13 @@
-import { fromAsyncThrowable } from "neverthrow";
+import { isFieldSet } from "@bufbuild/protobuf";
 import type { TripInstanceState } from "database";
 import * as tables from "database/models/tables";
-import type { TripUpdate } from "../../gen/proto/gtfs-realtime_pb";
-import { TripDescriptor_ScheduleRelationship } from "../../gen/proto/gtfs-realtime_pb";
+import { fromAsyncThrowable } from "neverthrow";
+import {
+    TripDescriptor_ScheduleRelationship,
+    TripUpdate_StopTimeEventSchema,
+    TripUpdate_StopTimeUpdate_StopTimePropertiesSchema,
+    type TripUpdate,
+} from "../../gen/proto/gtfs-realtime_pb";
 import {
     extractCoreTripSid,
     mapPickupDropoffType,
@@ -11,7 +16,7 @@ import {
     normalizeTimes,
 } from "../../utils/realtime-helpers";
 import type { Context } from "../core/context";
-import { type ItemResult, itemOk, skipItem } from "../core/error";
+import { itemOk, skipItem, type ItemResult } from "../core/error";
 import type { Transform } from "../core/pipe";
 import type { ParsedEntity } from "./protobuf-decoder";
 
@@ -185,14 +190,30 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
             }
 
             const arrival = normalizeTimes(
-                stu.arrival?.scheduledTime || sti.scheduledArrivalTime,
-                stu.arrival?.time,
-                stu.arrival?.delay,
+                stu.arrival &&
+                    isFieldSet(stu.arrival, TripUpdate_StopTimeEventSchema.field.scheduledTime)
+                    ? stu.arrival.scheduledTime
+                    : sti.scheduledArrivalTime,
+                stu.arrival && isFieldSet(stu.arrival, TripUpdate_StopTimeEventSchema.field.time)
+                    ? stu.arrival.time
+                    : undefined,
+                stu.arrival && isFieldSet(stu.arrival, TripUpdate_StopTimeEventSchema.field.delay)
+                    ? stu.arrival.delay
+                    : undefined,
             );
             const departure = normalizeTimes(
-                stu.departure?.scheduledTime || sti.scheduledDepartureTime,
-                stu.departure?.time,
-                stu.departure?.delay,
+                stu.departure &&
+                    isFieldSet(stu.departure, TripUpdate_StopTimeEventSchema.field.scheduledTime)
+                    ? stu.departure.scheduledTime
+                    : sti.scheduledDepartureTime,
+                stu.departure &&
+                    isFieldSet(stu.departure, TripUpdate_StopTimeEventSchema.field.time)
+                    ? stu.departure.time
+                    : undefined,
+                stu.departure &&
+                    isFieldSet(stu.departure, TripUpdate_StopTimeEventSchema.field.delay)
+                    ? stu.departure.delay
+                    : undefined,
             );
 
             updatedStopTimeInstances[stu.stopSequence] = {
@@ -204,18 +225,36 @@ export class TripUpdateTransformer implements Transform<ParsedEntity, Transforme
                 scheduledDepartureTime: this.posixToDate(departure.scheduledTime),
                 predictedArrivalTime: this.posixToDate(arrival.time),
                 predictedDepartureTime: this.posixToDate(departure.time),
-                predictedArrivalUncertainty: stu.arrival?.uncertainty,
-                predictedDepartureUncertainty: stu.departure?.uncertainty,
+                predictedArrivalUncertainty:
+                    stu.arrival &&
+                    isFieldSet(stu.arrival, TripUpdate_StopTimeEventSchema.field.uncertainty)
+                        ? stu.arrival.uncertainty
+                        : null,
+                predictedDepartureUncertainty:
+                    stu.departure &&
+                    isFieldSet(stu.departure, TripUpdate_StopTimeEventSchema.field.uncertainty)
+                        ? stu.departure.uncertainty
+                        : null,
                 scheduleRelationship: mapStopTimeUpdateScheduleRelationship(
                     stu.scheduleRelationship,
                 ),
                 stopHeadsign: stu.stopTimeProperties?.stopHeadsign ?? sti.stopHeadsign,
-                pickupType: stu.stopTimeProperties?.pickupType
-                    ? mapPickupDropoffType(stu.stopTimeProperties.pickupType)
-                    : sti.pickupType,
-                dropOffType: stu.stopTimeProperties?.dropOffType
-                    ? mapPickupDropoffType(stu.stopTimeProperties.dropOffType)
-                    : sti.dropOffType,
+                pickupType:
+                    stu.stopTimeProperties &&
+                    isFieldSet(
+                        stu.stopTimeProperties,
+                        TripUpdate_StopTimeUpdate_StopTimePropertiesSchema.field.pickupType,
+                    )
+                        ? mapPickupDropoffType(stu.stopTimeProperties.pickupType)
+                        : sti.pickupType,
+                dropOffType:
+                    stu.stopTimeProperties &&
+                    isFieldSet(
+                        stu.stopTimeProperties,
+                        TripUpdate_StopTimeUpdate_StopTimePropertiesSchema.field.dropOffType,
+                    )
+                        ? mapPickupDropoffType(stu.stopTimeProperties.dropOffType)
+                        : sti.dropOffType,
                 lastUpdatedAt: new Date(), // TODO: use feedTimestamp
             };
         }
