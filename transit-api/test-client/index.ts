@@ -29,16 +29,20 @@ const trpc = createTRPCClient<AppRouter>({
 });
 
 const startTime = performance.now();
-const result = await trpc.tripInstance.getNearby.query({
-    // borden st
-    lat: 48.470398,
-    lng: -123.360676,
+// const result = await trpc.tripInstance.getNearby.query({
+//     // borden st
+//     lat: 48.470398,
+//     lng: -123.360676,
 
-    // downtown
-    // lat: 48.42716854672481,
-    // lng: -123.3646681006514,
+//     // downtown
+//     // lat: 48.42716854672481,
+//     // lng: -123.3646681006514,
 
-    radiusMeters: 2000,
+//     radiusMeters: 2000,
+// });
+const result = await trpc.alert.getActivesForEntity.query({
+    routeId: 11,
+    // stopId: 893,
 });
 
 console.log(JSON.stringify(result, null, 2));

@@ -1,6 +1,6 @@
 import { AppSettings } from "@/components/app-settings";
 import { TripMap, type TripMapStopInfo } from "@/components/maps/trip-map";
-// import { AlertCarousel } from "@/components/trip-info/alert-carousel";
+import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
 import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
@@ -43,14 +43,15 @@ const nextTripsSchema = z.object({
 export const Route = createFileRoute("/nt")({
     component: RouteComponent,
     validateSearch: nextTripsSchema,
-    loaderDeps: ({ search: { tripInstanceId, stopId, routeId, direction } }) => ({
+    loaderDeps: ({ search: { agencyId, tripInstanceId, stopId, routeId, direction } }) => ({
+        agencyId,
         tripInstanceId,
         stopId,
         routeId,
         direction,
     }),
 
-    loader: async ({ deps: { stopId, routeId, direction, tripInstanceId } }) => {
+    loader: async ({ deps: { agencyId, stopId, routeId, direction, tripInstanceId } }) => {
         const upcomingDepartures = await trpcClient.tripInstance.getUpcomingDepartures.query({
             stopId,
             routeId,
@@ -83,7 +84,15 @@ export const Route = createFileRoute("/nt")({
             );
         }
 
-        return { upcomingDepartures, targetTripInst, targetStopTimeInstIdx };
+        const alerts = await trpcClient.alert.getActivesForEntity.query({
+            agencyId,
+            routeId,
+            direction,
+            stopId,
+            tripInstanceId,
+        });
+
+        return { upcomingDepartures, targetTripInst, targetStopTimeInstIdx, alerts };
     },
     // TODO: Add real error component
     errorComponent: ({ error }) => <div>{error.message}</div>,
@@ -91,11 +100,12 @@ export const Route = createFileRoute("/nt")({
 
 function RouteComponent() {
     const searchParams = Route.useSearch();
-    const { upcomingDepartures, targetTripInst, targetStopTimeInstIdx } = Route.useLoaderData();
+    const { upcomingDepartures, targetTripInst, targetStopTimeInstIdx, alerts } =
+        Route.useLoaderData();
     const targetStopTimeInst = targetTripInst.stopTimeInstances[targetStopTimeInstIdx];
     const router = useRouter();
 
-    const combinedResolvedDepartures = useMemo(() => {
+    const departuresRenderItems = useMemo(() => {
         if (!upcomingDepartures || !targetTripInst || !targetStopTimeInst) return [];
 
         const resolvedUpcoming = upcomingDepartures.map(
@@ -256,7 +266,7 @@ function RouteComponent() {
                     }}
                 >
                     <CarouselContent>
-                        {combinedResolvedDepartures.map((r) => {
+                        {departuresRenderItems.map((r) => {
                             if (r.type === "divider") {
                                 return (
                                     <div key="divider" className="ml-4 flex gap-0.5 py-2">
@@ -357,15 +367,7 @@ function RouteComponent() {
                         </CarouselItem>
                     </CarouselContent>
                 </Carousel>
-
-                {/* <AlertCarousel
-                    agencyId={agencyId}
-                    routeId={routeId}
-                    directionId={directionId}
-                    tripInstanceId={tripInstanceId}
-                    stopIds={tripInstance?.stop_times.map((st) => st.stop_id)}
-                    // routeType={routeType}
-                /> */}
+                <AlertCarousel alerts={alerts} />
 
                 {/* Stop times */}
                 <div ref={hoverRef} className="overflow-auto">

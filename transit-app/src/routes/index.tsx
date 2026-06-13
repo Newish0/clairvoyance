@@ -50,13 +50,13 @@ function TransitApp() {
         lng: search.lng ?? 0,
         radiusMeters: 100,
     });
-    const throttledNearbyTripsQueryParams = useThrottle(
-        useDebounce(nearbyTripsQueryParams, { wait: 50 }),
-        { wait: 1000 },
-    );
+    const debouncedNearbyTripsQueryParams = useDebounce(nearbyTripsQueryParams, {
+        wait: 800,
+        maxWait: 6000,
+    });
 
     const { data: nearbyTrips, isFetching: isFetchingNearbyTrips } = useQuery({
-        ...trpc.tripInstance.getNearbyActive.queryOptions(throttledNearbyTripsQueryParams),
+        ...trpc.tripInstance.getNearbyActive.queryOptions(debouncedNearbyTripsQueryParams),
         staleTime: 0,
         gcTime: 0,
         placeholderData: (prev) => prev, // prevent flickering,

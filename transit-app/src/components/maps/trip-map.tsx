@@ -198,6 +198,7 @@ const StopsGeojsonLayer: React.FC<{
             isFlying = true;
             map.flyTo({
                 center: [stopInfo.lng, stopInfo.lat],
+                offset: [0, -100],
                 animate: true,
                 duration: flightDuration,
             });
