@@ -1,9 +1,9 @@
 agencies:
     - id: BCT-VIC
-      static:
-          url: https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48
-          realizeInstances: true
-          ignoreFeedDup: false
+    #   static:
+    #       url: https://bct.tmix.se/Tmix.Cap.TdExport.WebApi/gtfs/?operatorIds=48
+    #       realizeInstances: true
+    #       ignoreFeedDup: false
       realtime:
           urls:
               - https://bct.tmix.se/gtfs-realtime/alerts.pb?operatorIds=48

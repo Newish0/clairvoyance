@@ -1,63 +1,67 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { trpc } from "@/main";
+import { useQuery } from "@tanstack/react-query";
+import type { OccupancyStatus, VehicleStopStatus } from "database/models/enums";
+import * as tables from "database/models/tables";
+import { differenceInMinutes, differenceInSeconds } from "date-fns";
 import {
-    Bus,
-    MapPin,
-    Clock,
-    Users,
     Accessibility,
     AlertCircle,
+    Bus,
+    Clock,
+    Info,
+    MapPin,
     Navigation,
     TrendingUp,
-    Info,
+    Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-    OccupancyStatus,
-    VehicleStopStatus,
-    type VehiclePosition,
-} from "../../../../gtfs-processor/shared/gtfs-db-types";
-import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/main";
-import { differenceInMinutes, differenceInSeconds } from "date-fns";
+
+export type VehiclePosition = typeof tables.vehiclePositions.$inferSelect;
 
 interface VehiclePositionDetailsProps {
-    vehiclePosition?: VehiclePosition | null;
-    atStopId?: string;
+    vehiclePosition: VehiclePosition;
+    targetStopSeq?: number;
     className?: string;
 }
 
 export function VehiclePositionDetails({
     vehiclePosition,
-    atStopId,
+    targetStopSeq,
     className,
 }: VehiclePositionDetailsProps) {
-    const { isLoading, data: tripInstance } = useQuery({
-        ...trpc.tripInstance.getFullById.queryOptions(vehiclePosition?.trip_instance!),
-        enabled: !!vehiclePosition?.trip_instance,
+    const { isLoading, data: tripInst } = useQuery({
+        ...trpc.tripInstance.getById.queryOptions(vehiclePosition.tripInstanceId!),
+        enabled: vehiclePosition.tripInstanceId !== null,
     });
 
     const getStatusBadge = (status: VehicleStopStatus | null) => {
         if (!status) return null;
 
-        const statusConfig = {
-            [VehicleStopStatus.INCOMING_AT]: {
-                label: "Incoming",
-                variant: "default" as const,
-            },
-            [VehicleStopStatus.STOPPED_AT]: {
-                label: "Stopped",
-                variant: "secondary" as const,
-            },
-            [VehicleStopStatus.IN_TRANSIT_TO]: {
-                label: "In Transit",
-                variant: "outline" as const,
-            },
+        const getStatusConfig = (status: VehicleStopStatus) => {
+            switch (status) {
+                case "INCOMING_AT":
+                    return {
+                        label: "Incoming",
+                        variant: "default",
+                    } as const;
+                case "STOPPED_AT":
+                    return {
+                        label: "Stopped",
+                        variant: "secondary",
+                    } as const;
+                case "IN_TRANSIT_TO":
+                    return {
+                        label: "In Transit",
+                        variant: "outline",
+                    } as const;
+            }
         };
 
-        const config = statusConfig[status];
+        const config = getStatusConfig(status);
         return (
             <Badge variant={config.variant} className="font-medium">
                 {config.label}
@@ -66,42 +70,55 @@ export function VehiclePositionDetails({
     };
 
     const getOccupancyInfo = (status: OccupancyStatus | null) => {
-        if (!status || status === OccupancyStatus.NO_DATA_AVAILABLE) return null;
-
-        const occupancyConfig = {
-            [OccupancyStatus.EMPTY]: { label: "Empty", color: "text-green-400" },
-            [OccupancyStatus.MANY_SEATS_AVAILABLE]: {
-                label: "Many Seats",
-                color: "text-green-400",
-            },
-            [OccupancyStatus.FEW_SEATS_AVAILABLE]: {
-                label: "Few Seats",
-                color: "text-yellow-400",
-            },
-            [OccupancyStatus.STANDING_ROOM_ONLY]: {
-                label: "Standing Room",
-                color: "text-orange-400",
-            },
-            [OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY]: {
-                label: "Crowded",
-                color: "text-red-400",
-            },
-            [OccupancyStatus.FULL]: { label: "Full", color: "text-red-400" },
-            [OccupancyStatus.NOT_ACCEPTING_PASSENGERS]: {
-                label: "Not Accepting",
-                color: "text-gray-400",
-            },
-            [OccupancyStatus.NOT_BOARDABLE]: {
-                label: "Not Boardable",
-                color: "text-gray-400",
-            },
-            [OccupancyStatus.NO_DATA_AVAILABLE]: {
-                label: "Unknown",
-                color: "text-gray-400",
-            },
-        };
-
-        return occupancyConfig[status];
+        switch (status) {
+            case "EMPTY":
+                return {
+                    label: "Empty",
+                    color: "text-green-400",
+                } as const;
+            case "MANY_SEATS_AVAILABLE":
+                return {
+                    label: "Many Seats",
+                    color: "text-green-400",
+                } as const;
+            case "FEW_SEATS_AVAILABLE":
+                return {
+                    label: "Few Seats",
+                    color: "text-yellow-400",
+                } as const;
+            case "STANDING_ROOM_ONLY":
+                return {
+                    label: "Standing Room",
+                    color: "text-orange-400",
+                } as const;
+            case "CRUSHED_STANDING_ROOM_ONLY":
+                return {
+                    label: "Crowded",
+                    color: "text-red-400",
+                } as const;
+            case "FULL":
+                return {
+                    label: "Full",
+                    color: "text-red-400",
+                } as const;
+            case "NOT_ACCEPTING_PASSENGERS":
+                return {
+                    label: "Not Accepting",
+                    color: "text-gray-400",
+                } as const;
+            case "NOT_BOARDABLE":
+                return {
+                    label: "Not Boardable",
+                    color: "text-gray-400",
+                } as const;
+            case "NO_DATA_AVAILABLE":
+            default: {
+                return {
+                    label: "No Data",
+                    color: "text-gray-400",
+                } as const;
+            }
+        }
     };
 
     const formatTimestamp = (date: Date) => {
@@ -126,40 +143,44 @@ export function VehiclePositionDetails({
         });
     };
 
-    const occupancyInfo = vehiclePosition && getOccupancyInfo(vehiclePosition.occupancy_status);
-    const tripName = tripInstance?.trip?.trip_headsign;
+    const occupancyInfo = vehiclePosition && getOccupancyInfo(vehiclePosition.occupancyStatus);
+    const tripName = tripInst?.trip?.headsign;
 
-    const { data: stops } = useQuery({
-        ...trpc.stop.getStops.queryOptions({
-            agencyId: tripInstance?.agency_id!,
-            stopId: atStopId!,
-        }),
-        enabled: !!tripInstance && !!atStopId,
-    });
+    const targetStopTimeInstIdx =
+        tripInst?.stopTimeInstances.findIndex((st) => st.stopSequence === targetStopSeq) ?? -1;
+    const targetStopTimeInst =
+        targetStopTimeInstIdx > -1 ? tripInst?.stopTimeInstances[targetStopTimeInstIdx] : undefined;
+    const vehicleCurStopTimeInstIdx =
+        (vehiclePosition.currentStopSequence !== null
+            ? tripInst?.stopTimeInstances.findIndex(
+                  (st) => st.stopSequence === vehiclePosition.currentStopSequence,
+              )
+            : tripInst?.stopTimeInstances.findIndex(
+                  (st) =>
+                      st.shapeDistTraveled !== null &&
+                      vehiclePosition.shapeDistTraveled !== null &&
+                      st.shapeDistTraveled >= vehiclePosition.shapeDistTraveled,
+              )) ?? -1;
 
-    const stopName = stops?.[0]?.stop_name;
-
-    const stopIndex = tripInstance?.stop_times?.findIndex((s) => s.stop_id === atStopId);
-    const stopSequence = stopIndex !== undefined ? stopIndex + 1 : undefined;
+    const stopName = targetStopTimeInst?.stop?.name;
     const stopsAway =
-        stopSequence !== undefined &&
-        vehiclePosition?.current_stop_sequence &&
-        vehiclePosition.current_stop_sequence <= stopSequence
-            ? stopSequence - vehiclePosition.current_stop_sequence
-            : undefined;
+        targetStopTimeInstIdx !== -1 && vehicleCurStopTimeInstIdx !== -1
+            ? targetStopTimeInstIdx - vehicleCurStopTimeInstIdx
+            : null;
 
-    const stopTime = stopIndex ? tripInstance?.stop_times[stopIndex] : undefined;
-    const eta = stopTime
-        ? (stopTime.predicted_arrival_datetime ?? stopTime.arrival_datetime)
-        : undefined;
+    const eta =
+        targetStopTimeInst?.predictedArrivalTime ?? targetStopTimeInst?.scheduledArrivalTime;
 
-    const minutesSinceETA = eta ? differenceInMinutes(new Date(), new Date(eta)) : undefined;
+    const minutesSinceETA = eta ? differenceInMinutes(new Date(), eta) : undefined;
     const timeSincePassing =
         minutesSinceETA && minutesSinceETA > 0 ? `${minutesSinceETA} min` : null;
 
     const realTimeDelaySeconds =
-        stopTime && stopTime.predicted_arrival_datetime && stopTime.arrival_datetime
-            ? differenceInSeconds(stopTime.predicted_arrival_datetime, stopTime.arrival_datetime)
+        targetStopTimeInst?.predictedArrivalTime && targetStopTimeInst?.scheduledArrivalTime
+            ? differenceInSeconds(
+                  targetStopTimeInst?.predictedArrivalTime,
+                  targetStopTimeInst?.scheduledArrivalTime,
+              )
             : undefined;
     const realTimeDelay =
         realTimeDelaySeconds !== undefined ? Math.round(realTimeDelaySeconds / 60) : undefined;
@@ -202,15 +223,14 @@ export function VehiclePositionDetails({
                             </p>
                         )}
                     </div>
-                    {vehiclePosition.current_status &&
-                        getStatusBadge(vehiclePosition.current_status)}
+                    {getStatusBadge(vehiclePosition.currentStatus)}
                 </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
                 {/* Stop and ETA Information */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {stopsAway !== undefined && (
+                    {stopsAway !== null && (
                         <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-muted-foreground shrink-0" />
                             <div className="min-w-0">
@@ -297,7 +317,7 @@ export function VehiclePositionDetails({
                         <Bus className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-muted-foreground">Vehicle ID</p>
-                            <p className="text-sm font-mono">{vehiclePosition.vehicle_id}</p>
+                            <p className="text-sm font-mono">{vehiclePosition.vehicleId}</p>
                         </div>
                     </div>
 
@@ -331,7 +351,7 @@ export function VehiclePositionDetails({
                 </div>
 
                 {/* Position Coordinates */}
-                {vehiclePosition.latitude !== null && vehiclePosition.longitude !== null && (
+                {
                     <>
                         <Separator />
                         <div className="flex items-center gap-2">
@@ -339,13 +359,13 @@ export function VehiclePositionDetails({
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs text-muted-foreground">Position</p>
                                 <p className="text-xs font-mono text-muted-foreground">
-                                    {vehiclePosition.latitude.toFixed(6)},{" "}
-                                    {vehiclePosition.longitude.toFixed(6)}
+                                    {vehiclePosition.location.x.toFixed(6)},{" "}
+                                    {vehiclePosition.location.y.toFixed(6)}
                                 </p>
                             </div>
                         </div>
                     </>
-                )}
+                }
             </CardContent>
         </Card>
     );

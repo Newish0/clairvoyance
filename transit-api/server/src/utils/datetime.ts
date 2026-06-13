@@ -11,6 +11,6 @@ export const getFiveMinAgo = () => {
     return new Date(Date.now() - FIVE_MIN_IN_MS);
 };
 
-export const getMinAgo = (minutesInMs: number) => {
-    return new Date(Date.now() - minutesInMs);
+export const getMsAgo = (ms: number) => {
+    return new Date(Date.now() - ms);
 };

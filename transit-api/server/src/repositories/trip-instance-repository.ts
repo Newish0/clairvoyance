@@ -1,8 +1,8 @@
 import * as enums from "database/models/enums";
 import * as tables from "database/models/tables";
 import * as views from "database/models/views";
-import { and, asc, eq, getColumns, gt, gte, lte, sql } from "drizzle-orm";
-import { FIVE_MIN_IN_MS, getMinAgo } from "../utils/datetime";
+import { and, desc, eq, getColumns, gt, gte, lte, sql, inArray } from "drizzle-orm";
+import { FIVE_MIN_IN_MS, getMsAgo } from "../utils/datetime";
 import { DataRepository } from "./data-repository";
 
 type NearbyTripsParams = {
@@ -27,6 +27,7 @@ export class TripInstancesRepository extends DataRepository {
                 trip: {
                     columns: {
                         headsign: true,
+                        direction: true,
                     },
                     with: {
                         route: {
@@ -97,7 +98,7 @@ export class TripInstancesRepository extends DataRepository {
         tripInstanceLookaheadHours: number;
         exclude?: NearbyTripsExclude;
     }) {
-        const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
+        const realtimeThresholdDate = getMsAgo(realtimeMaxAgeMs);
         const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
         const tripInstanceFrom = new Date(
             after.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
@@ -323,7 +324,7 @@ export class TripInstancesRepository extends DataRepository {
         tripInstanceLookbackHours?: number;
         tripInstanceLookaheadHours?: number;
     }) {
-        const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
+        const realtimeThresholdDate = getMsAgo(realtimeMaxAgeMs);
         const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
         const tripInstanceFrom = new Date(
             after.getTime() - tripInstanceLookbackHours * 60 * 60 * 1000,
@@ -450,7 +451,7 @@ export class TripInstancesRepository extends DataRepository {
         stillAtStopToleranceMeters?: number;
         realtimeMaxAgeMs?: number;
     }) {
-        const realtimeThresholdDate = getMinAgo(realtimeMaxAgeMs);
+        const realtimeThresholdDate = getMsAgo(realtimeMaxAgeMs);
         const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
 
         const candidates = this.db.$with("candidates").as(
@@ -550,111 +551,63 @@ export class TripInstancesRepository extends DataRepository {
             .offset(offset);
     }
 
-    // public async *watchLivePositions({
-    //     agencyId,
-    //     routeId,
-    //     directionId,
-    //     signal,
-    //     getInitialData = true,
-    //     pollIntervalMs = 5000,
-    // }: {
-    //     agencyId?: string;
-    //     routeId?: string;
-    //     directionId?: schema.Direction;
-    //     signal?: AbortSignal;
-    //     getInitialData?: boolean;
-    //     pollIntervalMs?: number;
-    // }): AsyncGenerator<{
-    //     tripInstanceId: number;
-    //     latestPosition: typeof schema.vehiclePositions.$inferSelect | null;
-    // }> {
-    //     if (getInitialData) {
-    //         const conditions: ReturnType<typeof sql>[] = [];
-    //         if (agencyId) conditions.push(eq(schema.tripInstances.agencyId, agencyId));
-    //         if (routeId !== undefined)
-    //             conditions.push(eq(schema.tripInstances.routeId, Number(routeId)));
-    //         if (directionId) conditions.push(eq(schema.trips.direction, directionId));
+    public async *watchLivePositions({
+        agencyId,
+        routeId,
+        direction,
+        realtimeMaxAgeMs = FIVE_MIN_IN_MS,
+        signal,
+        pollIntervalMs = 5000,
+    }: {
+        agencyId?: string;
+        routeId?: number;
+        direction?: enums.Direction;
+        realtimeMaxAgeMs?: number;
+        signal?: AbortSignal;
+        pollIntervalMs?: number;
+    }) {
+        while (!signal?.aborted) {
+            const realtimeThresholdDate = getMsAgo(realtimeMaxAgeMs);
 
-    //         const recentTripInstances = await this.db
-    //             .selectDistinct({
-    //                 tripInstanceId: schema.tripInstances.id,
-    //                 positionId: schema.vehiclePositions.id,
-    //                 timestamp: schema.vehiclePositions.timestamp,
-    //                 location: schema.vehiclePositions.location,
-    //                 stopId: schema.vehiclePositions.stopId,
-    //                 currentStopSequence: schema.vehiclePositions.currentStopSequence,
-    //                 currentStatus: schema.vehiclePositions.currentStatus,
-    //                 congestionLevel: schema.vehiclePositions.congestionLevel,
-    //                 occupancyStatus: schema.vehiclePositions.occupancyStatus,
-    //                 occupancyPercentage: schema.vehiclePositions.occupancyPercentage,
-    //                 bearing: schema.vehiclePositions.bearing,
-    //                 odometer: schema.vehiclePositions.odometer,
-    //                 speed: schema.vehiclePositions.speed,
-    //                 ingestedAt: schema.vehiclePositions.ingestedAt,
-    //             })
-    //             .from(schema.tripInstances)
-    //             .innerJoin(schema.trips, eq(schema.trips.id, schema.tripInstances.tripId))
-    //             .innerJoin(
-    //                 schema.vehiclePositions,
-    //                 eq(schema.vehiclePositions.tripInstanceId, schema.tripInstances.id),
-    //             )
-    //             .where(
-    //                 and(
-    //                     ...conditions,
-    //                     gt(schema.vehiclePositions.timestamp, getHoursInFuture(-0.083)),
-    //                 ),
-    //             );
+            const tripInstanceIds = this.db
+                .select({
+                    id: tables.tripInstances.id,
+                })
+                .from(tables.tripInstances)
+                .innerJoin(tables.trips, eq(tables.trips.id, tables.tripInstances.tripId))
+                .where(
+                    and(
+                        agencyId ? eq(tables.tripInstances.agencyId, agencyId) : undefined,
+                        routeId ? eq(tables.tripInstances.routeId, routeId) : undefined,
+                        direction ? eq(tables.trips.direction, direction) : undefined,
+                    ),
+                );
 
-    //         const latestPerTrip = recentTripInstances.reduce((acc, row) => {
-    //             const existing = acc.get(row.tripInstanceId);
-    //             if (!existing || row.timestamp > existing.timestamp) {
-    //                 acc.set(row.tripInstanceId, row);
-    //             }
-    //             return acc;
-    //         }, new Map<number, (typeof recentTripInstances)[number]>());
+            const latestPositions = this.db
+                .selectDistinctOn([tables.vehiclePositions.tripInstanceId])
+                .from(tables.vehiclePositions)
+                .where(
+                    and(
+                        inArray(tables.vehiclePositions.tripInstanceId, tripInstanceIds),
+                        gt(tables.vehiclePositions.timestamp, realtimeThresholdDate),
+                    ),
+                )
+                .orderBy(
+                    tables.vehiclePositions.tripInstanceId,
+                    desc(tables.vehiclePositions.timestamp),
+                )
+                .as("latest_positions");
 
-    //         for (const [tripInstanceId, position] of latestPerTrip) {
-    //             yield {
-    //                 tripInstanceId,
-    //                 latestPosition: {
-    //                     id: position.positionId,
-    //                     vehicleId: 0,
-    //                     tripInstanceId,
-    //                     timestamp: position.timestamp,
-    //                     location: position.location,
-    //                     stopId: position.stopId,
-    //                     currentStopSequence: position.currentStopSequence,
-    //                     currentStatus: position.currentStatus,
-    //                     congestionLevel: position.congestionLevel,
-    //                     occupancyStatus: position.occupancyStatus,
-    //                     occupancyPercentage: position.occupancyPercentage,
-    //                     bearing: position.bearing,
-    //                     odometer: position.odometer,
-    //                     speed: position.speed,
-    //                     ingestedAt: position.ingestedAt,
-    //                 } satisfies typeof schema.vehiclePositions.$inferSelect,
-    //             };
-    //         }
-    //     }
+            const results = await this.db
+                .select()
+                .from(latestPositions)
+                .orderBy(desc(latestPositions.timestamp));
 
-    //     // Poll for new positions
-    //     let lastPoll = new Date(0);
-    //     while (!signal?.aborted) {
-    //         await new Promise((r) => setTimeout(r, pollIntervalMs));
-    //         if (signal?.aborted) return;
+            yield results;
 
-    //         const newPositions = await this.db
-    //             .select()
-    //             .from(schema.vehiclePositions)
-    //             .where(gt(schema.vehiclePositions.ingestedAt, lastPoll));
-
-    //         lastPoll = new Date();
-
-    //         for (const pos of newPositions) {
-    //             yield { tripInstanceId: pos.tripInstanceId!, latestPosition: pos };
-    //         }
-    //     }
-    // }
+            await Bun.sleep(pollIntervalMs);
+        }
+    }
 
     // public async *watchLiveStopTimes(
     //     watchTripStops: {
