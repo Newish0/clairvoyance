@@ -37,7 +37,7 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
                 return scoreA - scoreB;
             })
             .reduce<Record<string, (typeof departures)[number][]>>((acc, departure) => {
-                const k = departure.routeId + "-" + departure.direction;
+                const k = departure.routeId;
                 acc[k] = acc[k] || [];
                 acc[k].push(departure);
                 return acc;
