@@ -73,7 +73,7 @@ export const Route = createFileRoute("/nt")({
         }
 
         // TODO: Consider circular trips with stopSequence
-        const targetStopTimeInst = targetTripInst?.stopTimeInstances.find(
+        const targetStopTimeInstIdx = targetTripInst?.stopTimeInstances.findIndex(
             (st) => st.stopId === stopId,
         );
 
@@ -83,7 +83,7 @@ export const Route = createFileRoute("/nt")({
             );
         }
 
-        return { upcomingDepartures, targetTripInst, targetStopTimeInst };
+        return { upcomingDepartures, targetTripInst, targetStopTimeInstIdx };
     },
     // TODO: Add real error component
     errorComponent: ({ error }) => <div>{error.message}</div>,
@@ -91,7 +91,8 @@ export const Route = createFileRoute("/nt")({
 
 function RouteComponent() {
     const searchParams = Route.useSearch();
-    const { upcomingDepartures, targetTripInst, targetStopTimeInst } = Route.useLoaderData();
+    const { upcomingDepartures, targetTripInst, targetStopTimeInstIdx } = Route.useLoaderData();
+    const targetStopTimeInst = targetTripInst.stopTimeInstances[targetStopTimeInstIdx];
     const router = useRouter();
 
     const combinedResolvedDepartures = useMemo(() => {
@@ -398,11 +399,7 @@ function RouteComponent() {
                                 };
                             }) || []
                         }
-                        activeStop={
-                            targetTripInst?.stopTimeInstances.findIndex(
-                                (st) => st === targetStopTimeInst,
-                            ) ?? -1
-                        }
+                        activeStop={targetStopTimeInstIdx}
                         color={ensureHexColorStartsWithHash(targetTripInst.trip?.route?.color)}
                         fillColor={ensureHexColorStartsWithHash(
                             targetTripInst.trip?.route?.textColor,

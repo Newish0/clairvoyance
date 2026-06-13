@@ -12,7 +12,6 @@ export function resolveCssColor(color: string): string {
     return color.trim().replace(varPattern, (match) => {
         const cssVar = match.slice(4, -1).trim();
         const resolved = getCssProperty(cssVar);
-        console.log("resolved", resolved);
         return resolved;
     });
 }
@@ -35,7 +34,6 @@ export function convertCssColorToHex(cssColor: string) {
 
 export function getMutedColor(color: string | Color, muteFactor: number = 0.5) {
     const resolved = typeof color === "string" ? resolveCssColor(color) : color;
-    console.log("resolved", resolved);
     const c = new Color(resolved);
 
     // Clamp the factor to a valid range
@@ -63,7 +61,6 @@ export function getMutedColor(color: string | Color, muteFactor: number = 0.5) {
 
 export function withOpacity(color: string | Color, opacity: number = 0.5): string {
     const resolved = typeof color === "string" ? resolveCssColor(color) : color;
-    console.log("resolved", resolved);
     const c = new Color(resolved);
 
     // Clamp opacity between 0 and 1
