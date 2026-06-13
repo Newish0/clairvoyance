@@ -1,10 +1,19 @@
 import { cn } from "@/lib/utils";
+import { getMutedColor, withOpacity } from "@/utils/css";
 import React, { useEffect, useRef } from "react";
 
 export interface TransitStopProps
     extends Omit<
         TransitStopItemProps,
-        "isActive" | "isActiveBullet" | "scrollToView" | "bulletSize" | "lineSize"
+        | "isActive"
+        | "isPast"
+        | "isCurrent"
+        | "scrollToView"
+        | "bulletSize"
+        | "lineSize"
+        | "bulletBorderSize"
+        | "color"
+        | "fillColor"
     > {
     bulletSize?: number;
 }
@@ -13,34 +22,47 @@ export interface TransitRouteTimelineProps {
     stops: TransitStopProps[];
     activeStop: number;
     bulletSize?: number;
+    /** Thickness of the vertical connecting line */
     lineSize?: number;
+    /** Thickness of the bullet border ring */
+    bulletBorderSize?: number;
+    /** Any valid CSS color, e.g. "#3b82f6" or "rgb(99,102,241)" */
+    color?: string;
+    fillColor?: string;
 }
 
 export const TransitRouteTimeline: React.FC<TransitRouteTimelineProps> = ({
     stops,
     activeStop,
     bulletSize = 16,
-    lineSize = 4,
+    lineSize = 8,
+    bulletBorderSize = 2,
+    color = "var(--primary)",
+    fillColor = "var(--background)",
 }) => {
     return (
-        <ul style={{ paddingLeft: `${bulletSize / 2}px` }}>
+        <ul style={{ paddingLeft: `${bulletSize / 2 + lineSize / 2}px` }}>
             {stops.map((stop, index) => {
-                const isActive = activeStop === -1 ? false : activeStop <= index;
+                // the line on a stop connects it *down* to the next, so color
+                // it when we've passed through (index < activeStop) or are current
+                const isActive = activeStop === -1 ? false : index >= activeStop;
+                const isPast = activeStop !== -1 && index < activeStop;
+                const isCurrent = index === activeStop;
+
                 return (
                     <TransitStopItem
                         key={index}
-                        stopName={stop.stopName}
-                        stopTime={stop.stopTime}
-                        stopInfo={stop.stopInfo}
-                        description={stop.description}
-                        icon={stop.icon}
+                        {...stop}
                         isLast={index === stops.length - 1}
                         isFirst={index === 0}
                         isActive={isActive}
-                        isActiveBullet={isActive}
-                        scrollToView={index === Math.max(0, activeStop - 1)}
-                        bulletSize={index === activeStop ? bulletSize * 1.2 : bulletSize}
+                        isPast={isPast}
+                        scrollToView={activeStop >= 0 && index === activeStop}
+                        bulletSize={isCurrent ? bulletSize * 1.5 : bulletSize}
                         lineSize={lineSize}
+                        bulletBorderSize={isCurrent ? bulletBorderSize * 3 : bulletBorderSize}
+                        color={color}
+                        fillColor={fillColor}
                     />
                 );
             })}
@@ -57,11 +79,14 @@ export interface TransitStopItemProps {
     isLast?: boolean;
     isFirst?: boolean;
     isActive: boolean;
-    isActiveBullet: boolean;
+    isPast: boolean;
     scrollToView: boolean;
     className?: string;
     bulletSize: number;
     lineSize: number;
+    bulletBorderSize: number;
+    color: string;
+    fillColor: string;
 }
 
 const TransitStopItem: React.FC<TransitStopItemProps> = ({
@@ -71,45 +96,47 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
     stopTime,
     stopInfo,
     isLast,
-    isFirst,
     isActive,
-    isActiveBullet,
+    isPast,
     scrollToView,
     bulletSize,
     lineSize,
+    bulletBorderSize,
+    color,
+    fillColor,
     className,
     ...rest
 }) => {
     const ref = useRef<HTMLLIElement | null>(null);
+    const mutedColor = withOpacity(getMutedColor(color), 0.9);
+    const mutedFillColor = withOpacity(getMutedColor(fillColor), 0.9);
 
     useEffect(() => {
         if (scrollToView && ref.current) {
-            ref.current.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-                inline: "center",
-            });
+            ref.current.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
         }
     }, [scrollToView]);
+
+    const lineColor = isLast ? "transparent" : isActive ? color : isPast ? mutedColor : undefined;
 
     return (
         <li
             ref={ref}
-            className={cn(
-                "relative border-l pb-6 pl-8",
-                isLast && "border-l-transparent pb-0",
-                isActive && !isLast && "border-l-primary",
-                className
-            )}
-            style={{ borderLeftWidth: `${lineSize}px` }}
+            className={cn("relative border-l pb-6 pl-8", isLast && "pb-0", className)}
+            style={{ borderLeftWidth: `${lineSize}px`, borderLeftColor: lineColor }}
             {...rest}
         >
             <TransitStopBullet
-                lineSize={lineSize}
                 bulletSize={bulletSize}
-                isActive={isActiveBullet}
+                lineSize={lineSize}
+                bulletBorderSize={bulletBorderSize}
+                isActive={isActive}
+                isPast={isPast}
                 isLast={isLast}
-                isFirst={isFirst}
+                color={color}
+                mutedColor={mutedColor}
+                fillColor={fillColor}
+                mutedFillColor={mutedFillColor}
             >
                 {icon}
             </TransitStopBullet>
@@ -117,7 +144,7 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
             <div
                 className={cn(
                     "flex items-center justify-between mb-1",
-                    !isActive && "text-muted-foreground"
+                    !isActive && "text-muted-foreground",
                 )}
             >
                 <div className="flex-1">
@@ -137,33 +164,44 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
 export interface TransitStopBulletProps {
     children?: React.ReactNode;
     isActive?: boolean;
+    isPast?: boolean;
     isLast?: boolean;
-    isFirst?: boolean;
     bulletSize: number;
     lineSize: number;
+    bulletBorderSize: number;
+    color: string;
+    mutedColor: string;
+    fillColor: string;
+    mutedFillColor: string;
 }
 
 const TransitStopBullet: React.FC<TransitStopBulletProps> = ({
     children,
     isActive,
+    isPast,
     isLast,
-    isFirst,
     bulletSize,
     lineSize,
+    bulletBorderSize,
+    color,
+    mutedColor,
+    fillColor,
+    mutedFillColor,
 }) => {
+    const borderColor = isActive ? color : isPast ? mutedColor : undefined;
+    const bgColor = isActive ? fillColor : isPast ? mutedFillColor : undefined;
+
     return (
         <div
-            className={cn(
-                "absolute top-0 flex items-center justify-center rounded-full border bg-background",
-                isActive && "border-primary",
-                isLast && "bg-primary",
-                isFirst && "bg-border"
-            )}
+            className="absolute top-0 flex items-center justify-center rounded-full"
             style={{
                 width: `${bulletSize}px`,
                 height: `${bulletSize}px`,
-                left: `${-bulletSize / 2 - lineSize / 2}px`,
-                borderWidth: `${lineSize}px`,
+                left: `${-(bulletSize / 2 + lineSize / 2)}px`,
+                borderWidth: `${bulletBorderSize}px`,
+                borderStyle: "solid",
+                borderColor,
+                backgroundColor: isLast && isActive ? color : bgColor,
             }}
             aria-hidden="true"
         >

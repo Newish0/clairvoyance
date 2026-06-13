@@ -1,5 +1,22 @@
 import Color from "colorjs.io";
 
+/**
+ * Resolves a CSS color string to a concrete value.
+ * Handles:
+ *   - var(--some-token)        -> looks up the computed value on :root
+ *   - var(--token, #fallback)  -> uses fallback if var is empty
+ *   - plain strings            -> returned as-is
+ */
+export function resolveCssColor(color: string): string {
+    const varPattern = /var\((--[^\,\:\)]+)\)/g;
+    return color.trim().replace(varPattern, (match) => {
+        const cssVar = match.slice(4, -1).trim();
+        const resolved = getCssProperty(cssVar);
+        console.log("resolved", resolved);
+        return resolved;
+    });
+}
+
 export function getCssProperty(cssVar: string) {
     const root = document.documentElement;
     const value = getComputedStyle(root).getPropertyValue(cssVar).trim();
@@ -12,12 +29,14 @@ export function ensureHexColorStartsWithHash(color: string | null | undefined) {
 }
 
 export function convertCssColorToHex(cssColor: string) {
-    const c = new Color(cssColor);
+    const c = new Color(resolveCssColor(cssColor));
     return c.to("srgb").toString({ format: "hex" });
 }
 
 export function getMutedColor(color: string | Color, muteFactor: number = 0.5) {
-    const c = new Color(color);
+    const resolved = typeof color === "string" ? resolveCssColor(color) : color;
+    console.log("resolved", resolved);
+    const c = new Color(resolved);
 
     // Clamp the factor to a valid range
     muteFactor = Math.max(0, Math.min(1, muteFactor));
@@ -43,7 +62,9 @@ export function getMutedColor(color: string | Color, muteFactor: number = 0.5) {
 }
 
 export function withOpacity(color: string | Color, opacity: number = 0.5): string {
-    const c = new Color(color);
+    const resolved = typeof color === "string" ? resolveCssColor(color) : color;
+    console.log("resolved", resolved);
+    const c = new Color(resolved);
 
     // Clamp opacity between 0 and 1
     const clampedOpacity = Math.max(0, Math.min(1, opacity));
