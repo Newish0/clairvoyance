@@ -1,39 +1,34 @@
-"use client";
-
 import type React from "react";
 
 import { Card } from "@/components/ui/card";
-import {
-    Carousel,
-    CarouselContent,
-    CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
-} from "@/components/ui/carousel";
-import {
-    AlertCircle,
-    AlertTriangle,
-    Info,
-    Wrench,
-    Zap,
-    CloudRain,
-    Construction,
-    Users,
-    Activity,
-    Ban,
-    Clock,
-    MapPin,
-} from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 import {
+    Activity,
+    AlertCircle,
+    AlertTriangle,
+    Ban,
+    Clock,
+    CloudRain,
+    Construction,
+    Info,
+    MapPin,
+    Users,
+    Wrench,
+    Zap,
+} from "lucide-react";
+
+import { trpc } from "@/main";
+import { useQuery } from "@tanstack/react-query";
+import type {
     AlertCause,
     AlertEffect,
-    type AlertSeverity,
-    type Direction,
-    type RouteType,
-} from "../../../../gtfs-processor/shared/gtfs-db-types";
-import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/main";
+    AlertSeverity,
+    Direction,
+    RouteType,
+} from "database/models/enums";
+import type { inferProcedureOutput } from "@trpc/server";
+import type { AppRouter } from "transit-api";
 
 function getCauseIcon(cause: AlertCause) {
     const iconMap: Record<AlertCause, React.ElementType> = {
@@ -95,31 +90,10 @@ function formatEffect(effect: AlertEffect): string {
 }
 
 type AlertCarouselProps = {
-    agencyId?: string;
-    routeId?: string;
-    directionId?: Direction;
-    tripInstanceId?: string;
-    stopIds?: string | string[];
-    routeType?: RouteType;
+    alerts: inferProcedureOutput<AppRouter["alert"]["getActivesForEntity"]>;
 };
 
-export function AlertCarousel({
-    agencyId,
-    routeId,
-    directionId,
-    tripInstanceId,
-    stopIds,
-}: AlertCarouselProps) {
-    const { data: alerts } = useQuery({
-        ...trpc.alert.getActiveAlerts.queryOptions({
-            agencyId,
-            routeId,
-            directionId,
-            stopId: stopIds,
-            tripInstanceId,
-        }),
-    });
-
+export function AlertCarousel({ alerts }: AlertCarouselProps) {
     return (
         <div className="w-full max-w-sm mx-auto">
             <Carousel
@@ -131,10 +105,10 @@ export function AlertCarousel({
             >
                 <CarouselContent className="">
                     {alerts?.map((alert, index) => {
-                        const CauseIcon = getCauseIcon(alert.cause);
-                        const EffectIcon = getEffectIcon(alert.effect);
-                        const headerText = alert.header_text[0]?.text || "Alert";
-                        const descText = alert.description_text[0]?.text || "";
+                        const CauseIcon = alert.cause && getCauseIcon(alert.cause);
+                        const EffectIcon = alert.effect && getEffectIcon(alert.effect);
+                        const headerText = alert.headerText.default || "Alert";
+                        const descText = alert.descriptionText.default || "";
 
                         return (
                             <CarouselItem
@@ -144,18 +118,18 @@ export function AlertCarousel({
                                 <Card
                                     className={cn(
                                         "p-3 flex flex-col gap-4 border-2 transition-colors",
-                                        getSeverityColor(alert.severity_level)
+                                        alert.severity && getSeverityColor(alert.severity),
                                     )}
                                 >
                                     {/* Header with severity icon */}
                                     <div className="flex items-center gap-2">
-                                        {alert.severity_level === "SEVERE" && (
+                                        {alert.severity === "SEVERE" && (
                                             <AlertTriangle className="size-4 shrink-0" />
                                         )}
-                                        {alert.severity_level === "WARNING" && (
+                                        {alert.severity === "WARNING" && (
                                             <AlertCircle className="size-4 shrink-0" />
                                         )}
-                                        {alert.severity_level === "INFO" && (
+                                        {alert.severity === "INFO" && (
                                             <Info className="size-4 shrink-0" />
                                         )}
 
@@ -169,20 +143,24 @@ export function AlertCarousel({
 
                                     {/* Cause and Effect */}
                                     <div className="space-y-1">
-                                        {alert.cause !== AlertCause.UNKNOWN_CAUSE && (
+                                        {alert.cause !== "UNKNOWN_CAUSE" && (
                                             <div className="flex items-center gap-1.5">
-                                                <CauseIcon className="size-3 shrink-0" />
+                                                {CauseIcon && (
+                                                    <CauseIcon className="size-3 shrink-0" />
+                                                )}
                                                 <span className="text-[9px] font-medium uppercase tracking-wide">
-                                                    {formatCause(alert.cause)}
+                                                    {alert.cause && formatCause(alert.cause)}
                                                 </span>
                                             </div>
                                         )}
-                                        {alert.effect !== AlertEffect.UNKNOWN_EFFECT &&
-                                            alert.effect !== AlertEffect.OTHER_EFFECT && (
+                                        {alert.effect !== "UNKNOWN_EFFECT" &&
+                                            alert.effect !== "OTHER_EFFECT" && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <EffectIcon className="size-3 shrink-0" />
+                                                    {EffectIcon && (
+                                                        <EffectIcon className="size-3 shrink-0" />
+                                                    )}
                                                     <span className="text-[9px] font-medium uppercase tracking-wide line-clamp-1">
-                                                        {formatEffect(alert.effect)}
+                                                        {alert.effect && formatEffect(alert.effect)}
                                                     </span>
                                                 </div>
                                             )}

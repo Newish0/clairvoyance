@@ -9,15 +9,17 @@ const entitySelectionQuery = v.object({
     routeType: v.optional(v.picklist(routeTypeEnum.enumValues)),
     routeId: v.optional(vInteger()),
     direction: v.optional(v.picklist(directionEnum.enumValues)),
-    stopId: v.optional(v.union([v.string(), v.array(v.string())])),
-    tripInstanceId: v.optional(v.string()),
+    stopId: v.optional(vInteger()),
+    tripInstanceId: v.optional(vInteger()),
 });
 
 export const alertRouter = router({
-    getActiveAlerts: publicProcedure.input(entitySelectionQuery).query(async ({ input, ctx }) => {
-        // const repo = new AlertRepository(ctx.db);
-        // return repo.findAffectedActiveAlerts(input);
-    }),
+    getActivesForEntity: publicProcedure
+        .input(entitySelectionQuery)
+        .query(async ({ input, ctx }) => {
+            const repo = new AlertRepository(ctx.db);
+            return repo.findAlertsForEntity(input);
+        }),
     // onActiveChange: publicProcedure
     //     .input(entitySelectionQuery)
     //     .subscription(async function* ({ input, signal }) {
