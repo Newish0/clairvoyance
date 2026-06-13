@@ -40,6 +40,27 @@ export async function upsertMany<T extends PgTable>(
     // Collect column names the caller wants to preserve on conflict
     const ignoredNames = new Set(ignore.map((key) => columns[key as string]!.name));
 
+    // HACK: Tmp fix until resolved https://github.com/oven-sh/bun/issues/28819
+    // Normalize values — jsonb columns must be inlined as SQL literals rather than
+    // passed as parameters. The pg driver re-serializes parameterized jsonb values
+    // before sending to Postgres, causing the value to be stored as a jsonb string
+    // instead of a jsonb array/object. Inlining as `'...'::jsonb` matches what a
+    // raw SQL insert would do and bypasses the driver's re-serialization entirely.
+    const normalizedValues = values.map((row) =>
+        Object.fromEntries(
+            Object.entries(row).map(([key, value]) => {
+                const col = columns[key];
+                if (col?.columnType === "PgJsonb" && value !== null && value !== undefined) {
+                    // Escape single quotes (SQL standard) to prevent injection —
+                    // JSON strings can contain single quotes.
+                    const escaped = JSON.stringify(value).replace(/'/g, "''");
+                    return [key, sql.raw(`'${escaped}'::jsonb`)];
+                }
+                return [key, value];
+            }),
+        ),
+    ) as InferInsertModel<T>[];
+
     // Build SET clause: every column that is not a conflict target and not ignored
     const set = Object.entries(columns).reduce<PgUpdateSetSource<T>>((acc, [key, col]) => {
         if (!targetNames.has(col.name) && !ignoredNames.has(col.name)) {
@@ -50,6 +71,6 @@ export async function upsertMany<T extends PgTable>(
 
     await db
         .insert(table)
-        .values(values as any)
+        .values(normalizedValues as any)
         .onConflictDoUpdate({ target, set });
 }
