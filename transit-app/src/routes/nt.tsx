@@ -175,6 +175,7 @@ function RouteComponent() {
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     routeId={targetTripInst.routeId}
+                    direction={targetTripInst.trip?.direction ?? searchParams.direction}
                     shapeId={targetTripInst.shapeId}
                     stopInfos={tripMapStopInfos}
                     routeColor={ensureHexColorStartsWithHash(targetTripInst.trip?.route?.color)}

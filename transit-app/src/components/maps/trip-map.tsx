@@ -21,10 +21,11 @@ import {
     type ViewStateChangeEvent,
 } from "react-map-gl/maplibre";
 import { UserLocationMarker } from "./user-location";
-// import { VehiclePositionMapMarker } from "./vehicle-map-marker";
+import { VehiclePositionMapMarker } from "./vehicle-map-marker";
 import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
 import type { Direction } from "database/models/enums";
 import type { FeatureCollection, Point } from "geojson";
+import type { VehiclePosition } from "../trip-info/vehicle-position-details";
 
 export type TripMapStopInfo = {
     stopId: number;
@@ -97,17 +98,13 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 stopColor={props.routeColor}
                 stopBorderColor={props.routeTextColor}
             />
-            {/* 
             <LiveVehiclesLayer
-                agencyId={props.agencyId}
                 routeId={props.routeId}
                 direction={props.direction}
-                routeColor={props.routeColor}
-                routeTextColor={props.routeTextColor}
-                // routeColor={"var(--primary)"}
-                // routeTextColor={"var(--primary-foreground)"}
-                atStopId={props.atStopId}
-            /> */}
+                routeColor={props.routeColor || "var(--primary)"}
+                routeTextColor={props.routeTextColor || "var(--primary-foreground)"}
+                targetStopSequence={targetStop?.sequence}
+            />
 
             <UserLocationMarker />
         </ProtoMap>
@@ -350,83 +347,79 @@ const ShapesGeojsonLayer: React.FC<{
     );
 };
 
-// const LiveVehiclesLayer: React.FC<{
-//     agencyId: string;
-//     routeId: string;
-//     routeColor?: string;
-//     routeTextColor?: string;
-//     direction?: Direction;
-//     atStopId?: string;
-// }> = ({ agencyId, routeId, direction, routeColor, routeTextColor, atStopId }) => {
-//     const [positions, setPositions] = useState<Record<string, VehiclePosition | null>>({});
-//     const subscription = useSubscription(
-//         trpc.tripInstance.liveTripPositions.subscriptionOptions(
-//             {
-//                 agencyId,
-//                 routeId,
-//                 directionId: direction,
-//             },
-//             {
-//                 onData: (data) => {
-//                     console.log("onData", data);
-//                     setPositions((prev) => ({
-//                         ...prev,
-//                         [data.tripInstanceId]: data.latestPosition,
-//                     }));
-//                 },
-//                 onError: (error) => {
-//                     console.error("onError", error);
-//                 },
-//                 onStarted: () => {
-//                     console.log("onStarted");
-//                 },
-//                 onConnectionStateChange: (state) => {
-//                     console.log("onConnectionStateChange", state);
-//                 },
-//             },
-//         ),
-//     );
+const LiveVehiclesLayer: React.FC<{
+    routeId: number;
+    routeColor?: string;
+    routeTextColor?: string;
+    direction?: Direction;
+    targetStopSequence?: number;
+}> = ({ routeId, direction, routeColor, routeTextColor, targetStopSequence }) => {
+    const [positions, setPositions] = useState<VehiclePosition[]>([]);
+    const subscription = useSubscription(
+        trpc.tripInstance.livePositions.subscriptionOptions(
+            {
+                routeId,
+                direction,
+            },
+            {
+                onData: (data) => {
+                    console.log("onData", data);
+                    setPositions(data);
+                },
+                onError: (error) => {
+                    console.error("onError", error);
+                },
+                onStarted: () => {
+                    console.log("onStarted");
+                },
+                onConnectionStateChange: (state) => {
+                    console.log("onConnectionStateChange", state);
+                },
+            },
+        ),
+    );
 
-//     // console.log("positions", positions);
+    // console.log("positions", positions);
 
-//     return (
-//         <>
-//             {Object.entries(positions).map(
-//                 ([tripInstanceId, position]) =>
-//                     position && (
-//                         <LiveVehicleMarker
-//                             key={tripInstanceId}
-//                             routeColor={routeColor}
-//                             routeTextColor={routeTextColor}
-//                             position={position}
-//                             atStopId={atStopId}
-//                         />
-//                     ),
-//             )}
-//         </>
-//     );
-// };
+    return (
+        <>
+            {Object.entries(positions).map(
+                ([tripInstanceId, position]) =>
+                    position && (
+                        <LiveVehicleMarker
+                            key={tripInstanceId}
+                            routeColor={routeColor}
+                            routeTextColor={routeTextColor}
+                            position={position}
+                        />
+                    ),
+            )}
+        </>
+    );
+};
 
-// const LiveVehicleMarker: React.FC<{
-//     routeColor?: string;
-//     routeTextColor?: string;
-//     position: VehiclePosition;
-//     atStopId?: string;
-// }> = ({ position, routeColor, routeTextColor, atStopId }) => {
-//     const { latitude, longitude } = position;
+const LiveVehicleMarker: React.FC<{
+    routeColor?: string;
+    routeTextColor?: string;
+    position: VehiclePosition;
+    targetStopSequence?: number;
+}> = ({ position, routeColor, routeTextColor, targetStopSequence }) => {
+    const {
+        location: { x: longitude, y: latitude },
+    } = position;
 
-//     if (!latitude || !longitude) {
-//         return null;
-//     }
+    if (!latitude || !longitude) {
+        return null;
+    }
 
-//     return (
-//         <VehiclePositionMapMarker
-//             vehiclePosition={position}
-//             longitude={longitude}
-//             latitude={latitude}
-//             routeColor={routeColor}
-//             routeTextColor={routeTextColor}
-//             atStopId={atStopId}
-//         />
-//     );
-// };
+    return (
+        <VehiclePositionMapMarker
+            vehiclePosition={position}
+            longitude={longitude}
+            latitude={latitude}
+            routeColor={routeColor}
+            routeTextColor={routeTextColor}
+            targetStopSequence={targetStopSequence}
+        />
+    );
+};

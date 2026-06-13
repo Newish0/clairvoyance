@@ -1,12 +1,27 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+    mdiBus,
+    mdiBusElectric,
+    mdiFerry,
+    mdiGondola,
+    mdiSubway,
+    mdiTrain,
+    mdiTrainCar,
+    mdiTram,
+} from "@mdi/js";
 import type { DateArg } from "date-fns";
 import { motion } from "framer-motion";
-import { BusFront, Cable, Ship, Train, Drama as Tram, X } from "lucide-react";
+import { X } from "lucide-react";
+
+import Icon from "@mdi/react";
+import type { RouteType } from "database/models/enums";
 import { useEffect, useState } from "react";
 import { Marker, type MarkerProps } from "react-map-gl/maplibre";
-
-import { VehiclePositionDetails } from "../trip-info/vehicle-position-details";
+import {
+    VehiclePositionDetails,
+    type VehiclePosition,
+} from "../trip-info/vehicle-position-details";
 import {
     ResponsiveModal,
     ResponsiveModalContent,
@@ -60,8 +75,8 @@ function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
 /* --- VehiclePositionMapMarker (main) --- */
 interface VehiclePositionMapMarkerProps extends MarkerProps {
     vehiclePosition: VehiclePosition;
-    atStopId?: string;
-    vehicleType?: "bus" | "train" | "tram" | "ferry" | "cable_car"; // TODO: use RouteType
+    targetStopSequence?: number;
+    vehicleType?: RouteType;
     routeColor?: string; // Hex color for the route
     routeTextColor?: string; // Text color that contrasts with routeColor
     onClick?: () => void;
@@ -69,8 +84,8 @@ interface VehiclePositionMapMarkerProps extends MarkerProps {
 
 export function VehiclePositionMapMarker({
     vehiclePosition: vp,
-    atStopId,
-    vehicleType = "bus",
+    targetStopSequence,
+    vehicleType = "BUS",
     routeColor = "var(--primary-foreground)",
     routeTextColor = "var(--primary)",
     ...markerProps
@@ -81,16 +96,15 @@ export function VehiclePositionMapMarker({
         isBoardable: boolean;
     } => {
         if (
-            vp.occupancy_status === OccupancyStatus.NOT_ACCEPTING_PASSENGERS ||
-            vp.occupancy_status === OccupancyStatus.NOT_BOARDABLE
+            vp.occupancyStatus === "NOT_ACCEPTING_PASSENGERS" ||
+            vp.occupancyStatus === "NOT_BOARDABLE"
         ) {
             return { fillPercentage: 100, hasData: true, isBoardable: false };
         }
 
-        const hasPercentageData = vp.occupancy_percentage !== null;
+        const hasPercentageData = vp.occupancyPercentage !== null;
         const hasStatusData =
-            vp.occupancy_status !== null &&
-            vp.occupancy_status !== OccupancyStatus.NO_DATA_AVAILABLE;
+            vp.occupancyStatus !== null && vp.occupancyStatus !== "NO_DATA_AVAILABLE";
 
         if (!hasPercentageData && !hasStatusData) {
             return { fillPercentage: 0, hasData: false, isBoardable: true };
@@ -98,29 +112,29 @@ export function VehiclePositionMapMarker({
 
         let fillPercentage = 0;
 
-        switch (vp.occupancy_status) {
-            case OccupancyStatus.EMPTY:
+        switch (vp.occupancyStatus) {
+            case "EMPTY":
                 fillPercentage = 0;
                 break;
-            case OccupancyStatus.MANY_SEATS_AVAILABLE:
+            case "MANY_SEATS_AVAILABLE":
                 fillPercentage = 25;
                 break;
-            case OccupancyStatus.FEW_SEATS_AVAILABLE:
+            case "FEW_SEATS_AVAILABLE":
                 fillPercentage = 50;
                 break;
-            case OccupancyStatus.STANDING_ROOM_ONLY:
+            case "STANDING_ROOM_ONLY":
                 fillPercentage = 75;
                 break;
-            case OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY:
+            case "CRUSHED_STANDING_ROOM_ONLY":
                 fillPercentage = 90;
                 break;
-            case OccupancyStatus.FULL:
+            case "FULL":
                 fillPercentage = 100;
                 break;
         }
 
         if (hasPercentageData) {
-            const occupancyPercentage = Math.min(100, Math.max(0, vp.occupancy_percentage!));
+            const occupancyPercentage = Math.min(100, Math.max(0, vp.occupancyPercentage!));
 
             // Ignore erroneous percentage data that deviates significantly from status's suggested value.
             // This is because some agencies report both status and percentage, but the percentage is a dummy value or inaccurate.
@@ -136,13 +150,18 @@ export function VehiclePositionMapMarker({
 
     const { fillPercentage, hasData, isBoardable } = getOccupancyState();
 
-    const VehicleIcon = {
-        bus: BusFront,
-        train: Train,
-        tram: Tram,
-        ferry: Ship,
-        cable_car: Cable,
-    }[vehicleType];
+    const vehicleIconMap: Record<RouteType, string> = {
+        BUS: mdiBus,
+        TRAM: mdiTram,
+        FERRY: mdiFerry,
+        CABLE_TRAM: mdiTram,
+        SUBWAY: mdiSubway,
+        AERIAL_LIFT: mdiGondola,
+        FUNICULAR: mdiTrainCar,
+        TROLLEYBUS: mdiBusElectric,
+        MONORAIL: mdiTrain,
+        RAIL: mdiTrain,
+    };
 
     return (
         <Marker {...markerProps}>
@@ -184,16 +203,17 @@ export function VehiclePositionMapMarker({
                                 </motion.div>
                             )}
 
-                            <VehicleIcon
+                            <Icon
+                                path={vehicleIconMap[vehicleType]}
                                 className="relative z-10 drop-shadow-md dark:saturate-75 brightness-90"
-                                size={24}
-                                style={{
-                                    color: !hasData
+                                size={1}
+                                color={
+                                    !hasData
                                         ? routeColor
                                         : fillPercentage > 65
                                           ? routeTextColor
-                                          : routeColor,
-                                }}
+                                          : routeColor
+                                }
                             />
 
                             {!isBoardable && (
@@ -223,7 +243,7 @@ export function VehiclePositionMapMarker({
                 <ResponsiveModalContent className="min-w-1/2 max-w-3xl bg-primary-foreground/60 backdrop-blur-md">
                     <VehiclePositionDetails
                         vehiclePosition={vp}
-                        atStopId={atStopId}
+                        targetStopSeq={targetStopSequence}
                         className="border-0 shadow-none bg-transparent"
                     />
                 </ResponsiveModalContent>

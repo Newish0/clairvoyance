@@ -90,4 +90,19 @@ export const tripInstanceRouter = router({
             const data = await repo.findDepartures(input);
             return data;
         }),
+
+    livePositions: publicProcedure
+        .input(
+            v.object({
+                routeId: v.pipe(v.number(), v.integer()),
+                direction: v.optional(v.picklist(directionEnum.enumValues)),
+                realtimeMaxAgeMs: v.optional(v.number()),
+            }),
+        )
+        .subscription(async function* ({ ctx, input, signal }) {
+            const repo = new TripInstancesRepository(ctx.db);
+            for await (const data of repo.watchLivePositions({ ...input, signal })) {
+                yield data;
+            }
+        }),
 });
