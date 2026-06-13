@@ -403,6 +403,10 @@ function RouteComponent() {
                                 (st) => st === targetStopTimeInst,
                             ) ?? -1
                         }
+                        color={ensureHexColorStartsWithHash(targetTripInst.trip?.route?.color)}
+                        fillColor={ensureHexColorStartsWithHash(
+                            targetTripInst.trip?.route?.textColor,
+                        )}
                     />
                 </div>
             </div>

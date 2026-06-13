@@ -1,16 +1,18 @@
 import { ProtoMap } from "@/components/maps/proto-map";
 import { EMPTY_FEATURE_COLLECTION } from "@/constants/geojson";
 import { DEFAULT_LOCATION } from "@/constants/location";
+import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
 import { useThemeColors } from "@/hooks/use-theme-colors";
 import { trpc } from "@/main";
 import { getMutedColor, withOpacity } from "@/utils/css";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { useClickAway } from "ahooks";
+import type { Direction } from "database/models/enums";
 import { format as formatDate, isFuture, type DateArg } from "date-fns";
+import type { FeatureCollection } from "geojson";
 import { ChevronRight } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     Layer,
     Marker,
@@ -20,12 +22,9 @@ import {
     type MapLayerMouseEvent,
     type ViewStateChangeEvent,
 } from "react-map-gl/maplibre";
+import type { VehiclePosition } from "../trip-info/vehicle-position-details";
 import { UserLocationMarker } from "./user-location";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
-import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
-import type { Direction } from "database/models/enums";
-import type { FeatureCollection, Point } from "geojson";
-import type { VehiclePosition } from "../trip-info/vehicle-position-details";
 
 export type TripMapStopInfo = {
     stopId: number;
@@ -95,8 +94,8 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
                 stopInfos={props.stopInfos}
                 routeId={props.routeId}
                 direction={props.direction}
-                stopColor={props.routeColor}
-                stopBorderColor={props.routeTextColor}
+                stopColor={props.routeTextColor}
+                stopBorderColor={props.routeColor}
             />
             <LiveVehiclesLayer
                 routeId={props.routeId}
@@ -159,7 +158,7 @@ const StopsGeojsonLayer: React.FC<{
         id: stopBorderLayerId,
         type: "circle",
         paint: {
-            "circle-radius": 10,
+            "circle-radius": ["case", ["==", ["get", "index"], targetStopIdx], 14, 8],
             "circle-color": [
                 "case",
                 ["<", ["get", "index"], targetStopIdx],
@@ -173,7 +172,7 @@ const StopsGeojsonLayer: React.FC<{
         id: stopFillLayerId,
         type: "circle",
         paint: {
-            "circle-radius": 6,
+            "circle-radius": ["case", ["==", ["get", "index"], targetStopIdx], 8, 6],
             "circle-color": [
                 "case",
                 ["<", ["get", "index"], targetStopIdx],
