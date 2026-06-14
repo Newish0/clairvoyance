@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, lt, SQL, sql } from "drizzle-orm";
 import { doublePrecision, integer, text, timestamp } from "drizzle-orm/pg-core";
 import { pickupDropOffEnum, stopTimeUpdateScheduleRelationshipEnum, timepointEnum } from "./enums";
 import { schema } from "./schema";
@@ -110,6 +110,7 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
     pickupType: pickupDropOffEnum("pickup_type"),
     dropOffType: pickupDropOffEnum("drop_off_type"),
     lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }),
+    effectiveTime: timestamp("effective_time", { withTimezone: true }),
 }).as(sql`
         -- Branch 1: rt.stop_id IS NOT NULL → join on (trip_instance_id, stop_id)
         -- Covers: rt+st matched rows, rt-only ADDED/unmatched rows, and st-only rows
@@ -131,7 +132,13 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
             COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
             COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
             COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
-            rt.last_updated_at
+            rt.last_updated_at,
+            COALESCE(
+                rt.predicted_departure_time,
+                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
+                rt.predicted_arrival_time,
+                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
+            ) AS effective_time
         FROM transit.stop_time_realtime_instances rt
         FULL JOIN transit.stop_time_static_instances st
             ON  rt.trip_instance_id = st.trip_instance_id
@@ -161,7 +168,13 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
             COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
             COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
             COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
-            rt.last_updated_at
+            rt.last_updated_at,
+            COALESCE(
+                rt.predicted_departure_time,
+                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
+                rt.predicted_arrival_time,
+                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
+            ) AS effective_time
         FROM transit.stop_time_realtime_instances rt
         FULL JOIN transit.stop_time_static_instances st
             ON  rt.trip_instance_id = st.trip_instance_id
