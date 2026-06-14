@@ -60,10 +60,11 @@ export class TripUpdateSink implements Sink<TransformedTripUpdate> {
             );
         } else {
             const updateResult = await fromAsyncThrowable(
-                () => ctx.db
-                    .update(tables.tripInstances)
-                    .set({ state: tu.state, lastTripUpdateAt: new Date() })
-                    .where(eq(tables.tripInstances.id, tu.tripInstanceId!)),
+                () =>
+                    ctx.db
+                        .update(tables.tripInstances)
+                        .set({ state: tu.state, lastTripUpdateAt: new Date() })
+                        .where(eq(tables.tripInstances.id, tu.tripInstanceId!)),
                 (e: unknown) => e,
             )();
 
@@ -73,13 +74,13 @@ export class TripUpdateSink implements Sink<TransformedTripUpdate> {
         }
 
         if (tu.stopTimeInstancesToUpsert) {
-            upsertMany(
+            await upsertMany(
                 ctx.db,
                 tables.stopTimeRealtimeInstances,
                 tu.stopTimeInstancesToUpsert,
                 [tables.stopTimeRealtimeInstances.id],
                 ["id"],
-            );
+            )
         }
     }
 

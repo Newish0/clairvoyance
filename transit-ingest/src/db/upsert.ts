@@ -23,13 +23,13 @@ import type { Db } from "./client";
  * // Ignore createdAt on update (preserve original row value)
  * await upsertMany(db, users, rows, users.email, ['createdAt']);
  */
-export async function upsertMany<T extends PgTable>(
+export function upsertMany<T extends PgTable>(
     db: Db,
     table: T,
     values: InferInsertModel<T>[],
     target: PgColumn | PgColumn[],
     ignore: (keyof T["_"]["columns"])[] = [],
-): Promise<void> {
+) {
     if (values.length === 0) return;
 
     const columns = getColumns(table);
@@ -48,7 +48,7 @@ export async function upsertMany<T extends PgTable>(
         return acc;
     }, {} as PgUpdateSetSource<T>);
 
-    await db
+    return db
         .insert(table)
         .values(values as any)
         .onConflictDoUpdate({ target, set });
