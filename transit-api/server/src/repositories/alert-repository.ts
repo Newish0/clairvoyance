@@ -45,62 +45,59 @@ export class AlertRepository extends DataRepository {
         agencyId: string;
         stopIds: number[];
     }) {
+        // Build the per-selector AND conditions as a single jsonb_path_exists / EXISTS check.
+        // Each element of informedEntities is one selector (one AND-group).
+        // A selector matches if every key it specifies (present in the JSON object)
+        // matches our values; absent keys are unconstrained.
         return this.db
             .select({
                 ...getColumns(views.activeAlerts),
-                matchedStopId: tables.alertEntities.stopId,
-                matchedRouteId: tables.alertEntities.routeId,
-                matchedTripInstanceId: tables.alertEntities.tripInstanceId,
-                matchedAgencyId: tables.alertEntities.agencyId,
-                matchedRouteType: tables.alertEntities.routeType,
             })
-            .from(tables.alertEntities)
-            .innerJoin(views.activeAlerts, eq(views.activeAlerts.id, tables.alertEntities.alertId))
+            .from(views.activeAlerts)
             .where(
-                and(
-                    // Guard against fully-unresolved selectors (all dimensions null).
-                    // Without this, a row where every column is NULL would vacuously
-                    // satisfy every "OR IS NULL" branch below and match every query.
-                    or(
-                        isNotNull(tables.alertEntities.tripInstanceId),
-                        isNotNull(tables.alertEntities.stopId),
-                        isNotNull(tables.alertEntities.routeId),
-                        isNotNull(tables.alertEntities.direction),
-                        isNotNull(tables.alertEntities.agencyId),
-                        isNotNull(tables.alertEntities.routeType),
-                    ),
-                    // AND-within-selector: every dimension this row specifies (non-null)
-                    // must match our trip instance; dimensions left null by the row
-                    // are unconstrained (vacuously satisfied).
-                    or(
-                        eq(tables.alertEntities.tripInstanceId, tripInstanceId),
-                        isNull(tables.alertEntities.tripInstanceId),
-                    ),
-                    or(
-                        inArray(tables.alertEntities.stopId, stopIds),
-                        isNull(tables.alertEntities.stopId),
-                    ),
-                    or(
-                        eq(tables.alertEntities.routeId, routeId),
-                        isNull(tables.alertEntities.routeId),
-                    ),
-                    direction
-                        ? or(
-                              eq(tables.alertEntities.direction, direction),
-                              isNull(tables.alertEntities.direction),
-                          )
-                        : undefined,
-                    or(
-                        eq(tables.alertEntities.agencyId, agencyId),
-                        isNull(tables.alertEntities.agencyId),
-                    ),
-                    routeType
-                        ? or(
-                              eq(tables.alertEntities.routeType, routeType),
-                              isNull(tables.alertEntities.routeType),
-                          )
-                        : undefined,
-                ),
+                sql`
+                EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(${views.activeAlerts.informedEntities}) AS selector
+                    WHERE
+                        -- Guard: selector must specify at least one dimension
+                        (
+                            selector ? 'tripInstanceId'
+                            OR selector ? 'stopId'
+                            OR selector ? 'routeId'
+                            OR selector ? 'direction'
+                            OR selector ? 'agencyId'
+                            OR selector ? 'routeType'
+                        )
+                        AND (
+                            NOT (selector ? 'tripInstanceId')
+                            OR (selector->>'tripInstanceId')::int = ${tripInstanceId}
+                        )
+                       AND (
+                            NOT (selector ? 'stopId')
+                            OR (selector->>'stopId')::int = ANY(ARRAY[${sql.join(
+                                stopIds.map((id) => sql`${id}`),
+                                sql`, `,
+                            )}]::int[])
+                        )
+                        AND (
+                            NOT (selector ? 'routeId')
+                            OR (selector->>'routeId')::int = ${routeId}
+                        )
+                        AND (
+                            NOT (selector ? 'direction')
+                            OR ${direction ? sql`selector->>'direction' = ${direction}` : sql`false`}
+                        )
+                        AND (
+                            NOT (selector ? 'agencyId')
+                            OR selector->>'agencyId' = ${agencyId}
+                        )
+                        AND (
+                            NOT (selector ? 'routeType')
+                            OR ${routeType ? sql`selector->>'routeType' = ${routeType}` : sql`false`}
+                        )
+                )
+            `,
             );
     }
 

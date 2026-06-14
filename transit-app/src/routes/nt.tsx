@@ -98,8 +98,10 @@ export const Route = createFileRoute("/nt")({
             routeType: targetTripInst.trip?.route?.type,
         });
 
-        const stopAlerts = alerts.filter((a) => a.matchedStopId !== null);
-        const otherAlerts = alerts.filter((a) => a.matchedStopId === null);
+        const stopAlerts = alerts.filter((a) => a.informedEntities?.some((e) => e.stopId !== null));
+        const otherAlerts = alerts.filter((a) =>
+            a.informedEntities?.some((e) => e.stopId === null),
+        );
 
         console.log("stopAlerts", stopAlerts);
         console.log("otherAlerts", otherAlerts);
@@ -393,7 +395,9 @@ function RouteComponent() {
                         stops={
                             targetTripInst?.stopTimeInstances.map((st) => {
                                 // FIXME: if multiple alerts for the same stop, will only show one... not ideal
-                                const alert = stopAlerts.findLast((a) => a.matchedStopId === st.stopId);
+                                const alert = stopAlerts.findLast((a) =>
+                                    a.informedEntities?.some?.((ie) => ie.stopId === st.stopId),
+                                );
                                 return {
                                     stopName: (
                                         <Link

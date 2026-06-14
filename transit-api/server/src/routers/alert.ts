@@ -27,7 +27,8 @@ export const alertRouter = router({
         )
         .query(async ({ input, ctx }) => {
             const repo = new AlertRepository(ctx.db);
-            return repo.findAlertsForTripInstance(input);
+            const alerts = await repo.findAlertsForTripInstance(input);
+            return alerts;
         }),
 
     getActivesForEntity: publicProcedure

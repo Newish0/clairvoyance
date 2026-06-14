@@ -25,20 +25,6 @@ import {
 } from "drizzle-orm/pg-core";
 
 // =========================================================
-// HELPER TYPES
-// =========================================================
-
-type MergeFieldTypes<T1 extends object, T2 extends object> = {
-    [K in keyof T1 | keyof T2]:
-        | (K extends keyof T1 ? T1[K] : never)
-        | (K extends keyof T2 ? T2[K] : never);
-};
-
-type AliasFields<T> = {
-    [K in keyof T]: SQL.Aliased<T[K]>;
-};
-
-// =========================================================
 // VIEWS
 // =========================================================
 
