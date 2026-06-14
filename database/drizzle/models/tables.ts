@@ -367,6 +367,13 @@ export const alerts = schema.table(
         url: jsonb("url").$type<TranslationMap>(),
 
         activePeriods: jsonb("active_periods").$type<TimePeriod[]>(),
+
+        /**
+         * @deprecated Kept for debugging/transition only. The source of truth for
+         * "what does this alert apply to" is now the `alert_entities` join table,
+         * which gives us indexed FK joins instead of JSONB containment queries.
+         * Safe to remove once alert_entities has been validated in production.
+         */
         informedEntities: jsonb("informed_entities").$type<EntitySelector[]>(),
 
         lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow(),
@@ -375,5 +382,31 @@ export const alerts = schema.table(
         // JSONB Indexing is critical for 'informed_entities' queries
         index("idx_alerts_informed_entities_gin").using("gin", t.informedEntities),
         index("idx_alerts_active_periods_gin").using("gin", t.activePeriods),
+    ],
+);
+
+export const alertEntities = schema.table(
+    "alert_entities",
+    {
+        id: serial("id").primaryKey(),
+        alertId: integer("alert_id")
+            .references(() => alerts.id, { onDelete: "cascade" })
+            .notNull(),
+
+        // One row per EntitySelector (one AND-group from GTFS-RT).
+        // NULL means "this dimension wasn't specified" for that selector.
+        agencyId: text("agency_id").references(() => agencies.id),
+        routeId: integer("route_id").references(() => routes.id),
+        routeType: routeTypeEnum("route_type"),
+        direction: directionEnum("direction"),
+        tripInstanceId: integer("trip_instance_id").references(() => tripInstances.id),
+        stopId: integer("stop_id").references(() => stops.id),
+    },
+    (t) => [
+        index("idx_alert_entities_alert_id").on(t.alertId),
+        index("idx_alert_entities_route_id").on(t.routeId),
+        index("idx_alert_entities_trip_instance_id").on(t.tripInstanceId),
+        index("idx_alert_entities_stop_id").on(t.stopId),
+        index("idx_alert_entities_agency_id").on(t.agencyId),
     ],
 );

@@ -8,7 +8,7 @@ import {
     type StopTimeUpdateScheduleRelationship,
     type Timepoint,
 } from "./enums";
-import { stopTimes, tripInstances, type stopTimeRealtimeInstances } from "./tables";
+import { stopTimes, tripInstances, type stopTimeRealtimeInstances, alerts } from "./tables";
 import {
     type AnyPgColumn,
     char,
@@ -191,3 +191,58 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
         WHERE rt.stop_id IS NULL                            -- only rt rows without a stop_id
             AND rt.id IS NOT NULL  -- exclude st-only rows (handled by Branch 1)
     `);
+
+/**
+ * Alerts that are currently active.
+ *
+ * "Active" means: at least one of the following holds -
+ *
+ *   1. activePeriods is null (no time info at all - fall back to lastSeen
+ *      to confirm the feed is still reporting this alert), OR
+ *
+ *   2. some period contains `now` AND has a defined `end`
+ *      (bounded period - self-describing, doesn't need lastSeen), OR
+ *
+ *   3. some period contains `now` AND has end = null (open-ended/ongoing)
+ *      AND lastSeen is within the last 5 minutes (need fresh confirmation
+ *      the feed still considers this ongoing)
+ *
+ * In short: lastSeen is only consulted when we have no period, or only
+ * open-ended periods, covering `now`. A closed period that covers `now`
+ * is active on its own terms regardless of how stale the feed is.
+ */
+export const activeAlerts = schema.view("active_alerts").as((qb) =>
+    qb
+        .select()
+        .from(alerts)
+        .where(
+            sql`
+                    -- Case 1: no time info at all - rely on lastSeen
+                    (
+                        ${alerts.activePeriods} IS NULL
+                        AND ${alerts.lastSeen} >= now() - interval '5 minutes'
+                    )
+                    OR
+                    -- Case 2: a bounded period covers now - active on its own terms
+                    EXISTS (
+                        SELECT 1
+                        FROM jsonb_array_elements(${alerts.activePeriods}) AS period
+                        WHERE
+                            (period->>'start' IS NULL OR (period->>'start')::bigint <= extract(epoch FROM now()))
+                            AND (period->>'end' IS NOT NULL AND (period->>'end')::bigint >= extract(epoch FROM now()))
+                    )
+                    OR
+                    -- Case 3: an open-ended period covers now - needs a fresh lastSeen
+                    (
+                        EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements(${alerts.activePeriods}) AS period
+                            WHERE
+                                (period->>'start' IS NULL OR (period->>'start')::bigint <= extract(epoch FROM now()))
+                                AND period->>'end' IS NULL
+                        )
+                        AND ${alerts.lastSeen} >= now() - interval '5 minutes'
+                    )
+                `,
+        ),
+);

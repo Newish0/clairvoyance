@@ -26,6 +26,9 @@ function logSummary(
     const summary = result.value;
     if (summary.errors.length > 0) {
         logger.warn({ errors: summary.errors.length, skipped: summary.skipped }, labels.warn);
+        if (logger.level === "debug") {
+            logger.debug({ errors: summary.errors }, "Errors");
+        }
     } else {
         logger.info(labels.ok);
     }

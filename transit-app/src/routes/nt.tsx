@@ -30,6 +30,7 @@ import { z } from "zod";
 import { useHover } from "ahooks";
 import { directionEnum } from "database/models/enums";
 import { Separator } from "@/components/ui/separator";
+import { STOP_ALERT_EFFECT_MAP } from "@/utils/alert";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
@@ -84,15 +85,32 @@ export const Route = createFileRoute("/nt")({
             );
         }
 
-        const alerts = await trpcClient.alert.getActivesForEntity.query({
+        const stopIds = targetTripInst.stopTimeInstances
+            .map((st) => st.stopId)
+            .filter((id) => id !== null);
+
+        const alerts = await trpcClient.alert.getAlertForTripInstance.query({
             agencyId,
             routeId,
             direction,
-            stopId,
-            tripInstanceId,
+            stopIds,
+            tripInstanceId: resolvedTripInstanceId,
+            routeType: targetTripInst.trip?.route?.type,
         });
 
-        return { upcomingDepartures, targetTripInst, targetStopTimeInstIdx, alerts };
+        const stopAlerts = alerts.filter((a) => a.matchedStopId !== null);
+        const otherAlerts = alerts.filter((a) => a.matchedStopId === null);
+
+        console.log("stopAlerts", stopAlerts);
+        console.log("otherAlerts", otherAlerts);
+
+        return {
+            upcomingDepartures,
+            targetTripInst,
+            targetStopTimeInstIdx,
+            stopAlerts,
+            otherAlerts,
+        };
     },
     // TODO: Add real error component
     errorComponent: ({ error }) => <div>TMP ERROR COMPONENT: {error.message}</div>,
@@ -100,7 +118,7 @@ export const Route = createFileRoute("/nt")({
 
 function RouteComponent() {
     const searchParams = Route.useSearch();
-    const { upcomingDepartures, targetTripInst, targetStopTimeInstIdx, alerts } =
+    const { upcomingDepartures, targetTripInst, targetStopTimeInstIdx, stopAlerts, otherAlerts } =
         Route.useLoaderData();
     const targetStopTimeInst = targetTripInst.stopTimeInstances[targetStopTimeInstIdx];
     const router = useRouter();
@@ -367,13 +385,15 @@ function RouteComponent() {
                         </CarouselItem>
                     </CarouselContent>
                 </Carousel>
-                <AlertCarousel alerts={alerts} />
+                <AlertCarousel alerts={otherAlerts} />
 
                 {/* Stop times */}
                 <div ref={hoverRef} className="overflow-auto">
                     <TransitRouteTimeline
                         stops={
                             targetTripInst?.stopTimeInstances.map((st) => {
+                                // FIXME: if multiple alerts for the same stop, will only show one... not ideal
+                                const alert = stopAlerts.findLast((a) => a.matchedStopId === st.stopId);
                                 return {
                                     stopName: (
                                         <Link
@@ -390,12 +410,11 @@ function RouteComponent() {
                                         st.predictedArrivalTime || st.scheduledArrivalTime || "",
                                         "p",
                                     ),
-                                    stopInfo: (
-                                        // <span className="text-destructive-foreground font-medium">
-                                        //     Closed
-                                        // </span>
-                                        <></>
-                                    ),
+                                    stopInfo: alert?.effect ? (
+                                        <span className="text-destructive-foreground font-medium">
+                                            {STOP_ALERT_EFFECT_MAP[alert.effect].name}
+                                        </span>
+                                    ) : null,
                                 };
                             }) || []
                         }

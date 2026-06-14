@@ -90,7 +90,7 @@ function formatEffect(effect: AlertEffect): string {
 }
 
 type AlertCarouselProps = {
-    alerts: inferProcedureOutput<AppRouter["alert"]["getActivesForEntity"]>;
+    alerts: inferProcedureOutput<AppRouter["alert"]["getAlertForTripInstance"]>;
 };
 
 export function AlertCarousel({ alerts }: AlertCarouselProps) {

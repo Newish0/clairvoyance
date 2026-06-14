@@ -1,9 +1,9 @@
 import { Direction, RouteType } from "database/models/enums";
 import * as tables from "database/models/tables";
-import { and, gt, isNotNull, isNull, or, sql, SQL } from "drizzle-orm";
-import { DataRepository } from "./data-repository";
 import { EntitySelector } from "database/models/types";
-import { PgDialect } from "drizzle-orm/pg-core";
+import * as views from "database/models/views";
+import { and, eq, getColumns, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { DataRepository } from "./data-repository";
 
 type AffectedEntitySelector = {
     agencyId?: string;
@@ -25,69 +25,84 @@ const ENTITY_SELECTOR_FIELDS: (keyof EntitySelector)[] = [
 ];
 
 export class AlertRepository extends DataRepository {
-    // public async findAffectedActiveAlerts(query: AffectedEntitySelector, maxAgeSeconds = 300) {
-    //     const now = new Date();
-    //     const minDate = new Date(Date.now() - maxAgeSeconds * 1000);
-
-    //     const conditions: ReturnType<typeof sql>[] = [
-    //         gte(alerts.lastSeen, minDate),
-    //         sql`${alerts.activePeriods} IS NOT NULL`,
-    //         sql`${alerts.informedEntities} IS NOT NULL`,
-    //     ];
-
-    //     // Active period: at least one period contains "now"
-    //     const nowIso = now.toISOString();
-    //     conditions.push(
-    //         sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${alerts.activePeriods}) AS period WHERE (period->>'start' IS NULL OR period->>'start' <= ${nowIso}) AND (period->>'end' IS NULL OR period->>'end' >= ${nowIso}))`,
-    //     );
-
-    //     // Informed entities: at least one element matches ALL provided filters
-    //     const entityChecks: ReturnType<typeof sql>[] = [];
-    //     if (query.agencyId !== undefined) {
-    //         entityChecks.push(
-    //             sql`(entity->>'agencyId' = ${query.agencyId} OR entity->>'agencyId' IS NULL OR entity->>'agencyId' = '')`,
-    //         );
-    //     }
-    //     if (query.routeId !== undefined) {
-    //         entityChecks.push(
-    //             sql`((entity->>'routeId')::int = ${query.routeId} OR entity->>'routeId' IS NULL OR entity->>'routeId' = '')`,
-    //         );
-    //     }
-    //     if (query.routeType !== undefined) {
-    //         entityChecks.push(
-    //             sql`(entity->>'routeType' = ${query.routeType} OR entity->>'routeType' IS NULL OR entity->>'routeType' = '')`,
-    //         );
-    //     }
-    //     if (query.direction !== undefined) {
-    //         entityChecks.push(
-    //             sql`(entity->>'direction' = ${query.direction} OR entity->>'direction' IS NULL OR entity->>'direction' = '')`,
-    //         );
-    //     }
-    //     if (query.stopId !== undefined) {
-    //         const ids = Array.isArray(query.stopId) ? query.stopId : [query.stopId];
-    //         const idChecks: ReturnType<typeof sql>[] = ids.map(
-    //             (id) => sql`entity->>'stopId' = ${id}`,
-    //         );
-    //         idChecks.push(sql`entity->>'stopId' IS NULL`, sql`entity->>'stopId' = ''`);
-    //         entityChecks.push(sql`(${sql.join(idChecks, sql` OR `)})`);
-    //     }
-    //     if (query.tripInstanceId !== undefined) {
-    //         entityChecks.push(
-    //             sql`(entity->>'tripInstance' = ${query.tripInstanceId} OR entity->>'tripInstance' IS NULL OR entity->>'tripInstance' = '')`,
-    //         );
-    //     }
-
-    //     if (entityChecks.length > 0) {
-    //         conditions.push(
-    //             sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${alerts.informedEntities}) AS entity WHERE ${sql.join(entityChecks, sql` AND `)})`,
-    //         );
-    //     }
-
-    //     return this.db
-    //         .select()
-    //         .from(alerts)
-    //         .where(and(...conditions));
-    // }
+    /**
+     *
+     * @param params Only direction and routeType are optional because they are optional fields on trips and routes
+     * @returns
+     */
+    public async findAlertsForTripInstance({
+        tripInstanceId,
+        routeId,
+        direction,
+        routeType,
+        agencyId,
+        stopIds,
+    }: {
+        tripInstanceId: number;
+        routeId: number;
+        direction?: Direction;
+        routeType?: RouteType;
+        agencyId: string;
+        stopIds: number[];
+    }) {
+        return this.db
+            .select({
+                ...getColumns(views.activeAlerts),
+                matchedStopId: tables.alertEntities.stopId,
+                matchedRouteId: tables.alertEntities.routeId,
+                matchedTripInstanceId: tables.alertEntities.tripInstanceId,
+                matchedAgencyId: tables.alertEntities.agencyId,
+                matchedRouteType: tables.alertEntities.routeType,
+            })
+            .from(tables.alertEntities)
+            .innerJoin(views.activeAlerts, eq(views.activeAlerts.id, tables.alertEntities.alertId))
+            .where(
+                and(
+                    // Guard against fully-unresolved selectors (all dimensions null).
+                    // Without this, a row where every column is NULL would vacuously
+                    // satisfy every "OR IS NULL" branch below and match every query.
+                    or(
+                        isNotNull(tables.alertEntities.tripInstanceId),
+                        isNotNull(tables.alertEntities.stopId),
+                        isNotNull(tables.alertEntities.routeId),
+                        isNotNull(tables.alertEntities.direction),
+                        isNotNull(tables.alertEntities.agencyId),
+                        isNotNull(tables.alertEntities.routeType),
+                    ),
+                    // AND-within-selector: every dimension this row specifies (non-null)
+                    // must match our trip instance; dimensions left null by the row
+                    // are unconstrained (vacuously satisfied).
+                    or(
+                        eq(tables.alertEntities.tripInstanceId, tripInstanceId),
+                        isNull(tables.alertEntities.tripInstanceId),
+                    ),
+                    or(
+                        inArray(tables.alertEntities.stopId, stopIds),
+                        isNull(tables.alertEntities.stopId),
+                    ),
+                    or(
+                        eq(tables.alertEntities.routeId, routeId),
+                        isNull(tables.alertEntities.routeId),
+                    ),
+                    direction
+                        ? or(
+                              eq(tables.alertEntities.direction, direction),
+                              isNull(tables.alertEntities.direction),
+                          )
+                        : undefined,
+                    or(
+                        eq(tables.alertEntities.agencyId, agencyId),
+                        isNull(tables.alertEntities.agencyId),
+                    ),
+                    routeType
+                        ? or(
+                              eq(tables.alertEntities.routeType, routeType),
+                              isNull(tables.alertEntities.routeType),
+                          )
+                        : undefined,
+                ),
+            );
+    }
 
     /**
      * Generate all non-empty subsets of the fields present in the user context.
@@ -117,6 +132,7 @@ export class AlertRepository extends DataRepository {
         return selectors;
     }
 
+    /** @deprecated see tables.ts */
     public async findAlertsForEntity(context: AffectedEntitySelector, maxAgeSeconds = 300) {
         // For max age check with minDate and activePeriod checks
         const nowMs = Date.now();

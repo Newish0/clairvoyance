@@ -14,6 +14,22 @@ const entitySelectionQuery = v.object({
 });
 
 export const alertRouter = router({
+    getAlertForTripInstance: publicProcedure
+        .input(
+            v.object({
+                tripInstanceId: vInteger(),
+                routeId: vInteger(),
+                direction: v.optional(v.picklist(directionEnum.enumValues)),
+                routeType: v.optional(v.picklist(routeTypeEnum.enumValues)),
+                agencyId: v.string(),
+                stopIds: v.array(vInteger()),
+            }),
+        )
+        .query(async ({ input, ctx }) => {
+            const repo = new AlertRepository(ctx.db);
+            return repo.findAlertsForTripInstance(input);
+        }),
+
     getActivesForEntity: publicProcedure
         .input(entitySelectionQuery)
         .query(async ({ input, ctx }) => {
