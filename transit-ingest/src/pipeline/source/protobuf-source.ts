@@ -1,7 +1,8 @@
-import type { Source } from "../core/pipe";
+import { CryptoHasher } from "bun";
 import type { Context } from "../core/context";
-import { fatalError, itemOk } from "../core/error";
 import type { ItemResult } from "../core/error";
+import { fatalError, itemOk } from "../core/error";
+import type { Source } from "../core/pipe";
 
 export interface ProtobufData {
     bytes: Uint8Array;
@@ -24,10 +25,7 @@ export class ProtobufSource implements Source<ProtobufData> {
  * Fetch protobuf bytes from a URL and compute SHA-256 hash.
  * Used by the orchestrator for dedup across poll cycles.
  */
-export async function fetchProtobuf(
-    url: string,
-    signal: AbortSignal,
-): Promise<ProtobufData> {
+export async function fetchProtobuf(url: string, signal: AbortSignal): Promise<ProtobufData> {
     const response = await fetch(url, {
         signal,
         headers: { Accept: "application/octet-stream, application/x-protobuf, */*" },
@@ -43,7 +41,7 @@ export async function fetchProtobuf(
     const buffer = await response.arrayBuffer();
     const bytes = new Uint8Array(buffer);
 
-    const hasher = new Bun.CryptoHasher("sha256");
+    const hasher = new CryptoHasher("sha256");
     hasher.update(bytes);
     const hash = hasher.digest("hex");
 
