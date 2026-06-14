@@ -95,7 +95,7 @@ export const Route = createFileRoute("/nt")({
         return { upcomingDepartures, targetTripInst, targetStopTimeInstIdx, alerts };
     },
     // TODO: Add real error component
-    errorComponent: ({ error }) => <div>{error.message}</div>,
+    errorComponent: ({ error }) => <div>TMP ERROR COMPONENT: {error.message}</div>,
 });
 
 function RouteComponent() {
@@ -391,12 +391,10 @@ function RouteComponent() {
                                         "p",
                                     ),
                                     stopInfo: (
+                                        // <span className="text-destructive-foreground font-medium">
+                                        //     Closed
+                                        // </span>
                                         <></>
-                                        // <TimelineStopInfo
-                                        //     agencyId={agencyId}
-                                        //     stopTimeInstance={st}
-                                        //     currentRouteObjectId={tripInstance.route?._id.toString()}
-                                        // />
                                     ),
                                 };
                             }) || []
