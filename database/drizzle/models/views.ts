@@ -1,28 +1,8 @@
-import { eq, SQL, sql } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { doublePrecision, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pickupDropOffEnum, stopTimeUpdateScheduleRelationshipEnum, timepointEnum } from "./enums";
 import { schema } from "./schema";
-import {
-    pickupDropOffEnum,
-    stopTimeUpdateScheduleRelationshipEnum,
-    timepointEnum,
-    type PickupDropOff,
-    type StopTimeUpdateScheduleRelationship,
-    type Timepoint,
-} from "./enums";
-import { stopTimes, tripInstances, type stopTimeRealtimeInstances, alerts } from "./tables";
-import {
-    type AnyPgColumn,
-    char,
-    doublePrecision,
-    index,
-    integer,
-    jsonb,
-    primaryKey,
-    serial,
-    text,
-    timestamp,
-    unique,
-    varchar,
-} from "drizzle-orm/pg-core";
+import { alerts, stopTimes, tripInstances, type stopTimeRealtimeInstances } from "./tables";
 
 // =========================================================
 // VIEWS
@@ -30,7 +10,13 @@ import {
 
 /**
  * This view is used when we have no stopTimeInstances (i.e. no realtime trip updates).
+ *
+ * Remark:
+ * Limit to trip instances starting within [-14 days, +1 month) of now.
+ * This bounds the materialized view's size, keeping refreshes more deterministic
+ * and avoiding unbounded growth as new trip instances are created.
  */
+
 export const stopTimeStaticInstances = schema
     .materializedView("stop_time_static_instances")
     .as((qb) =>
@@ -82,7 +68,13 @@ export const stopTimeStaticInstances = schema
                 any
             >)
             .from(tripInstances)
-            .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId)),
+            .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId))
+            .where(
+                and(
+                    gte(tripInstances.startDatetime, sql`now() - interval '14 days'`),
+                    lt(tripInstances.startDatetime, sql`now() + interval '1 month'`),
+                ),
+            ),
     );
 
 /**
