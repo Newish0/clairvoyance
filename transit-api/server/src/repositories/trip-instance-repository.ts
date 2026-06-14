@@ -140,14 +140,7 @@ export class TripInstancesRepository extends DataRepository {
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
                     scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
 
-                    effectiveTime: sql<Date>`COALESCE(
-                        ${views.stopTimeInstances.predictedDepartureTime},
-                        ${views.stopTimeInstances.scheduledDepartureTime},
-                        ${views.stopTimeInstances.predictedArrivalTime},
-                        ${views.stopTimeInstances.scheduledArrivalTime}
-                    )`
-                        .mapWith((v) => new Date(v))
-                        .as("effective_time"),
+                    effectiveTime: views.stopTimeInstances.effectiveTime,
 
                     // "Is the vehicle still at/before this stop?"
                     //
@@ -352,14 +345,7 @@ export class TripInstancesRepository extends DataRepository {
 
                     tripHeadsign: tables.trips.headsign,
 
-                    effectiveTime: sql<Date>`COALESCE(
-                        ${views.stopTimeInstances.predictedDepartureTime},
-                        ${views.stopTimeInstances.scheduledDepartureTime},
-                        ${views.stopTimeInstances.predictedArrivalTime},
-                        ${views.stopTimeInstances.scheduledArrivalTime}
-                    )`
-                        .mapWith((v) => new Date(v))
-                        .as("effective_time"),
+                    effectiveTime: views.stopTimeInstances.effectiveTime,
 
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
@@ -474,14 +460,7 @@ export class TripInstancesRepository extends DataRepository {
 
                     tripHeadsign: tables.trips.headsign,
 
-                    effectiveTime: sql<Date>`COALESCE(
-                        ${views.stopTimeInstances.predictedDepartureTime},
-                        ${views.stopTimeInstances.scheduledDepartureTime},
-                        ${views.stopTimeInstances.predictedArrivalTime},
-                        ${views.stopTimeInstances.scheduledArrivalTime}
-                    )`
-                        .mapWith((v) => new Date(v))
-                        .as("effective_time"),
+                    effectiveTime: views.stopTimeInstances.effectiveTime,
 
                     // Metadata only - not used for filtering here.
                     // UI can use this to distinguish "bus is here now" from scheduled/historic.

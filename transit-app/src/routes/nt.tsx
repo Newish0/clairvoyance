@@ -149,10 +149,7 @@ function RouteComponent() {
             predictedDepartureTime: targetStopTimeInst.predictedDepartureTime,
             scheduledArrivalTime: targetStopTimeInst.scheduledArrivalTime,
             scheduledDepartureTime: targetStopTimeInst.scheduledDepartureTime,
-            effectiveTime: (targetStopTimeInst.predictedDepartureTime ??
-                targetStopTimeInst.scheduledDepartureTime ??
-                targetStopTimeInst.predictedArrivalTime ??
-                targetStopTimeInst.scheduledArrivalTime)!,
+            effectiveTime: targetStopTimeInst.effectiveTime,
             startDate: targetTripInst.startDate,
             lastUpdatedAt: targetStopTimeInst.lastUpdatedAt,
             tripHeadsign: targetTripInst.trip?.headsign ?? null,
@@ -160,7 +157,11 @@ function RouteComponent() {
             isStillAtStop: false, // Unused (any arb value)
         };
 
-        if (targetAsDeparture.effectiveTime < upcomingDepartures[0]?.effectiveTime) {
+        if (
+            !targetAsDeparture.effectiveTime ||
+            !upcomingDepartures[0]?.effectiveTime ||
+            targetAsDeparture.effectiveTime < upcomingDepartures[0].effectiveTime
+        ) {
             return [
                 { type: "departure", departure: targetAsDeparture } as const,
                 { type: "divider" } as const,
@@ -189,10 +190,7 @@ function RouteComponent() {
                 ({
                     stopId: st.stop!.id,
                     sequence: st.stopSequence,
-                    effectiveTime: (st.predictedArrivalTime ??
-                        st.scheduledArrivalTime ??
-                        st.predictedDepartureTime ??
-                        st.scheduledDepartureTime)!,
+                    effectiveTime: st.effectiveTime,
                     name: st.stop!.name || "Unknown Stop",
                     lng: st.stop!.location!.x,
                     lat: st.stop!.location!.y,

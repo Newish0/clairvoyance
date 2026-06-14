@@ -29,7 +29,7 @@ import { VehiclePositionMapMarker } from "./vehicle-map-marker";
 export type TripMapStopInfo = {
     stopId: number;
     sequence: number;
-    effectiveTime: Date;
+    effectiveTime: Date | null;
     name: string;
     lng: number;
     lat: number;
@@ -127,7 +127,7 @@ const StopsGeojsonLayer: React.FC<{
         lat: number;
         stopId: number;
         name?: string;
-        effectiveTime?: DateArg<Date>;
+        effectiveTime: DateArg<Date> | null;
     } | null>(null);
 
     const indexedStopsGeojson: FeatureCollection = props.stopInfos.length
