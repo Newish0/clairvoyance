@@ -35,6 +35,7 @@ export class TripInstancesRepository extends DataRepository {
                                 shortName: true,
                                 color: true,
                                 textColor: true,
+                                type: true,
                             },
                         },
                     },

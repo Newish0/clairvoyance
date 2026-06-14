@@ -56,7 +56,11 @@ export const schemaRelations = defineRelations(
             shape: r.one.shapes({
                 from: r.tripInstances.shapeId,
                 to: r.shapes.id,
-            })
+            }),
+            alertEntities: r.many.alertEntities({
+                from: r.tripInstances.id,
+                to: r.alertEntities.tripInstanceId,
+            }),
         },
         stopTimeInstances: {
             tripInstance: r.one.tripInstances({
@@ -82,6 +86,62 @@ export const schemaRelations = defineRelations(
             tripInstance: r.one.tripInstances({
                 from: r.vehiclePositions.tripInstanceId,
                 to: r.tripInstances.id,
+            }),
+        },
+        alerts: {
+            entities: r.many.alertEntities({
+                from: r.alerts.id,
+                to: r.alertEntities.alertId,
+            }),
+        },
+        activeAlerts: {
+            entities: r.many.alertEntities({
+                from: r.activeAlerts.id,
+                to: r.alertEntities.alertId,
+            }),
+        },
+        alertEntities: {
+            alert: r.one.alerts({
+                from: r.alertEntities.alertId,
+                to: r.alerts.id,
+            }),
+            activeAlert: r.one.activeAlerts({
+                from: r.alertEntities.alertId,
+                to: r.activeAlerts.id,
+            }),
+            agency: r.one.agencies({
+                from: r.alertEntities.agencyId,
+                to: r.agencies.id,
+            }),
+            route: r.one.routes({
+                from: r.alertEntities.routeId,
+                to: r.routes.id,
+            }),
+            tripInstance: r.one.tripInstances({
+                from: r.alertEntities.tripInstanceId,
+                to: r.tripInstances.id,
+            }),
+            stop: r.one.stops({
+                from: r.alertEntities.stopId,
+                to: r.stops.id,
+            }),
+        },
+        stops: {
+            alertEntities: r.many.alertEntities({
+                from: r.stops.id,
+                to: r.alertEntities.stopId,
+            }),
+        },
+        routes: {
+            alertEntities: r.many.alertEntities({
+                from: r.routes.id,
+                to: r.alertEntities.routeId,
+            }),
+        },
+        agencies: {
+            alertEntities: r.many.alertEntities({
+                from: r.agencies.id,
+                to: r.alertEntities.agencyId,
             }),
         },
     }),
