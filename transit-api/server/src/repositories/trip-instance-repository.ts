@@ -49,6 +49,9 @@ export class TripInstancesRepository extends DataRepository {
                                 name: true,
                                 location: true,
                             },
+                            with: {
+                                stopRoute: true,
+                            },
                         },
                     },
                 },

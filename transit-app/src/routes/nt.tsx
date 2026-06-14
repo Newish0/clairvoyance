@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/responsible-dialog";
 import { cn } from "@/lib/utils";
 import { trpc, trpcClient } from "@/main";
-import { ensureHexColorStartsWithHash } from "@/utils/css";
+import { ensureHexColorStartsWithHash, withOpacity } from "@/utils/css";
 import { isDataRealtime } from "@/utils/date";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter, redirect } from "@tanstack/react-router";
@@ -412,11 +412,30 @@ function RouteComponent() {
                                         st.predictedArrivalTime || st.scheduledArrivalTime || "",
                                         "p",
                                     ),
-                                    stopInfo: alert?.effect ? (
-                                        <span className="text-destructive-foreground font-medium">
-                                            {STOP_ALERT_EFFECT_MAP[alert.effect].name}
-                                        </span>
-                                    ) : null,
+                                    stopInfo: (
+                                        <div>
+                                            <div className="mt-1 flex flex-wrap gap-0.5 max-w-56">
+                                                {st.stop?.stopRoute?.routes
+                                                    ?.filter(
+                                                        (r) => r.id !== targetTripInst?.routeId,
+                                                    )
+                                                    .map((r) => (
+                                                        <Badge
+                                                            key={r.id}
+                                                            variant={"outline"}
+                                                            className="text-[10px] bg-primary-foreground/60 text-primary/60 backdrop-blur-sm"
+                                                        >
+                                                            {r.shortName}
+                                                        </Badge>
+                                                    ))}
+                                            </div>
+                                            {alert?.effect ? (
+                                                <span className="text-destructive-foreground font-medium">
+                                                    {STOP_ALERT_EFFECT_MAP[alert.effect].name}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    ),
                                 };
                             }) || []
                         }

@@ -124,7 +124,9 @@ const StopMarkers: React.FC<{
                                 stopName={stop.name || "Unknown Stop"}
                                 lng={stop.location.x}
                                 lat={stop.location.y}
-                                routeShortNames={stop.routeShortNames}
+                                routeShortNames={stop.routes
+                                    .map((route) => route.shortName)
+                                    .filter((shortName) => shortName !== null)}
                             />
                         ),
                 )}

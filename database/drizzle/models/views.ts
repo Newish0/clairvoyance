@@ -1,8 +1,15 @@
-import { and, eq, gte, lt, SQL, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
 import { doublePrecision, integer, text, timestamp } from "drizzle-orm/pg-core";
 import { pickupDropOffEnum, stopTimeUpdateScheduleRelationshipEnum, timepointEnum } from "./enums";
 import { schema } from "./schema";
-import { alerts, stopTimes, tripInstances, type stopTimeRealtimeInstances } from "./tables";
+import {
+    alerts,
+    routes,
+    stopTimes,
+    tripInstances,
+    trips,
+    type stopTimeRealtimeInstances,
+} from "./tables";
 
 // =========================================================
 // VIEWS
@@ -236,4 +243,35 @@ export const activeAlerts = schema.view("active_alerts").as((qb) =>
                     )
                 `,
         ),
+);
+
+/** Aggregate distinct route per stop. */
+export const stopRoutes = schema.view("stop_routes").as((qb) =>
+    qb
+        .select({
+            stopId: stopTimes.stopId,
+            routes: sql<
+                {
+                    id: number;
+                    shortName: string | null;
+                    color: string | null;
+                    textColor: string | null;
+                    type: string;
+                }[]
+            >`
+                array_agg(
+                    DISTINCT jsonb_build_object(
+                        'id', ${routes.id},
+                        'shortName', ${routes.shortName},
+                        'color', ${routes.color},
+                        'textColor', ${routes.textColor},
+                        'type', ${routes.type}
+                    )
+                )
+            `.as("routes"),
+        })
+        .from(stopTimes)
+        .innerJoin(trips, eq(stopTimes.tripId, trips.id))
+        .innerJoin(routes, eq(trips.routeId, routes.id))
+        .groupBy(stopTimes.stopId),
 );
