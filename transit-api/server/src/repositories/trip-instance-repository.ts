@@ -145,7 +145,9 @@ export class TripInstancesRepository extends DataRepository {
                         ${views.stopTimeInstances.scheduledDepartureTime},
                         ${views.stopTimeInstances.predictedArrivalTime},
                         ${views.stopTimeInstances.scheduledArrivalTime}
-                    )`.as("effective_time"),
+                    )`
+                        .mapWith((v) => new Date(v))
+                        .as("effective_time"),
 
                     // "Is the vehicle still at/before this stop?"
                     //
@@ -355,7 +357,9 @@ export class TripInstancesRepository extends DataRepository {
                         ${views.stopTimeInstances.scheduledDepartureTime},
                         ${views.stopTimeInstances.predictedArrivalTime},
                         ${views.stopTimeInstances.scheduledArrivalTime}
-                    )`.as("effective_time"),
+                    )`
+                        .mapWith((v) => new Date(v))
+                        .as("effective_time"),
 
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
@@ -475,7 +479,9 @@ export class TripInstancesRepository extends DataRepository {
                         ${views.stopTimeInstances.scheduledDepartureTime},
                         ${views.stopTimeInstances.predictedArrivalTime},
                         ${views.stopTimeInstances.scheduledArrivalTime}
-                    )`.as("effective_time"),
+                    )`
+                        .mapWith((v) => new Date(v))
+                        .as("effective_time"),
 
                     // Metadata only - not used for filtering here.
                     // UI can use this to distinguish "bus is here now" from scheduled/historic.
