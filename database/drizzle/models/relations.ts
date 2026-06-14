@@ -86,7 +86,12 @@ export const schemaRelations = defineRelations(
         },
         alerts: {},
         activeAlerts: {},
-        stops: {},
+        stops: {
+            stopRoute: r.one.stopRoutes({
+                from: r.stops.id,
+                to: r.stopRoutes.stopId,
+            }),
+        },
         routes: {},
         agencies: {},
     }),
