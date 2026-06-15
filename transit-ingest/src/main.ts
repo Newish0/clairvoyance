@@ -26,6 +26,13 @@ const RealtimeOptions = CliOptions.merge({
     "poll?": "string | number | undefined",
 });
 
+const FromConfigOptions = CliOptions.merge({
+    "static?": "boolean | undefined",
+    "realtime?": "boolean | undefined",
+    "realize?": "boolean | undefined",
+    "all?": "boolean | undefined",
+});
+
 const RealizeOptions = CliOptions.merge({
     "minDate?": DateStr,
     "maxDate?": DateStr,
@@ -101,23 +108,36 @@ cli.command(
         );
     });
 
-cli.command("from-config <config-file>", "Run pipeline from a YAML config file").action(
-    async (configFile: string, options: unknown) => {
-        const validated = CliOptions(options);
+cli.command("from-config <config-file>", "Run pipeline from a YAML config file")
+    .option("--static", "Run only static ingestion phase")
+    .option("--realtime", "Run only realtime ingestion phase")
+    .option("--realize", "Run only trip instance realization phase")
+    .option("--all", "Run all phases (default)")
+    .action(async (configFile: string, options: unknown) => {
+        const validated = FromConfigOptions(options);
         if (validated instanceof type.errors) {
             console.error(`error: invalid options - ${validated.summary}`);
             process.exit(1);
         }
         const db = resolveDb(validated.databaseUrl);
+
+        const hasSpecific = (validated.static || validated.realtime || validated.realize) ?? false;
+        const all = (!hasSpecific || validated.all) ?? false;
+        const phases = {
+            static: (all || validated.static) ?? false,
+            realize: (all || validated.realize) ?? false,
+            realtime: (all || validated.realtime) ?? false,
+        };
+
         const { runFromConfig } = await import("./config");
         await runFromConfig(
             configFile,
             db,
             validated.deleteRows ?? false,
             !!validated.verbose,
+            phases,
         );
-    },
-);
+    });
 
 cli.help();
 
