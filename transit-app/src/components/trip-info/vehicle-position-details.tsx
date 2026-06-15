@@ -211,7 +211,7 @@ export function VehiclePositionDetails({
 
     return (
         <Card className={cn("w-full", className)}>
-            <CardHeader className="pb-3">
+            <CardHeader className="">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <CardTitle className="text-lg md:text-xl font-bold text-balance">
