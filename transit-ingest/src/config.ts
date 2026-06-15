@@ -5,6 +5,12 @@ import type { Db } from "./db/client";
 import { deleteAll } from "./db/delete";
 import { runStaticPipeline, runRealtimePipeline, runRealizePipeline } from "./pipeline/run";
 
+export interface ConfigPhases {
+    static: boolean;
+    realize: boolean;
+    realtime: boolean;
+}
+
 const AgencyStaticConfig = type({
     url: "string",
     "ignoreFeedDup?": "boolean",
@@ -49,6 +55,7 @@ export async function runFromConfig(
     db: Db,
     deleteRows: boolean,
     verbose: boolean,
+    phases: ConfigPhases = { static: true, realize: true, realtime: true },
 ): Promise<void> {
     const raw = loadRawConfig(configPath);
     const parsed = AppConfigSchema(raw);
@@ -68,46 +75,50 @@ export async function runFromConfig(
     }
 
     // Phase 1: Static + realize per agency (sequential)
-    for (const agency of config.agencies) {
-        if (agency.static) {
-            await runStaticPipeline(
-                db,
-                agency.id,
-                agency.static.url,
-                false,
-                agency.static.ignoreFeedDup,
-                agency.static.realizeInstances,
-                verbose,
-            );
-        }
-        if (agency.realizeInstances) {
-            await runRealizePipeline(
-                db,
-                agency.id,
-                agency.realizeInstances.minDate,
-                agency.realizeInstances.maxDate,
-                verbose,
-            );
+    if (phases.static || phases.realize) {
+        for (const agency of config.agencies) {
+            if (phases.static && agency.static) {
+                await runStaticPipeline(
+                    db,
+                    agency.id,
+                    agency.static.url,
+                    false,
+                    agency.static.ignoreFeedDup,
+                    agency.static.realizeInstances,
+                    verbose,
+                );
+            }
+            if (phases.realize && agency.realizeInstances) {
+                await runRealizePipeline(
+                    db,
+                    agency.id,
+                    agency.realizeInstances.minDate,
+                    agency.realizeInstances.maxDate,
+                    verbose,
+                );
+            }
         }
     }
 
     // Phase 2: Realtime (concurrent)
-    const realtimeAgencies = config.agencies.filter((a) => a.realtime);
-    if (realtimeAgencies.length > 0) {
-        const results = await Promise.allSettled(
-            realtimeAgencies.map((agency) =>
-                runRealtimePipeline(
-                    db,
-                    agency.id,
-                    agency.realtime!.urls,
-                    agency.realtime!.poll ?? 0,
-                    verbose,
+    if (phases.realtime) {
+        const realtimeAgencies = config.agencies.filter((a) => a.realtime);
+        if (realtimeAgencies.length > 0) {
+            const results = await Promise.allSettled(
+                realtimeAgencies.map((agency) =>
+                    runRealtimePipeline(
+                        db,
+                        agency.id,
+                        agency.realtime!.urls,
+                        agency.realtime!.poll ?? 0,
+                        verbose,
+                    ),
                 ),
-            ),
-        );
-        for (const result of results) {
-            if (result.status === "rejected") {
-                console.error("error: realtime pipeline rejected:", result.reason);
+            );
+            for (const result of results) {
+                if (result.status === "rejected") {
+                    console.error("error: realtime pipeline rejected:", result.reason);
+                }
             }
         }
     }
