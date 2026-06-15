@@ -1,94 +1,77 @@
 services:
-  gtfs-static-processor:
-    container_name: gtfs-static-processor
-    build:
-      context: ./gtfs-processor
-      dockerfile: Dockerfile.static
+  db:
+    image: postgis/postgis:18-3.6
+    container_name: clairvoyance-db
+    environment:
+      POSTGRES_DB: transit
+      POSTGRES_USER: transit
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-transit_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transit"]
+      interval: 10s
+      retries: 5
     networks:
-      - transit-internal
-    depends_on:
-      mongodb:
-        condition: service_healthy
+      - internal
+    restart: unless-stopped
 
-  gtfs-realtime-processor:
-    container_name: gtfs-realtime-processor
+  db-migration:
     build:
-      context: ./gtfs-processor
-      dockerfile: Dockerfile.realtime
-    networks:
-      - transit-internal
+      context: .
+      dockerfile: database/drizzle/Dockerfile
+    environment:
+      DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
     depends_on:
-      mongodb:
+      db:
         condition: service_healthy
-      # gtfs-static-processor:
-      #   condition: service_completed_successfully
+    networks:
+      - internal
+    restart: no
 
   transit-api:
-    container_name: transit-api
     build:
       context: .
-      dockerfile: ./transit-api/server/Dockerfile
+      dockerfile: transit-api/server/Dockerfile
     environment:
-      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017?replicaSet=rs0
-      - MONGO_DB_NAME=transit
-      - PORT=8000
-    ports:
-      - "8000:8000" # For debugging only
-    networks:
-      - transit-internal
+      DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
+      PORT: 8000
     depends_on:
-      mongodb:
-        condition: service_healthy
-
-  mongodb:
-    image: mongo:latest
-    container_name: mongodb
-    ports:
-      - "27017:27017" # For debugging only
+      db-migration:
+        condition: service_completed_successfully
     networks:
-      - transit-internal
-    command: >
-      bash -c "
-        mongod --replSet rs0 --bind_ip_all &
-        sleep 5 &&
-        mongosh --host localhost --eval '
-          try {
-            rs.status()
-          } catch (e) {
-            rs.initiate({
-              _id: \"rs0\",
-              members: [{ _id: 0, host: \"mongodb:27017\" }]
-            })
-          }'
-        wait
-      "
-    healthcheck:
-      test: |
-        mongosh \
-          --eval 'db.runCommand("ping").ok' \
-          --quiet
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 5s
+      - internal
+    restart: unless-stopped
 
   gateway:
-    container_name: gateway
     build:
       context: .
-      dockerfile: ./gateway/Dockerfile
+      dockerfile: gateway/Dockerfile
       args:
-        # API URL for the frontend - defaults to http://localhost:8000 if not set
-        # For production, set to the relative path /api (proxied by nginx)
-        # or to the full API URL if served separately
-        - VITE_API_URL=${VITE_API_URL:-/api}
+        VITE_API_URL: /api
     ports:
-      - "8080:80"
-    networks:
-      - transit-internal
+      - "${PORT:-8080}:80"
     depends_on:
       - transit-api
+    networks:
+      - internal
+    restart: unless-stopped
+
+  transit-ingest:
+    build:
+      context: .
+      dockerfile: transit-ingest/Dockerfile
+    environment:
+      DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
+    depends_on:
+      db-migration:
+        condition: service_completed_successfully
+    networks:
+      - internal
+
+volumes:
+  pgdata:
 
 networks:
-  transit-internal:
+  internal:
     driver: bridge

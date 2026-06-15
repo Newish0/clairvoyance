@@ -7,17 +7,17 @@ COPY transit-api/server/package.json ./transit-api/server/package.json
 COPY transit-api/test-client/package.json ./transit-api/test-client/package.json
 COPY transit-ingest/package.json ./transit-ingest/package.json
 COPY transit-app/package.json ./transit-app/package.json
-RUN bun install --frozen-lockfile --filter transit-api
+RUN bun install --frozen-lockfile --filter transit-ingest
 
-COPY transit-api/ ./transit-api/
+COPY transit-ingest/ ./transit-ingest/
 COPY database/ ./database/
 COPY tsconfig.json ./
 
 RUN bun build --compile --minify --target=bun-linux-x64-baseline \
-    ./transit-api/server/src/index.ts --outfile /app/api
+    ./transit-ingest/src/main.ts --outfile /app/ingest
 
 FROM debian:stable-slim
-COPY --from=builder /app/api /usr/local/bin/api
+COPY --from=builder /app/ingest /usr/local/bin/ingest
+COPY --from=builder /app/transit-ingest/appconfig.yaml /etc/ingest/appconfig.yaml
 USER nobody
-EXPOSE 8000
-CMD ["api"]
+ENTRYPOINT ["ingest", "from-config", "/etc/ingest/appconfig.yaml", "-v"]

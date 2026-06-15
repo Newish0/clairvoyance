@@ -1,29 +1,29 @@
-FROM oven/bun:1.3 AS app-builder
-WORKDIR /usr/src/app
+FROM oven/bun:1.3 AS builder
+WORKDIR /app
 
-# Accept build arg for API URL
-ARG VITE_API_URL
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=${VITE_API_URL}
 
-COPY . .
-WORKDIR /usr/src/app/transit-app/
-RUN bun install --frozen-lockfile
-RUN bunx vite build   
+COPY package.json bun.lock ./
+COPY database/drizzle/package.json ./database/drizzle/package.json
+COPY transit-api/server/package.json ./transit-api/server/package.json
+COPY transit-api/test-client/package.json ./transit-api/test-client/package.json
+COPY transit-ingest/package.json ./transit-ingest/package.json
+COPY transit-app/package.json ./transit-app/package.json
+RUN bun install --frozen-lockfile --filter transit-app
 
+COPY transit-app/ ./transit-app/
+COPY database/ ./database/
+COPY transit-api/ ./transit-api/
+COPY tsconfig.json ./
 
-# --- Production Nginx image ---
+WORKDIR /app/transit-app
+RUN bun run build
+
 FROM nginx:alpine
-
 WORKDIR /usr/share/nginx/html
-
-# Copy Vite build output
-COPY --from=app-builder /usr/src/app/transit-app/dist/ ./
-
-# Copy nginx config
-COPY ./gateway/nginx.conf /etc/nginx/nginx.conf
-
-# Remove default nginx config to avoid conflicts
+COPY --from=builder /app/transit-app/dist/ ./
+COPY gateway/nginx.conf /etc/nginx/nginx.conf
 RUN rm -f /etc/nginx/conf.d/default.conf
-
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
