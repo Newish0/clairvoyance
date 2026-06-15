@@ -14,8 +14,16 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
 
     const now = new Date();
 
-    const timeMin = Math.min(...departures.map((d) => differenceInMinutes(d.effectiveTime, now)));
-    const timeMax = Math.max(...departures.map((d) => differenceInMinutes(d.effectiveTime, now)));
+    const timeMin = Math.min(
+        ...departures
+            .filter((d) => d.effectiveTime)
+            .map((d) => differenceInMinutes(d.effectiveTime!, now)),
+    );
+    const timeMax = Math.max(
+        ...departures
+            .filter((d) => d.effectiveTime)
+            .map((d) => differenceInMinutes(d.effectiveTime!, now)),
+    );
     const distMin = Math.min(...departures.map((d) => d.distanceMeters));
     const distMax = Math.max(...departures.map((d) => d.distanceMeters));
 
@@ -23,8 +31,8 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
         departures
             // 50/50 time/distance
             .toSorted((a, b) => {
-                const minutesA = differenceInMinutes(a.effectiveTime, now);
-                const minutesB = differenceInMinutes(b.effectiveTime, now);
+                const minutesA = a.effectiveTime ? differenceInMinutes(a.effectiveTime, now) : 0;
+                const minutesB = b.effectiveTime ? differenceInMinutes(b.effectiveTime, now) : 0;
 
                 const timeNormA = (minutesA - timeMin) / (timeMax - timeMin) || 0;
                 const timeNormB = (minutesB - timeMin) / (timeMax - timeMin) || 0;
