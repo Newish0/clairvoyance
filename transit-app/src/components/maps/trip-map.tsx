@@ -25,6 +25,20 @@ import {
 import type { VehiclePosition } from "../trip-info/vehicle-position-details";
 import { UserLocationMarker } from "./user-location";
 import { VehiclePositionMapMarker } from "./vehicle-map-marker";
+import type { inferProcedureOutput } from "@trpc/server";
+import type { AppRouter } from "transit-api";
+import {
+    ResponsiveModal,
+    ResponsiveModalContent,
+    ResponsiveModalDescription,
+    ResponsiveModalHeader,
+    ResponsiveModalTitle,
+    ResponsiveModalTrigger,
+} from "../ui/responsible-dialog";
+import { getStopAlertEffect } from "@/utils/alert";
+import type { alerts } from "database";
+import { AlertCarousel } from "../trip-info/alert-carousel";
+import { Button } from "../ui/button";
 
 export type TripMapStopInfo = {
     stopId: number;
@@ -35,6 +49,7 @@ export type TripMapStopInfo = {
     lat: number;
     shapeDistTraveled: number | null;
     isTarget?: boolean;
+    alerts?: inferProcedureOutput<AppRouter["alert"]["getAlertForTripInstance"]>;
 };
 
 export type TripMapProps = {
@@ -128,6 +143,7 @@ const StopsGeojsonLayer: React.FC<{
         stopId: number;
         name?: string;
         effectiveTime: DateArg<Date> | null;
+        alerts?: TripMapStopInfo["alerts"];
     } | null>(null);
 
     const indexedStopsGeojson: FeatureCollection = props.stopInfos.length
@@ -141,6 +157,7 @@ const StopsGeojsonLayer: React.FC<{
                   },
                   properties: {
                       index,
+                      hasAlert: stop.alerts && stop.alerts.length > 0,
                   },
               })),
           }
@@ -153,22 +170,18 @@ const StopsGeojsonLayer: React.FC<{
 
     const stopBorderLayerId = "stops-border-layer";
     const stopFillLayerId = "stops-fill-layer";
-
-    const stopBorderCircleLayerStyle: LayerProps = {
+    const stopAlertCircleLayerStyle: LayerProps = {
         id: stopBorderLayerId,
         type: "circle",
         paint: {
-            "circle-radius": ["case", ["==", ["get", "index"], targetStopIdx], 14, 8],
-            "circle-color": [
-                "case",
-                ["<", ["get", "index"], targetStopIdx],
-                mutedBorderColor,
-                borderColor,
-            ],
+            "circle-radius": ["case", ["==", ["get", "hasAlert"], true], 24, 0],
+            "circle-color": "#f003",
+            "circle-stroke-color": "#f005",
+            "circle-stroke-width": 2,
         },
     };
 
-    const stopFillCircleLayerStyle: LayerProps = {
+    const stopCircleLayerStyle: LayerProps = {
         id: stopFillLayerId,
         type: "circle",
         paint: {
@@ -179,6 +192,13 @@ const StopsGeojsonLayer: React.FC<{
                 mutedStopColor,
                 stopColor,
             ],
+            "circle-stroke-color": [
+                "case",
+                ["<", ["get", "index"], targetStopIdx],
+                mutedBorderColor,
+                borderColor,
+            ],
+            "circle-stroke-width": ["case", ["==", ["get", "index"], targetStopIdx], 6, 2],
         },
     };
 
@@ -236,8 +256,8 @@ const StopsGeojsonLayer: React.FC<{
     return (
         <>
             <Source type="geojson" data={indexedStopsGeojson}>
-                <Layer {...stopBorderCircleLayerStyle} />
-                <Layer {...stopFillCircleLayerStyle} />
+                <Layer {...stopAlertCircleLayerStyle} />
+                <Layer {...stopCircleLayerStyle} />
             </Source>
             {focusedStopInfo && (
                 <Marker
@@ -245,27 +265,52 @@ const StopsGeojsonLayer: React.FC<{
                     latitude={focusedStopInfo.lat}
                     anchor="right"
                 >
-                    <Link to={`/`} search={{ lat: focusedStopInfo.lat, lng: focusedStopInfo.lng }}>
-                        <div className="min-h-4 bg-primary-foreground/70 backdrop-blur-md p-3 rounded-lg mr-4 flex gap-2 items-center">
-                            <div>
-                                <div className="text-xs  leading-none">{focusedStopInfo.name}</div>
-                                <div className="space-x-2">
-                                    {focusedStopInfo.effectiveTime && (
-                                        <span className="text-4 text-muted-foreground">
-                                            {isFuture(focusedStopInfo.effectiveTime)
-                                                ? "Arriving"
-                                                : "Arrived"}
-                                            {" at "}
-                                            {formatDate(focusedStopInfo.effectiveTime, "p")}
-                                        </span>
-                                    )}
+                    <div className="min-h-4 bg-primary-foreground/70 backdrop-blur-md p-3 rounded-lg mr-4 flex gap-2 items-center">
+                        <div>
+                            <div className="text-xs  leading-none">{focusedStopInfo.name}</div>
+
+                            {focusedStopInfo.effectiveTime && (
+                                <div className="text-xs text-muted-foreground">
+                                    {isFuture(focusedStopInfo.effectiveTime)
+                                        ? "Arriving"
+                                        : "Arrived"}
+                                    {" at "}
+                                    {formatDate(focusedStopInfo.effectiveTime, "p")}
                                 </div>
-                            </div>
+                            )}
+
+                            {focusedStopInfo.alerts?.length ? (
+                                <ResponsiveModal>
+                                    <ResponsiveModalTrigger asChild>
+                                        <Button variant="link" className="text-xs p-0 h-min">
+                                            View {focusedStopInfo.alerts.length} Alerts
+                                        </Button>
+                                    </ResponsiveModalTrigger>
+                                    <ResponsiveModalContent className="min-w-1/2 max-w-3xl bg-primary-foreground/60 backdrop-blur-md">
+                                        <ResponsiveModalHeader>
+                                            <ResponsiveModalTitle>Stop Alerts</ResponsiveModalTitle>
+                                            <ResponsiveModalDescription>
+                                                {focusedStopInfo.name}
+                                            </ResponsiveModalDescription>
+                                        </ResponsiveModalHeader>
+                                        <AlertCarousel
+                                            alerts={focusedStopInfo.alerts}
+                                            orientation="vertical"
+                                            className="mx-2 mb-2 md:m-0"
+                                        />
+                                    </ResponsiveModalContent>
+                                </ResponsiveModal>
+                            ) : null}
+                        </div>
+                        <Link
+                            to={`/`}
+                            search={{ lat: focusedStopInfo.lat, lng: focusedStopInfo.lng }}
+                        >
                             <div>
                                 <ChevronRight size={16} />
                             </div>
-                        </div>
-                    </Link>
+                        </Link>
+                    </div>
                 </Marker>
             )}
         </>
@@ -391,6 +436,7 @@ const LiveVehiclesLayer: React.FC<{
                             routeColor={routeColor}
                             routeTextColor={routeTextColor}
                             position={position}
+                            targetStopSequence={targetStopSequence}
                         />
                     ),
             )}

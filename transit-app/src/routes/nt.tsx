@@ -17,20 +17,19 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { trpc, trpcClient } from "@/main";
-import { ensureHexColorStartsWithHash, withOpacity } from "@/utils/css";
+import { trpcClient } from "@/main";
+import { getStopAlertEffect } from "@/utils/alert";
+import { ensureHexColorStartsWithHash } from "@/utils/css";
 import { isDataRealtime } from "@/utils/date";
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useRouter, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useHover } from "ahooks";
+import { directionEnum } from "database/models/enums";
 import { differenceInSeconds, format } from "date-fns";
 import { SettingsIcon, X } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { z } from "zod";
-import { useHover } from "ahooks";
-import { directionEnum } from "database/models/enums";
-import { Separator } from "@/components/ui/separator";
-import { STOP_ALERT_EFFECT_MAP } from "@/utils/alert";
 
 const nextTripsSchema = z.object({
     agencyId: z.string(),
@@ -102,9 +101,6 @@ export const Route = createFileRoute("/nt")({
         const otherAlerts = alerts.filter((a) =>
             a.informedEntities?.some((e) => e.stopId === null),
         );
-
-        console.log("stopAlerts", stopAlerts);
-        console.log("otherAlerts", otherAlerts);
 
         return {
             upcomingDepartures,
@@ -196,6 +192,9 @@ function RouteComponent() {
                     lat: st.stop!.location!.y,
                     shapeDistTraveled: st.shapeDistTraveled,
                     isTarget: st.stopSequence === targetStopTimeInst?.stopSequence,
+                    alerts: stopAlerts.filter((a) =>
+                        a.informedEntities?.some((e) => e.stopId === st.stopId),
+                    ),
                 }) satisfies TripMapStopInfo,
         );
 
@@ -392,8 +391,7 @@ function RouteComponent() {
                     <TransitRouteTimeline
                         stops={
                             targetTripInst?.stopTimeInstances.map((st) => {
-                                // FIXME: if multiple alerts for the same stop, will only show one... not ideal
-                                const alert = stopAlerts.findLast((a) =>
+                                const alerts = stopAlerts.filter((a) =>
                                     a.informedEntities?.some?.((ie) => ie.stopId === st.stopId),
                                 );
                                 return {
@@ -429,10 +427,31 @@ function RouteComponent() {
                                                         </Badge>
                                                     ))}
                                             </div>
-                                            {alert?.effect ? (
-                                                <span className="text-destructive-foreground font-medium">
-                                                    {STOP_ALERT_EFFECT_MAP[alert.effect].name}
-                                                </span>
+                                            {alerts.length > 0 ? (
+                                                <ResponsiveModal>
+                                                    <ResponsiveModalTrigger className="space-x-2">
+                                                        {alerts.map((a) => (
+                                                            <span className="text-destructive-foreground font-medium">
+                                                                {getStopAlertEffect(a.effect)?.name}
+                                                            </span>
+                                                        ))}
+                                                    </ResponsiveModalTrigger>
+                                                    <ResponsiveModalContent className="min-w-1/2 max-w-3xl bg-primary-foreground/60 backdrop-blur-md">
+                                                        <ResponsiveModalHeader>
+                                                            <ResponsiveModalTitle>
+                                                                Stop Alerts
+                                                            </ResponsiveModalTitle>
+                                                            <ResponsiveModalDescription>
+                                                                {st.stop?.name}
+                                                            </ResponsiveModalDescription>
+                                                        </ResponsiveModalHeader>
+                                                        <AlertCarousel
+                                                            alerts={alerts}
+                                                            orientation="vertical"
+                                                            className="mx-2 mb-2 md:m-0"
+                                                        />
+                                                    </ResponsiveModalContent>
+                                                </ResponsiveModal>
                                             ) : null}
                                         </div>
                                     ),
@@ -450,33 +469,3 @@ function RouteComponent() {
         </div>
     );
 }
-
-// const TimelineStopInfo = ({
-//     agencyId,
-//     stopTimeInstance,
-//     currentRouteObjectId,
-// }: {
-//     agencyId: string;
-//     currentRouteObjectId?: string;
-// }) => {
-//     const { data: routesAtStop } = useQuery({
-//         ...trpc.stop.getNearbyRoutesByStop.queryOptions({
-//             agencyId,
-//             stopId: stopTimeInstance.stop_id,
-//         }),
-//     });
-
-//     const filteredRoutesAtStop = routesAtStop?.filter(
-//         (r) => r._id.toString() !== currentRouteObjectId,
-//     );
-
-//     return (
-//         <div className="space-x-1 mt-1">
-//             {filteredRoutesAtStop?.map((r) => (
-//                 <Badge key={r.route_id} variant={"outline"}>
-//                     {r.route_short_name}
-//                 </Badge>
-//             ))}
-//         </div>
-//     );
-// };
