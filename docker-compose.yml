@@ -29,7 +29,6 @@ services:
         condition: service_healthy
     networks:
       - internal
-    restart: no
 
   transit-api:
     build:
