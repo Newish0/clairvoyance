@@ -84,8 +84,8 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                     continue;
                 }
 
-                // Skip existing non-pristine instances (preserve realtime modifications)
-                const existNotPristine = await ctx.db
+                // Skip existing dirty instances (preserve realtime modifications) except removal of a trip
+                const existingDirty = await ctx.db
                     .select({ id: tables.tripInstances.id })
                     .from(tables.tripInstances)
                     .where(
@@ -93,18 +93,18 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                             eq(tables.tripInstances.tripId, trip.id),
                             eq(tables.tripInstances.startDate, calendarDate.date),
                             eq(tables.tripInstances.startTime, startTime),
-                            ne(tables.tripInstances.state, "PRISTINE"),
+                            eq(tables.tripInstances.state, "DIRTY"),
                         ),
                     )
                     .limit(1);
 
-                // We expect a fair number of non-pristine instances, so this is debug level logging
-                if (existNotPristine.length > 0) {
+                // We expect a fair number of dirty instances, so this is debug level logging
+                if (existingDirty.length > 0) {
                     ctx.logger.debug(
                         { tripId: trip.id, date: calendarDate.date, startTime },
-                        "Skip: non-pristine",
+                        "Skip: dirty",
                     );
-                    ctx.telemetry.incr("trip_instance_source.not_pristine_skip");
+                    ctx.telemetry.incr("trip_instance_source.dirty_skip");
                     continue;
                 }
 
