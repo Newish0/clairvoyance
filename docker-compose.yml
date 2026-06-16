@@ -1,6 +1,8 @@
 services:
   db:
-    image: docker.io/postgis/postgis:18-3.6
+    build:
+      context: .
+      dockerfile: database/Dockerfile
     container_name: clairvoyance-db
     environment:
       POSTGRES_DB: transit
