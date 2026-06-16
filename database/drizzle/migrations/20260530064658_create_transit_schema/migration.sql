@@ -1,3 +1,7 @@
+-- MANUAL EDIT: postgis extension is required
+CREATE EXTENSION IF NOT EXISTS postgis;
+--- 
+
 CREATE SCHEMA "transit";
 --> statement-breakpoint
 CREATE TYPE "transit"."alert_cause" AS ENUM('UNKNOWN_CAUSE', 'OTHER_CAUSE', 'TECHNICAL_PROBLEM', 'STRIKE', 'DEMONSTRATION', 'ACCIDENT', 'HOLIDAY', 'WEATHER', 'MAINTENANCE', 'CONSTRUCTION', 'POLICE_ACTIVITY', 'MEDICAL_EMERGENCY');--> statement-breakpoint
