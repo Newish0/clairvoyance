@@ -1,4 +1,4 @@
-FROM oven/bun:1.3 AS builder
+FROM docker.io/oven/bun:1.3 AS builder
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -16,7 +16,7 @@ COPY tsconfig.json ./
 RUN bun build --compile --minify --target=bun-linux-x64-baseline \
     ./transit-api/server/src/index.ts --outfile /app/api
 
-FROM debian:stable-slim
+FROM docker.io/debian:stable-slim
 COPY --from=builder /app/api /usr/local/bin/api
 USER nobody
 EXPOSE 8000

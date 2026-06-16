@@ -1,4 +1,4 @@
-FROM oven/bun:1.3 AS builder
+FROM docker.io/oven/bun:1.3 AS builder
 WORKDIR /app
 
 ARG VITE_API_URL=/api
@@ -20,7 +20,7 @@ COPY tsconfig.json ./
 WORKDIR /app/transit-app
 RUN bun run build
 
-FROM nginx:alpine
+FROM docker.io/nginx:alpine
 WORKDIR /usr/share/nginx/html
 COPY --from=builder /app/transit-app/dist/ ./
 COPY gateway/nginx.conf /etc/nginx/nginx.conf
