@@ -1,6 +1,8 @@
 FROM docker.io/oven/bun:1.3 AS builder
 WORKDIR /app
 
+ARG TARGETARCH
+
 COPY package.json bun.lock ./
 COPY database/drizzle/package.json ./database/drizzle/package.json
 COPY transit-api/server/package.json ./transit-api/server/package.json
@@ -13,7 +15,12 @@ COPY transit-ingest/ ./transit-ingest/
 COPY database/ ./database/
 COPY tsconfig.json ./
 
-RUN bun build --compile --minify --target=bun-linux-x64-baseline \
+RUN case "$TARGETARCH" in \
+      amd64) BUN_TARGET="bun-linux-x64-baseline" ;; \
+      arm64) BUN_TARGET="bun-linux-arm64" ;; \
+      *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    bun build --compile --minify --target=$BUN_TARGET \
     ./transit-ingest/src/main.ts --outfile /app/ingest
 
 FROM docker.io/debian:stable-slim
