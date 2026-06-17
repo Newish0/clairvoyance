@@ -1,8 +1,10 @@
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
     const { theme = "system" } = useTheme();
+    const isMobile = useIsMobile();
 
     return (
         <Sonner
@@ -18,6 +20,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             toastOptions={{
                 className: "backdrop-blur-md",
             }}
+            position={isMobile ? "top-center" : "bottom-right"}
             {...props}
         />
     );

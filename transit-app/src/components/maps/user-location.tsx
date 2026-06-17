@@ -1,4 +1,3 @@
-import { useGeolocation } from "@/hooks/use-geolocation";
 import { usePersistUserSetLocation } from "@/hooks/use-persist-user-set-location";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "ahooks";
@@ -6,6 +5,7 @@ import { LngLat } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, useMap } from "react-map-gl/maplibre";
 import { toast } from "sonner";
+import { useGeolocation } from "../geolocation-provider";
 
 /**
  * UserLocationControl
@@ -60,13 +60,7 @@ export const UserLocationControl: React.FC<{
 }> = ({ geolocationAttachmentThreshold = 25 }) => {
     // --- States ---
     const { current: map } = useMap();
-    const {
-        position,
-        error: geolocationError,
-        status,
-    } = useGeolocation({
-        enableHighAccuracy: true,
-    });
+    const { position, error: geolocationError, status } = useGeolocation();
     const [userSetLocation, setUserSetLocation] = usePersistUserSetLocation();
     const [isUserSetLocationActive, setIsUserSetLocationActive] = useState(false);
     const hasSyncedUserGeolocation = useRef(false); // Ensure sync map center & userSetLocation to geolocation is done only once
@@ -207,9 +201,7 @@ export const UserLocationMarker: React.FC<{
     centerMapToUserSetLocation,
 }) => {
     const { current: map } = useMap();
-    const { position } = useGeolocation({
-        enableHighAccuracy: true,
-    });
+    const { position } = useGeolocation();
     const [persistedUserSetLocation] = usePersistUserSetLocation();
 
     const debouncedPosition = useDebounce(position, {

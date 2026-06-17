@@ -10,6 +10,7 @@ import type { AppRouter } from "transit-api";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { GeolocationProvider } from "@/components/geolocation-provider";
 
 export interface RouterAppContext {
     trpc: TRPCOptionsProxy<AppRouter>;
@@ -20,8 +21,12 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     component: () => (
         <>
             <ThemeProvider defaultTheme="dark" storageKey="transit-app-ui-theme">
-                <Outlet />
+                {/* IMPORTANT: Toaster MUST mount outside of GeolocationProvider
+                     because geolocation prompt uses Toaster */}
                 <Toaster />
+                <GeolocationProvider options={{ enableHighAccuracy: true }}>
+                    <Outlet />
+                </GeolocationProvider>
             </ThemeProvider>
 
             {import.meta.env.DEV && (
