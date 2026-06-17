@@ -27,30 +27,25 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
     const distMin = Math.min(...departures.map((d) => d.distanceMeters));
     const distMax = Math.max(...departures.map((d) => d.distanceMeters));
 
+    // 50/50 time/distance
+    const score = (d: (typeof departures)[number]) => {
+        const minutes = d.effectiveTime ? differenceInMinutes(d.effectiveTime, now) : 0;
+        const timeNorm = (minutes - timeMin) / (timeMax - timeMin) || 0;
+        const distNorm = (d.distanceMeters - distMin) / (distMax - distMin) || 0;
+
+        return 0.5 * timeNorm + 0.5 * distNorm;
+    };
+
     const grouped = Object.entries(
         departures
-            // 50/50 time/distance
-            .toSorted((a, b) => {
-                const minutesA = a.effectiveTime ? differenceInMinutes(a.effectiveTime, now) : 0;
-                const minutesB = b.effectiveTime ? differenceInMinutes(b.effectiveTime, now) : 0;
-
-                const timeNormA = (minutesA - timeMin) / (timeMax - timeMin) || 0;
-                const timeNormB = (minutesB - timeMin) / (timeMax - timeMin) || 0;
-                const distNormA = (a.distanceMeters - distMin) / (distMax - distMin) || 0;
-                const distNormB = (b.distanceMeters - distMin) / (distMax - distMin) || 0;
-
-                const scoreA = 0.5 * timeNormA + 0.5 * distNormA;
-                const scoreB = 0.5 * timeNormB + 0.5 * distNormB;
-
-                return scoreA - scoreB;
-            })
+            .toSorted((a, b) => score(a) - score(b))
             .reduce<Record<string, (typeof departures)[number][]>>((acc, departure) => {
                 const k = departure.routeId;
                 acc[k] = acc[k] || [];
                 acc[k].push(departure);
                 return acc;
             }, {}),
-    );
+    ).toSorted(([, a], [, b]) => score(a[0]) - score(b[0]));
 
     return (
         <AnimatePresence mode="sync">
