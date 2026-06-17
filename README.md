@@ -6,13 +6,13 @@
 ![Bun](https://img.shields.io/badge/bun-%23f472b6.svg?style=for-the-badge&logo=bun&logoColor=white)
 ![tRPC](https://img.shields.io/badge/tRPC-%232596BE.svg?style=for-the-badge&logo=trpc&logoColor=white)
 ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
-![Python](https://img.shields.io/badge/python-%233776AB.svg?style=for-the-badge&logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%232496ED.svg?style=for-the-badge&logo=docker&logoColor=white)
-![MongoDB](https://img.shields.io/badge/mongodb-%2347A248.svg?style=for-the-badge&logo=mongodb&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/postgresql-%234169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![Drizzle](https://img.shields.io/badge/drizzle-%23C5F74F.svg?style=for-the-badge&logo=drizzle&logoColor=black)
 
 Realtime transit webapp using GTFS data in a microservice architecture.
 
-Visit the [demo site](http://newishdev.space).
+Visit the [demo site](https://transit.hy1.dev).
 
 </div>
 
@@ -25,12 +25,15 @@ Visit the [demo site](http://newishdev.space).
 
 ## 🛠️ Tech Stack
 
--   **Frontend**: Tanstack Router + React + TypeScript
--   **Backend**: Bun + TRPC (API) + Python (ETL)
--   **ORM**: Beanie
--   **Database**: MongoDB
+-   **Frontend**: TanStack Router + React 19 + TanStack Query + Tailwind CSS + shadcn/ui + Vite + TypeScript
+-   **Backend**: Bun + tRPC (API)
+-   **ETL**: Bun CLI + Protobuf (Buf) + TypeScript
+-   **ORM**: Drizzle ORM
+-   **Database**: PostgreSQL + PostGIS
+-   **Maps**: MapLibre GL
 -   **Containerization**: Docker
--   **Package Management**: uv (Python)
+-   **Reverse Proxy**: nginx
+-   **Monorepo**: Bun workspaces
 
 ## 🎯 Roadmap
 

@@ -10,7 +10,12 @@ bun install
 
 Run 
 ```bash 
-bunx drizzle-kit generate 
+bunx drizzle-kit generate --name 'name_of_migration'
+```
+
+To generate custom migration files
+```bash 
+bunx drizzle-kit generate --name 'name_of_migration' --custom
 ```
 
 

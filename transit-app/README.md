@@ -8,6 +8,11 @@ To run this application:
 bun install
 bun --bun run start
 ```
+or with hot reloading:
+
+```bash
+bun --bun run dev
+```
 
 # Building For Production
 

@@ -13,10 +13,16 @@ bun run src/main.ts
 
 ```
 
+With verbose output for dev:
+
+```bash
+bun run src/main.ts --verbose
+```
+
 With pretty output for dev:
 
 ```bash
-bun run src/main.ts | bunx pino-pretty
+bun run src/main.ts --pretty
 ```
 
 ## Database Timezone
