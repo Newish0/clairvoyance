@@ -42,8 +42,9 @@ export async function runStaticPipeline(
     ignoreFeedDup: boolean | undefined,
     realizeInstances: boolean | undefined,
     verbose: boolean,
+    pretty: boolean,
 ): Promise<void> {
-    const ctx = createContext(db, { agencyId, verbose });
+    const ctx = createContext(db, { agencyId, verbose, pretty });
     const result = await runStatic(ctx, gtfsUrl, deleteRows, ignoreFeedDup, realizeInstances);
     if (result.isErr()) {
         ctx.logger.error({ err: result.error }, "Static processing failed");
@@ -62,8 +63,9 @@ export async function runRealtimePipeline(
     urls: string[],
     pollInterval: number,
     verbose: boolean,
+    pretty: boolean,
 ): Promise<void> {
-    const ctx = createContext(db, { agencyId, verbose });
+    const ctx = createContext(db, { agencyId, verbose, pretty });
     const onSigint = () => ctx.controller.abort();
     process.on("SIGINT", onSigint);
 
@@ -87,8 +89,9 @@ export async function runRealizePipeline(
     minDate: string | undefined,
     maxDate: string | undefined,
     verbose: boolean,
+    pretty: boolean,
 ): Promise<void> {
-    const ctx = createContext(db, { agencyId, verbose });
+    const ctx = createContext(db, { agencyId, verbose, pretty });
     const result = await runRealizeInstances(ctx, minDate, maxDate);
     if (result.isErr()) {
         ctx.logger.error({ err: result.error }, "Realize instances failed");

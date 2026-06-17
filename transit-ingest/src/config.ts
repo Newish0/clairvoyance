@@ -55,6 +55,7 @@ export async function runFromConfig(
     db: Db,
     deleteRows: boolean,
     verbose: boolean,
+    pretty: boolean,
     phases: ConfigPhases = { static: true, realize: true, realtime: true },
 ): Promise<void> {
     const raw = loadRawConfig(configPath);
@@ -86,6 +87,7 @@ export async function runFromConfig(
                     agency.static.ignoreFeedDup,
                     agency.static.realizeInstances,
                     verbose,
+                    pretty
                 );
             }
             if (phases.realize && agency.realizeInstances) {
@@ -95,6 +97,7 @@ export async function runFromConfig(
                     agency.realizeInstances.minDate,
                     agency.realizeInstances.maxDate,
                     verbose,
+                    pretty
                 );
             }
         }
@@ -112,6 +115,7 @@ export async function runFromConfig(
                         agency.realtime!.urls,
                         agency.realtime!.poll ?? 0,
                         verbose,
+                        pretty
                     ),
                 ),
             );

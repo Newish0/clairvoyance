@@ -5,6 +5,7 @@ import type { IngestError } from "./error";
 export type PipelineConfig = {
     agencyId: string;
     verbose?: boolean;
+    pretty?: boolean;
 };
 
 export type Context = {
@@ -29,6 +30,14 @@ export function createContext(db: Db, config: PipelineConfig): Context {
         logger: pino({
             level: config.verbose ? "debug" : "info",
             name: config.agencyId,
+            ...(config.pretty
+                ? {
+                      transport: {
+                          target: "pino-pretty",
+                          options: { sync: true },
+                      },
+                  }
+                : null),
         }),
         errors: [],
         skipped: 0,
