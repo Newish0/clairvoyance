@@ -33,7 +33,8 @@ export async function downloadAndExtract(
 
         fs.mkdirSync(parentDir, { recursive: true });
 
-        await Bun.write(zipPath, resp);
+        const buffer = await resp.arrayBuffer();
+        await Bun.write(zipPath, buffer);
 
         const hasher = new Bun.CryptoHasher("md5");
         for await (const chunk of Bun.file(zipPath).stream()) {
