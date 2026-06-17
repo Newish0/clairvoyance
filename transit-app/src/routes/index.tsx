@@ -1,5 +1,5 @@
 import { AppSettings } from "@/components/app-settings";
-import { GeolocationBanner } from "@/components/geolocation-banner";
+import { useGeolocation } from "@/components/geolocation-provider";
 import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,17 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
-import { useGeolocation } from "@/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { haversine } from "@/utils/geo";
+import { showGeolocationDeniedToast, showGeolocationToast } from "@/components/geolocation-toast";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useDebounce, useThrottle } from "ahooks";
 import { Loader2, MapPin, SettingsIcon, X } from "lucide-react";
 import { LngLat } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import z from "zod";
 
 const SearchSchema = z.object({
@@ -99,6 +100,23 @@ function TransitApp() {
     const handleReturnToPrevPage = useCallback(() => {
         router.history.back();
     }, [router]);
+
+    const geolocationToastId = useRef<string | number | null>(null);
+
+    useEffect(() => {
+        console.log("geolocation.status", geolocation.status);
+        if (geolocation.status === "idle") {
+            if (geolocationToastId.current) return;
+            geolocationToastId.current = showGeolocationToast(geolocation.requestPermission);
+        } else if (geolocation.status === "denied") {
+            geolocationToastId.current = showGeolocationDeniedToast();
+        } else if (geolocation.status === "watching") {
+            if (geolocationToastId.current) {
+                toast.dismiss(geolocationToastId.current);
+                geolocationToastId.current = null;
+            }
+        }
+    }, [geolocation.status, geolocation.requestPermission]);
 
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
