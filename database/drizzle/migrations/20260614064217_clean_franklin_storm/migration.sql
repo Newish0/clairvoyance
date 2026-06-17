@@ -1,1 +1,0 @@
-DROP TABLE "transit"."alert_entities";

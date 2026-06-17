@@ -1,7 +1,3 @@
--- MANUAL EDIT: postgis extension is required
-CREATE EXTENSION IF NOT EXISTS postgis;
---- 
-
 CREATE SCHEMA "transit";
 --> statement-breakpoint
 CREATE TYPE "transit"."alert_cause" AS ENUM('UNKNOWN_CAUSE', 'OTHER_CAUSE', 'TECHNICAL_PROBLEM', 'STRIKE', 'DEMONSTRATION', 'ACCIDENT', 'HOLIDAY', 'WEATHER', 'MAINTENANCE', 'CONSTRUCTION', 'POLICE_ACTIVITY', 'MEDICAL_EMERGENCY');--> statement-breakpoint
@@ -81,7 +77,7 @@ CREATE TABLE "transit"."shapes" (
 	"id" serial PRIMARY KEY,
 	"agency_id" text NOT NULL,
 	"shape_sid" text NOT NULL,
-	"path" geometry(point,4326) NOT NULL,
+	"path" geometry(LineString,4326) NOT NULL,
 	"distances_traveled" jsonb,
 	CONSTRAINT "uq_shapes_agency_shape_sid" UNIQUE("agency_id","shape_sid")
 );
@@ -89,7 +85,7 @@ CREATE TABLE "transit"."shapes" (
 CREATE TABLE "transit"."stop_time_realtime_instances" (
 	"id" serial PRIMARY KEY,
 	"trip_instance_id" integer NOT NULL,
-	"stop_time_id" integer NOT NULL,
+	"stop_time_id" integer,
 	"stop_sequence" integer NOT NULL,
 	"stop_id" integer,
 	"scheduled_arrival_time" timestamp with time zone,
@@ -108,7 +104,7 @@ CREATE TABLE "transit"."stop_time_realtime_instances" (
 --> statement-breakpoint
 CREATE TABLE "transit"."stop_times" (
 	"id" serial PRIMARY KEY,
-	"agency_id" text,
+	"agency_id" text NOT NULL,
 	"trip_id" integer,
 	"stop_id" integer,
 	"trip_sid" text NOT NULL,
@@ -126,12 +122,12 @@ CREATE TABLE "transit"."stop_times" (
 --> statement-breakpoint
 CREATE TABLE "transit"."stops" (
 	"id" serial PRIMARY KEY,
-	"agency_id" text,
+	"agency_id" text NOT NULL,
 	"stop_sid" text NOT NULL,
 	"code" text,
 	"name" text,
 	"description" text,
-	"location" geometry(point,4326),
+	"location" geometry(Point,4326),
 	"zone_id" text,
 	"url" text,
 	"location_type" "transit"."location_type",
@@ -158,8 +154,8 @@ CREATE TABLE "transit"."trip_instances" (
 --> statement-breakpoint
 CREATE TABLE "transit"."trips" (
 	"id" serial PRIMARY KEY,
-	"agency_id" text,
-	"route_id" integer,
+	"agency_id" text NOT NULL,
+	"route_id" integer NOT NULL,
 	"shape_id" integer,
 	"trip_sid" text NOT NULL,
 	"service_sid" text NOT NULL,
@@ -175,16 +171,17 @@ CREATE TABLE "transit"."vehicle_positions" (
 	"vehicle_id" integer NOT NULL,
 	"trip_instance_id" integer,
 	"timestamp" timestamp with time zone NOT NULL,
-	"location" geometry(point,4326) NOT NULL,
+	"location" geometry(Point,4326) NOT NULL,
 	"stop_id" integer,
 	"current_stop_sequence" integer,
 	"current_status" "transit"."vehicle_stop_status",
-	"congestion_level" "transit"."congestion_level",
-	"occupancy_status" "transit"."occupancy_status",
+	"congestion_level" "transit"."congestion_level" DEFAULT 'UNKNOWN_CONGESTION_LEVEL'::"transit"."congestion_level",
+	"occupancy_status" "transit"."occupancy_status" DEFAULT 'NO_DATA_AVAILABLE'::"transit"."occupancy_status",
 	"occupancy_percentage" integer,
 	"bearing" double precision,
 	"odometer" double precision,
 	"speed" double precision,
+	"shape_dist_traveled" double precision,
 	"ingested_at" timestamp with time zone DEFAULT now(),
 	CONSTRAINT "uq_vehicle_positions_vehicle_timestamp" UNIQUE("vehicle_id","timestamp")
 );
@@ -207,6 +204,7 @@ CREATE INDEX "idx_shapes_path_gist" ON "transit"."shapes" USING gist ("path");--
 CREATE INDEX "idx_shapes_shape_sid" ON "transit"."shapes" ("shape_sid");--> statement-breakpoint
 CREATE INDEX "idx_stop_time_instances_trip_instance_id" ON "transit"."stop_time_realtime_instances" ("trip_instance_id");--> statement-breakpoint
 CREATE INDEX "idx_stop_times_trip_id_sequence" ON "transit"."stop_times" ("trip_id","stop_sequence");--> statement-breakpoint
+CREATE INDEX "idx_stop_times_stop_id" ON "transit"."stop_times" ("stop_id");--> statement-breakpoint
 CREATE INDEX "idx_stops_location_gist" ON "transit"."stops" USING gist ("location");--> statement-breakpoint
 CREATE INDEX "idx_trip_instances_trip_date_time_state" ON "transit"."trip_instances" ("trip_id","start_date","start_time","state");--> statement-breakpoint
 CREATE INDEX "idx_trips_agency_service" ON "transit"."trips" ("agency_id","service_sid");--> statement-breakpoint
@@ -236,8 +234,46 @@ ALTER TABLE "transit"."vehicle_positions" ADD CONSTRAINT "vehicle_positions_vehi
 ALTER TABLE "transit"."vehicle_positions" ADD CONSTRAINT "vehicle_positions_trip_instance_id_trip_instances_id_fkey" FOREIGN KEY ("trip_instance_id") REFERENCES "transit"."trip_instances"("id");--> statement-breakpoint
 ALTER TABLE "transit"."vehicle_positions" ADD CONSTRAINT "vehicle_positions_stop_id_stops_id_fkey" FOREIGN KEY ("stop_id") REFERENCES "transit"."stops"("id");--> statement-breakpoint
 ALTER TABLE "transit"."vehicles" ADD CONSTRAINT "vehicles_agency_id_agencies_id_fkey" FOREIGN KEY ("agency_id") REFERENCES "transit"."agencies"("id");--> statement-breakpoint
+CREATE VIEW "transit"."active_alerts" AS (select "id", "agency_id", "content_hash", "cause", "effect", "severity", "header_text", "description_text", "url", "active_periods", "informed_entities", "last_seen" from "transit"."alerts" where 
+                    -- Case 1: no time info at all - rely on lastSeen
+                    (
+                        "transit"."alerts"."active_periods" IS NULL
+                        AND "transit"."alerts"."last_seen" >= now() - interval '5 minutes'
+                    )
+                    OR
+                    -- Case 2: a bounded period covers now - active on its own terms
+                    EXISTS (
+                        SELECT 1
+                        FROM jsonb_array_elements("transit"."alerts"."active_periods") AS period
+                        WHERE
+                            (period->>'start' IS NULL OR (period->>'start')::bigint <= extract(epoch FROM now()))
+                            AND (period->>'end' IS NOT NULL AND (period->>'end')::bigint >= extract(epoch FROM now()))
+                    )
+                    OR
+                    -- Case 3: an open-ended period covers now - needs a fresh lastSeen
+                    (
+                        EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements("transit"."alerts"."active_periods") AS period
+                            WHERE
+                                (period->>'start' IS NULL OR (period->>'start')::bigint <= extract(epoch FROM now()))
+                                AND period->>'end' IS NULL
+                        )
+                        AND "transit"."alerts"."last_seen" >= now() - interval '5 minutes'
+                    )
+                );--> statement-breakpoint
+CREATE VIEW "transit"."stop_routes" AS (select "transit"."stop_times"."stop_id", 
+                array_agg(
+                    DISTINCT jsonb_build_object(
+                        'id', "transit"."routes"."id",
+                        'shortName', "transit"."routes"."short_name",
+                        'color', "transit"."routes"."color",
+                        'textColor', "transit"."routes"."text_color",
+                        'type', "transit"."routes"."type"
+                    )
+                )
+             as "routes" from "transit"."stop_times" inner join "transit"."trips" on "transit"."stop_times"."trip_id" = "transit"."trips"."id" inner join "transit"."routes" on "transit"."trips"."route_id" = "transit"."routes"."id" group by "transit"."stop_times"."stop_id");--> statement-breakpoint
 
--- MANUAL EDIT: Move `VIEW "transit"."stop_time_instances"` to AFTER `CREATE MATERIALIZED VIEW "transit"."stop_time_static_instances"`
 CREATE MATERIALIZED VIEW "transit"."stop_time_static_instances" AS (select "transit"."trip_instances"."id" as "trip_instance_id", "transit"."stop_times"."id" as "stop_time_id", "transit"."stop_times"."stop_sequence", "transit"."stop_times"."stop_id", "transit"."stop_times"."timepoint", ("transit"."trip_instances"."start_datetime" + (
                     "transit"."stop_times"."arrival_time"::interval - (
                         SELECT "transit"."stop_times"."arrival_time"::interval
@@ -252,6 +288,79 @@ CREATE MATERIALIZED VIEW "transit"."stop_time_static_instances" AS (select "tran
                         WHERE "transit"."stop_times"."trip_id" = "transit"."trip_instances"."trip_id"
                         AND "transit"."stop_times"."stop_sequence" = 1
                     )
-                ))::timestamptz as "scheduled_departure_time", "transit"."stop_times"."stop_headsign", "transit"."stop_times"."pickup_type", "transit"."stop_times"."drop_off_type" from "transit"."trip_instances" inner join "transit"."stop_times" on "transit"."trip_instances"."trip_id" = "transit"."stop_times"."trip_id");
+                ))::timestamptz as "scheduled_departure_time", "transit"."stop_times"."stop_headsign", "transit"."stop_times"."pickup_type", "transit"."stop_times"."drop_off_type", "transit"."stop_times"."shape_dist_traveled" from "transit"."trip_instances" inner join "transit"."stop_times" on "transit"."trip_instances"."trip_id" = "transit"."stop_times"."trip_id" where (("transit"."trip_instances"."start_datetime" >= now() - interval '14 days') and ("transit"."trip_instances"."start_datetime" < now() + interval '1 month')));
 
-CREATE VIEW "transit"."stop_time_instances" AS (select rt.id as "id", COALESCE(rt.trip_instance_id, st.trip_instance_id) as "trip_instance_id", COALESCE(rt.stop_time_id, st.stop_time_id) as "stop_time_id", COALESCE(rt.stop_sequence, st.stop_sequence) as "stop_sequence", COALESCE(rt.stop_id, st.stop_id) as "stop_id", st.timepoint as "timepoint", COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time) as "scheduled_arrival_time", COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) as "scheduled_departure_time", rt.predicted_arrival_time as "predicted_arrival_time", rt.predicted_departure_time as "predicted_departure_time", rt.predicted_arrival_uncertainty as "predicted_arrival_uncertainty", rt.predicted_departure_uncertainty as "predicted_departure_uncertainty", rt.schedule_relationship as "schedule_relationship", COALESCE(rt.stop_headsign, st.stop_headsign) as "stop_headsign", COALESCE(rt.pickup_type, st.pickup_type) as "pickup_type", COALESCE(rt.drop_off_type, st.drop_off_type) as "drop_off_type", rt.last_updated_at as "last_updated_at" from transit.stop_time_realtime_instances rt full join transit.stop_time_static_instances st on rt.trip_instance_id = st.trip_instance_id AND rt.stop_sequence = st.stop_sequence);--> statement-breakpoint
+-- MANUAL EDIT: Index on materialized view --
+CREATE UNIQUE INDEX ON transit.stop_time_static_instances (trip_instance_id, stop_sequence);
+
+CREATE VIEW "transit"."stop_time_instances" AS (
+        -- Branch 1: rt.stop_id IS NOT NULL → join on (trip_instance_id, stop_id)
+        -- Covers: rt+st matched rows, rt-only ADDED/unmatched rows, and st-only rows
+        SELECT
+            rt.id,
+            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,
+            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,
+            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
+            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
+            st.timepoint,
+            st.shape_dist_traveled,
+            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
+            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
+            rt.predicted_arrival_time,
+            rt.predicted_departure_time,
+            rt.predicted_arrival_uncertainty,
+            rt.predicted_departure_uncertainty,
+            rt.schedule_relationship,
+            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
+            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
+            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
+            rt.last_updated_at,
+            COALESCE(
+                rt.predicted_departure_time,
+                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
+                rt.predicted_arrival_time,
+                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
+            ) AS effective_time
+        FROM transit.stop_time_realtime_instances rt
+        FULL JOIN transit.stop_time_static_instances st
+            ON  rt.trip_instance_id = st.trip_instance_id
+            AND rt.stop_id          = st.stop_id           
+        WHERE rt.stop_id IS NOT NULL                        -- rt rows matched by stop_id
+           OR rt.trip_instance_id IS NULL                   -- st-only rows (no rt counterpart)
+ 
+        UNION ALL
+ 
+        -- Branch 2: rt.stop_id IS NULL → join on (trip_instance_id, stop_sequence)
+        -- Covers: rt+st matched rows and rt-only rows where stop_id was omitted
+        SELECT
+            rt.id,
+            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,
+            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,
+            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
+            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
+            st.timepoint,
+            st.shape_dist_traveled,
+            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
+            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
+            rt.predicted_arrival_time,
+            rt.predicted_departure_time,
+            rt.predicted_arrival_uncertainty,
+            rt.predicted_departure_uncertainty,
+            rt.schedule_relationship,
+            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
+            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
+            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
+            rt.last_updated_at,
+            COALESCE(
+                rt.predicted_departure_time,
+                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
+                rt.predicted_arrival_time,
+                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
+            ) AS effective_time
+        FROM transit.stop_time_realtime_instances rt
+        FULL JOIN transit.stop_time_static_instances st
+            ON  rt.trip_instance_id = st.trip_instance_id
+            AND rt.stop_sequence    = st.stop_sequence      
+        WHERE rt.stop_id IS NULL                            -- only rt rows without a stop_id
+            AND rt.id IS NOT NULL  -- exclude st-only rows (handled by Branch 1)
+    );--> statement-breakpoint

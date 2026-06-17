@@ -1,1 +1,0 @@
-CREATE INDEX "idx_stop_times_stop_id" ON "transit"."stop_times" ("stop_id");

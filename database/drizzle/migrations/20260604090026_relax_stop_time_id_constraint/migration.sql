@@ -1,1 +1,0 @@
-ALTER TABLE "transit"."stop_time_realtime_instances" ALTER COLUMN "stop_time_id" DROP NOT NULL;

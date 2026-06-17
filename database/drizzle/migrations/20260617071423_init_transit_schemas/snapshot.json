@@ -1,9 +1,9 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "0ecac7db-0af7-4ca3-9131-7df7ac62a2b2",
+  "id": "c19a0f1f-53f4-40fd-8bfc-c8d675d46e4d",
   "prevIds": [
-    "0f07c774-51af-4182-b320-64cf5f296202"
+    "aa0f2d35-e737-4f2b-9fe7-e8194db5c597"
   ],
   "ddl": [
     {
@@ -845,7 +845,7 @@
       "table": "shapes"
     },
     {
-      "type": "geometry(point,4326)",
+      "type": "geometry(LineString,4326)",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
@@ -899,7 +899,7 @@
     {
       "type": "integer",
       "typeSchema": null,
-      "notNull": true,
+      "notNull": false,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1094,7 +1094,7 @@
     {
       "type": "text",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1276,7 +1276,7 @@
     {
       "type": "text",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1339,7 +1339,7 @@
       "table": "stops"
     },
     {
-      "type": "geometry(point,4326)",
+      "type": "geometry(Point,4326)",
       "typeSchema": null,
       "notNull": false,
       "dimensions": 0,
@@ -1588,7 +1588,7 @@
     {
       "type": "text",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1601,7 +1601,7 @@
     {
       "type": "integer",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1755,7 +1755,7 @@
       "table": "vehicle_positions"
     },
     {
-      "type": "geometry(point,4326)",
+      "type": "geometry(Point,4326)",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
@@ -1811,7 +1811,7 @@
       "typeSchema": "transit",
       "notNull": false,
       "dimensions": 0,
-      "default": null,
+      "default": "'UNKNOWN_CONGESTION_LEVEL'",
       "generated": null,
       "identity": null,
       "name": "congestion_level",
@@ -1824,7 +1824,7 @@
       "typeSchema": "transit",
       "notNull": false,
       "dimensions": 0,
-      "default": null,
+      "default": "'NO_DATA_AVAILABLE'",
       "generated": null,
       "identity": null,
       "name": "occupancy_status",
@@ -1880,6 +1880,19 @@
       "generated": null,
       "identity": null,
       "name": "speed",
+      "entityType": "columns",
+      "schema": "transit",
+      "table": "vehicle_positions"
+    },
+    {
+      "type": "double precision",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "shape_dist_traveled",
       "entityType": "columns",
       "schema": "transit",
       "table": "vehicle_positions"
@@ -2153,6 +2166,27 @@
       "method": "btree",
       "concurrently": false,
       "name": "idx_stop_times_trip_id_sequence",
+      "entityType": "indexes",
+      "schema": "transit",
+      "table": "stop_times"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "stop_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "idx_stop_times_stop_id",
       "entityType": "indexes",
       "schema": "transit",
       "table": "stop_times"
@@ -2959,7 +2993,29 @@
       "entityType": "uniques"
     },
     {
-      "definition": "select rt.id as \"id\", COALESCE(rt.trip_instance_id, st.trip_instance_id) as \"trip_instance_id\", COALESCE(rt.stop_time_id, st.stop_time_id) as \"stop_time_id\", COALESCE(rt.stop_sequence, st.stop_sequence) as \"stop_sequence\", COALESCE(rt.stop_id, st.stop_id) as \"stop_id\", st.timepoint as \"timepoint\", COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time) as \"scheduled_arrival_time\", COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) as \"scheduled_departure_time\", rt.predicted_arrival_time as \"predicted_arrival_time\", rt.predicted_departure_time as \"predicted_departure_time\", rt.predicted_arrival_uncertainty as \"predicted_arrival_uncertainty\", rt.predicted_departure_uncertainty as \"predicted_departure_uncertainty\", rt.schedule_relationship as \"schedule_relationship\", COALESCE(rt.stop_headsign, st.stop_headsign) as \"stop_headsign\", COALESCE(rt.pickup_type, st.pickup_type) as \"pickup_type\", COALESCE(rt.drop_off_type, st.drop_off_type) as \"drop_off_type\", rt.last_updated_at as \"last_updated_at\" from transit.stop_time_realtime_instances rt full join transit.stop_time_static_instances st on rt.trip_instance_id = st.trip_instance_id AND (\n                CASE WHEN rt.stop_id IS NOT NULL\n                    THEN rt.stop_id = st.stop_id\n                    ELSE rt.stop_sequence = st.stop_sequence\n                END\n            )",
+      "definition": "select \"id\", \"agency_id\", \"content_hash\", \"cause\", \"effect\", \"severity\", \"header_text\", \"description_text\", \"url\", \"active_periods\", \"informed_entities\", \"last_seen\" from \"transit\".\"alerts\" where \n                    -- Case 1: no time info at all - rely on lastSeen\n                    (\n                        \"transit\".\"alerts\".\"active_periods\" IS NULL\n                        AND \"transit\".\"alerts\".\"last_seen\" >= now() - interval '5 minutes'\n                    )\n                    OR\n                    -- Case 2: a bounded period covers now - active on its own terms\n                    EXISTS (\n                        SELECT 1\n                        FROM jsonb_array_elements(\"transit\".\"alerts\".\"active_periods\") AS period\n                        WHERE\n                            (period->>'start' IS NULL OR (period->>'start')::bigint <= extract(epoch FROM now()))\n                            AND (period->>'end' IS NOT NULL AND (period->>'end')::bigint >= extract(epoch FROM now()))\n                    )\n                    OR\n                    -- Case 3: an open-ended period covers now - needs a fresh lastSeen\n                    (\n                        EXISTS (\n                            SELECT 1\n                            FROM jsonb_array_elements(\"transit\".\"alerts\".\"active_periods\") AS period\n                            WHERE\n                                (period->>'start' IS NULL OR (period->>'start')::bigint <= extract(epoch FROM now()))\n                                AND period->>'end' IS NULL\n                        )\n                        AND \"transit\".\"alerts\".\"last_seen\" >= now() - interval '5 minutes'\n                    )\n                ",
+      "with": null,
+      "withNoData": null,
+      "using": null,
+      "tablespace": null,
+      "materialized": false,
+      "name": "active_alerts",
+      "entityType": "views",
+      "schema": "transit"
+    },
+    {
+      "definition": "select \"transit\".\"stop_times\".\"stop_id\", \n                array_agg(\n                    DISTINCT jsonb_build_object(\n                        'id', \"transit\".\"routes\".\"id\",\n                        'shortName', \"transit\".\"routes\".\"short_name\",\n                        'color', \"transit\".\"routes\".\"color\",\n                        'textColor', \"transit\".\"routes\".\"text_color\",\n                        'type', \"transit\".\"routes\".\"type\"\n                    )\n                )\n             as \"routes\" from \"transit\".\"stop_times\" inner join \"transit\".\"trips\" on \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trips\".\"id\" inner join \"transit\".\"routes\" on \"transit\".\"trips\".\"route_id\" = \"transit\".\"routes\".\"id\" group by \"transit\".\"stop_times\".\"stop_id\"",
+      "with": null,
+      "withNoData": null,
+      "using": null,
+      "tablespace": null,
+      "materialized": false,
+      "name": "stop_routes",
+      "entityType": "views",
+      "schema": "transit"
+    },
+    {
+      "definition": "\n        -- Branch 1: rt.stop_id IS NOT NULL → join on (trip_instance_id, stop_id)\n        -- Covers: rt+st matched rows, rt-only ADDED/unmatched rows, and st-only rows\n        SELECT\n            rt.id,\n            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,\n            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,\n            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,\n            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,\n            st.timepoint,\n            st.shape_dist_traveled,\n            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,\n            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,\n            rt.predicted_arrival_time,\n            rt.predicted_departure_time,\n            rt.predicted_arrival_uncertainty,\n            rt.predicted_departure_uncertainty,\n            rt.schedule_relationship,\n            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,\n            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,\n            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,\n            rt.last_updated_at,\n            COALESCE(\n                rt.predicted_departure_time,\n                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),\n                rt.predicted_arrival_time,\n                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)\n            ) AS effective_time\n        FROM transit.stop_time_realtime_instances rt\n        FULL JOIN transit.stop_time_static_instances st\n            ON  rt.trip_instance_id = st.trip_instance_id\n            AND rt.stop_id          = st.stop_id           \n        WHERE rt.stop_id IS NOT NULL                        -- rt rows matched by stop_id\n           OR rt.trip_instance_id IS NULL                   -- st-only rows (no rt counterpart)\n \n        UNION ALL\n \n        -- Branch 2: rt.stop_id IS NULL → join on (trip_instance_id, stop_sequence)\n        -- Covers: rt+st matched rows and rt-only rows where stop_id was omitted\n        SELECT\n            rt.id,\n            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,\n            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,\n            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,\n            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,\n            st.timepoint,\n            st.shape_dist_traveled,\n            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,\n            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,\n            rt.predicted_arrival_time,\n            rt.predicted_departure_time,\n            rt.predicted_arrival_uncertainty,\n            rt.predicted_departure_uncertainty,\n            rt.schedule_relationship,\n            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,\n            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,\n            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,\n            rt.last_updated_at,\n            COALESCE(\n                rt.predicted_departure_time,\n                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),\n                rt.predicted_arrival_time,\n                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)\n            ) AS effective_time\n        FROM transit.stop_time_realtime_instances rt\n        FULL JOIN transit.stop_time_static_instances st\n            ON  rt.trip_instance_id = st.trip_instance_id\n            AND rt.stop_sequence    = st.stop_sequence      \n        WHERE rt.stop_id IS NULL                            -- only rt rows without a stop_id\n            AND rt.id IS NOT NULL  -- exclude st-only rows (handled by Branch 1)\n    ",
       "with": null,
       "withNoData": null,
       "using": null,
@@ -2970,7 +3026,7 @@
       "schema": "transit"
     },
     {
-      "definition": "select \"transit\".\"trip_instances\".\"id\" as \"trip_instance_id\", \"transit\".\"stop_times\".\"id\" as \"stop_time_id\", \"transit\".\"stop_times\".\"stop_sequence\", \"transit\".\"stop_times\".\"stop_id\", \"transit\".\"stop_times\".\"timepoint\", (\"transit\".\"trip_instances\".\"start_datetime\" + (\n                    \"transit\".\"stop_times\".\"arrival_time\"::interval - (\n                        SELECT \"transit\".\"stop_times\".\"arrival_time\"::interval\n                        FROM \"transit\".\"stop_times\"\n                        WHERE \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trip_instances\".\"trip_id\"\n                        AND \"transit\".\"stop_times\".\"stop_sequence\" = 1\n                    )\n                ))::timestamptz as \"scheduled_arrival_time\", (\"transit\".\"trip_instances\".\"start_datetime\" + (\n                    \"transit\".\"stop_times\".\"departure_time\"::interval - (\n                        SELECT \"transit\".\"stop_times\".\"arrival_time\"::interval\n                        FROM \"transit\".\"stop_times\"\n                        WHERE \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trip_instances\".\"trip_id\"\n                        AND \"transit\".\"stop_times\".\"stop_sequence\" = 1\n                    )\n                ))::timestamptz as \"scheduled_departure_time\", \"transit\".\"stop_times\".\"stop_headsign\", \"transit\".\"stop_times\".\"pickup_type\", \"transit\".\"stop_times\".\"drop_off_type\" from \"transit\".\"trip_instances\" inner join \"transit\".\"stop_times\" on \"transit\".\"trip_instances\".\"trip_id\" = \"transit\".\"stop_times\".\"trip_id\"",
+      "definition": "select \"transit\".\"trip_instances\".\"id\" as \"trip_instance_id\", \"transit\".\"stop_times\".\"id\" as \"stop_time_id\", \"transit\".\"stop_times\".\"stop_sequence\", \"transit\".\"stop_times\".\"stop_id\", \"transit\".\"stop_times\".\"timepoint\", (\"transit\".\"trip_instances\".\"start_datetime\" + (\n                    \"transit\".\"stop_times\".\"arrival_time\"::interval - (\n                        SELECT \"transit\".\"stop_times\".\"arrival_time\"::interval\n                        FROM \"transit\".\"stop_times\"\n                        WHERE \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trip_instances\".\"trip_id\"\n                        AND \"transit\".\"stop_times\".\"stop_sequence\" = 1\n                    )\n                ))::timestamptz as \"scheduled_arrival_time\", (\"transit\".\"trip_instances\".\"start_datetime\" + (\n                    \"transit\".\"stop_times\".\"departure_time\"::interval - (\n                        SELECT \"transit\".\"stop_times\".\"arrival_time\"::interval\n                        FROM \"transit\".\"stop_times\"\n                        WHERE \"transit\".\"stop_times\".\"trip_id\" = \"transit\".\"trip_instances\".\"trip_id\"\n                        AND \"transit\".\"stop_times\".\"stop_sequence\" = 1\n                    )\n                ))::timestamptz as \"scheduled_departure_time\", \"transit\".\"stop_times\".\"stop_headsign\", \"transit\".\"stop_times\".\"pickup_type\", \"transit\".\"stop_times\".\"drop_off_type\", \"transit\".\"stop_times\".\"shape_dist_traveled\" from \"transit\".\"trip_instances\" inner join \"transit\".\"stop_times\" on \"transit\".\"trip_instances\".\"trip_id\" = \"transit\".\"stop_times\".\"trip_id\" where ((\"transit\".\"trip_instances\".\"start_datetime\" >= now() - interval '14 days') and (\"transit\".\"trip_instances\".\"start_datetime\" < now() + interval '1 month'))",
       "with": null,
       "withNoData": null,
       "using": null,
