@@ -408,7 +408,6 @@ const LiveVehiclesLayer: React.FC<{
             },
             {
                 onData: (data) => {
-                    console.log("onData", data);
                     setPositions(data);
                 },
                 onError: (error) => {

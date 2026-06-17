@@ -104,7 +104,6 @@ function TransitApp() {
     const geolocationToastId = useRef<string | number | null>(null);
 
     useEffect(() => {
-        console.log("geolocation.status", geolocation.status);
         if (geolocation.status === "idle") {
             if (geolocationToastId.current) return;
             geolocationToastId.current = showGeolocationToast(geolocation.requestPermission);
