@@ -1,3 +1,0 @@
-ALTER TABLE "transit"."vehicle_positions" ADD COLUMN "shape_dist_traveled" double precision;--> statement-breakpoint
-ALTER TABLE "transit"."vehicle_positions" ALTER COLUMN "congestion_level" SET DEFAULT 'UNKNOWN_CONGESTION_LEVEL'::"transit"."congestion_level";--> statement-breakpoint
-ALTER TABLE "transit"."vehicle_positions" ALTER COLUMN "occupancy_status" SET DEFAULT 'NO_DATA_AVAILABLE'::"transit"."occupancy_status";
