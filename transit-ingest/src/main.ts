@@ -11,6 +11,7 @@ const CliOptions = type({
     "databaseUrl?": "string | undefined",
     "deleteRows?": "boolean | undefined",
     "verbose?": "boolean | undefined",
+    "pretty?": "boolean | undefined",
 });
 
 const StaticOptions = CliOptions.merge({
@@ -45,6 +46,7 @@ cli.option("--database-url <url>", "Connection string for the database", {
 });
 cli.option("--delete-rows", "Delete existing data before ingesting new data");
 cli.option("--verbose, -v", "Enable debug logging");
+cli.option("--pretty, -p", "Enable pretty logging");
 
 cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
     .option("--realize-instances", "Realize trip instances from GTFS static data")
@@ -64,6 +66,7 @@ cli.command("static <agency-id> <gtfs-url>", "Process static GTFS data")
             validated.ignoreFeedDup,
             validated.realizeInstances,
             !!validated.verbose,
+            !!validated.pretty,
         );
     });
 
@@ -82,6 +85,7 @@ cli.command("realtime <agency-id> <...gtfs-urls>", "Process realtime GTFS data")
             gtfsUrls,
             Number(validated.poll ?? 0),
             !!validated.verbose,
+            !!validated.pretty,
         );
     });
 
@@ -105,6 +109,7 @@ cli.command(
             validated.minDate,
             validated.maxDate,
             !!validated.verbose,
+            !!validated.pretty,
         );
     });
 
@@ -135,6 +140,7 @@ cli.command("from-config <config-file>", "Run pipeline from a YAML config file")
             db,
             validated.deleteRows ?? false,
             !!validated.verbose,
+            !!validated.pretty,
             phases,
         );
     });
