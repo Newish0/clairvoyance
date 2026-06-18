@@ -18,7 +18,7 @@ import {
     Zap,
 } from "lucide-react";
 
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
 import { useQuery } from "@tanstack/react-query";
 import type {
     AlertCause,

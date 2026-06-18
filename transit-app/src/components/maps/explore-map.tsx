@@ -1,6 +1,6 @@
 import { ProtoMap } from "@/components/maps/proto-map";
 import { DEFAULT_LOCATION } from "@/constants/location";
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
 import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
 import { useThrottle } from "ahooks";
@@ -36,7 +36,7 @@ export const ExploreMap: React.FC<ExploreMapProps> = ({
     const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, { wait: 2000 });
 
     const { data: nearbyStops } = useQuery({
-        ...trpc.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),
+        ...trpcOptions.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),
         staleTime: 0,
         gcTime: 0,
         enabled: viewState.zoom > stopsInfoMinZoomLevel,

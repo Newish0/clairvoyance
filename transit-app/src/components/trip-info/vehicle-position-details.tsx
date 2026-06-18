@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
 import { useQuery } from "@tanstack/react-query";
 import type { OccupancyStatus, VehicleStopStatus } from "database/models/enums";
 import * as tables from "database/models/tables";
@@ -34,7 +34,7 @@ export function VehiclePositionDetails({
     className,
 }: VehiclePositionDetailsProps) {
     const { isLoading, data: tripInst } = useQuery({
-        ...trpc.tripInstance.getById.queryOptions(vehiclePosition.tripInstanceId!),
+        ...trpcOptions.tripInstance.getById.queryOptions(vehiclePosition.tripInstanceId!),
         enabled: vehiclePosition.tripInstanceId !== null,
     });
 

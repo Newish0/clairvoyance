@@ -12,16 +12,18 @@ import type { TripMapStopInfo } from "./types";
 import { UserLocationMarker } from "./user-location";
 
 export type TripMapProps = {
-    routeId: number;
-    direction?: Direction;
+    tripData?: {
+        routeId: number;
+        direction?: Direction;
+        shapeId: number | null;
+        stopInfos: TripMapStopInfo[];
+    };
     routeColor?: string;
     routeTextColor?: string;
-    stopInfos: TripMapStopInfo[];
-    shapeId: number | null;
 };
 
-export const TripMap: React.FC<TripMapProps> = (props) => {
-    const targetStop = props.stopInfos.find((stop) => stop.isTarget);
+export const TripMap: React.FC<TripMapProps> = ({ tripData, routeColor, routeTextColor }) => {
+    const targetStop = tripData?.stopInfos.find((stop) => stop.isTarget);
 
     const [viewState, setViewState] = useState({
         longitude: DEFAULT_LOCATION.lng,
@@ -59,27 +61,31 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
         <ProtoMap {...viewState} onMove={handleMove}>
             <AppMapSideControls />
 
-            {props.shapeId && (
-                <ShapeLayer
-                    shapeId={props.shapeId}
-                    shapeColor={props.routeColor}
-                    targetStopShapeDistTraveled={targetStop?.shapeDistTraveled ?? 0}
-                />
+            {tripData && (
+                <>
+                    {tripData.shapeId && (
+                        <ShapeLayer
+                            shapeId={tripData.shapeId}
+                            shapeColor={routeColor}
+                            targetStopShapeDistTraveled={targetStop?.shapeDistTraveled ?? 0}
+                        />
+                    )}
+                    <StopsLayer
+                        stopInfos={tripData.stopInfos}
+                        routeId={tripData.routeId}
+                        direction={tripData.direction}
+                        stopColor={routeTextColor}
+                        stopBorderColor={routeColor}
+                    />
+                    <VehiclesLayer
+                        routeId={tripData.routeId}
+                        direction={tripData.direction}
+                        routeColor={routeColor || "var(--primary)"}
+                        routeTextColor={routeTextColor || "var(--primary-foreground)"}
+                        targetStopSequence={targetStop?.sequence}
+                    />
+                </>
             )}
-            <StopsLayer
-                stopInfos={props.stopInfos}
-                routeId={props.routeId}
-                direction={props.direction}
-                stopColor={props.routeTextColor}
-                stopBorderColor={props.routeColor}
-            />
-            <VehiclesLayer
-                routeId={props.routeId}
-                direction={props.direction}
-                routeColor={props.routeColor || "var(--primary)"}
-                routeTextColor={props.routeTextColor || "var(--primary-foreground)"}
-                targetStopSequence={targetStop?.sequence}
-            />
 
             <UserLocationMarker />
         </ProtoMap>

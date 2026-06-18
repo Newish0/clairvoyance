@@ -1,6 +1,6 @@
 import { EMPTY_FEATURE_COLLECTION } from "@/constants/geojson";
 import { useThemeColors } from "@/hooks/use-theme-colors";
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
 import { getMutedColor, withOpacity } from "@/utils/css";
 import { useQuery } from "@tanstack/react-query";
 import { Layer, Source, type LayerProps } from "react-map-gl/maplibre";
@@ -13,7 +13,7 @@ export type ShapeLayerProps = {
 
 export const ShapeLayer: React.FC<ShapeLayerProps> = (props) => {
     const { data: shapeGeojson } = useQuery({
-        ...trpc.shape.getGeoJsonById.queryOptions(props.shapeId),
+        ...trpcOptions.shape.getGeoJsonById.queryOptions(props.shapeId),
         initialData: null,
     });
 

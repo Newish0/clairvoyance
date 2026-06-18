@@ -4,7 +4,7 @@ import { DepartureBoard } from "@/components/trip-info/departure-board";
 import { Button } from "@/components/ui/button";
 import { useGeolocationToast } from "@/hooks/use-geolocation-toast";
 import { cn } from "@/lib/utils";
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
 import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -49,7 +49,7 @@ function TransitApp() {
     });
 
     const { data: nearbyTrips, isFetching: isFetchingNearbyTrips } = useQuery({
-        ...trpc.tripInstance.getNearbyActive.queryOptions(debouncedNearbyTripsQueryParams),
+        ...trpcOptions.tripInstance.getNearbyActive.queryOptions(debouncedNearbyTripsQueryParams),
         staleTime: 0,
         gcTime: 0,
         placeholderData: (prev) => prev, // prevent flickering,
