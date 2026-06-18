@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
-import { X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import type { Direction } from "database/models/enums";
+import { X, ArrowLeftRight } from "lucide-react";
 
 export type TripInfoHeaderProps = {
     routeShortName?: string | null;
@@ -10,6 +12,13 @@ export type TripInfoHeaderProps = {
     routeColor?: string | null;
     routeTextColor?: string | null;
     onClose: () => void;
+    oppositeTripSearchParams?: {
+        agencyId: string;
+        stopId: number;
+        routeId: number;
+        direction: Direction;
+        oppositeStopId: number;
+    };
 };
 
 export function TripInfoHeader({
@@ -19,6 +28,7 @@ export function TripInfoHeader({
     routeColor,
     routeTextColor,
     onClose,
+    oppositeTripSearchParams,
 }: TripInfoHeaderProps) {
     return (
         <div className="flex justify-between">
@@ -35,10 +45,24 @@ export function TripInfoHeader({
                 </Badge>
 
                 <div className="overflow-hidden">
-                    <p className="font-semibold truncate">{headsign || "---"}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                        At {stopName || "---"}
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-semibold truncate">{headsign || "---"}</p>
+                        {oppositeTripSearchParams && (
+                            <Link
+                                to="/nt"
+                                search={oppositeTripSearchParams}
+                                replace
+                                className={buttonVariants({
+                                    variant: "outline",
+                                    size: "icon-sm",
+                                    className: "h-6",
+                                })}
+                            >
+                                <ArrowLeftRight className="size-3" />
+                            </Link>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">At {stopName || "---"}</p>
                 </div>
             </div>
             <div>

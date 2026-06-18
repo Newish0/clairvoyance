@@ -21,6 +21,7 @@ const nextTripsSchema = z.object({
     routeId: z.coerce.number().int(),
     direction: z.enum(directionEnum.enumValues).optional(),
     tripInstanceId: z.coerce.number().int().optional(),
+    oppositeStopId: z.coerce.number().int().optional(),
 });
 
 export const Route = createFileRoute("/nt")({
@@ -203,6 +204,20 @@ function RouteComponent() {
                             routeColor={targetTripInst.trip?.route?.color}
                             routeTextColor={targetTripInst.trip?.route?.textColor}
                             onClose={handleCloseNtPage}
+                            oppositeTripSearchParams={
+                                searchParams.oppositeStopId !== undefined
+                                    ? {
+                                          agencyId: searchParams.agencyId,
+                                          routeId: searchParams.routeId,
+                                          stopId: searchParams.oppositeStopId,
+                                          direction:
+                                              searchParams.direction === "INBOUND"
+                                                  ? "OUTBOUND"
+                                                  : "INBOUND",
+                                          oppositeStopId: searchParams.stopId,
+                                      }
+                                    : undefined
+                            }
                         />
 
                         <DepartureCarousel
