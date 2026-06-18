@@ -11,9 +11,11 @@ import type { AppRouter } from "transit-api";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { GeolocationProvider } from "@/components/geolocation-provider";
+import type { TRPCClient } from "@trpc/client";
 
 export interface RouterAppContext {
-    trpc: TRPCOptionsProxy<AppRouter>;
+    trpcClient: TRPCClient<AppRouter>;
+    trpcOptions: TRPCOptionsProxy<AppRouter>;
     queryClient: QueryClient;
 }
 

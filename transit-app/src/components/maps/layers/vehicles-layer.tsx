@@ -1,4 +1,4 @@
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import type { Direction } from "database/models/enums";
 import { useState } from "react";
@@ -22,7 +22,7 @@ export const VehiclesLayer: React.FC<VehiclesLayerProps> = ({
 }) => {
     const [positions, setPositions] = useState<VehiclePosition[]>([]);
     useSubscription(
-        trpc.tripInstance.livePositions.subscriptionOptions(
+        trpcOptions.tripInstance.livePositions.subscriptionOptions(
             {
                 routeId,
                 direction,

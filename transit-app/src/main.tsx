@@ -46,7 +46,7 @@ export const trpcClient = createTRPCClient<AppRouter>({
 
 export type TrpcRouterOutputs = inferRouterOutputs<AppRouter>;
 
-export const trpc = createTRPCOptionsProxy<AppRouter>({
+export const trpcOptions = createTRPCOptionsProxy<AppRouter>({
     client: trpcClient,
     queryClient,
 });
@@ -55,7 +55,8 @@ export const trpc = createTRPCOptionsProxy<AppRouter>({
 const router = createRouter({
     routeTree,
     context: {
-        trpc,
+        trpcClient,
+        trpcOptions,
         queryClient,
     },
     defaultPreload: "intent",
