@@ -59,6 +59,29 @@ function RouteComponent() {
 
     const targetStopTimeInst = targetTripInst?.stopTimeInstances[targetStopTimeInstIdx];
 
+    const routeAlert = useMemo(() => {
+        const routeName = targetTripInst?.trip?.route?.shortName;
+        if (!routeName) return null;
+        return {
+            id: -1,
+            url: null,
+            agencyId: searchParams.agencyId,
+            contentHash: `route-stops-alert-${routeName}`,
+            cause: "OTHER_CAUSE" as const,
+            effect: "OTHER_EFFECT" as const,
+            severity: "INFO" as const,
+            headerText: { default: `Stops Alerts` },
+            descriptionText: {
+                default:
+                    "This route has active alerts affecting service. Check the stops below for details.",
+            },
+            activePeriods: [],
+            informedEntities: [{ routeId: searchParams.routeId }],
+            lastSeen: new Date(),
+            status: "ACTIVE" as const,
+        } satisfies (typeof otherAlerts)[number];
+    }, [targetTripInst?.trip?.route?.shortName, searchParams.agencyId, searchParams.routeId]);
+
     const departuresRenderItems = useMemo(() => {
         if (!upcomingDepartures.length || !targetTripInst || !targetStopTimeInst) return [];
 
@@ -192,7 +215,10 @@ function RouteComponent() {
                             activeTripInstanceId={targetTripInst.id}
                         />
 
-                        <AlertCarousel alerts={otherAlerts} />
+                        <AlertCarousel
+                            alerts={routeAlert ? [routeAlert, ...otherAlerts] : otherAlerts}
+                            compact
+                        />
 
                         <div ref={hoverRef} className="overflow-auto">
                             <TripTimelineSection
