@@ -21,12 +21,12 @@ import { Marker, type MarkerProps } from "react-map-gl/maplibre";
 import {
     VehiclePositionDetails,
     type VehiclePosition,
-} from "../trip-info/vehicle-position-details";
+} from "../../trip-info/vehicle-position-details";
 import {
     ResponsiveModal,
     ResponsiveModalContent,
     ResponsiveModalTrigger,
-} from "../ui/responsible-dialog";
+} from "../../ui/responsible-dialog";
 
 function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
     const [, setTick] = useState(0);
