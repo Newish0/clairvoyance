@@ -8,6 +8,7 @@ export type GeolocationState = {
     position: GeolocationPosition | null;
     error: GeolocationPositionError | null;
     requestPermission: () => void;
+    stopWatching: () => void;
 };
 
 const GeolocationContext = createContext<GeolocationState | null>(null);
@@ -59,6 +60,16 @@ export function GeolocationProvider({
         startWatch();
     }, [status, startWatch]);
 
+    const stopWatching = useCallback(() => {
+        if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+        setPosition(null);
+        setError(null);
+        setStatus("idle");
+    }, []);
+
     useEffect(() => {
         if (!("geolocation" in navigator)) {
             setStatus("unsupported");
@@ -100,7 +111,7 @@ export function GeolocationProvider({
     }, [startWatch]);
 
     return (
-        <GeolocationContext.Provider value={{ status, position, error, requestPermission }}>
+        <GeolocationContext.Provider value={{ status, position, error, requestPermission, stopWatching }}>
             {children}
         </GeolocationContext.Provider>
     );

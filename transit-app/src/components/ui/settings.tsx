@@ -28,6 +28,7 @@ export interface SwitchSetting extends BaseSetting {
     type: "switch";
     value: boolean;
     onChange: (value: boolean) => void;
+    disabled?: boolean;
 }
 
 export interface InputSetting extends BaseSetting {
@@ -104,6 +105,7 @@ function SettingItem({
                         id={setting.id}
                         checked={setting.value}
                         onCheckedChange={setting.onChange}
+                        disabled={setting.disabled}
                     />
                 );
 
