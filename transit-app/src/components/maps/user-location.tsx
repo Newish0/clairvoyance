@@ -4,7 +4,6 @@ import { useDebounce } from "ahooks";
 import { LngLat } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, useMap } from "react-map-gl/maplibre";
-import { toast } from "sonner";
 import { useGeolocation } from "../geolocation-provider";
 
 /**
@@ -26,7 +25,6 @@ import { useGeolocation } from "../geolocation-provider";
  *   if the center is within geolocationAttachmentThreshold the control becomes attached (map
  *   follows geolocation). If the center is outside the threshold, the persisted user set location
  *   is updated to the map center and the control becomes "user-set" (detached from geolocation).
- * - Geolocation acquisition errors are logged once and surfaced as a toast notification.
  *
  * Important implementation details:
  * - The component depends on the following hooks/utilities being available in the environment:
@@ -60,7 +58,7 @@ export const UserLocationControl: React.FC<{
 }> = ({ geolocationAttachmentThreshold = 25 }) => {
     // --- States ---
     const { current: map } = useMap();
-    const { position, error: geolocationError, status } = useGeolocation();
+    const { position } = useGeolocation(); // No error handling: Expect geolocation requester to surface any error
     const [userSetLocation, setUserSetLocation] = usePersistUserSetLocation();
     const [isUserSetLocationActive, setIsUserSetLocationActive] = useState(false);
     const hasSyncedUserGeolocation = useRef(false); // Ensure sync map center & userSetLocation to geolocation is done only once
@@ -142,16 +140,6 @@ export const UserLocationControl: React.FC<{
         };
     }, [map, setUserSetLocation, userLocation]);
 
-    // NAME: EffectFive
-    // Handle displaying errors only once instead of map update
-    useEffect(() => {
-        if (geolocationError) {
-            toast.error(
-                `Error acquiring GPS location. ${geolocationError.message} (${geolocationError.code})`,
-            );
-        }
-    }, [geolocationError]);
-
     if (!map) {
         return null;
     }
@@ -172,7 +160,7 @@ export const UserLocationControl: React.FC<{
                 <div
                     className={cn(
                         "w-6 h-6 rounded-full bg-fuchsia-400 border-4 border-white hover:scale-110 active:scale-120 active:-translate-y-1 active:shadow-4xl transition-opacity duration-300",
-                        isUserSetLocationActive ? "opacity-100" : "opacity-0",
+                        isUserSetLocationActive || !userLocation ? "opacity-100" : "opacity-0",
                         "hover:opacity-100",
                     )}
                 ></div>

@@ -163,7 +163,7 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
     );
 };
 
-export interface TransitStopBulletProps {
+interface TransitStopBulletProps {
     children?: React.ReactNode;
     bulletSize: number;
     bulletBorderSize: number;
