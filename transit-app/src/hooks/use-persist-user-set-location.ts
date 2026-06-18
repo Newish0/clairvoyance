@@ -3,23 +3,17 @@ import { useLocalStorageState } from "ahooks";
 import { LngLat } from "maplibre-gl";
 
 export function usePersistUserSetLocation() {
-    const [_userSetLocation, _saveUserSetLocation] = useLocalStorageState("userSetLocation", {
-        defaultValue: {
-            lng: DEFAULT_LOCATION.lng,
-            lat: DEFAULT_LOCATION.lat,
+    return useLocalStorageState("userSetLocation", {
+        defaultValue: DEFAULT_LOCATION,
+        deserializer: (json: string) => {
+            const { lng, lat } = JSON.parse(json);
+            return new LngLat(lng, lat);
+        },
+        serializer: (lngLat) => {
+            return JSON.stringify({
+                lng: lngLat.lng,
+                lat: lngLat.lat,
+            });
         },
     });
-
-    const userSetLocation = new LngLat(_userSetLocation.lng, _userSetLocation.lat);
-
-    const setUserSetLocation = (lngLatOrUpdater: LngLat | ((prev: LngLat) => LngLat)) => {
-        const newLngLat =
-            typeof lngLatOrUpdater === "function"
-                ? lngLatOrUpdater(userSetLocation)
-                : lngLatOrUpdater;
-
-        _saveUserSetLocation({ lng: newLngLat.lng, lat: newLngLat.lat });
-    };
-
-    return [userSetLocation, setUserSetLocation] as const;
 }
