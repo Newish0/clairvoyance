@@ -24,6 +24,7 @@ export interface DepartureCardProps {
     predictedDepartureTime: DateArg<Date> | null;
     isSkipped: boolean;
     isLastTripOfDay: boolean;
+    oppositeStopId?: number;
 }
 
 export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
@@ -50,6 +51,7 @@ export const DepartureCard: React.FC<DepartureCardProps> = (props) => {
                 stopId: props.stopId,
                 tripInstanceId: props.tripInstanceId,
                 direction: props.direction || undefined,
+                oppositeStopId: props.oppositeStopId,
             }}
         >
             <div className="flex items-center justify-between py-2 border-b last:border-b-0">

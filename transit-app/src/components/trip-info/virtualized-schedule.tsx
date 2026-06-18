@@ -293,6 +293,7 @@ const TripInstanceRow: React.FC<{
     return (
         <Link
             to="/nt"
+            replace
             search={{
                 agencyId: props.agencyId,
                 routeId: props.routeId,

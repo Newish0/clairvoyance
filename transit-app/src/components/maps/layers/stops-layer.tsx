@@ -26,6 +26,7 @@ import {
     ResponsiveModalTrigger,
 } from "../../ui/responsible-dialog";
 import type { TripMapStopInfo } from "../types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type StopsLayerProps = {
     stopInfos: TripMapStopInfo[];
@@ -37,7 +38,7 @@ export type StopsLayerProps = {
 
 export const StopsLayer: React.FC<StopsLayerProps> = (props) => {
     const targetStopIdx = props.stopInfos.findIndex((stop) => stop.isTarget);
-
+    const isMobile = useIsMobile();
     const colors = useThemeColors();
     const { current: map } = useMap();
 
@@ -122,7 +123,7 @@ export const StopsLayer: React.FC<StopsLayerProps> = (props) => {
             isFlying = true;
             map.flyTo({
                 center: [stopInfo.lng, stopInfo.lat],
-                offset: [0, -100],
+                offset: [isMobile ? 0 : window.innerWidth / 4, -100],
                 animate: true,
                 duration: flightDuration,
             });
@@ -155,7 +156,7 @@ export const StopsLayer: React.FC<StopsLayerProps> = (props) => {
             map.off("click", [stopFillLayerId, stopBorderLayerId], handleClick);
             map.off("move", handleMove);
         };
-    }, [map, setFocusedStopInfo, props.stopInfos]);
+    }, [map, setFocusedStopInfo, props.stopInfos, isMobile]);
 
     return (
         <>
@@ -169,7 +170,7 @@ export const StopsLayer: React.FC<StopsLayerProps> = (props) => {
                     latitude={focusedStopInfo.lat}
                     anchor="right"
                 >
-                    <div className="min-h-4 bg-primary-foreground/70 backdrop-blur-md p-3 rounded-lg mr-4 flex gap-2 items-center">
+                    <div className="min-h-4 max-w-40 bg-primary-foreground/70 backdrop-blur-md p-3 rounded-lg mr-4 flex gap-2 items-center">
                         <div>
                             <div className="text-xs  leading-none">{focusedStopInfo.name}</div>
 
