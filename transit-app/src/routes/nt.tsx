@@ -1,4 +1,5 @@
-import { TripMap, type TripMapStopInfo } from "@/components/maps/trip-map";
+import { TripMap } from "@/components/maps/trip-map";
+import type { TripMapStopInfo } from "@/components/maps/types";
 import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
 import TransitRouteTimeline from "@/components/trip-info/transit-timeline";
