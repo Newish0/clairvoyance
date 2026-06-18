@@ -28,7 +28,7 @@ export function showGeolocationToast(requestPermission: () => void): string | nu
 
 export function showGeolocationDeniedToast(): string | number {
     return toast.error("Location access denied", {
-        description: "Enable it in your browser or OS settings.",
+        description: "Enable it in your browser or device settings.",
         duration: 6000,
     });
 }

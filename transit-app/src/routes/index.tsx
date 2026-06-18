@@ -11,17 +11,16 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
+import { useGeolocationToast } from "@/hooks/use-geolocation-toast";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
 import { haversine } from "@/utils/geo";
-import { showGeolocationDeniedToast, showGeolocationToast } from "@/components/geolocation-toast";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useDebounce, useThrottle } from "ahooks";
+import { useDebounce } from "ahooks";
 import { Loader2, MapPin, SettingsIcon, X } from "lucide-react";
 import { LngLat } from "maplibre-gl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useMemo, useState } from "react";
 import z from "zod";
 
 const SearchSchema = z.object({
@@ -41,11 +40,13 @@ function TransitApp() {
     const search = Route.useSearch();
     const router = useRouter();
 
+    const geolocation = useGeolocation();
+    useGeolocationToast(geolocation);
+
     const fixedUserLocation =
         search.lat !== undefined && search.lng !== undefined
             ? new LngLat(search.lng, search.lat)
             : undefined;
-    const geolocation = useGeolocation();
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
         lat: search.lat ?? 0,
         lng: search.lng ?? 0,
@@ -101,22 +102,6 @@ function TransitApp() {
         router.history.back();
     }, [router]);
 
-    const geolocationToastId = useRef<string | number | null>(null);
-
-    useEffect(() => {
-        if (geolocation.status === "idle") {
-            if (geolocationToastId.current) return;
-            geolocationToastId.current = showGeolocationToast(geolocation.requestPermission);
-        } else if (geolocation.status === "denied") {
-            geolocationToastId.current = showGeolocationDeniedToast();
-        } else if (geolocation.status === "watching") {
-            if (geolocationToastId.current) {
-                toast.dismiss(geolocationToastId.current);
-                geolocationToastId.current = null;
-            }
-        }
-    }, [geolocation.status, geolocation.requestPermission]);
-
     return (
         <div className="h-dvh w-dvw relative overflow-clip">
             <div className="w-full md:w-[calc(100%+var(--container-sm))] h-[calc(100%+50dvh)] md:h-full absolute bottom-0 left-0">
@@ -125,13 +110,6 @@ function TransitApp() {
                     fixedUserLocation={fixedUserLocation}
                 />
             </div>
-
-            {/* <GeolocationBanner
-                className="absolute top-4 ml-100 w-sm"
-                status={geolocation.status}
-                error={geolocation.error}
-                onRequestPermission={geolocation.requestPermission}
-            /> */}
 
             <ResponsiveModal>
                 <ResponsiveModalTrigger asChild>
