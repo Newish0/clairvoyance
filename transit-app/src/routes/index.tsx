@@ -1,16 +1,7 @@
-import { AppSettings } from "@/components/app-settings";
 import { useGeolocation } from "@/components/geolocation-provider";
 import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
 import { Button } from "@/components/ui/button";
-import {
-    ResponsiveModal,
-    ResponsiveModalContent,
-    ResponsiveModalDescription,
-    ResponsiveModalHeader,
-    ResponsiveModalTitle,
-    ResponsiveModalTrigger,
-} from "@/components/ui/responsible-dialog";
 import { useGeolocationToast } from "@/hooks/use-geolocation-toast";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
@@ -18,7 +9,7 @@ import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useDebounce } from "ahooks";
-import { Loader2, MapPin, SettingsIcon, X } from "lucide-react";
+import { Loader2, MapPin, X } from "lucide-react";
 import { LngLat } from "maplibre-gl";
 import { useCallback, useMemo, useState } from "react";
 import z from "zod";
@@ -110,25 +101,6 @@ function TransitApp() {
                     fixedUserLocation={fixedUserLocation}
                 />
             </div>
-
-            <ResponsiveModal>
-                <ResponsiveModalTrigger asChild>
-                    <Button variant={"secondary"} size={"icon"} className="absolute top-4 right-4">
-                        <SettingsIcon />
-                    </Button>
-                </ResponsiveModalTrigger>
-                <ResponsiveModalContent className="min-w-1/2 max-w-3xl">
-                    <ResponsiveModalHeader>
-                        <ResponsiveModalTitle>Settings</ResponsiveModalTitle>
-                        <ResponsiveModalDescription>
-                            Manage your preferences
-                        </ResponsiveModalDescription>
-                    </ResponsiveModalHeader>
-                    <div className="p-4 overflow-auto">
-                        <AppSettings />
-                    </div>
-                </ResponsiveModalContent>
-            </ResponsiveModal>
 
             <div className="absolute bottom-4 md:top-4 left-4 h-min max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-1">
                 <div className="flex items-center gap-2">

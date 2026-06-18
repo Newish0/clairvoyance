@@ -1,4 +1,3 @@
-import { AppSettings } from "@/components/app-settings";
 import { TripMap, type TripMapStopInfo } from "@/components/maps/trip-map";
 import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureTime } from "@/components/trip-info/depature-time";
@@ -27,7 +26,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useHover } from "ahooks";
 import { directionEnum } from "database/models/enums";
 import { differenceInSeconds, format } from "date-fns";
-import { SettingsIcon, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { z } from "zod";
 
@@ -212,25 +211,6 @@ function RouteComponent() {
                     )}
                 />
             </div>
-
-            <ResponsiveModal>
-                <ResponsiveModalTrigger asChild>
-                    <Button variant={"secondary"} size={"icon"} className="absolute top-4 right-4">
-                        <SettingsIcon />
-                    </Button>
-                </ResponsiveModalTrigger>
-                <ResponsiveModalContent className="min-w-1/2 max-w-3xl">
-                    <ResponsiveModalHeader>
-                        <ResponsiveModalTitle>Settings</ResponsiveModalTitle>
-                        <ResponsiveModalDescription>
-                            Manage your preferences
-                        </ResponsiveModalDescription>
-                    </ResponsiveModalHeader>
-                    <div className="p-4 overflow-auto">
-                        <AppSettings />
-                    </div>
-                </ResponsiveModalContent>
-            </ResponsiveModal>
 
             <div
                 tabIndex={0}

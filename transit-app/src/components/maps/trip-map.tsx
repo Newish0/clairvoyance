@@ -39,6 +39,7 @@ import { getStopAlertEffect } from "@/utils/alert";
 import type { alerts } from "database";
 import { AlertCarousel } from "../trip-info/alert-carousel";
 import { Button } from "../ui/button";
+import AppMapSideControls from "./controls/app-map-side-controls";
 
 export type TripMapStopInfo = {
     stopId: number;
@@ -98,6 +99,8 @@ export const TripMap: React.FC<TripMapProps> = (props) => {
 
     return (
         <ProtoMap {...viewState} onMove={handleMove}>
+            <AppMapSideControls />
+
             {props.shapeId && (
                 <ShapesGeojsonLayer
                     shapeId={props.shapeId}

@@ -2,10 +2,14 @@ import { ProtoMap } from "@/components/maps/proto-map";
 import { DEFAULT_LOCATION } from "@/constants/location";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/main";
+import { haversine } from "@/utils/geo";
+import { mdiBusStop } from "@mdi/js";
+import Icon from "@mdi/react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import type { inferProcedureOutput } from "@trpc/server";
 import { useThrottle } from "ahooks";
-import { BusIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { LngLat, type MapLibreEvent } from "maplibre-gl";
 import { useCallback, useState } from "react";
 import {
@@ -15,13 +19,9 @@ import {
     type ViewStateChangeEvent,
 } from "react-map-gl/maplibre";
 import type { AppRouter } from "transit-api";
-import { UserLocationControl, UserLocationMarker } from "./user-location";
 import { Badge } from "../ui/badge";
-import { AnimatePresence, motion } from "framer-motion";
-import { haversine } from "@/utils/geo";
-import Icon from "@mdi/react";
-import { mdiBusStop } from "@mdi/js";
-import { Link } from "@tanstack/react-router";
+import AppMapSideControls from "./controls/app-map-side-controls";
+import { UserLocationControl, UserLocationMarker } from "./user-location";
 
 export type ExploreMapProps = {
     fixedUserLocation?: LngLat;
@@ -91,6 +91,8 @@ export const ExploreMap: React.FC<ExploreMapProps> = ({
                 around: "center",
             }}
         >
+            <AppMapSideControls />
+
             {viewState.zoom > stopsInfoMinZoomLevel && <StopMarkers stops={nearbyStops || []} />}
             {fixedUserLocation ? (
                 <UserLocationMarker
