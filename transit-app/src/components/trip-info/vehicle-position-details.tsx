@@ -134,7 +134,8 @@ export function VehiclePositionDetails({
     const formatETA = (etaDate: Date) => {
         const now = new Date();
         const diff = Math.floor((new Date(etaDate).getTime() - now.getTime()) / 1000);
-
+        if (diff < -60) return `Departed ${Math.floor(-diff / 60)} min ago`;
+        if (diff < 10) return "Arrived";
         if (diff < 60) return "Arriving now";
         if (diff < 3600) return `${Math.floor(diff / 60)} min`;
         return new Date(etaDate).toLocaleTimeString([], {
@@ -234,9 +235,13 @@ export function VehiclePositionDetails({
                         <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-muted-foreground shrink-0" />
                             <div className="min-w-0">
-                                <p className="text-xs text-muted-foreground">Stops Away</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {stopsAway < 0 ? "Stops Down the Line" : "Stops Away"}
+                                </p>
                                 <p className="font-semibold">
-                                    {stopsAway <= 1 ? `${stopsAway} stop` : `${stopsAway} stops`}
+                                    {stopsAway <= 1
+                                        ? `${Math.abs(stopsAway)} stops`
+                                        : `${stopsAway} stops`}
                                 </p>
                             </div>
                         </div>
