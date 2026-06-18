@@ -125,6 +125,8 @@ export const tripInstanceStateEnum = schema.enum("trip_instance_state", [
     "REMOVED",
 ]);
 
+export const alertStatusEnum = schema.enum("alert_status", ["ACTIVE", "UPCOMING", "INACTIVE"]);
+
 // =========================================================
 // TYPES (string literal unions inferred from enum values)
 // =========================================================
@@ -145,3 +147,4 @@ export type AlertCause = (typeof alertCauseEnum.enumValues)[number];
 export type AlertEffect = (typeof alertEffectEnum.enumValues)[number];
 export type AlertSeverity = (typeof alertSeverityEnum.enumValues)[number];
 export type TripInstanceState = (typeof tripInstanceStateEnum.enumValues)[number];
+export type AlertStatus = (typeof alertStatusEnum.enumValues)[number];

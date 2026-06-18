@@ -1,5 +1,6 @@
 import type React from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
@@ -18,18 +19,18 @@ import {
     Zap,
 } from "lucide-react";
 
-import { trpcOptions } from "@/main";
-import { useQuery } from "@tanstack/react-query";
-import type {
-    AlertCause,
-    AlertEffect,
-    AlertSeverity,
-    Direction,
-    RouteType,
-} from "database/models/enums";
 import type { inferProcedureOutput } from "@trpc/server";
-import type { AppRouter } from "transit-api";
+import type { AlertCause, AlertEffect, AlertSeverity } from "database/models/enums";
 import type { ComponentProps } from "react";
+import type { AppRouter } from "transit-api";
+import {
+    differenceInCalendarDays,
+    fromUnixTime,
+    getUnixTime,
+    isAfter,
+    isBefore,
+    addMonths,
+} from "date-fns";
 
 function getCauseIcon(cause: AlertCause) {
     const iconMap: Record<AlertCause, React.ElementType> = {
@@ -90,6 +91,24 @@ function formatEffect(effect: AlertEffect): string {
         .join(" ");
 }
 
+function getStartsInText(alert: {
+    status?: string | null;
+    activePeriods?: { start: number | null; end: number | null }[] | null;
+}): string | null {
+    if (alert.status !== "upcoming" || !alert.activePeriods) return null;
+    const nowUnix = getUnixTime(new Date());
+    const monthFromNowUnix = getUnixTime(addMonths(new Date(), 1));
+    const upcoming = alert.activePeriods
+        .filter((p) => p.start !== null && p.start > nowUnix && p.start <= monthFromNowUnix)
+        .sort((a, b) => (a.start ?? 0) - (b.start ?? 0))[0];
+    if (!upcoming?.start) return null;
+
+    const diffDays = differenceInCalendarDays(fromUnixTime(upcoming.start), nowUnix);
+    if (diffDays > 1) return `Starts in ${diffDays} days`;
+    if (diffDays === 1) return `Starts tomorrow`;
+    return "Starting soon";
+}
+
 type AlertCarouselProps = {
     alerts: inferProcedureOutput<AppRouter["alert"]["getAlertForTripInstance"]>;
 } & ComponentProps<typeof Carousel>;
@@ -115,7 +134,9 @@ export function AlertCarousel({ alerts, ...others }: AlertCarouselProps) {
                             key={index}
                             className={cn(
                                 "basis-full",
-                                others.orientation !== "vertical" && alerts.length > 1 ? "basis-2/3" : "",
+                                others.orientation !== "vertical" && alerts.length > 1
+                                    ? "basis-2/3"
+                                    : "",
                             )}
                         >
                             <Card
@@ -139,10 +160,24 @@ export function AlertCarousel({ alerts, ...others }: AlertCarouselProps) {
                                     <h3 className="font-semibold text-xs leading-tight line-clamp-2">
                                         {headerText}
                                     </h3>
+                                    {alert.status === "UPCOMING" && (
+                                        <Badge
+                                            variant="secondary"
+                                            className="ml-auto text-[9px] px-1.5 py-0"
+                                        >
+                                            Upcoming
+                                        </Badge>
+                                    )}
                                 </div>
 
                                 {/* Description */}
                                 <p className="text-xs leading-tight opacity-90">{descText}</p>
+                                {getStartsInText(alert) && (
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                        <Clock className="size-3 shrink-0" />
+                                        {getStartsInText(alert)}
+                                    </div>
+                                )}
 
                                 {/* Cause and Effect */}
                                 <div className="space-y-1">
