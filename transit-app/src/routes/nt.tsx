@@ -108,6 +108,7 @@ function RouteComponent() {
             scheduledArrivalTime: targetStopTimeInst.scheduledArrivalTime,
             scheduledDepartureTime: targetStopTimeInst.scheduledDepartureTime,
             effectiveTime: targetStopTimeInst.effectiveTime,
+            scheduleRelationship: targetStopTimeInst.scheduleRelationship,
             startDate: targetTripInst.startDate,
             lastUpdatedAt: targetStopTimeInst.lastUpdatedAt,
             tripHeadsign: targetTripInst.trip?.headsign ?? null,

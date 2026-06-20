@@ -311,7 +311,12 @@ const TripInstanceRow: React.FC<{
             >
                 <div className="flex items-center gap-5">
                     <div className="relative">
-                        <span className="font-medium">
+                        <span
+                            className={cn("font-medium", {
+                                "line-through text-muted-foreground":
+                                    departure.scheduleRelationship === "SKIPPED",
+                            })}
+                        >
                             {departure.effectiveTime ? format(departure.effectiveTime, "p") : "---"}
                         </span>
                         {delayInSeconds !== null && (

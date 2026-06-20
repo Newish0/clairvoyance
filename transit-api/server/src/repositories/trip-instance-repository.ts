@@ -344,6 +344,7 @@ export class TripInstancesRepository extends DataRepository {
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
+                    scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
                     lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
 
                     tripHeadsign: tables.trips.headsign,
@@ -459,6 +460,7 @@ export class TripInstancesRepository extends DataRepository {
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
                     scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
+                    scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
                     lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
 
                     tripHeadsign: tables.trips.headsign,

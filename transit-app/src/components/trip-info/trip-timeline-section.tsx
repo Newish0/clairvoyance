@@ -18,25 +18,11 @@ import { format } from "date-fns";
 import type { ReactNode } from "react";
 import type { AppRouter } from "transit-api";
 import { AlertCarousel } from "./alert-carousel";
+import { cn } from "@/lib/utils";
 
-type StopTimeInstance = {
-    stopId: number | null;
-    stopSequence: number;
-    effectiveTime: Date | null;
-    predictedArrivalTime: Date | string | null;
-    scheduledArrivalTime: Date | string | null;
-    stop?: {
-        id: number;
-        name?: string | null;
-        location?: { x: number; y: number } | null;
-        stopRoute?: {
-            routes?: {
-                id: number;
-                shortName?: string | null;
-            }[];
-        } | null;
-    } | null;
-};
+type StopTimeInstance = NonNullable<
+    inferProcedureOutput<AppRouter["tripInstance"]["getById"]>
+>["stopTimeInstances"][number];
 
 type AlertData = inferProcedureOutput<AppRouter["alert"]["getAlertForTripInstance"]>[number];
 
@@ -74,7 +60,15 @@ export function TripTimelineSection({
                     {st.stop?.name || "---"}
                 </Link>
             ),
-            stopTime: format(st.predictedArrivalTime || st.scheduledArrivalTime || "", "p"),
+            stopTime: (
+                <span
+                    className={cn({
+                        "line-through text-muted-foreground": st.scheduleRelationship === "SKIPPED",
+                    })}
+                >
+                    {format(st.predictedArrivalTime || st.scheduledArrivalTime || "", "p")}
+                </span>
+            ),
             stopInfo: (
                 <div>
                     <div className="mt-1 flex flex-wrap gap-0.5 max-w-56">

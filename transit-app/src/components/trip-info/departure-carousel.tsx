@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { isDataRealtime } from "@/utils/date";
 import { Link } from "@tanstack/react-router";
-import type { Direction } from "database/models/enums";
+import type { Direction, StopTimeUpdateScheduleRelationship } from "database/models/enums";
 import { differenceInSeconds } from "date-fns";
 
 export type CarouselDeparture = {
@@ -24,6 +24,7 @@ export type CarouselDeparture = {
     scheduledDepartureTime: Date | string | null;
     predictedArrivalTime: Date | string | null;
     scheduledArrivalTime: Date | string | null;
+    scheduleRelationship: StopTimeUpdateScheduleRelationship | null;
     lastUpdatedAt: Date | string | null;
 };
 
@@ -114,7 +115,15 @@ export function DepartureCarousel({
                                             : "",
                                     )}
                                 >
-                                    <CardContent className="flex items-center justify-center h-16 relative">
+                                    <CardContent
+                                        className={cn(
+                                            "flex items-center justify-center h-16 relative",
+                                            {
+                                                "line-through text-muted-foreground":
+                                                    departure.scheduleRelationship === "SKIPPED",
+                                            },
+                                        )}
+                                    >
                                         <DepartureTime datetime={time || null} />
                                         {delayInSeconds !== null && (
                                             <RealTimeIndicator
