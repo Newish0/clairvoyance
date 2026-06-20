@@ -104,40 +104,48 @@ function TransitApp() {
             </div>
 
             <PrimaryPanel className="py-4" snapPoints={["136px", 0.5, 0.7]} noMarginSnapPoints={[]}>
-                <div className="flex items-center gap-2 px-4">
-                    <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
-                        <MapPin size={16} />
-                        <span className="truncate text-center">
-                            Near{" "}
-                            {closestStopName ||
-                                nearbyTripsQueryParams.lat?.toFixed(4) +
-                                    ", " +
-                                    nearbyTripsQueryParams.lng?.toFixed(4)}
-                        </span>
-                        <Loader2
-                            size={16}
-                            className={cn(
-                                "animate-spin",
-                                isFetchingNearbyTrips ? "visible" : "invisible",
+                {(snap, snapPoints) => (
+                    <>
+                        <div className="flex items-center gap-2 px-4">
+                            <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
+                                <MapPin size={16} />
+                                <span className="truncate text-center">
+                                    Near{" "}
+                                    {closestStopName ||
+                                        nearbyTripsQueryParams.lat?.toFixed(4) +
+                                            ", " +
+                                            nearbyTripsQueryParams.lng?.toFixed(4)}
+                                </span>
+                                <Loader2
+                                    size={16}
+                                    className={cn(
+                                        "animate-spin",
+                                        isFetchingNearbyTrips ? "visible" : "invisible",
+                                    )}
+                                />
+                            </div>
+
+                            {fixedUserLocation && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="p-2 rounded-full bg-primary-foreground/60 backdrop-blur-md"
+                                    onClick={handleReturnToPrevPage}
+                                >
+                                    <X />
+                                </Button>
                             )}
-                        />
-                    </div>
+                        </div>
 
-                    {fixedUserLocation && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="p-2 rounded-full bg-primary-foreground/60 backdrop-blur-md"
-                            onClick={handleReturnToPrevPage}
+                        <div
+                            className={cn("overflow-auto px-4", {
+                                "pb-64": snap === snapPoints.at(-1),
+                            })}
                         >
-                            <X />
-                        </Button>
-                    )}
-                </div>
-
-                <div className="overflow-auto px-4 pb-64">
-                    <DepartureBoard departures={nearbyTrips || []} />
-                </div>
+                            <DepartureBoard departures={nearbyTrips || []} />
+                        </div>
+                    </>
+                )}
             </PrimaryPanel>
         </div>
     );
