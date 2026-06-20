@@ -112,15 +112,23 @@ const TransitStopItem: React.FC<TransitStopItemProps> = ({
     const mutedFillColor = withOpacity(getMutedColor(fillColor), 0.9);
 
     useEffect(() => {
-        if (scrollToView && ref.current) {
-            ref.current.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-        }
-    }, [scrollToView]);
+        requestAnimationFrame(() => {
+            if (scrollToView && ref.current) {
+                ref.current.scrollIntoView({
+                    behavior: "smooth",
+                });
+            }
+        });
+    }, [scrollToView, stopTime]);
 
     const lineColor = isLast ? "transparent" : isActive ? color : isPast ? mutedColor : undefined;
 
     return (
-        <li ref={ref} className={cn("relative pb-6 pl-8", isLast && "pb-0", className)} {...rest}>
+        <li
+            ref={ref}
+            className={cn("relative pb-6 pl-8 scroll-mt-7", isLast && "pb-0", className)}
+            {...rest}
+        >
             {/* Timeline vertical line  */}
             <div
                 className="absolute top-0 h-full"
