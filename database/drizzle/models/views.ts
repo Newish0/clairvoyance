@@ -285,7 +285,7 @@ export const activeAlerts = schema.view("active_alerts").as((qb) => {
 });
 
 /** Aggregate distinct route per stop. */
-export const stopRoutes = schema.view("stop_routes").as((qb) =>
+export const stopRoutes = schema.materializedView("stop_routes").as((qb) =>
     qb
         .select({
             stopId: stopTimes.stopId,
