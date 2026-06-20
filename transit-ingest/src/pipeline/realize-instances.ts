@@ -35,6 +35,7 @@ export async function runRealizeInstances(
 
         ctx.logger.debug("Refreshing materialized views");
         await ctx.db.refreshMaterializedView(views.stopTimeStaticInstances).concurrently();
+        await ctx.db.refreshMaterializedView(views.stopRoutes).concurrently();
         ctx.logger.debug("Materialized views has been refreshed");
 
         return ok({ errors: ctx.errors, skipped: ctx.skipped });
