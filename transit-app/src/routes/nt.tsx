@@ -1,5 +1,6 @@
 import { TripMap } from "@/components/maps/trip-map";
 import type { TripMapStopInfo } from "@/components/maps/types";
+import PrimaryPanel from "@/components/primary-panel";
 import { AlertCarousel } from "@/components/trip-info/alert-carousel";
 import { DepartureCarousel } from "@/components/trip-info/departure-carousel";
 import { TripInfoHeader } from "@/components/trip-info/trip-info-header";
@@ -9,7 +10,6 @@ import { prefetchTripData, useTripData } from "@/hooks/data/use-trip-data";
 import { cn } from "@/lib/utils";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useHover } from "ahooks";
 import { directionEnum } from "database/models/enums";
 import { useMemo, useRef } from "react";
 import { z } from "zod";
@@ -134,8 +134,7 @@ function RouteComponent() {
         }
     }, [targetTripInst, upcomingDepartures, targetStopTimeInst]);
 
-    const hoverRef = useRef<HTMLDivElement>(null);
-    const hovering = useHover(hoverRef);
+    const timelineScrollContainerRef = useRef<HTMLDivElement>(null);
 
     const handleCloseNtPage = () => router.history.back();
 
@@ -163,7 +162,7 @@ function RouteComponent() {
     }
 
     return (
-        <div className="h-dvh w-dvw relative overflow-clip">
+        <div className="">
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     tripData={
@@ -184,70 +183,69 @@ function RouteComponent() {
                 />
             </div>
 
-            <div
-                tabIndex={0}
-                className={cn(
-                    "absolute bottom-4 md:top-4 left-4 max-h-[50dvh] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-3 overflow-clip p-4 rounded-xl bg-primary-foreground/60 backdrop-blur-md",
-                    hovering && "max-h-[80dvh]",
-                    "md:max-h-[calc(100dvh-2rem)]",
-                )}
-            >
-                {isLoading || !targetTripInst ? (
-                    <TripPanelSkeleton />
-                ) : (
-                    //  --- Trip Panel ---
-                    <>
-                        <TripInfoHeader
-                            routeShortName={targetTripInst.trip?.route?.shortName}
-                            headsign={targetTripInst.trip?.headsign}
-                            stopName={targetStopTimeInst?.stop?.name}
-                            routeColor={targetTripInst.trip?.route?.color}
-                            routeTextColor={targetTripInst.trip?.route?.textColor}
-                            onClose={handleCloseNtPage}
-                            oppositeTripSearchParams={
-                                searchParams.oppositeStopId !== undefined
-                                    ? {
-                                          agencyId: searchParams.agencyId,
-                                          routeId: searchParams.routeId,
-                                          stopId: searchParams.oppositeStopId,
-                                          direction:
-                                              searchParams.direction === "INBOUND"
-                                                  ? "OUTBOUND"
-                                                  : "INBOUND",
-                                          oppositeStopId: searchParams.stopId,
-                                      }
-                                    : undefined
-                            }
-                        />
-
-                        <DepartureCarousel
-                            items={departuresRenderItems}
-                            agencyId={searchParams.agencyId}
-                            stopId={searchParams.stopId}
-                            stopSequence={searchParams.stopSequence}
-                            routeId={searchParams.routeId}
-                            direction={searchParams.direction}
-                            activeTripInstanceId={targetTripInst.id}
-                        />
-
-                        <AlertCarousel
-                            alerts={routeAlert ? [routeAlert, ...otherAlerts] : otherAlerts}
-                            compact
-                        />
-
-                        <div ref={hoverRef} className="overflow-auto">
-                            <TripTimelineSection
-                                stopTimeInstances={targetTripInst.stopTimeInstances}
-                                stopAlerts={stopAlerts}
-                                activeStopIdx={targetStopTimeInstIdx}
-                                routeId={targetTripInst.routeId}
+            <PrimaryPanel>
+                {(snap, snapPoints) =>
+                    isLoading || !targetTripInst ? (
+                        <TripPanelSkeleton />
+                    ) : (
+                        //  --- Trip Panel ---
+                        <>
+                            <TripInfoHeader
+                                routeShortName={targetTripInst.trip?.route?.shortName}
+                                headsign={targetTripInst.trip?.headsign}
+                                stopName={targetStopTimeInst?.stop?.name}
                                 routeColor={targetTripInst.trip?.route?.color}
                                 routeTextColor={targetTripInst.trip?.route?.textColor}
+                                onClose={handleCloseNtPage}
+                                oppositeTripSearchParams={
+                                    searchParams.oppositeStopId !== undefined
+                                        ? {
+                                              agencyId: searchParams.agencyId,
+                                              routeId: searchParams.routeId,
+                                              stopId: searchParams.oppositeStopId,
+                                              direction:
+                                                  searchParams.direction === "INBOUND"
+                                                      ? "OUTBOUND"
+                                                      : "INBOUND",
+                                              oppositeStopId: searchParams.stopId,
+                                          }
+                                        : undefined
+                                }
                             />
-                        </div>
-                    </>
-                )}
-            </div>
+
+                            <DepartureCarousel
+                                items={departuresRenderItems}
+                                agencyId={searchParams.agencyId}
+                                stopId={searchParams.stopId}
+                                stopSequence={searchParams.stopSequence}
+                                routeId={searchParams.routeId}
+                                direction={searchParams.direction}
+                                activeTripInstanceId={targetTripInst.id}
+                            />
+
+                            <AlertCarousel
+                                alerts={routeAlert ? [routeAlert, ...otherAlerts] : otherAlerts}
+                                compact
+                            />
+                            <div
+                                className={cn("pb-[100%] overflow-hidden", {
+                                    "overflow-y-auto":
+                                        snap === snapPoints.at(-1) || snap === snapPoints.at(-2),
+                                })}
+                            >
+                                <TripTimelineSection
+                                    stopTimeInstances={targetTripInst.stopTimeInstances}
+                                    stopAlerts={stopAlerts}
+                                    activeStopIdx={targetStopTimeInstIdx}
+                                    routeId={targetTripInst.routeId}
+                                    routeColor={targetTripInst.trip?.route?.color}
+                                    routeTextColor={targetTripInst.trip?.route?.textColor}
+                                />
+                            </div>
+                        </>
+                    )
+                }
+            </PrimaryPanel>
         </div>
     );
 }

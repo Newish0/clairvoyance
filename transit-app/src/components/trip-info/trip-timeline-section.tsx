@@ -10,12 +10,12 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
+import { getStopAlertEffect } from "@/utils/alert";
 import { ensureHexColorStartsWithHash } from "@/utils/css";
 import { Link } from "@tanstack/react-router";
+import type { inferProcedureOutput } from "@trpc/server";
 import { format } from "date-fns";
 import type { ReactNode } from "react";
-import { getStopAlertEffect } from "@/utils/alert";
-import type { inferProcedureOutput } from "@trpc/server";
 import type { AppRouter } from "transit-api";
 import { AlertCarousel } from "./alert-carousel";
 
@@ -74,10 +74,7 @@ export function TripTimelineSection({
                     {st.stop?.name || "---"}
                 </Link>
             ),
-            stopTime: format(
-                st.predictedArrivalTime || st.scheduledArrivalTime || "",
-                "p",
-            ),
+            stopTime: format(st.predictedArrivalTime || st.scheduledArrivalTime || "", "p"),
             stopInfo: (
                 <div>
                     <div className="mt-1 flex flex-wrap gap-0.5 max-w-56">
@@ -137,15 +134,11 @@ function StopAlertsModal({
 }) {
     return (
         <ResponsiveModal>
-            <ResponsiveModalTrigger className="space-x-2">
-                {trigger}
-            </ResponsiveModalTrigger>
+            <ResponsiveModalTrigger className="space-x-2">{trigger}</ResponsiveModalTrigger>
             <ResponsiveModalContent className="min-w-1/2 max-w-3xl bg-primary-foreground/60 backdrop-blur-md">
                 <ResponsiveModalHeader>
                     <ResponsiveModalTitle>Stop Alerts</ResponsiveModalTitle>
-                    <ResponsiveModalDescription>
-                        {stopName}
-                    </ResponsiveModalDescription>
+                    <ResponsiveModalDescription>{stopName}</ResponsiveModalDescription>
                 </ResponsiveModalHeader>
                 <AlertCarousel
                     alerts={alerts}
