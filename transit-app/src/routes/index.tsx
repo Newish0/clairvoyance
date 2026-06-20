@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
     validateSearch: SearchSchema,
 });
 
-const MIN_RADIUS_METERS = 300;
+const MIN_RADIUS_METERS = 750;
 const MAX_RADIUS_METERS = 3000;
 
 function TransitApp() {
@@ -42,7 +42,7 @@ function TransitApp() {
     const [nearbyTripsQueryParams, setNearbyTripsQueryParams] = useState({
         lat: search.lat ?? 0,
         lng: search.lng ?? 0,
-        radiusMeters: 100,
+        radiusMeters: MIN_RADIUS_METERS,
     });
     const debouncedNearbyTripsQueryParams = useDebounce(nearbyTripsQueryParams, {
         wait: 800,
@@ -103,7 +103,7 @@ function TransitApp() {
                 />
             </div>
 
-            <PrimaryPanel className="py-4">
+            <PrimaryPanel className="py-4" snapPoints={["136px", 0.5, 0.7]} noMarginSnapPoints={[]}>
                 <div className="flex items-center gap-2 px-4">
                     <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
                         <MapPin size={16} />
@@ -135,45 +135,10 @@ function TransitApp() {
                     )}
                 </div>
 
-                <div className="overflow-auto px-4">
+                <div className="overflow-auto px-4 pb-64">
                     <DepartureBoard departures={nearbyTrips || []} />
                 </div>
             </PrimaryPanel>
-
-            {/* <div className="absolute bottom-4 md:top-4 left-4 h-min max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                    {fixedUserLocation && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="p-2 rounded-full bg-primary-foreground/60 backdrop-blur-md"
-                            onClick={handleReturnToPrevPage}
-                        >
-                            <X />
-                        </Button>
-                    )}
-                    <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
-                        <MapPin size={16} />
-                        <span className="truncate text-center">
-                            Near{" "}
-                            {closestStopName ||
-                                nearbyTripsQueryParams.lat?.toFixed(4) +
-                                    ", " +
-                                    nearbyTripsQueryParams.lng?.toFixed(4)}
-                        </span>
-                        <Loader2
-                            size={16}
-                            className={cn(
-                                "animate-spin",
-                                isFetchingNearbyTrips ? "visible" : "invisible",
-                            )}
-                        />
-                    </div>
-                </div>
-                <div className="p-2 overflow-auto rounded-xl bg-primary-foreground/60 backdrop-blur-md">
-                    <DepartureBoard departures={nearbyTrips || []} />
-                </div>
-            </div> */}
         </div>
     );
 }

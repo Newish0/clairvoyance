@@ -5,6 +5,7 @@ import { Drawer } from "vaul";
 
 interface PrimaryPanelProps {
     snapPoints?: (number | string)[];
+    noMarginSnapPoints?: (number | string)[];
     children?:
         | React.ReactNode
         | ((snap: string | number | null, snapPoints: (number | string)[]) => React.ReactNode);
@@ -13,6 +14,7 @@ interface PrimaryPanelProps {
 
 const PrimaryPanel: React.FC<PrimaryPanelProps> = ({
     snapPoints = ["136px", 0.5, 1],
+    noMarginSnapPoints = snapPoints.slice(-1),
     children,
     className,
 }) => {
@@ -34,7 +36,7 @@ const PrimaryPanel: React.FC<PrimaryPanelProps> = ({
                         className={cn(
                             "fixed flex flex-col gap-2 rounded-t-xl bottom-0 left-0 right-0 h-full max-h-[97%] pt-4 mx-2 bg-primary-foreground/60 backdrop-blur-md ",
                             {
-                                "mx-0": snap === snapPoints.at(-1),
+                                "mx-0": snap !== null && noMarginSnapPoints?.includes(snap),
                             },
                             className,
                         )}
@@ -44,6 +46,7 @@ const PrimaryPanel: React.FC<PrimaryPanelProps> = ({
                         {/* Handle */}
                         <div className="bg-primary/20 mx-auto h-1.5 -mt-2 w-25 shrink-0 rounded-full" />
 
+                        {/* Make snap height available to children as a layout constraint */}
                         {typeof children === "function" ? children(snap, snapPoints) : children}
                     </Drawer.Content>
                 </Drawer.Portal>
