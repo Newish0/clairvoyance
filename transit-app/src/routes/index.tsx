@@ -1,5 +1,6 @@
 import { useGeolocation } from "@/components/geolocation-provider";
 import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
+import PrimaryPanel from "@/components/primary-panel";
 import { DepartureBoard } from "@/components/trip-info/departure-board";
 import { Button } from "@/components/ui/button";
 import { useGeolocationToast } from "@/hooks/use-geolocation-toast";
@@ -102,7 +103,44 @@ function TransitApp() {
                 />
             </div>
 
-            <div className="absolute bottom-4 md:top-4 left-4 h-min max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-1">
+            <PrimaryPanel className="py-4">
+                <div className="flex items-center gap-2 px-4">
+                    <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
+                        <MapPin size={16} />
+                        <span className="truncate text-center">
+                            Near{" "}
+                            {closestStopName ||
+                                nearbyTripsQueryParams.lat?.toFixed(4) +
+                                    ", " +
+                                    nearbyTripsQueryParams.lng?.toFixed(4)}
+                        </span>
+                        <Loader2
+                            size={16}
+                            className={cn(
+                                "animate-spin",
+                                isFetchingNearbyTrips ? "visible" : "invisible",
+                            )}
+                        />
+                    </div>
+
+                    {fixedUserLocation && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="p-2 rounded-full bg-primary-foreground/60 backdrop-blur-md"
+                            onClick={handleReturnToPrevPage}
+                        >
+                            <X />
+                        </Button>
+                    )}
+                </div>
+
+                <div className="overflow-auto px-4">
+                    <DepartureBoard departures={nearbyTrips || []} />
+                </div>
+            </PrimaryPanel>
+
+            {/* <div className="absolute bottom-4 md:top-4 left-4 h-min max-h-[50dvh] md:max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] md:w-sm flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                     {fixedUserLocation && (
                         <Button
@@ -135,7 +173,7 @@ function TransitApp() {
                 <div className="p-2 overflow-auto rounded-xl bg-primary-foreground/60 backdrop-blur-md">
                     <DepartureBoard departures={nearbyTrips || []} />
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }

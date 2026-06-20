@@ -162,7 +162,7 @@ function RouteComponent() {
     }
 
     return (
-        <div className="">
+        <div className="h-dvh w-dvw relative overflow-clip">
             <div className="w-full h-full absolute top-0 left-0">
                 <TripMap
                     tripData={
@@ -183,7 +183,7 @@ function RouteComponent() {
                 />
             </div>
 
-            <PrimaryPanel>
+            <PrimaryPanel className="p-4 overflow-clip">
                 {(snap, snapPoints) =>
                     isLoading || !targetTripInst ? (
                         <TripPanelSkeleton />
