@@ -8,11 +8,13 @@ interface PrimaryPanelProps {
     children?:
         | React.ReactNode
         | ((snap: string | number | null, snapPoints: (number | string)[]) => React.ReactNode);
+    className?: string;
 }
 
 const PrimaryPanel: React.FC<PrimaryPanelProps> = ({
     snapPoints = ["136px", 0.5, 1],
     children,
+    className,
 }) => {
     const isMobile = useIsMobile();
     const [snap, setSnap] = useState<number | string | null>(snapPoints[1]);
@@ -30,10 +32,11 @@ const PrimaryPanel: React.FC<PrimaryPanelProps> = ({
                 <Drawer.Portal>
                     <Drawer.Content
                         className={cn(
-                            "fixed flex flex-col gap-2 rounded-t-xl bottom-0 left-0 right-0 h-full max-h-[97%] p-4 mx-2 bg-primary-foreground/60 backdrop-blur-md ",
+                            "fixed flex flex-col gap-2 rounded-t-xl bottom-0 left-0 right-0 h-full max-h-[97%] pt-4 mx-2 bg-primary-foreground/60 backdrop-blur-md ",
                             {
                                 "mx-0": snap === snapPoints.at(-1),
                             },
+                            className,
                         )}
                     >
                         <Drawer.Title className="sr-only">Primary Panel</Drawer.Title>
@@ -51,7 +54,8 @@ const PrimaryPanel: React.FC<PrimaryPanelProps> = ({
     return (
         <div
             className={cn(
-                "absolute top-4 left-4 w-sm max-h-[calc(100dvh-2rem)] flex flex-col gap-3 p-4 rounded-xl bg-primary-foreground/60 backdrop-blur-md",
+                "absolute top-4 left-4 w-sm max-h-[calc(100dvh-2rem)] flex flex-col gap-3 rounded-xl bg-primary-foreground/60 backdrop-blur-md",
+                className,
             )}
         >
             {typeof children === "function" ? children(snap, snapPoints) : children}
