@@ -28,7 +28,7 @@ export const TripMap: React.FC<TripMapProps> = ({ tripData, routeColor, routeTex
     const [viewState, setViewState] = useState({
         longitude: DEFAULT_LOCATION.lng,
         latitude: DEFAULT_LOCATION.lat,
-        zoom: 16.5,
+        zoom: 15,
     });
 
     const [userSetLocation] = usePersistUserSetLocation();

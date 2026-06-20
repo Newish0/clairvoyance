@@ -20,12 +20,12 @@ export type ExploreMapProps = {
 export const ExploreMap: React.FC<ExploreMapProps> = ({
     onLocationChange,
     fixedUserLocation,
-    stopsInfoMinZoomLevel = 17,
+    stopsInfoMinZoomLevel = 16,
 }) => {
     const [viewState, setViewState] = useState({
         longitude: DEFAULT_LOCATION.lng,
         latitude: DEFAULT_LOCATION.lat,
-        zoom: 16.5,
+        zoom: 15,
     });
 
     const [nearbyStopQueryParams, setNearbyStopQueryParams] = useState({

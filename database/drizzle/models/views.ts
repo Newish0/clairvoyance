@@ -290,13 +290,14 @@ export const stopRoutes = schema.materializedView("stop_routes").as((qb) =>
         .select({
             stopId: stopTimes.stopId,
             routes: sql<
-                {
-                    id: number;
-                    shortName: string | null;
-                    color: string | null;
-                    textColor: string | null;
-                    type: string;
-                }[]
+                | {
+                      id: number;
+                      shortName: string | null;
+                      color: string | null;
+                      textColor: string | null;
+                      type: string;
+                  }[]
+                | null
             >`
                 array_agg(
                     DISTINCT jsonb_build_object(
