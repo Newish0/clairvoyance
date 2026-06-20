@@ -32,6 +32,8 @@ function TransitApp() {
     const search = Route.useSearch();
     const router = useRouter();
 
+    const [isScrolled, setIsScrolled] = useState(false);
+
     const geolocation = useGeolocation();
     useGeolocationToast(geolocation);
 
@@ -103,49 +105,49 @@ function TransitApp() {
                 />
             </div>
 
-            <PrimaryPanel className="py-4" snapPoints={["136px", 0.5, 0.7]} noMarginSnapPoints={[]}>
-                {(snap, snapPoints) => (
-                    <>
-                        <div className="flex items-center gap-2 px-4">
-                            <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
-                                <MapPin size={16} />
-                                <span className="truncate text-center">
-                                    Near{" "}
-                                    {closestStopName ||
-                                        nearbyTripsQueryParams.lat?.toFixed(4) +
-                                            ", " +
-                                            nearbyTripsQueryParams.lng?.toFixed(4)}
-                                </span>
-                                <Loader2
-                                    size={16}
-                                    className={cn(
-                                        "animate-spin",
-                                        isFetchingNearbyTrips ? "visible" : "invisible",
-                                    )}
-                                />
-                            </div>
-
-                            {fixedUserLocation && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="p-2 rounded-full bg-primary-foreground/60 backdrop-blur-md"
-                                    onClick={handleReturnToPrevPage}
-                                >
-                                    <X />
-                                </Button>
+            <PrimaryPanel
+                className="pt-4 pb-[30dvh] md:pb-4"
+                snapPoints={["136px", 0.5, 0.7]}
+                noMarginSnapPoints={[]}
+            >
+                <div className="flex items-center gap-2 px-4">
+                    <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
+                        <MapPin size={16} />
+                        <span className="truncate text-center">
+                            Near{" "}
+                            {closestStopName ||
+                                nearbyTripsQueryParams.lat?.toFixed(4) +
+                                    ", " +
+                                    nearbyTripsQueryParams.lng?.toFixed(4)}
+                        </span>
+                        <Loader2
+                            size={16}
+                            className={cn(
+                                "animate-spin",
+                                isFetchingNearbyTrips ? "visible" : "invisible",
                             )}
-                        </div>
+                        />
+                    </div>
 
-                        <div
-                            className={cn("overflow-auto px-4", {
-                                "pb-64": snap === snapPoints.at(-1),
-                            })}
+                    {fixedUserLocation && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="p-2 rounded-full bg-primary-foreground/60 backdrop-blur-md"
+                            onClick={handleReturnToPrevPage}
                         >
-                            <DepartureBoard departures={nearbyTrips || []} />
-                        </div>
-                    </>
-                )}
+                            <X />
+                        </Button>
+                    )}
+                </div>
+
+                <div
+                    className={cn("overflow-auto px-4")}
+                    data-vaul-no-drag={isScrolled || undefined}
+                    onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 10)}
+                >
+                    <DepartureBoard departures={nearbyTrips || []} />
+                </div>
             </PrimaryPanel>
         </div>
     );
