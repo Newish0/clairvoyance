@@ -17,47 +17,40 @@ export class UpsertSink<T extends PgTable, Q extends InferInsertModel<T>> implem
         for await (const item of input) {
             this.batch.push(item);
             if (this.batch.length === this.batchSize) {
-                try {
-                    await upsertMany(
-                        ctx.db,
-                        this.table,
-                        this.batch,
-                        this.conflictColumns,
-                        this.ignoreColumns,
-                    );
-                } catch (e) {
-                    ctx.errors.push(
-                        recoverableError(
-                            "DB_UPSERT_ERROR",
-                            `Failed to upsert batch into ${getTableName(this.table)}`,
-                            e,
-                        ),
-                    );
-                    ctx.skipped += this.batch.length;
-                }
-                this.batch = [];
+                await this.flush(ctx);
             }
         }
-
         if (this.batch.length > 0) {
-            try {
-                await upsertMany(
-                    ctx.db,
-                    this.table,
-                    this.batch,
-                    this.conflictColumns,
-                    this.ignoreColumns,
-                );
-            } catch (e) {
-                ctx.errors.push(
-                    recoverableError(
-                        "DB_UPSERT_ERROR",
-                        `Failed to upsert batch into ${getTableName(this.table)}`,
-                        e,
-                    ),
-                );
-                ctx.skipped += this.batch.length;
-            }
+            await this.flush(ctx);
+        }
+    }
+
+    private async flush(ctx: Context): Promise<void> {
+        try {
+            const startTime = performance.now();
+            await upsertMany(
+                ctx.db,
+                this.table,
+                this.batch,
+                this.conflictColumns,
+                this.ignoreColumns,
+            );
+            const ms = performance.now() - startTime;
+            ctx.logger.debug(
+                { tableName: getTableName(this.table), items: this.batch.length, ms },
+                "Upsert complete",
+            );
+        } catch (e) {
+            ctx.errors.push(
+                recoverableError(
+                    "DB_UPSERT_ERROR",
+                    `Failed to upsert batch into ${getTableName(this.table)}`,
+                    e,
+                ),
+            );
+            ctx.skipped += this.batch.length;
+        } finally {
+            this.batch = [];
         }
     }
 }

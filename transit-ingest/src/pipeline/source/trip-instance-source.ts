@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Source } from "../core/pipe";
 import type { Context } from "../core/context";
 import * as tables from "database/models/tables";
@@ -207,7 +207,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         // -- E. Bulk dirty check via composite VALUES ------------------
         // Look up candidates directly by the unique key (trip_id, start_date, start_time),
         //
-        // Chunked at 10k candidates to stay under Postgres's 65535 param limit (4 params each).
+        // Chunked at 10k candidates to stay under Postgres's 65535 param limit (3 params each).
         const dirtyKeys = new Set<string>();
         const PARAM_CHUNK = 10_000;
 
@@ -217,7 +217,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
             const valuesClause = sql.join(
                 slice.map(
                     (c) =>
-                        sql`(${c.trip.id}::integer, ${c.calendarDate.date}::varchar, ${c.startTime}::varchar, ${"DIRTY"}::trip_instance_state)`,
+                        sql`(${c.trip.id}::integer, ${c.calendarDate.date}::varchar, ${c.startTime}::varchar)`,
                 ),
                 sql.raw(", "),
             );
@@ -227,17 +227,19 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                     tripId: tables.tripInstances.tripId,
                     startDate: tables.tripInstances.startDate,
                     startTime: tables.tripInstances.startTime,
-                    state: tables.tripInstances.state,
                 })
                 .from(tables.tripInstances)
                 .where(
-                    sql`(${tables.tripInstances.tripId}, ${tables.tripInstances.startDate}, ${tables.tripInstances.startTime}, ${tables.tripInstances.state}) IN (VALUES ${valuesClause})`,
+                    and(
+                        eq(tables.tripInstances.state, "DIRTY"),
+                        gte(tables.tripInstances.startDate, chunkStart),
+                        lte(tables.tripInstances.startDate, chunkEnd),
+                        sql`(${tables.tripInstances.tripId}, ${tables.tripInstances.startDate}, ${tables.tripInstances.startTime}) IN (VALUES ${valuesClause})`,
+                    ),
                 );
 
             for (const row of rows) {
-                if (row.state === "DIRTY") {
-                    dirtyKeys.add(`${row.tripId}:${row.startDate}:${row.startTime}`);
-                }
+                dirtyKeys.add(`${row.tripId}:${row.startDate}:${row.startTime}`);
             }
         }
 

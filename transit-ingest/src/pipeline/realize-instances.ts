@@ -23,11 +23,11 @@ export async function runRealizeInstances(
         const pipeline = pipe(
             new TripInstanceSource(ctx.config.agencyId, minDate, maxDate),
             new TripInstanceTransformer(),
-            new UpsertSink(tripInstances, [
-                tripInstances.tripId,
-                tripInstances.startDate,
-                tripInstances.startTime,
-            ]),
+            new UpsertSink(
+                tripInstances,
+                [tripInstances.tripId, tripInstances.startDate, tripInstances.startTime],
+                ["lastTripUpdateAt"],
+            ),
         );
         ctx.logger.debug({ minDate, maxDate }, "Realize trip instances pipeline started");
         await pipeline(ctx);
