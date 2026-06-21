@@ -1,9 +1,9 @@
-import type { InferInsertModel } from "drizzle-orm";
+import { type InferInsertModel, getTableName } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import type { Sink } from "../core/pipe";
 import { upsertMany } from "../../db/upsert";
 import type { Context } from "../core/context";
 import { recoverableError } from "../core/error";
+import type { Sink } from "../core/pipe";
 
 export class UpsertSink<T extends PgTable, Q extends InferInsertModel<T>> implements Sink<Q> {
     constructor(
@@ -29,7 +29,7 @@ export class UpsertSink<T extends PgTable, Q extends InferInsertModel<T>> implem
                     ctx.errors.push(
                         recoverableError(
                             "DB_UPSERT_ERROR",
-                            `Failed to upsert batch into ${this.table._.name}`,
+                            `Failed to upsert batch into ${getTableName(this.table)}`,
                             e,
                         ),
                     );
@@ -52,7 +52,7 @@ export class UpsertSink<T extends PgTable, Q extends InferInsertModel<T>> implem
                 ctx.errors.push(
                     recoverableError(
                         "DB_UPSERT_ERROR",
-                        `Failed to upsert batch into ${this.table._.name}`,
+                        `Failed to upsert batch into ${getTableName(this.table)}`,
                         e,
                     ),
                 );
