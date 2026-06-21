@@ -26,7 +26,7 @@ export async function runRealizeInstances(
             new UpsertSink(
                 tripInstances,
                 [tripInstances.tripId, tripInstances.startDate, tripInstances.startTime],
-                ["lastTripUpdateAt"],
+                ["id", "lastTripUpdateAt"],
             ),
         );
         ctx.logger.debug({ minDate, maxDate }, "Realize trip instances pipeline started");

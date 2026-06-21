@@ -250,10 +250,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
             const key = `${trip.id}:${calendarDate.date}:${startTime}`;
 
             if (dirtyKeys.has(key)) {
-                ctx.logger.debug(
-                    { tripId: trip.id, date: calendarDate.date, startTime },
-                    "Skip: dirty",
-                );
+                ctx.telemetry.incr("trip_instance_source.dirty_skip");
                 continue;
             }
 
