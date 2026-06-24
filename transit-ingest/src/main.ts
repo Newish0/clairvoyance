@@ -28,10 +28,13 @@ const RealtimeOptions = CliOptions.merge({
 });
 
 const FromConfigOptions = CliOptions.merge({
+    // Phases
     "static?": "boolean | undefined",
     "realtime?": "boolean | undefined",
     "realize?": "boolean | undefined",
     "all?": "boolean | undefined",
+    // Other configs
+    "agencies?": "string | string[] | undefined",
 });
 
 const RealizeOptions = CliOptions.merge({
@@ -118,6 +121,7 @@ cli.command("from-config <config-file>", "Run pipeline from a YAML config file")
     .option("--realtime", "Run only realtime ingestion phase")
     .option("--realize", "Run only trip instance realization phase")
     .option("--all", "Run all phases (default)")
+    .option("--agencies <...agencies>", "Limit to specific agencies")
     .action(async (configFile: string, options: unknown) => {
         const validated = FromConfigOptions(options);
         if (validated instanceof type.errors) {
@@ -133,6 +137,9 @@ cli.command("from-config <config-file>", "Run pipeline from a YAML config file")
             realize: (all || validated.realize) ?? false,
             realtime: (all || validated.realtime) ?? false,
         };
+        const agencies = Array.isArray(validated.agencies)
+            ? validated.agencies
+            : [validated.agencies].filter((a) => a !== undefined);
 
         const { runFromConfig } = await import("./config");
         await runFromConfig(
@@ -141,6 +148,7 @@ cli.command("from-config <config-file>", "Run pipeline from a YAML config file")
             validated.deleteRows ?? false,
             !!validated.verbose,
             !!validated.pretty,
+            agencies,
             phases,
         );
     });

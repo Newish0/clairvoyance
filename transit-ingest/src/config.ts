@@ -45,7 +45,9 @@ function loadRawConfig(path: string): unknown {
         const raw = readFileSync(path, "utf-8");
         return yaml.load(raw);
     } catch (e) {
-        console.error(`error: failed to read config - ${e instanceof Error ? e.message : String(e)}`);
+        console.error(
+            `error: failed to read config - ${e instanceof Error ? e.message : String(e)}`,
+        );
         process.exit(1);
     }
 }
@@ -56,6 +58,7 @@ export async function runFromConfig(
     deleteRows: boolean,
     verbose: boolean,
     pretty: boolean,
+    agencies: string[] = [],
     phases: ConfigPhases = { static: true, realize: true, realtime: true },
 ): Promise<void> {
     const raw = loadRawConfig(configPath);
@@ -75,9 +78,13 @@ export async function runFromConfig(
         }
     }
 
+    const agenciesToProcess = agencies.length
+        ? config.agencies.filter((a) => agencies.includes(a.id))
+        : config.agencies;
+
     // Phase 1: Static + realize per agency (sequential)
     if (phases.static || phases.realize) {
-        for (const agency of config.agencies) {
+        for (const agency of agenciesToProcess) {
             if (phases.static && agency.static) {
                 await runStaticPipeline(
                     db,
@@ -87,7 +94,7 @@ export async function runFromConfig(
                     agency.static.ignoreFeedDup,
                     agency.static.realizeInstances,
                     verbose,
-                    pretty
+                    pretty,
                 );
             }
             if (phases.realize && agency.realizeInstances) {
@@ -97,7 +104,7 @@ export async function runFromConfig(
                     agency.realizeInstances.minDate,
                     agency.realizeInstances.maxDate,
                     verbose,
-                    pretty
+                    pretty,
                 );
             }
         }
@@ -105,7 +112,7 @@ export async function runFromConfig(
 
     // Phase 2: Realtime (concurrent)
     if (phases.realtime) {
-        const realtimeAgencies = config.agencies.filter((a) => a.realtime);
+        const realtimeAgencies = agenciesToProcess.filter((a) => a.realtime);
         if (realtimeAgencies.length > 0) {
             const results = await Promise.allSettled(
                 realtimeAgencies.map((agency) =>
@@ -115,7 +122,7 @@ export async function runFromConfig(
                         agency.realtime!.urls,
                         agency.realtime!.poll ?? 0,
                         verbose,
-                        pretty
+                        pretty,
                     ),
                 ),
             );
