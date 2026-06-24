@@ -19,6 +19,8 @@ import { StopTimeTransformer } from "./transformer/stop-time-transformer";
 import { StopTransformer } from "./transformer/stop-transformer";
 import { TripTransformer } from "./transformer/trip-transformer";
 import { runRealizeInstances } from "./realize-instances";
+import { CalendarTransformer } from "./transformer/calendar-transformer";
+import { StopParentRefSource } from "./source/stop-parent-ref-source";
 
 export type PipelineSummary = {
     errors: IngestError[];
@@ -70,6 +72,12 @@ export async function runStatic(
         new UpsertSink(tables.feedInfo, [tables.feedInfo.hash]),
     );
 
+    const calendarPipeline = pipe(
+        new CsvFileSource(path.join(source.dir, "calendar.txt"), { optional: true }),
+        new CalendarTransformer(ctx.config.agencyId),
+        new UpsertSink(tables.calendars, [tables.calendars.agencyId, tables.calendars.serviceSid]),
+    );
+
     const calendarDatesPipeline = pipe(
         new CsvFileSource(path.join(source.dir, "calendar_dates.txt")),
         new CalendarDateTransformer(ctx.config.agencyId),
@@ -90,6 +98,11 @@ export async function runStatic(
         new CsvFileSource(path.join(source.dir, "stops.txt")),
         new StopTransformer(ctx.config.agencyId),
         new UpsertSink(tables.stops, [tables.stops.agencyId, tables.stops.stopSid], ["id"]),
+    );
+
+    const stopsParentRefPipeline = pipe(
+        new StopParentRefSource(),
+        new UpsertSink(tables.stops, [tables.stops.id], ["id"]),
     );
 
     const shapesPipeline = pipe(
@@ -116,11 +129,14 @@ export async function runStatic(
 
     const allPipelinesResult = await (async () => {
         try {
+            // IMPORTANT: The order of execution is matters
             await agencyPipeline(ctx);
             await feedInfoPipeline(ctx);
+            await calendarPipeline(ctx);
             await calendarDatesPipeline(ctx);
             await routesPipeline(ctx);
             await stopsPipeline(ctx);
+            await stopsParentRefPipeline(ctx);
             await shapesPipeline(ctx);
             await tripsPipeline(ctx);
             await stopTimesPipeline(ctx);

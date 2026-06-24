@@ -10,7 +10,7 @@ import type {
     StopTimeUpdateScheduleRelationship,
     TripInstanceState,
     VehicleStopStatus,
-    WheelchairBoarding,
+    Accessability,
 } from "database/models/enums";
 import type { EntitySelector, TimePeriod, TranslationMap } from "database/models/types";
 import { createHash } from "node:crypto";
@@ -292,7 +292,7 @@ export function mapAlertSeverity(s: Alert_SeverityLevel): AlertSeverity {
 
 export function mapWheelchairAccessible(
     w: VehicleDescriptor_WheelchairAccessible,
-): WheelchairBoarding | undefined {
+): Accessability | undefined {
     switch (w) {
         case VehicleDescriptor_WheelchairAccessible.NO_VALUE:
             return undefined;

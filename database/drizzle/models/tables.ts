@@ -1,5 +1,6 @@
 import {
     type AnyPgColumn,
+    boolean,
     char,
     doublePrecision,
     index,
@@ -27,7 +28,7 @@ import {
     timepointEnum,
     tripInstanceStateEnum,
     vehicleStopStatusEnum,
-    wheelchairBoardingEnum,
+    accessabilityEnum,
 } from "./enums";
 import { geometryLineString, geometryPoint } from "./postgis-types";
 import { schema } from "./schema";
@@ -118,7 +119,7 @@ export const vehicles = schema.table(
 
         label: text("label"),
         licensePlate: text("license_plate"),
-        wheelchairAccessible: wheelchairBoardingEnum("wheelchair_accessible"),
+        wheelchairAccessible: accessabilityEnum("wheelchair_accessible"),
     },
     (t) => [unique("uq_vehicles_agency_vehicle_sid").on(t.agencyId, t.vehicleSid)],
 );
@@ -140,7 +141,10 @@ export const trips = schema.table(
         headsign: text("headsign"),
         shortName: text("short_name"),
         direction: directionEnum("direction"),
-        blockId: text("block_id"),
+        blockSid: text("block_sid"),
+
+        wheelchairAccessible: accessabilityEnum("wheelchair_accessible"),
+        bikesAllowed: accessabilityEnum("bikes_allowed"),
     },
     (t) => [
         unique("uq_trips_agency_trip_sid").on(t.agencyId, t.tripSid),
@@ -165,15 +169,41 @@ export const stops = schema.table(
         url: text("url"),
         locationType: locationTypeEnum("location_type"),
 
+        parentStationSid: text("parent_station_sid"),
         // Self-reference using explicit type to avoid circular inference issues
         parentStationId: integer("parent_station_id").references((): AnyPgColumn => stops.id),
 
         timezone: text("timezone"),
-        wheelchairBoarding: wheelchairBoardingEnum("wheelchair_boarding"),
+        wheelchairBoarding: accessabilityEnum("wheelchair_boarding"),
     },
     (t) => [
         unique("uq_stops_agency_stop_sid").on(t.agencyId, t.stopSid),
         index("idx_stops_location_gist").using("gist", t.location),
+    ],
+);
+
+export const calendars = schema.table(
+    "calendars",
+    {
+        agencyId: text("agency_id")
+            .references(() => agencies.id)
+            .notNull(),
+        serviceSid: text("service_sid").notNull(),
+
+        monday: boolean("monday").notNull().default(false),
+        tuesday: boolean("tuesday").notNull().default(false),
+        wednesday: boolean("wednesday").notNull().default(false),
+        thursday: boolean("thursday").notNull().default(false),
+        friday: boolean("friday").notNull().default(false),
+        saturday: boolean("saturday").notNull().default(false),
+        sunday: boolean("sunday").notNull().default(false),
+
+        startDate: varchar("start_date", { length: 8 }).notNull(), // YYYYMMDD
+        endDate: varchar("end_date", { length: 8 }).notNull(), // YYYYMMDD
+    },
+    (t) => [
+        primaryKey({ columns: [t.agencyId, t.serviceSid] }),
+        index("idx_calendars_agency_date_range").on(t.agencyId, t.startDate, t.endDate),
     ],
 );
 
@@ -258,10 +288,7 @@ export const tripInstances = schema.table(
             t.startDate,
             t.startTime,
         ),
-        index("idx_trip_instances_start_date_state").on(
-            t.startDate,
-            t.state,
-        ),
+        index("idx_trip_instances_start_date_state").on(t.startDate, t.state),
     ],
 );
 

@@ -19,21 +19,19 @@ export class TripInstanceTransformer implements Transform<
         input: AsyncIterable<TripInstanceRow>,
     ): AsyncIterable<ItemResult<typeof tripInstances.$inferInsert>> {
         for await (const row of input) {
-            const { agency, calendarDate, trip, stopTime, route, shape } = row;
-
-            const state = calendarDate.exceptionType === "REMOVED" ? "REMOVED" : "PRISTINE";
+            const { agency, date, state, trip, stopTime, route, shape } = row;
 
             const startTime = stopTime.arrivalTime ?? stopTime.departureTime;
             if (!startTime) continue;
 
-            const startDatetime = gtfsTimeToDate(calendarDate.date, startTime, agency.timezone);
+            const startDatetime = gtfsTimeToDate(date, startTime, agency.timezone);
 
             const insertObj = this.tripInstanceInsertSchema({
                 agencyId: agency.id,
                 tripId: trip.id,
                 routeId: route?.id ?? trip.routeId!,
                 shapeId: shape?.id ?? trip.shapeId ?? null,
-                startDate: calendarDate.date,
+                startDate: date,
                 startTime,
                 startDatetime: startDatetime ?? undefined,
                 state,

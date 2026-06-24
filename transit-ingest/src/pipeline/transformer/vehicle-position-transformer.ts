@@ -3,7 +3,7 @@ import type {
     CongestionLevel,
     OccupancyStatus,
     VehicleStopStatus,
-    WheelchairBoarding,
+    Accessability,
 } from "database/models/enums";
 import * as tables from "database/models/tables";
 import { eq, sql } from "drizzle-orm";
@@ -30,7 +30,7 @@ export interface TransformedVehiclePosition {
     vehicleSid: string;
     vehicleLabel: string | null;
     vehicleLicensePlate: string | null;
-    vehicleWheelchairAccessible: WheelchairBoarding | null;
+    vehicleWheelchairAccessible: Accessability | null;
 
     tripInstanceId: number | null;
     stopId: number | null;

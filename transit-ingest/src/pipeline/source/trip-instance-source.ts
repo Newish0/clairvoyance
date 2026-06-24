@@ -4,9 +4,11 @@ import type { Context } from "../core/context";
 import * as tables from "database/models/tables";
 import type { InferSelectModel } from "drizzle-orm";
 import { type ItemResult, itemOk, fatalItem } from "../core/error";
-import { addDays, format, parse } from "date-fns";
+import { addDays, eachDayOfInterval, format, getDay, parse } from "date-fns";
+import type { TripInstanceState } from "database/models/enums";
 
 type Agency = InferSelectModel<typeof tables.agencies>;
+type Calendar = InferSelectModel<typeof tables.calendars>;
 type CalendarDate = InferSelectModel<typeof tables.calendarDates>;
 type Trip = InferSelectModel<typeof tables.trips>;
 type StopTime = InferSelectModel<typeof tables.stopTimes>;
@@ -15,31 +17,46 @@ type Shape = InferSelectModel<typeof tables.shapes>;
 
 export type TripInstanceRow = {
     agency: Agency;
-    calendarDate: CalendarDate;
+    date: string; // YYYYMMDD
     trip: Trip;
+    state: TripInstanceState;
     stopTime: StopTime;
     route: Route | null;
     shape: Shape | null;
 };
 
+// TODO: Needs heavy optimization
+
 /**
- * Cross-joins (in app code) calendar_dates x trips, yields enriched TripInstanceRow.
+ * Cross-joins active dates x trips and yields enriched TripInstanceRow.
  *
- * Performance design:
- *   - Routes + shapes preloaded once into Maps (bounded by GTFS feed size ~1k-50k).
- *   - Date range chunked into windows (dateChunkDays, default 7) to bound RAM.
- *   - Per chunk: ~5 queries total regardless of trip count.
- *       1. calendarDates for chunk
- *       2. trips for all serviceSids in chunk
- *       3. first stopTime per trip (DISTINCT ON trip_id)
- *       4. dirty tripInstance check (composite VALUES lookup)
- *   - RAM knobs:
- *       dateChunkDays -> controls how much read data is in memory at once
- *       UpsertSink.batchSize -> controls write pressure
+ * Performance characteristics
+ * - Routes + shapes: preloaded once, O(1) per trip.
+ * - Calendars:       preloaded once into Map<serviceSid, Calendar>.
+ * - Calendar dates:  loaded per chunk (same as before).
+ * - Trips:           loaded per chunk, grouped by serviceSid.
+ * - Stop times:      DISTINCT ON per chunk (same as before).
+ * - Dirty check:     bulk composite VALUES lookup (same as before).
+ *
+ * RAM knobs: dateChunkDays (read), UpsertSink.batchSize (write).
  */
 export class TripInstanceSource implements Source<TripInstanceRow> {
     private static readonly YYYYMMDD_MIN = "00000101";
     private static readonly YYYYMMDD_MAX = "99991231";
+
+    /**
+     * Day-of-week index (date-fns getDay) -> Calendar boolean column name.
+     * date-fns: 0=Sun, 1=Mon, ..., 6=Sat
+     */
+    private static readonly DOW_KEYS: (keyof Calendar)[] = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+    ] as const;
 
     /**
      * @param agencyId      - Agency to process.
@@ -83,39 +100,104 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         const shapeMap = new Map<number, Shape>(allShapes.map((s) => [s.id, s]));
         ctx.logger.debug({ count: shapeMap.size }, "Shapes preloaded");
 
-        // -- 4. Actual min/max calendar dates -----------------------------------------------
-        const minSvcDate = await ctx.db.query.calendarDates.findFirst({
-            where: { agencyId: this.agencyId, date: { gte: this.minDate } },
+        // -- 4. Calendars (expected bound: ~10-100 rows per agency) ---
+        const allCalendars = await ctx.db.query.calendars.findMany({
+            where: {
+                agencyId: this.agencyId,
+                startDate: { lte: this.maxDate },
+                endDate: { gte: this.minDate },
+            },
+        });
+        ctx.logger.debug({ count: allCalendars.length }, "Calendars preloaded");
+        const expandedCalendarEntries = allCalendars.flatMap((c) =>
+            TripInstanceSource.resolveDatesFromCalendar(c, this.minDate, this.maxDate).map(
+                (d) => [d, c] as const,
+            ),
+        );
+        const expandedCalendarMap = expandedCalendarEntries.reduce((m, [d, c]) => {
+            if (!m.has(d)) m.set(d, []);
+            m.get(d)!.push(c);
+            return m;
+        }, new Map<string, Calendar[]>());
+
+        const allCalendarDates = await ctx.db.query.calendarDates.findMany({
+            where: {
+                agencyId: this.agencyId,
+                date: { gte: this.minDate, lte: this.maxDate },
+            },
             orderBy: { date: "asc" },
-            columns: { date: true },
         });
-        const maxSvcDate = await ctx.db.query.calendarDates.findFirst({
-            where: { agencyId: this.agencyId, date: { lte: this.maxDate } },
-            orderBy: { date: "desc" },
-            columns: { date: true },
-        });
-        if (!minSvcDate || !maxSvcDate) {
-            ctx.logger.warn({ minSvcDate, maxSvcDate }, "No calendar dates found");
-            return; // early exit
+        const calendarDateMap = allCalendarDates
+            .map((cd) => [cd.date, cd] as const)
+            .reduce((m, [d, cd]) => {
+                if (!m.has(d)) m.set(d, []);
+                m.get(d)!.push(cd);
+                return m;
+            }, new Map<string, CalendarDate[]>());
+        ctx.logger.debug({ count: allCalendarDates.length }, "Calendar dates preloaded");
+
+        // -- 5. Determine overall date window ---------------------------------
+        // Use the union of calendar_dates range AND calendar bitmask ranges,
+        // both clamped to [minDate, maxDate].
+        const minCdDate = allCalendarDates.at(0)?.date;
+        const maxCdDate = allCalendarDates.at(-1)?.date;
+
+        // The dates in expandedAllCalendars are sorted in ascending order
+        const minCalDate =
+            expandedCalendarMap
+                .keys()
+                .toArray()
+                .filter((d) => d && d >= this.minDate)
+                .toSorted()
+                .at(0) ?? null;
+        const maxCalDate =
+            expandedCalendarMap
+                .keys()
+                .toArray()
+                .filter((d) => d && d <= this.maxDate)
+                .toSorted()
+                .at(-1) ?? null;
+
+        // Overall window is the union of both ranges
+        const winStartCandidates = [minCdDate, minCalDate].filter(Boolean) as string[];
+        const windowStart = winStartCandidates.toSorted().at(0);
+        const winEndCandidates = [maxCdDate, maxCalDate].filter(Boolean) as string[];
+        const windowEnd = winEndCandidates.toSorted().at(-1);
+
+        if (!windowStart || !windowEnd) {
+            ctx.logger.warn(
+                "No service date range found in calendarDates or calendars - nothing to realize",
+            );
+            return;
         }
 
-        // -- 5. Iterate date chunks -------------------------------------------
-        let chunkStart = minSvcDate.date;
-        while (chunkStart <= maxSvcDate.date) {
+        ctx.logger.info({ windowStart, windowEnd }, "Realizing trip instances");
+
+        // -- 6. Iterate date chunks -------------------------------------------
+        let chunkStart = windowStart;
+        while (chunkStart <= windowEnd) {
             const chunkEnd = TripInstanceSource.addDaysToDateStr(
                 chunkStart,
                 this.dateChunkDays - 1,
             );
-            // Clamp to maxSvcDate.date to avoid processing beyond the requested range.
-            const effectiveEnd = chunkEnd <= maxSvcDate.date ? chunkEnd : maxSvcDate.date;
+            const effectiveEnd = chunkEnd <= windowEnd ? chunkEnd : windowEnd;
 
             ctx.logger.debug({ chunkStart, chunkEnd: effectiveEnd }, "Processing date chunk");
 
-            yield* this.processChunk(ctx, agency, routeMap, shapeMap, chunkStart, effectiveEnd);
+            yield* this.processChunk(
+                ctx,
+                agency,
+                routeMap,
+                shapeMap,
+                expandedCalendarMap,
+                calendarDateMap,
+                chunkStart,
+                effectiveEnd,
+            );
 
             chunkStart = TripInstanceSource.addDaysToDateStr(effectiveEnd, 1);
 
-            Bun.gc(); // call gc (async) to avoid OOM
+            Bun.gc();
         }
     }
 
@@ -124,19 +206,25 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         agency: Agency,
         routeMap: Map<number, Route>,
         shapeMap: Map<number, Shape>,
+        expandedCalendarMap: Map<string, Calendar[]>,
+        calendarDatesMap: Map<string, CalendarDate[]>,
         chunkStart: string,
         chunkEnd: string,
     ): AsyncIterable<ItemResult<TripInstanceRow>> {
         // -- A. Calendar dates for chunk --------------------------------------
-        const calendarDates = await ctx.db.query.calendarDates.findMany({
-            where: {
-                agencyId: this.agencyId,
-                date: { gte: chunkStart, lte: chunkEnd },
-            },
-        });
-        if (calendarDates.length === 0) return;
 
-        const uniqueServiceSids = [...new Set(calendarDates.map((cd) => cd.serviceSid))];
+        const allDates = [...new Set([...calendarDatesMap.keys(), ...expandedCalendarMap.keys()])]
+            .filter((d) => d >= chunkStart && d <= chunkEnd)
+            .toSorted();
+
+        const uniqueServiceSids = [
+            ...new Set(
+                allDates.flatMap((d) => [
+                    ...(expandedCalendarMap.get(d)?.map((c) => c.serviceSid) ?? []),
+                    ...(calendarDatesMap.get(d)?.map((cd) => cd.serviceSid) ?? []),
+                ]),
+            ),
+        ];
 
         // -- B. Trips for all services in chunk -------------------------------
         const trips = await ctx.db.query.trips.findMany({
@@ -169,7 +257,8 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
 
         // -- D. Build candidates: need startTime before non-pristine check ----
         type Candidate = {
-            calendarDate: CalendarDate;
+            date: string;
+            state: TripInstanceState;
             trip: Trip;
             stopTime: StopTime;
             startTime: string;
@@ -177,28 +266,36 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
 
         const candidates: Candidate[] = [];
 
-        for (const calendarDate of calendarDates) {
-            const tripsForService = tripsByService.get(calendarDate.serviceSid) ?? [];
+        for (const date of allDates) {
+            const calendarServiceSids =
+                expandedCalendarMap.get(date)?.map((c) => c.serviceSid) ?? [];
+            const dateCds = calendarDatesMap.get(date);
+            const removedServiceSids = new Set(
+                dateCds?.filter((cd) => cd.exceptionType === "REMOVED").map((cd) => cd.serviceSid),
+            );
+            const calendarDatesServiceSids = dateCds?.map((cd) => cd.serviceSid) ?? [];
+            const serviceSids = [...new Set([...calendarServiceSids, ...calendarDatesServiceSids])];
+            const tripsForService = serviceSids
+                .flatMap((s) => tripsByService.get(s))
+                .filter((t) => t !== undefined);
 
             for (const trip of tripsForService) {
                 const stopTime = stopTimeMap.get(trip.id);
                 if (!stopTime) {
-                    ctx.logger.info(
-                        { tripId: trip.id, date: calendarDate.date },
-                        "Skip: no stop times",
-                    );
+                    ctx.logger.info({ tripId: trip.id, date: date }, "Skip: no stop times");
                     ctx.telemetry.incr("trip_instance_source.no_stop_times_skip");
                     continue;
                 }
 
                 const startTime = stopTime.arrivalTime ?? stopTime.departureTime;
                 if (!startTime) {
-                    ctx.logger.info({ tripId: trip.id, date: calendarDate.date }, "Skip: no time");
+                    ctx.logger.info({ tripId: trip.id, date: date }, "Skip: no time");
                     ctx.telemetry.incr("trip_instance_source.no_time_skip");
                     continue;
                 }
-
-                candidates.push({ calendarDate, trip, stopTime, startTime });
+                const isRemoved = removedServiceSids.has(trip.serviceSid);
+                const state: TripInstanceState = isRemoved ? "REMOVED" : "PRISTINE";
+                candidates.push({ date, state, trip, stopTime, startTime });
             }
         }
 
@@ -217,7 +314,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
             const valuesClause = sql.join(
                 slice.map(
                     (c) =>
-                        sql`(${c.trip.id}::integer, ${c.calendarDate.date}::varchar, ${c.startTime}::varchar)`,
+                        sql`(${c.trip.id}::integer, ${c.date}::varchar, ${c.startTime}::varchar)`,
                 ),
                 sql.raw(", "),
             );
@@ -231,6 +328,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                 .from(tables.tripInstances)
                 .where(
                     and(
+                        eq(tables.tripInstances.agencyId, this.agencyId),
                         eq(tables.tripInstances.state, "DIRTY"),
                         gte(tables.tripInstances.startDate, chunkStart),
                         lte(tables.tripInstances.startDate, chunkEnd),
@@ -246,8 +344,8 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         ctx.telemetry.incr("trip_instance_source.dirty", dirtyKeys.size);
 
         // -- F. Yield survivors -----------------------------------------------
-        for (const { calendarDate, trip, stopTime, startTime } of candidates) {
-            const key = `${trip.id}:${calendarDate.date}:${startTime}`;
+        for (const { date, state, trip, stopTime, startTime } of candidates) {
+            const key = `${trip.id}:${date}:${startTime}`;
 
             if (dirtyKeys.has(key)) {
                 ctx.telemetry.incr("trip_instance_source.dirty_skip");
@@ -257,7 +355,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
             const route = trip.routeId != null ? (routeMap.get(trip.routeId) ?? null) : null;
             const shape = trip.shapeId != null ? (shapeMap.get(trip.shapeId) ?? null) : null;
 
-            yield itemOk({ agency, calendarDate, trip, stopTime, route, shape });
+            yield itemOk({ agency, date, state, trip, stopTime, route, shape });
         }
     }
 
@@ -268,5 +366,40 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         } catch {
             return TripInstanceSource.YYYYMMDD_MAX;
         }
+    }
+
+    /**
+     * @returns list of calendar dates in YYYYMMDD format sorted in ascending order
+     */
+    private static resolveDatesFromCalendar(
+        cal: Calendar | null,
+        windowStart: string,
+        windowEnd: string,
+    ) {
+        const dates = new Set<string>();
+
+        if (cal) {
+            const hasRecurrence = TripInstanceSource.DOW_KEYS.some((k) => cal[k] === true);
+            if (hasRecurrence) {
+                // Clamp calendar range to the processing window
+                const start = cal.startDate > windowStart ? cal.startDate : windowStart;
+                const end = cal.endDate < windowEnd ? cal.endDate : windowEnd;
+
+                if (start <= end) {
+                    const startDt = parse(start, "yyyyMMdd", new Date());
+                    const endDt = parse(end, "yyyyMMdd", new Date());
+
+                    for (const d of eachDayOfInterval({ start: startDt, end: endDt })) {
+                        const ds = format(d, "yyyyMMdd");
+                        const dowKey = TripInstanceSource.DOW_KEYS[getDay(d)];
+                        if (dowKey && cal[dowKey]) {
+                            dates.add(ds);
+                        }
+                    }
+                }
+            }
+        }
+
+        return Array.from(dates);
     }
 }

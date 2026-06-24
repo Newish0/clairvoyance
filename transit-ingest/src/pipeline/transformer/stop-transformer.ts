@@ -5,7 +5,7 @@ import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
 import { type ItemResult, itemOk, skipItem } from "../core/error";
-import { type locationTypeEnum, type wheelchairBoardingEnum } from "database/models/enums";
+import { type locationTypeEnum, type accessabilityEnum } from "database/models/enums";
 
 const LOCATION_TYPE_MAPPING: Record<string, (typeof locationTypeEnum.enumValues)[number]> = {
     "0": "STOP_OR_PLATFORM",
@@ -15,10 +15,7 @@ const LOCATION_TYPE_MAPPING: Record<string, (typeof locationTypeEnum.enumValues)
     "4": "BOARDING_AREA",
 };
 
-const WHEELCHAIR_BOARDING_MAPPING: Record<
-    string,
-    (typeof wheelchairBoardingEnum.enumValues)[number]
-> = {
+const WHEELCHAIR_BOARDING_MAPPING: Record<string, (typeof accessabilityEnum.enumValues)[number]> = {
     "0": "NO_INFO",
     "1": "ACCESSIBLE",
     "2": "NOT_ACCESSIBLE",
@@ -45,10 +42,7 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
             const locationType = rawLocationType ? LOCATION_TYPE_MAPPING[rawLocationType] : null;
 
             if (rawLocationType && !locationType) {
-                yield skipItem(
-                    "VALIDATION_ERROR",
-                    `Invalid location_type: ${rawLocationType}`,
-                );
+                yield skipItem("VALIDATION_ERROR", `Invalid location_type: ${rawLocationType}`);
                 continue;
             }
 
@@ -90,15 +84,13 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
                 zoneId: row["zone_id"] ?? null,
                 url: row["stop_url"] ?? null,
                 locationType,
+                parentStationSid: row["parent_station"] ?? null,
                 timezone: row["stop_timezone"] ?? null,
                 wheelchairBoarding,
             });
 
             if (stop instanceof akType.errors) {
-                yield skipItem(
-                    "VALIDATION_ERROR",
-                    `Stop row validation failed: ${stop.summary}`,
-                );
+                yield skipItem("VALIDATION_ERROR", `Stop row validation failed: ${stop.summary}`);
             } else {
                 yield itemOk(stop);
             }

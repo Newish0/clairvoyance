@@ -33,7 +33,8 @@ export const pickupDropOffEnum = schema.enum("pickup_drop_off", [
 
 export const directionEnum = schema.enum("direction", ["OUTBOUND", "INBOUND"]);
 
-export const wheelchairBoardingEnum = schema.enum("wheelchair_boarding", [
+/** Used by wheelchair_boarding, etc */
+export const accessabilityEnum = schema.enum("accessability", [
     "NO_INFO",
     "ACCESSIBLE",
     "NOT_ACCESSIBLE",
@@ -135,7 +136,7 @@ export type RouteType = (typeof routeTypeEnum.enumValues)[number];
 export type LocationType = (typeof locationTypeEnum.enumValues)[number];
 export type PickupDropOff = (typeof pickupDropOffEnum.enumValues)[number];
 export type Direction = (typeof directionEnum.enumValues)[number];
-export type WheelchairBoarding = (typeof wheelchairBoardingEnum.enumValues)[number];
+export type Accessability = (typeof accessabilityEnum.enumValues)[number];
 export type CalendarExceptionType = (typeof calendarExceptionTypeEnum.enumValues)[number];
 export type Timepoint = (typeof timepointEnum.enumValues)[number];
 export type StopTimeUpdateScheduleRelationship =

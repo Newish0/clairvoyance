@@ -28,6 +28,8 @@ export interface Sink<I> {
     run(ctx: Context, input: AsyncIterable<I>): void | Promise<void>;
 }
 
+export function pipe<A>(source: Source<A>, sink: Sink<A>): (ctx: Context) => Promise<void>;
+
 export function pipe<A, B>(
     source: Source<A>,
     t1: Transform<A, B>,

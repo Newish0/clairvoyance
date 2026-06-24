@@ -5,11 +5,23 @@ import { type ItemResult, fatalItem, itemOk } from "../core/error";
 import type { Source } from "../core/pipe";
 
 export type CsvRow = Record<string, string>;
+
+type Config = {
+    optional?: boolean;
+};
 export class CsvFileSource implements Source<CsvRow> {
-    constructor(public filePath: string) {}
+    constructor(
+        public filePath: string,
+        public config: Config = {
+            optional: false,
+        },
+    ) {}
 
     async *run(ctx: Context): AsyncIterable<ItemResult<CsvRow>> {
         if (!existsSync(this.filePath)) {
+            if (this.config.optional) {
+                return;
+            }
             // Fatal: file missing, nothing to do
             yield fatalItem("CSV_FILE_NOT_FOUND", `CSV file not found: ${this.filePath}`);
             return;
