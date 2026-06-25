@@ -1,11 +1,37 @@
 import { DEFAULT_LOCATION } from "@/constants/location";
 import { useProtoMapsStyle } from "@/hooks/use-map-style";
+import { useTileManifest } from "@/hooks/use-tile-manifest";
+import { useMemoizedFn } from "ahooks";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import Map, { AttributionControl } from "react-map-gl/maplibre";
 
-export const ProtoMap = (props: ComponentProps<typeof Map>) => {
-    const mapStyle = useProtoMapsStyle();
+type MapProps = ComponentProps<typeof Map>;
+type ProtoMapProps = Omit<
+    MapProps,
+    "mapStyle" | "attributionControl" | "dragRotate" | "pitchWithRotate" | "touchPitch"
+>;
+
+const MANIFEST_URL = `${import.meta.env.BASE_URL}pmtiles/manifest.json`;
+
+export const ProtoMap = ({ onMove, ...props }: ProtoMapProps) => {
+    const [view, setView] = useState({
+        lon: DEFAULT_LOCATION.lng,
+        lat: DEFAULT_LOCATION.lat,
+        zoom: 14,
+    });
+    const tilesUrl = useTileManifest(MANIFEST_URL, view.lon, view.lat, view.zoom);
+    const mapStyle = useProtoMapsStyle(
+        tilesUrl
+            ? `${import.meta.env.BASE_URL}${tilesUrl}`
+            : `${import.meta.env.BASE_URL}pmtiles/world-base.pmtiles`,
+    );
+
+    const handleMove = useMemoizedFn((evt: Parameters<NonNullable<MapProps["onMove"]>>[0]) => {
+        const { longitude: lon, latitude: lat, zoom } = evt.viewState;
+        setView({ lon, lat, zoom });
+        onMove?.(evt);
+    });
 
     return (
         <Map
@@ -21,14 +47,12 @@ export const ProtoMap = (props: ComponentProps<typeof Map>) => {
             dragRotate={false}
             pitchWithRotate={false}
             touchPitch={false}
+            onMove={handleMove}
         >
             <AttributionControl
                 position="bottom-right"
-                compact={true}
-                style={{
-                    opacity: 0.7,
-                    margin: 0,
-                }}
+                compact
+                style={{ opacity: 0.7, margin: 0 }}
             />
             {props.children}
         </Map>

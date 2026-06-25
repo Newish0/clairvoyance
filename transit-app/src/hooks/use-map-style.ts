@@ -4,7 +4,7 @@ import { Protocol } from "pmtiles";
 import maplibre from "maplibre-gl";
 import { useEffect, useMemo } from "react";
 
-export function useProtoMapsStyle() {
+export function useProtoMapsStyle(activeTilesUrl: string) {
     const { displayedTheme } = useTheme();
 
     useEffect(() => {
@@ -18,7 +18,7 @@ export function useProtoMapsStyle() {
     const mapStyle = useMemo(() => {
         const baseLayers = layers("protomaps", namedFlavor(displayedTheme), { lang: "en" });
 
-        // Remove transit layers (includes bus stops/routes)
+        // Remove POI layers (includes bus stops/routes)
         const filteredLayers = baseLayers.filter((layer: any) => layer["source-layer"] !== "pois");
 
         const style = {
@@ -28,7 +28,7 @@ export function useProtoMapsStyle() {
             sources: {
                 protomaps: {
                     type: "vector",
-                    url: `pmtiles://${import.meta.env.BASE_URL}map.pmtiles`,
+                    url: `pmtiles://${activeTilesUrl}`,
                     attribution:
                         '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
                 },
@@ -37,7 +37,7 @@ export function useProtoMapsStyle() {
         } as const;
 
         return style;
-    }, [displayedTheme]);
+    }, [displayedTheme, activeTilesUrl]);
 
     return mapStyle;
 }

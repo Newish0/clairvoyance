@@ -1,0 +1,30 @@
+{
+    "version": "1.0",
+    "worldBase": "pmtiles/world-base.pmtiles",
+    "datasets": [
+        {
+            "id": "TL",
+            "bbox": {
+                "minLon": -123.4518845492831,
+                "minLat": 48.98639245790993,
+                "maxLon": -122.27284001515663,
+                "maxLat": 49.492165011534986
+            },
+            "tiles": "pmtiles/TL.pmtiles",
+            "minZoom": 9.5,
+            "maxZoom": 22
+        },
+        {
+            "id": "BCT-VIC",
+            "bbox": {
+                "minLon": -123.8227686451334,
+                "minLat": 48.31845685394928,
+                "maxLon": -123.25777030341581,
+                "maxLat": 48.7158119547304
+            },
+            "tiles": "pmtiles/BCT-VIC.pmtiles",
+            "minZoom": 9.5,
+            "maxZoom": 22
+        }
+    ]
+}
