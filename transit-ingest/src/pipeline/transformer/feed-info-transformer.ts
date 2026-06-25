@@ -22,12 +22,12 @@ export class FeedInfoTransformer implements Transform<CsvRow, typeof feedInfo.$i
             const info = this.feedInsertSchema({
                 hash: this.feedHash,
                 agencyId: this.agencyId,
-                publisherName: row["feed_publisher_name"],
-                publisherUrl: row["feed_publisher_url"],
-                lang: row["feed_lang"],
-                version: row["feed_version"],
-                startDate: row["feed_start_date"],
-                endDate: row["feed_end_date"],
+                publisherName: row["feed_publisher_name"] || null,
+                publisherUrl: row["feed_publisher_url"] || null,
+                lang: row["feed_lang"] || null,
+                version: row["feed_version"] || null,
+                startDate: row["feed_start_date"] || null,
+                endDate: row["feed_end_date"] || null,
             });
             if (info instanceof akType.errors) {
                 yield skipItem(

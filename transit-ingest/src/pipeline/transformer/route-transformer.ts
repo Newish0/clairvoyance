@@ -42,17 +42,14 @@ export class RouteTransformer implements Transform<CsvRow, typeof routes.$inferI
                 agencyId: this.agencyId,
                 routeSid: row["route_id"],
                 type: routeType,
-                shortName: row["route_short_name"],
-                longName: row["route_long_name"],
-                color: row["route_color"],
-                textColor: row["route_text_color"],
+                shortName: row["route_short_name"] || null,
+                longName: row["route_long_name"] || null,
+                color: row["route_color"] || null,
+                textColor: row["route_text_color"] || null,
             });
 
             if (route instanceof akType.errors) {
-                yield skipItem(
-                    "VALIDATION_ERROR",
-                    `Route row validation failed: ${route.summary}`,
-                );
+                yield skipItem("VALIDATION_ERROR", `Route row validation failed: ${route.summary}`);
             } else {
                 yield itemOk(route);
             }

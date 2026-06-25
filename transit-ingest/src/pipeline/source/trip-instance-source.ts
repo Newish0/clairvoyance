@@ -247,11 +247,18 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
         // -- C. First stop time per trip via DISTINCT ON ----------------------
         // GTFS: stop_sequence increases along trip but need not be consecutive.
         // selectDistinctOn([tripId]) + orderBy(tripId asc, stopSequence asc) -> first stop per trip.
-        const firstStopTimes = await ctx.db
-            .selectDistinctOn([tables.stopTimes.tripId])
-            .from(tables.stopTimes)
-            .where(inArray(tables.stopTimes.tripId, uniqueTripIds))
-            .orderBy(asc(tables.stopTimes.tripId), asc(tables.stopTimes.stopSequence));
+        const firstStopTimes: StopTime[] = [];
+        const STOP_TIME_CHUNK = 30_000; // ensure safe under 65535
+
+        for (let i = 0; i < uniqueTripIds.length; i += STOP_TIME_CHUNK) {
+            const chunk = uniqueTripIds.slice(i, i + STOP_TIME_CHUNK);
+            const rows = await ctx.db
+                .selectDistinctOn([tables.stopTimes.tripId])
+                .from(tables.stopTimes)
+                .where(inArray(tables.stopTimes.tripId, chunk))
+                .orderBy(asc(tables.stopTimes.tripId), asc(tables.stopTimes.stopSequence));
+            firstStopTimes.push(...rows);
+        }
 
         const stopTimeMap = new Map<number, StopTime>(firstStopTimes.map((st) => [st.tripId!, st]));
 

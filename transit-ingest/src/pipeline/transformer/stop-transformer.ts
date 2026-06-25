@@ -77,15 +77,15 @@ export class StopTransformer implements Transform<CsvRow, typeof stops.$inferIns
             const stop = this.stopInsertSchema({
                 agencyId: this.agencyId,
                 stopSid: row["stop_id"],
-                code: row["stop_code"] ?? null,
-                name: row["stop_name"] ?? null,
-                description: row["stop_desc"] ?? null,
+                code: row["stop_code"] || null,
+                name: row["stop_name"] || null,
+                description: row["stop_desc"] || null,
                 location,
-                zoneId: row["zone_id"] ?? null,
-                url: row["stop_url"] ?? null,
+                zoneId: row["zone_id"] || null,
+                url: row["stop_url"] || null,
                 locationType,
-                parentStationSid: row["parent_station"] ?? null,
-                timezone: row["stop_timezone"] ?? null,
+                parentStationSid: row["parent_station"] || null,
+                timezone: row["stop_timezone"] || null,
                 wheelchairBoarding,
             });
 

@@ -22,10 +22,10 @@ export class AgencyTransformer implements Transform<CsvRow, typeof agencies.$inf
                 name: row["agency_name"],
                 url: row["agency_url"],
                 timezone: row["agency_timezone"],
-                lang: row["agency_lang"],
-                phone: row["agency_phone"],
-                fareUrl: row["agency_fare_url"],
-                email: row["agency_email"],
+                lang: row["agency_lang"] || null,
+                phone: row["agency_phone"] || null,
+                fareUrl: row["agency_fare_url"] || null,
+                email: row["agency_email"] || null,
             });
             if (agency instanceof akType.errors) {
                 yield skipItem(

@@ -7,15 +7,9 @@ import type { Context } from "../core/context";
 import { createInsertSchema } from "drizzle-orm/arktype";
 import { type as akType } from "arktype";
 import { type ItemResult, itemOk, skipItem } from "../core/error";
-import {
-    type pickupDropOffEnum,
-    type timepointEnum,
-} from "database/models/enums";
+import { type pickupDropOffEnum, type timepointEnum } from "database/models/enums";
 
-const PICKUP_DROP_OFF_MAPPING: Record<
-    string,
-    (typeof pickupDropOffEnum.enumValues)[number]
-> = {
+const PICKUP_DROP_OFF_MAPPING: Record<string, (typeof pickupDropOffEnum.enumValues)[number]> = {
     "0": "REGULAR",
     "1": "NO_PICKUP_OR_DROP_OFF",
     "2": "PHONE_AGENCY",
@@ -30,7 +24,10 @@ const TIMEPOINT_MAPPING: Record<string, (typeof timepointEnum.enumValues)[number
 export class StopTimeTransformer implements Transform<CsvRow, typeof stopTimes.$inferInsert> {
     private stopTimeInsertSchema = createInsertSchema(stopTimes);
     private tripCache: LRUCache<string, { tripId: number | null; shapeId: number | null }>;
-    private stopCache: LRUCache<string, { stopId: number | null; location: { lat: number; lng: number } | null }>;
+    private stopCache: LRUCache<
+        string,
+        { stopId: number | null; location: { lat: number; lng: number } | null }
+    >;
 
     constructor(public agencyId: string) {
         this.tripCache = new LRUCache({ max: 10000 });
@@ -61,7 +58,10 @@ export class StopTimeTransformer implements Transform<CsvRow, typeof stopTimes.$
             : { stopId: null, location: null };
 
         const shapeDistTraveled = await this.resolveShapeDistTraveled(
-            ctx, row, trip.shapeId, stop.location,
+            ctx,
+            row,
+            trip.shapeId,
+            stop.location,
         );
 
         const stopTime = this.stopTimeInsertSchema({
@@ -71,18 +71,16 @@ export class StopTimeTransformer implements Transform<CsvRow, typeof stopTimes.$
             stopSequence: row["stop_sequence"] ? parseInt(row["stop_sequence"], 10) : undefined,
             tripId: trip.tripId ?? undefined,
             stopId: stop.stopId ?? undefined,
-            arrivalTime: row["arrival_time"] ?? null,
-            departureTime: row["departure_time"] ?? null,
-            stopHeadsign: row["stop_headsign"] ?? null,
+            arrivalTime: row["arrival_time"] || null,
+            departureTime: row["departure_time"] || null,
+            stopHeadsign: row["stop_headsign"] || null,
             pickupType: row["pickup_type"]
                 ? (PICKUP_DROP_OFF_MAPPING[row["pickup_type"]] ?? null)
                 : null,
             dropOffType: row["drop_off_type"]
                 ? (PICKUP_DROP_OFF_MAPPING[row["drop_off_type"]] ?? null)
                 : null,
-            timepoint: row["timepoint"]
-                ? (TIMEPOINT_MAPPING[row["timepoint"]] ?? null)
-                : null,
+            timepoint: row["timepoint"] ? (TIMEPOINT_MAPPING[row["timepoint"]] ?? null) : null,
             shapeDistTraveled,
         });
 
@@ -161,18 +159,18 @@ export class StopTimeTransformer implements Transform<CsvRow, typeof stopTimes.$
         shapeId: number,
         location: { lat: number; lng: number },
     ): Promise<number | null> {
-        const result = await ctx.db.query.shapes.findFirst({
-            where: { id: shapeId },
-            columns: {},
-            extras: {
+        const result = await ctx.db
+            .select({
                 distTraveled: sql<number>`
                     ST_LineLocatePoint(
                         ${shapes.path},
                         ST_SetSRID(ST_MakePoint(${location.lng}, ${location.lat}), 4326)
                     ) * ST_Length(${shapes.path}::geography)
                 `.as("dist_traveled"),
-            },
-        });
-        return result?.distTraveled ?? null;
+            })
+            .from(shapes)
+            .where(eq(shapes.id, shapeId))
+            .limit(1);
+        return result[0]?.distTraveled ?? null;
     }
 }

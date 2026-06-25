@@ -10,3 +10,8 @@ agencies:
               - https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=48
               - https://bct.tmix.se/gtfs-realtime/vehicleupdates.pb?operatorIds=48
           poll: 30
+    - id: TL
+      static:
+          url: https://gtfs-static.translink.ca/gtfs/google_transit.zip
+          realizeInstances: true
+          ignoreFeedDup: true

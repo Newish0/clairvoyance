@@ -36,10 +36,10 @@ export class TripTransformer implements Transform<CsvRow, typeof trips.$inferIns
                 serviceSid: row["service_id"],
                 routeId: routeId ?? undefined,
                 shapeId: shapeId ?? undefined,
-                headsign: row["trip_headsign"] ?? null,
-                shortName: row["trip_short_name"] ?? null,
+                headsign: row["trip_headsign"] || null,
+                shortName: row["trip_short_name"] || null,
                 direction: row["direction_id"] ? (DIRECTION_MAPPING[row["direction_id"]] ?? null) : null,
-                blockId: row["block_id"] ?? null,
+                blockSid: row["block_id"] || null,
             });
 
             if (trip instanceof akType.errors) {
