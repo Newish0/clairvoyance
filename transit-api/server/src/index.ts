@@ -32,4 +32,5 @@ Bun.serve({
     port,
     hostname: "0.0.0.0",
     fetch: handler,
+    idleTimeout: 30,
 });

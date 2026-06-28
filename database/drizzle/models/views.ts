@@ -91,24 +91,23 @@ export const stopTimeStaticInstances = schema
 
 /**
  * Merges stopTimeRealtimeInstances with stopTimeStaticInstances.
- * If stopTimeRealtimeInstances exist, use them. Else fall back to stopTimeStaticInstances.
+ * Falls back to static values when no realtime data exists for a stop.
  *
- * Uses UNION ALL of two FULL JOINs because PostgreSQL does not support FULL JOIN with
- * CASE-based join conditions - only simple equality (hash/merge-joinable) conditions are allowed.
+ * Simple LEFT JOIN on (trip_instance_id, stop_id) - predicate-pushable, allowing
+ * the planner to filter stop_time_static_instances by stop_id before the join.
  *
- *   Branch 1: rt.stop_id IS NOT NULL -> join on (trip_instance_id, stop_id)
- *   Branch 2: rt.stop_id IS NULL     -> join on (trip_instance_id, stop_sequence)
+ * Branch 2 (rt.stop_id IS NULL -> join on stop_sequence) was dropped because:
+ *   - stop_id is NOT NULL on both stop_times and stop_time_realtime_instances
+ *   - flex/on-demand service is explicitly out of scope (see table definitions)
  *
- * WARNING:
- * When updating SQL, be sure Drizzle and raw SQL is NOT out of sync to avoid type inference problems.
+ * WARNING: keep Drizzle column definitions in sync with the SQL.
  */
 export const stopTimeInstances = schema.view("stop_time_instances", {
-    /** `id` is `stopTimeRealtimeInstances.id`; is only on those with `stopTimeRealtimeInstances` */
     id: integer("id"),
     tripInstanceId: integer("trip_instance_id").notNull(),
     stopTimeId: integer("stop_time_id"),
     stopSequence: integer("stop_sequence").notNull(),
-    stopId: integer("stop_id"),
+    stopId: integer("stop_id").notNull(),
     timepoint: timepointEnum("timepoint"),
     shapeDistTraveled: doublePrecision("shape_dist_traveled"),
     scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
@@ -124,76 +123,36 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
     lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }),
     effectiveTime: timestamp("effective_time", { withTimezone: true }),
 }).as(sql`
-        -- Branch 1: rt.stop_id IS NOT NULL → join on (trip_instance_id, stop_id)
-        -- Covers: rt+st matched rows, rt-only ADDED/unmatched rows, and st-only rows
-        SELECT
-            rt.id,
-            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,
-            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,
-            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
-            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
-            st.timepoint,
-            st.shape_dist_traveled,
-            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
-            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
-            rt.predicted_arrival_time,
+    SELECT
+        rt.id,
+        st.trip_instance_id,
+        st.stop_time_id,
+        st.stop_sequence,
+        st.stop_id,
+        st.timepoint,
+        st.shape_dist_traveled,
+        COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
+        COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
+        rt.predicted_arrival_time,
+        rt.predicted_departure_time,
+        rt.predicted_arrival_uncertainty,
+        rt.predicted_departure_uncertainty,
+        rt.schedule_relationship,
+        COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
+        COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
+        COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
+        rt.last_updated_at,
+        COALESCE(
             rt.predicted_departure_time,
-            rt.predicted_arrival_uncertainty,
-            rt.predicted_departure_uncertainty,
-            rt.schedule_relationship,
-            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
-            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
-            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
-            rt.last_updated_at,
-            COALESCE(
-                rt.predicted_departure_time,
-                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
-                rt.predicted_arrival_time,
-                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
-            ) AS effective_time
-        FROM transit.stop_time_realtime_instances rt
-        FULL JOIN transit.stop_time_static_instances st
-            ON  rt.trip_instance_id = st.trip_instance_id
-            AND rt.stop_id          = st.stop_id           
-        WHERE rt.stop_id IS NOT NULL                        -- rt rows matched by stop_id
-           OR rt.trip_instance_id IS NULL                   -- st-only rows (no rt counterpart)
- 
-        UNION ALL
- 
-        -- Branch 2: rt.stop_id IS NULL → join on (trip_instance_id, stop_sequence)
-        -- Covers: rt+st matched rows and rt-only rows where stop_id was omitted
-        SELECT
-            rt.id,
-            COALESCE(rt.trip_instance_id, st.trip_instance_id) AS trip_instance_id,
-            COALESCE(rt.stop_time_id,     st.stop_time_id)     AS stop_time_id,
-            COALESCE(rt.stop_sequence,    st.stop_sequence)    AS stop_sequence,
-            COALESCE(rt.stop_id,          st.stop_id)          AS stop_id,
-            st.timepoint,
-            st.shape_dist_traveled,
-            COALESCE(rt.scheduled_arrival_time,   st.scheduled_arrival_time)   AS scheduled_arrival_time,
-            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time) AS scheduled_departure_time,
+            COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
             rt.predicted_arrival_time,
-            rt.predicted_departure_time,
-            rt.predicted_arrival_uncertainty,
-            rt.predicted_departure_uncertainty,
-            rt.schedule_relationship,
-            COALESCE(rt.stop_headsign, st.stop_headsign) AS stop_headsign,
-            COALESCE(rt.pickup_type,   st.pickup_type)   AS pickup_type,
-            COALESCE(rt.drop_off_type, st.drop_off_type) AS drop_off_type,
-            rt.last_updated_at,
-            COALESCE(
-                rt.predicted_departure_time,
-                COALESCE(rt.scheduled_departure_time, st.scheduled_departure_time),
-                rt.predicted_arrival_time,
-                COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
-            ) AS effective_time
-        FROM transit.stop_time_realtime_instances rt
-        FULL JOIN transit.stop_time_static_instances st
-            ON  rt.trip_instance_id = st.trip_instance_id
-            AND rt.stop_sequence    = st.stop_sequence      
-        WHERE rt.stop_id IS NULL                            -- only rt rows without a stop_id
-            AND rt.id IS NOT NULL  -- exclude st-only rows (handled by Branch 1)
-    `);
+            COALESCE(rt.scheduled_arrival_time, st.scheduled_arrival_time)
+        ) AS effective_time
+    FROM transit.stop_time_static_instances st
+    LEFT JOIN transit.stop_time_realtime_instances rt
+        ON  rt.trip_instance_id = st.trip_instance_id
+        AND rt.stop_id          = st.stop_id
+`);
 
 /**
  * View of alerts that are currently relevant - either active or upcoming within the next month.

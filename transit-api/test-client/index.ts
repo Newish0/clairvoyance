@@ -11,7 +11,7 @@ import type { AppRouter } from "../server/src/index";
 
 const trpc = createTRPCClient<AppRouter>({
     links: [
-        loggerLink(),
+        // loggerLink(),
         splitLink({
             // uses the httpSubscriptionLink for subscriptions
             condition: (op) => op.type === "subscription",
@@ -28,25 +28,31 @@ const trpc = createTRPCClient<AppRouter>({
     ],
 });
 
-const startTime = performance.now();
-// const result = await trpc.tripInstance.getNearby.query({
-//     // borden st
-//     lat: 48.470398,
-//     lng: -123.360676,
+let sum = 0;
+let count = 5;
+for (let i = 0; i < count; i++) {
+    const startTime = performance.now();
+    // const result = await trpc.tripInstance.getNearby.query({
+    //     // borden st
+    //     lat: 48.470398,
+    //     lng: -123.360676,
 
-//     // downtown
-//     // lat: 48.42716854672481,
-//     // lng: -123.3646681006514,
+    //     // downtown
+    //     // lat: 48.42716854672481,
+    //     // lng: -123.3646681006514,
 
-//     radiusMeters: 2000,
-// });
-const result = await trpc.alert.getActivesForEntity.query({
-    routeId: 11,
-    // stopId: 893,
-});
-
-console.log(JSON.stringify(result, null, 2));
-console.log("Took", performance.now() - startTime);
+    //     radiusMeters: 2000,
+    // });
+    const result = await trpc.tripInstance.getNearbyActive.query({
+        lat: 48.42796164154643,
+        lng: -123.3641819483272,
+        radiusMeters: 2000,
+    });
+    const elapsed = performance.now() - startTime;
+    sum += elapsed;
+    console.log("Run", i, "took", elapsed, "ms");
+}
+console.log("Took on avg", sum / count, "ms over", count, "runs");
 
 // const result = await trpc.tripInstance.getByRouteStopTime.query({
 //     routeId: 25,

@@ -4,6 +4,7 @@ import * as views from "database/models/views";
 import { and, desc, eq, getColumns, gt, gte, lte, sql, inArray } from "drizzle-orm";
 import { FIVE_MIN_IN_MS, getMsAgo } from "../utils/datetime";
 import { DataRepository } from "./data-repository";
+import { explainAnalyze } from "../utils/debug";
 
 type NearbyTripsParams = {
     lat: number;
@@ -110,8 +111,37 @@ export class TripInstancesRepository extends DataRepository {
         const tripInstanceTo = new Date(
             after.getTime() + tripInstanceLookaheadHours * 60 * 60 * 1000,
         );
+
+        // Step 1: fast spatial lookup using GiST index on stops.location (~2-5ms)
+        const nearbyStopRows = await this.db.select({ id: tables.stops.id }).from(tables.stops)
+            .where(sql`ST_DWithin(
+            ${tables.stops.location}::geography,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+            ${radiusMeters}
+        )`);
+
+        if (nearbyStopRows.length === 0) return [];
+
+        const nearbyStopIds = nearbyStopRows.map((r) => r.id);
+
         const latestVehiclePosition = this.buildLatestVehiclePositionCTE(realtimeThresholdDate);
 
+        // Step 2: narrow to trip instances within the time window. Kept as a CTE so
+        // the planner materializes it first and probes the matview via (trip_instance_id)
+        // index, rather than scanning all nearby stop-time rows and filtering after.
+        const targetTrips = this.db.$with("target_trips").as(
+            this.db
+                .select({ id: tables.tripInstances.id })
+                .from(tables.tripInstances)
+                .where(
+                    and(
+                        gte(tables.tripInstances.startDatetime, tripInstanceFrom),
+                        lte(tables.tripInstances.startDatetime, tripInstanceTo),
+                    ),
+                ),
+        );
+
+        // Step 3: join stop-time rows for the target trips, filtered to nearby stops.
         const candidates = this.db.$with("candidates").as(
             this.db
                 .select({
@@ -122,9 +152,9 @@ export class TripInstancesRepository extends DataRepository {
                     stopId: tables.stops.id.as("stop_id"),
                     stopName: tables.stops.name,
                     distanceMeters: sql<number>`ST_Distance(
-                        ${tables.stops.location}::geography,
-                        ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-                    )`.as("distance_meters"),
+                    ${tables.stops.location}::geography,
+                    ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+                )`.as("distance_meters"),
 
                     routeId: tables.routes.id.as("route_id"),
                     routeShortName: tables.routes.shortName,
@@ -135,7 +165,7 @@ export class TripInstancesRepository extends DataRepository {
                     tripHeadsign: tables.trips.headsign,
 
                     stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
-                    tripInstanceId: views.stopTimeInstances.tripInstanceId,
+                    tripInstanceId: targetTrips.id,
                     startDate: tables.tripInstances.startDate,
                     scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
                     predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
@@ -153,56 +183,56 @@ export class TripInstancesRepository extends DataRepository {
                     //   2. Compare stop sequence - fallback when shape distances unavailable.
                     //   3. false - no vehicle position, fall through to effectiveTime filter.
                     isStillAtStop: sql<boolean>`CASE
-                        WHEN
-                            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
-                        THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
-                        WHEN
-                            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
-                        THEN
-                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
-                        ELSE
-                            false
-                    END`.as("is_still_at_stop"),
+                    WHEN
+                        ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
+                        AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
+                    THEN
+                        ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                    WHEN
+                        ${latestVehiclePosition.currentStopSequence} IS NOT NULL
+                    THEN
+                        ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                    ELSE
+                        false
+                END`.as("is_still_at_stop"),
                 })
-                .from(views.stopTimeInstances)
-                .innerJoin(
-                    tables.stops,
-                    sql`${views.stopTimeInstances.stopId}     = ${tables.stops.id}`,
-                )
-                .innerJoin(
-                    tables.stopTimes,
-                    sql`${views.stopTimeInstances.stopTimeId} = ${tables.stopTimes.id}`,
-                )
-                .innerJoin(
-                    tables.trips,
-                    sql`${tables.stopTimes.tripId}            = ${tables.trips.id}`,
-                )
-                .innerJoin(
-                    tables.routes,
-                    sql`${tables.trips.routeId}               = ${tables.routes.id}`,
-                )
+                .from(targetTrips)
                 .innerJoin(
                     tables.tripInstances,
-                    sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
+                    sql`${targetTrips.id} = ${tables.tripInstances.id}`,
+                )
+                .innerJoin(tables.trips, sql`${tables.tripInstances.tripId} = ${tables.trips.id}`)
+                .innerJoin(tables.routes, sql`${tables.trips.routeId} = ${tables.routes.id}`)
+                .innerJoin(
+                    views.stopTimeInstances,
+                    sql`${targetTrips.id} = ${views.stopTimeInstances.tripInstanceId}`,
+                )
+                .innerJoin(
+                    tables.stops,
+                    sql`${views.stopTimeInstances.stopId} = ${tables.stops.id}`,
                 )
                 .leftJoin(
                     latestVehiclePosition,
-                    sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
+                    sql`${latestVehiclePosition.tripInstanceId} = ${targetTrips.id}`,
                 )
                 .where(
                     and(
-                        gte(tables.tripInstances.startDatetime, tripInstanceFrom),
-                        lte(tables.tripInstances.startDatetime, tripInstanceTo),
-                        sql`${views.stopTimeInstances.stopId} IN (
-                            SELECT id FROM ${tables.stops}
-                            WHERE ST_DWithin(
-                                ${tables.stops.location}::geography,
-                                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-                                ${radiusMeters}
-                            )
-                        )`,
+                        inArray(views.stopTimeInstances.stopId, nearbyStopIds),
+                        // Duplicates the isStillAtStop CASE logic above to filter
+                        // BEFORE the WindowAgg + sort. Can't reference the alias
+                        // in the same SELECT's WHERE clause, so it's inlined here.
+                        sql`(
+                        (
+                            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
+                            AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
+                            AND ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                        )
+                        OR (
+                            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
+                            AND ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                        )
+                        OR ${views.stopTimeInstances.effectiveTime} >= ${afterWithTolerance}
+                    )`,
                     ),
                 ),
         );
@@ -214,13 +244,13 @@ export class TripInstancesRepository extends DataRepository {
                 .select({
                     ...getColumns(candidates),
                     isLast: sql<boolean>`RANK() OVER (
-                        PARTITION BY
-                            ${candidates.routeId},
-                            ${candidates.direction},
-                            ${candidates.stopId},
-                            ${candidates.startDate}
-                        ORDER BY ${candidates.effectiveTime} DESC
-                    ) = 1`.as("is_last"),
+                    PARTITION BY
+                        ${candidates.routeId},
+                        ${candidates.direction},
+                        ${candidates.stopId},
+                        ${candidates.startDate}
+                    ORDER BY ${candidates.effectiveTime} DESC
+                ) = 1`.as("is_last"),
                 })
                 .from(candidates),
         );
@@ -230,23 +260,18 @@ export class TripInstancesRepository extends DataRepository {
         const excludeFilter =
             exclude.length > 0
                 ? sql`(${annotated.routeId}, ${annotated.direction}) NOT IN (
-                    ${sql.join(
-                        exclude.map(({ routeId, direction }) => sql`(${routeId}, ${direction})`),
-                        sql`, `,
-                    )}
-                )`
+                ${sql.join(
+                    exclude.map(({ routeId, direction }) => sql`(${routeId}, ${direction})`),
+                    sql`, `,
+                )}
+            )`
                 : undefined;
 
-        return this.db
-            .with(latestVehiclePosition, candidates, annotated)
+        return await this.db
+            .with(latestVehiclePosition, targetTrips, candidates, annotated)
             .selectDistinctOn([annotated.routeId, annotated.direction])
             .from(annotated)
-            .where(
-                and(
-                    sql`${annotated.isStillAtStop} = true OR ${annotated.effectiveTime} >= ${afterWithTolerance}`,
-                    excludeFilter,
-                ),
-            )
+            .where(excludeFilter)
             .orderBy(
                 annotated.routeId,
                 annotated.direction,

@@ -67,7 +67,9 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
                                         agencyId={departure.agencyId}
                                         routeId={departure.routeId}
                                         routeShortName={
-                                            departure.routeShortName || `Route ${departure.routeId}`
+                                            departure.routeShortName ||
+                                            departure.routeLongName ||
+                                            `Route ${departure.routeId}`
                                         }
                                         routeColor={departure.routeColor}
                                         routeTextColor={departure.routeTextColor}

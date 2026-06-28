@@ -223,6 +223,8 @@ export const calendarDates = schema.table(
     ],
 );
 
+// Design: Choose to not include flex/on-demand service in this table
+//         so we can constrain stopId to be not null
 export const stopTimes = schema.table(
     "stop_times",
     {
@@ -231,8 +233,12 @@ export const stopTimes = schema.table(
         agencyId: text("agency_id")
             .references(() => agencies.id)
             .notNull(),
-        tripId: integer("trip_id").references(() => trips.id),
-        stopId: integer("stop_id").references(() => stops.id),
+        tripId: integer("trip_id")
+            .references(() => trips.id)
+            .notNull(),
+        stopId: integer("stop_id")
+            .references(() => stops.id)
+            .notNull(),
         tripSid: text("trip_sid").notNull(),
         stopSid: text("stop_sid").notNull(),
 
@@ -289,6 +295,7 @@ export const tripInstances = schema.table(
             t.startTime,
         ),
         index("idx_trip_instances_start_date_state").on(t.startDate, t.state),
+        index("idx_trip_instances_start_datetime").on(t.startDatetime),
     ],
 );
 
@@ -296,6 +303,9 @@ export const tripInstances = schema.table(
  * A stopTimeRealtimeInstance is ONLY generated when a realtime trip update arrives.
  * It contains all the realtime fields from realtime trip updates (and some static values if realtime counterpart is missing).
  * For static stopTimes, we use the static stopTimesStaticInstances view.
+ *
+ * Design: Choose to not include flex/on-demand service in this table
+ *         so we can constrain stopId to be not null
  */
 export const stopTimeRealtimeInstances = schema.table(
     "stop_time_realtime_instances",
@@ -310,7 +320,9 @@ export const stopTimeRealtimeInstances = schema.table(
         stopTimeId: integer("stop_time_id").references(() => stopTimes.id),
 
         stopSequence: integer("stop_sequence").notNull(),
-        stopId: integer("stop_id").references(() => stops.id),
+        stopId: integer("stop_id")
+            .references(() => stops.id)
+            .notNull(),
 
         // TZ specified by agency.timezone per GTFS spec
         scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),

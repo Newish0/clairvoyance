@@ -11,6 +11,7 @@ export function getDb(url: string) {
 
     const pool = new Pool({
         connectionString: url,
+        options: "-c statement_timeout=15000",
     });
     const db = drizzle({
         client: pool,

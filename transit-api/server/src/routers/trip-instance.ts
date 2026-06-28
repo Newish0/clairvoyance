@@ -19,7 +19,7 @@ export const tripInstanceRouter = router({
                 radiusMeters: v.pipe(
                     v.number(),
                     v.minValue(100),
-                    v.maxValue(5000),
+                    v.maxValue(2400),
                     v.description("Radius in meters"),
                 ),
             }),
@@ -37,7 +37,7 @@ export const tripInstanceRouter = router({
                 radiusMeters: v.pipe(
                     v.number(),
                     v.minValue(100),
-                    v.maxValue(5000),
+                    v.maxValue(2400),
                     v.description("Radius in meters"),
                 ),
             }),

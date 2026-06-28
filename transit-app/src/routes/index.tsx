@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 const MIN_RADIUS_METERS = 750;
-const MAX_RADIUS_METERS = 3000;
+const MAX_RADIUS_METERS = 2400;
 
 function TransitApp() {
     const search = Route.useSearch();

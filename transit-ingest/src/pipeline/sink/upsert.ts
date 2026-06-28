@@ -36,10 +36,10 @@ export class UpsertSink<T extends PgTable, Q extends InferInsertModel<T>> implem
                 this.ignoreColumns,
             );
             const ms = performance.now() - startTime;
-            ctx.logger.debug(
-                { tableName: getTableName(this.table), items: this.batch.length, ms },
-                "Upsert complete",
-            );
+            // ctx.logger.debug(
+            //     { tableName: getTableName(this.table), items: this.batch.length, ms },
+            //     "Upsert complete",
+            // );
         } catch (e) {
             ctx.errors.push(
                 recoverableError(
