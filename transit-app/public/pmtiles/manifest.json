@@ -1,6 +1,10 @@
 {
     "version": "1.0",
-    "worldBase": "pmtiles/world-base.pmtiles",
+    "source": "https://build.protomaps.com/20260629.pmtiles",
+    "worldBase": {
+        "tiles": "pmtiles/world-base.pmtiles",
+        "extractMaxZoom": 6
+    },
     "datasets": [
         {
             "id": "TL",

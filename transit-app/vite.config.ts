@@ -3,11 +3,16 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { extractTiles } from "./vite-plugin-extract-tiles";
 import { resolve } from "node:path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
+        extractTiles({
+            outputDir: resolve(__dirname, "public"),
+            dirName: "pmtiles",
+        }),
         tanstackRouter({ autoCodeSplitting: true }),
         tailwindcss(),
         viteReact({

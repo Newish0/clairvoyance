@@ -11,7 +11,8 @@ export interface TileDataset {
 
 interface TileManifest {
     version: string;
-    worldBase: string;
+    source: string;
+    worldBase: { tiles: string; extractMaxZoom: number };
     datasets: TileDataset[];
 }
 
@@ -33,7 +34,7 @@ export function useTileManifest(manifestUrl: string, lon: number, lat: number, z
 
         const match = datasets.find((d) => inBbox(lon, lat, d) && inZoom(zoom, d));
         // no match = outside bbox or zoomed out -> world-base
-        const next = match ? match.tiles : worldBase;
+        const next = match ? match.tiles : worldBase.tiles;
 
         if (next !== activeRef.current) {
             activeRef.current = next;
