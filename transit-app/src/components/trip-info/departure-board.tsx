@@ -60,7 +60,8 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
                 >
                     <Carousel>
                         <CarouselContent>
-                            {departures.map((departure) => (
+                            {/* // Assume at most 2 items in route departures: INBOUND and OUTBOUND */}
+                            {departures.map((departure, i) => (
                                 <CarouselItem key={departure.direction}>
                                     <DepartureCard
                                         agencyId={departure.agencyId}
@@ -81,6 +82,7 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
                                         predictedDepartureTime={departure.predictedDepartureTime}
                                         isSkipped={departure.scheduleRelationship === "SKIPPED"}
                                         isLastTripOfDay={departure.isLast}
+                                        oppositeStopId={departures.at(-i - 1)?.stopId} // Stop id of the opposite direction
                                     />
                                 </CarouselItem>
                             ))}

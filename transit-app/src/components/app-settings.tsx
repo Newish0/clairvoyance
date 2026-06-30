@@ -1,11 +1,21 @@
-import { useState } from "react";
 import { useTheme, type Theme } from "./theme-provider";
 import { Button } from "./ui/button";
 import { Settings, type SettingSection } from "./ui/settings";
+import { useGeolocation, type GeolocationStatus } from "./geolocation-provider";
+
+const locationDescriptions: Record<GeolocationStatus, string> = {
+    idle: "Allow the app to access your location",
+    requesting: "Requesting location...",
+    watching: "Location is active",
+    denied: "Location access was denied. Enable it in your browser settings.",
+    unsupported: "Geolocation is not supported on this device.",
+};
 
 export const AppSettings = () => {
-    const [location, setLocation] = useState(false);
+    const { status, requestPermission, stopWatching } = useGeolocation();
     const { theme, setTheme } = useTheme();
+
+    const location = status === "watching" || status === "requesting";
 
     const settingsSections: SettingSection[] = [
         {
@@ -36,9 +46,17 @@ export const AppSettings = () => {
                     id: "location",
                     type: "switch",
                     label: "Location",
-                    description: "Allow the app to access your location",
+                    description:
+                        locationDescriptions[status] ?? "Allow the app to access your location",
                     value: location,
-                    onChange: setLocation,
+                    disabled: status === "unsupported" || status === "denied",
+                    onChange: (enabled) => {
+                        if (enabled) {
+                            requestPermission();
+                        } else {
+                            stopWatching();
+                        }
+                    },
                 },
             ],
         },
@@ -58,7 +76,7 @@ export const AppSettings = () => {
                             onClick={() => {
                                 if (
                                     confirm(
-                                        "Are you sure? This will delete all local data and settings."
+                                        "Are you sure? This will delete all local data and settings.",
                                     )
                                 ) {
                                     // Reset logic here

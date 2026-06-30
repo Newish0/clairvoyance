@@ -14,7 +14,7 @@ export const RealTimeIndicator: React.FC<RealTimeIndicatorProps> = ({
             ? `${secondsToMinutes(delaySeconds)} min late`
             : delaySeconds >= -30
               ? "On time"
-              : `${secondsToMinutes(delaySeconds)} min early`;
+              : `${-secondsToMinutes(delaySeconds)} min early`;
 
     const statusColor = cn({
         "bg-red-400": delaySeconds > 180,
@@ -31,13 +31,13 @@ export const RealTimeIndicator: React.FC<RealTimeIndicatorProps> = ({
                     <div
                         className={cn(
                             "absolute top-0 left-0 h-2 w-2 rounded-full animate-ping pointer-events-auto",
-                            statusColor
+                            statusColor,
                         )}
                     />
                     <div
                         className={cn(
                             "absolute top-0 left-0 h-2 w-2 rounded-full pointer-events-auto",
-                            statusColor
+                            statusColor,
                         )}
                     />
                 </div>

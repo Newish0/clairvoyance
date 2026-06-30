@@ -4,7 +4,12 @@ import { fatalError, type IngestError } from "./core/error";
 import { pipe } from "./core/pipe";
 import { TripUpdateSink } from "./sink/trip-update-sink";
 import { VehiclePositionSink } from "./sink/vehicle-position-sink";
-import { ProtobufSource, fetchProtobuf, type ProtobufData } from "./source/protobuf-source";
+import {
+    ProtobufSource,
+    fetchProtobuf,
+    type CachedHeaders,
+    type ProtobufData,
+} from "./source/protobuf-source";
 import { ProtobufDecoder } from "./transformer/protobuf-decoder";
 import { TripUpdateTransformer } from "./transformer/trip-update-transformer";
 import { VehiclePositionTransformer } from "./transformer/vehicle-position-transformer";
@@ -24,10 +29,18 @@ export async function runRealtime(
     pollInterval: number,
 ): Promise<Result<RealtimeSummary, IngestError>> {
     const lastHashes = new Map<string, string>();
+    const lastCachedHeaders = new Map<string, CachedHeaders>();
 
     while (!ctx.controller.signal.aborted) {
+        const loopStart = Date.now();
+
         for (const url of urls) {
-            const fetchResult = await safeFetchProtobuf(url, ctx.controller.signal);
+            const fetchResult = await safeFetchProtobuf(
+                url,
+                ctx.controller.signal,
+                lastHashes.get(url),
+                lastCachedHeaders.get(url),
+            );
 
             if (fetchResult.isErr()) {
                 ctx.errors.push(fetchResult.error);
@@ -39,7 +52,15 @@ export async function runRealtime(
                 continue;
             }
 
-            const data = fetchResult.value;
+            const result = fetchResult.value;
+
+            if (!result.changed) {
+                ctx.logger.debug({ url }, "Feed unchanged (304 or hash match), skipping");
+                continue;
+            }
+
+            const { data } = result;
+
             const prevHash = lastHashes.get(url);
 
             if (prevHash === data.hash) {
@@ -66,6 +87,7 @@ export async function runRealtime(
 
             // Only record hash after successful pipeline run - failed feeds should be retried
             lastHashes.set(url, data.hash);
+            lastCachedHeaders.set(url, result.cachedHeaders);
 
             ctx.logger.debug(
                 { url, errors: ctx.errors.length, skipped: ctx.skipped },
@@ -75,7 +97,11 @@ export async function runRealtime(
 
         if (pollInterval <= 0) break;
 
-        ctx.logger.debug({ pollInterval }, "Waiting for next poll");
+        const loopElapse = Date.now() - loopStart;
+        const sleepDuration = pollInterval * 1000 - loopElapse;
+        ctx.logger.debug({ loopElapse }, "Realtime loop finished");
+
+        ctx.logger.debug({ pollInterval, sleepDuration }, "Waiting for next poll");
         await new Promise<void>((resolve) => {
             let cleaned = false;
             const cleanup = () => {
@@ -85,7 +111,7 @@ export async function runRealtime(
                 ctx.controller.signal.removeEventListener("abort", onAbort);
                 resolve();
             };
-            const timer = setTimeout(cleanup, pollInterval * 1000);
+            const timer = setTimeout(cleanup, sleepDuration);
             const onAbort = () => cleanup();
             ctx.controller.signal.addEventListener("abort", onAbort, { once: true });
         });

@@ -1,27 +1,15 @@
 import { ProtoMap } from "@/components/maps/proto-map";
 import { DEFAULT_LOCATION } from "@/constants/location";
-import { cn } from "@/lib/utils";
-import { trpc } from "@/main";
+import { trpcOptions } from "@/main";
+import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
-import type { inferProcedureOutput } from "@trpc/server";
 import { useThrottle } from "ahooks";
-import { BusIcon } from "lucide-react";
 import { LngLat, type MapLibreEvent } from "maplibre-gl";
 import { useCallback, useState } from "react";
-import {
-    Marker,
-    useMap,
-    type LngLatBounds,
-    type ViewStateChangeEvent,
-} from "react-map-gl/maplibre";
-import type { AppRouter } from "transit-api";
+import { type LngLatBounds, type ViewStateChangeEvent } from "react-map-gl/maplibre";
+import AppMapSideControls from "./controls/app-map-side-controls";
+import { StopMarkers } from "./markers/stop-marker";
 import { UserLocationControl, UserLocationMarker } from "./user-location";
-import { Badge } from "../ui/badge";
-import { AnimatePresence, motion } from "framer-motion";
-import { haversine } from "@/utils/geo";
-import Icon from "@mdi/react";
-import { mdiBusStop } from "@mdi/js";
-import { Link } from "@tanstack/react-router";
 
 export type ExploreMapProps = {
     fixedUserLocation?: LngLat;
@@ -32,12 +20,12 @@ export type ExploreMapProps = {
 export const ExploreMap: React.FC<ExploreMapProps> = ({
     onLocationChange,
     fixedUserLocation,
-    stopsInfoMinZoomLevel = 17,
+    stopsInfoMinZoomLevel = 16,
 }) => {
     const [viewState, setViewState] = useState({
         longitude: DEFAULT_LOCATION.lng,
         latitude: DEFAULT_LOCATION.lat,
-        zoom: 16.5,
+        zoom: 15,
     });
 
     const [nearbyStopQueryParams, setNearbyStopQueryParams] = useState({
@@ -48,7 +36,7 @@ export const ExploreMap: React.FC<ExploreMapProps> = ({
     const throttledNearbyStopQueryParams = useThrottle(nearbyStopQueryParams, { wait: 2000 });
 
     const { data: nearbyStops } = useQuery({
-        ...trpc.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),
+        ...trpcOptions.stop.getNearby.queryOptions(throttledNearbyStopQueryParams),
         staleTime: 0,
         gcTime: 0,
         enabled: viewState.zoom > stopsInfoMinZoomLevel,
@@ -91,6 +79,8 @@ export const ExploreMap: React.FC<ExploreMapProps> = ({
                 around: "center",
             }}
         >
+            <AppMapSideControls />
+
             {viewState.zoom > stopsInfoMinZoomLevel && <StopMarkers stops={nearbyStops || []} />}
             {fixedUserLocation ? (
                 <UserLocationMarker
@@ -101,89 +91,5 @@ export const ExploreMap: React.FC<ExploreMapProps> = ({
                 <UserLocationControl />
             )}
         </ProtoMap>
-    );
-};
-
-const StopMarkers: React.FC<{
-    stops: inferProcedureOutput<AppRouter["stop"]["getNearby"]>;
-}> = ({ stops }) => {
-    const { current: map } = useMap();
-
-    const isInBound = (coord: { x: number; y: number }) =>
-        map?.getBounds().contains(new LngLat(coord.x, coord.y));
-
-    return (
-        <>
-            <AnimatePresence>
-                {stops.map(
-                    (stop) =>
-                        stop.location &&
-                        isInBound(stop.location) && (
-                            <StopMarker
-                                key={stop.id}
-                                stopName={stop.name || "Unknown Stop"}
-                                lng={stop.location.x}
-                                lat={stop.location.y}
-                                routeShortNames={stop.routes
-                                    .map((route) => route.shortName)
-                                    .filter((shortName) => shortName !== null)}
-                            />
-                        ),
-                )}
-            </AnimatePresence>
-        </>
-    );
-};
-
-const StopMarker: React.FC<{
-    stopName: string;
-    lng: number;
-    lat: number;
-    routeShortNames: string[];
-}> = ({ stopName, lng, lat, routeShortNames }) => {
-    return (
-        <>
-            <Marker longitude={lng} latitude={lat} anchor="bottom">
-                <motion.div
-                    className="relative flex items-center gap-1"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                >
-                    <Link
-                        to="/"
-                        search={{
-                            lat,
-                            lng,
-                        }}
-                        className={cn(
-                            "relative flex flex-col items-center justify-center",
-                            "cursor-pointer transition-transform hover:scale-110 active:scale-95",
-                            "bg-primary-foreground/60 backdrop-blur-sm",
-                            "border shadow-xl size-8",
-                            "rounded-xl",
-                        )}
-                    >
-                        <Icon path={mdiBusStop} size={0.8} className="drop-shadow-md opacity-75" />
-                    </Link>
-
-                    <div className="absolute left-8 m-2 w-24 line-clamp-2 leading-tight opacity-75">
-                        {stopName}
-                    </div>
-
-                    <div className="absolute -bottom-6 left-9 space-x-0.5 space-y-0.5">
-                        {routeShortNames?.map((shortName, i) => (
-                            <Badge
-                                key={i}
-                                variant={"outline"}
-                                className="h-5 inline  p-1 text-[10px] bg-primary-foreground/60 text-primary/60 backdrop-blur-sm"
-                            >
-                                {shortName}
-                            </Badge>
-                        ))}
-                    </div>
-                </motion.div>
-            </Marker>
-        </>
     );
 };

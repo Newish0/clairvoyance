@@ -23,11 +23,11 @@ export async function runRealizeInstances(
         const pipeline = pipe(
             new TripInstanceSource(ctx.config.agencyId, minDate, maxDate),
             new TripInstanceTransformer(),
-            new UpsertSink(tripInstances, [
-                tripInstances.tripId,
-                tripInstances.startDate,
-                tripInstances.startTime,
-            ]),
+            new UpsertSink(
+                tripInstances,
+                [tripInstances.tripId, tripInstances.startDate, tripInstances.startTime],
+                ["id", "lastTripUpdateAt"],
+            ),
         );
         ctx.logger.debug({ minDate, maxDate }, "Realize trip instances pipeline started");
         await pipeline(ctx);
@@ -35,6 +35,7 @@ export async function runRealizeInstances(
 
         ctx.logger.debug("Refreshing materialized views");
         await ctx.db.refreshMaterializedView(views.stopTimeStaticInstances).concurrently();
+        await ctx.db.refreshMaterializedView(views.stopRoutes).concurrently();
         ctx.logger.debug("Materialized views has been refreshed");
 
         return ok({ errors: ctx.errors, skipped: ctx.skipped });

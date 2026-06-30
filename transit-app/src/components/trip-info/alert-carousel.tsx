@@ -1,7 +1,16 @@
 import type React from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import {
+    ResponsiveModal,
+    ResponsiveModalContent,
+    ResponsiveModalDescription,
+    ResponsiveModalHeader,
+    ResponsiveModalTitle,
+    ResponsiveModalTrigger,
+} from "@/components/ui/responsible-dialog";
 import { cn } from "@/lib/utils";
 import {
     Activity,
@@ -18,18 +27,11 @@ import {
     Zap,
 } from "lucide-react";
 
-import { trpc } from "@/main";
-import { useQuery } from "@tanstack/react-query";
-import type {
-    AlertCause,
-    AlertEffect,
-    AlertSeverity,
-    Direction,
-    RouteType,
-} from "database/models/enums";
 import type { inferProcedureOutput } from "@trpc/server";
-import type { AppRouter } from "transit-api";
+import type { AlertCause, AlertEffect, AlertSeverity } from "database/models/enums";
+import { addMonths, differenceInCalendarDays, fromUnixTime, getUnixTime } from "date-fns";
 import type { ComponentProps } from "react";
+import type { AppRouter } from "transit-api";
 
 function getCauseIcon(cause: AlertCause) {
     const iconMap: Record<AlertCause, React.ElementType> = {
@@ -90,11 +92,103 @@ function formatEffect(effect: AlertEffect): string {
         .join(" ");
 }
 
+function getStartsInText(alert: {
+    status?: string | null;
+    activePeriods?: { start: number | null; end: number | null }[] | null;
+}): string | null {
+    if (alert.status !== "upcoming" || !alert.activePeriods) return null;
+    const nowUnix = getUnixTime(new Date());
+    const monthFromNowUnix = getUnixTime(addMonths(new Date(), 1));
+    const upcoming = alert.activePeriods
+        .filter((p) => p.start !== null && p.start > nowUnix && p.start <= monthFromNowUnix)
+        .sort((a, b) => (a.start ?? 0) - (b.start ?? 0))[0];
+    if (!upcoming?.start) return null;
+
+    const diffDays = differenceInCalendarDays(fromUnixTime(upcoming.start), nowUnix);
+    if (diffDays > 1) return `Starts in ${diffDays} days`;
+    if (diffDays === 1) return `Starts tomorrow`;
+    return "Starting soon";
+}
+
 type AlertCarouselProps = {
     alerts: inferProcedureOutput<AppRouter["alert"]["getAlertForTripInstance"]>;
+    compact?: boolean;
 } & ComponentProps<typeof Carousel>;
 
-export function AlertCarousel({ alerts, ...others }: AlertCarouselProps) {
+function AlertHeaderRow({
+    alert,
+    headerText,
+}: {
+    alert: { severity?: string | null; status?: string | null };
+    headerText: string;
+}) {
+    return (
+        <div className="flex items-center gap-2">
+            {alert.severity === "SEVERE" && <AlertTriangle className="size-4 shrink-0" />}
+            {alert.severity === "WARNING" && <AlertCircle className="size-4 shrink-0" />}
+            {alert.severity === "INFO" && <Info className="size-4 shrink-0" />}
+
+            <h3 className="font-semibold text-xs leading-tight line-clamp-2">{headerText}</h3>
+            {alert.status === "UPCOMING" && (
+                <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0">
+                    Upcoming
+                </Badge>
+            )}
+        </div>
+    );
+}
+
+function AlertFullContent({
+    alert,
+    descText,
+    CauseIcon,
+    EffectIcon,
+}: {
+    alert: {
+        cause?: string | null;
+        effect?: string | null;
+        status?: string | null;
+        activePeriods?: { start: number | null; end: number | null }[] | null;
+    };
+    descText: string;
+    CauseIcon?: React.ElementType | null;
+    EffectIcon?: React.ElementType | null;
+}) {
+    return (
+        <>
+            {descText && <p className="text-xs leading-tight opacity-90">{descText}</p>}
+            {getStartsInText(alert) && (
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="size-3 shrink-0" />
+                    {getStartsInText(alert)}
+                </div>
+            )}
+
+            <div className="space-y-1">
+                {alert.cause && alert.cause !== "UNKNOWN_CAUSE" && (
+                    <div className="flex items-center gap-1.5">
+                        {CauseIcon && <CauseIcon className="size-3 shrink-0" />}
+                        <span className="text-[9px] font-medium uppercase tracking-wide">
+                            {formatCause(alert.cause as AlertCause)}
+                        </span>
+                    </div>
+                )}
+                {alert.effect &&
+                    alert.effect !== "UNKNOWN_EFFECT" &&
+                    alert.effect !== "OTHER_EFFECT" && (
+                        <div className="flex items-center gap-1.5">
+                            {EffectIcon && <EffectIcon className="size-3 shrink-0" />}
+                            <span className="text-[9px] font-medium uppercase tracking-wide line-clamp-1">
+                                {formatEffect(alert.effect as AlertEffect)}
+                            </span>
+                        </div>
+                    )}
+            </div>
+        </>
+    );
+}
+
+export function AlertCarousel({ alerts, compact, ...others }: AlertCarouselProps) {
     return (
         <Carousel
             opts={{
@@ -110,62 +204,58 @@ export function AlertCarousel({ alerts, ...others }: AlertCarouselProps) {
                     const headerText = alert.headerText.default || "Alert";
                     const descText = alert.descriptionText.default || "";
 
+                    const itemClasses = cn(
+                        "basis-full",
+                        others.orientation !== "vertical" && alerts.length > 1 ? "basis-2/3" : "",
+                    );
+
+                    const cardClasses = cn(
+                        "p-3 flex flex-col border-2 transition-colors",
+                        alert.severity && getSeverityColor(alert.severity),
+                        compact ? "gap-2 cursor-pointer hover:bg-accent/50" : "gap-4",
+                    );
+
+                    if (compact) {
+                        return (
+                            <CarouselItem key={index} className={itemClasses}>
+                                <ResponsiveModal>
+                                    <ResponsiveModalTrigger asChild>
+                                        <Card className={cardClasses}>
+                                            <AlertHeaderRow alert={alert} headerText={headerText} />
+                                        </Card>
+                                    </ResponsiveModalTrigger>
+                                    <ResponsiveModalContent>
+                                        <ResponsiveModalHeader>
+                                            <ResponsiveModalTitle>
+                                                {headerText}
+                                            </ResponsiveModalTitle>
+                                            <ResponsiveModalDescription asChild>
+                                                <div className="space-y-4 pt-2">
+                                                    <AlertFullContent
+                                                        alert={alert}
+                                                        descText={descText}
+                                                        CauseIcon={CauseIcon}
+                                                        EffectIcon={EffectIcon}
+                                                    />
+                                                </div>
+                                            </ResponsiveModalDescription>
+                                        </ResponsiveModalHeader>
+                                    </ResponsiveModalContent>
+                                </ResponsiveModal>
+                            </CarouselItem>
+                        );
+                    }
+
                     return (
-                        <CarouselItem
-                            key={index}
-                            className={cn(
-                                "basis-full",
-                                others.orientation !== "vertical" && alerts.length > 1 ? "basis-2/3" : "",
-                            )}
-                        >
-                            <Card
-                                className={cn(
-                                    "p-3 flex flex-col gap-4 border-2 transition-colors",
-                                    alert.severity && getSeverityColor(alert.severity),
-                                )}
-                            >
-                                {/* Header with severity icon */}
-                                <div className="flex items-center gap-2">
-                                    {alert.severity === "SEVERE" && (
-                                        <AlertTriangle className="size-4 shrink-0" />
-                                    )}
-                                    {alert.severity === "WARNING" && (
-                                        <AlertCircle className="size-4 shrink-0" />
-                                    )}
-                                    {alert.severity === "INFO" && (
-                                        <Info className="size-4 shrink-0" />
-                                    )}
-
-                                    <h3 className="font-semibold text-xs leading-tight line-clamp-2">
-                                        {headerText}
-                                    </h3>
-                                </div>
-
-                                {/* Description */}
-                                <p className="text-xs leading-tight opacity-90">{descText}</p>
-
-                                {/* Cause and Effect */}
-                                <div className="space-y-1">
-                                    {alert.cause !== "UNKNOWN_CAUSE" && (
-                                        <div className="flex items-center gap-1.5">
-                                            {CauseIcon && <CauseIcon className="size-3 shrink-0" />}
-                                            <span className="text-[9px] font-medium uppercase tracking-wide">
-                                                {alert.cause && formatCause(alert.cause)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {alert.effect !== "UNKNOWN_EFFECT" &&
-                                        alert.effect !== "OTHER_EFFECT" && (
-                                            <div className="flex items-center gap-1.5">
-                                                {EffectIcon && (
-                                                    <EffectIcon className="size-3 shrink-0" />
-                                                )}
-                                                <span className="text-[9px] font-medium uppercase tracking-wide line-clamp-1">
-                                                    {alert.effect && formatEffect(alert.effect)}
-                                                </span>
-                                            </div>
-                                        )}
-                                </div>
+                        <CarouselItem key={index} className={itemClasses}>
+                            <Card className={cardClasses}>
+                                <AlertHeaderRow alert={alert} headerText={headerText} />
+                                <AlertFullContent
+                                    alert={alert}
+                                    descText={descText}
+                                    CauseIcon={CauseIcon}
+                                    EffectIcon={EffectIcon}
+                                />
                             </Card>
                         </CarouselItem>
                     );

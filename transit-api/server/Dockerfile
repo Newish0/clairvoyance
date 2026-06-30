@@ -20,7 +20,7 @@ RUN case "$TARGETARCH" in \
       arm64) BUN_TARGET="bun-linux-arm64" ;; \
       *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
     esac && \
-    bun build --compile --minify --target=$BUN_TARGET \
+    bun build --compile --target=$BUN_TARGET \
     ./transit-api/server/src/index.ts --outfile /app/api
 
 FROM docker.io/debian:stable-slim

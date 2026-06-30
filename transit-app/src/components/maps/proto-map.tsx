@@ -18,6 +18,9 @@ export const ProtoMap = (props: ComponentProps<typeof Map>) => {
             style={{ width: "100%", height: "100%" }}
             mapStyle={mapStyle}
             attributionControl={false}
+            dragRotate={false}
+            pitchWithRotate={false}
+            touchPitch={false}
         >
             <AttributionControl
                 position="bottom-right"

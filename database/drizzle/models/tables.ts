@@ -258,10 +258,8 @@ export const tripInstances = schema.table(
             t.startDate,
             t.startTime,
         ),
-        index("idx_trip_instances_trip_date_time_state").on(
-            t.tripId,
+        index("idx_trip_instances_start_date_state").on(
             t.startDate,
-            t.startTime,
             t.state,
         ),
     ],
