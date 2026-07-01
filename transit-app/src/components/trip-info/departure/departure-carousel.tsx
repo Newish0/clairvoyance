@@ -41,6 +41,7 @@ export type DepartureCarouselProps = {
     routeId: number;
     direction?: Direction;
     activeTripInstanceId: number;
+    oppositeStopId?: number;
 };
 
 export function DepartureCarousel({
@@ -51,6 +52,7 @@ export function DepartureCarousel({
     routeId,
     direction,
     activeTripInstanceId,
+    oppositeStopId,
 }: DepartureCarouselProps) {
     const hasMultiTripHeadsigns = items.some(
         (a) =>
@@ -111,6 +113,7 @@ export function DepartureCarousel({
                                     stopSequence,
                                     routeId,
                                     direction,
+                                    oppositeStopId,
                                 }}
                                 replace={true}
                             >

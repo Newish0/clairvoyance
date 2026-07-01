@@ -223,6 +223,7 @@ function RouteComponent() {
                                 routeId={searchParams.routeId}
                                 direction={searchParams.direction}
                                 activeTripInstanceId={targetTripInst.id}
+                                oppositeStopId={searchParams.oppositeStopId}
                             />
 
                             <AlertCarousel
