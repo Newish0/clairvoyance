@@ -1,7 +1,7 @@
 import { useGeolocation } from "@/components/geolocation-provider";
 import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map";
 import PrimaryPanel from "@/components/primary-panel";
-import { DepartureBoard } from "@/components/trip-info/departure-board";
+import { DepartureBoard } from "@/components/trip-info/departure/departure-board";
 import { Button } from "@/components/ui/button";
 import { useGeolocationToast } from "@/hooks/use-geolocation-toast";
 import { cn } from "@/lib/utils";
@@ -106,8 +106,8 @@ function TransitApp() {
             </div>
 
             <PrimaryPanel
-                className="pt-4 pb-[30dvh] md:pb-4"
-                snapPoints={["136px", 0.5, 0.7]}
+                className="pt-4 pb-[14dvh] md:pb-4"
+                snapPoints={["136px", 0.5, 0.88]}
                 noMarginSnapPoints={[]}
             >
                 <div className="flex items-center gap-2 px-4">
@@ -142,7 +142,7 @@ function TransitApp() {
                 </div>
 
                 <div
-                    className={cn("overflow-auto px-4")}
+                    className={cn("overflow-auto px-4 space-y-4")}
                     data-vaul-no-drag={isScrolled || undefined}
                     onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 10)}
                 >

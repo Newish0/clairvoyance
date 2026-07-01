@@ -1,15 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-    mdiBus,
-    mdiBusElectric,
-    mdiFerry,
-    mdiGondola,
-    mdiSubway,
-    mdiTrain,
-    mdiTrainCar,
-    mdiTram,
-} from "@mdi/js";
+
 import type { DateArg } from "date-fns";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
@@ -27,6 +18,7 @@ import {
     ResponsiveModalContent,
     ResponsiveModalTrigger,
 } from "../../ui/responsible-dialog";
+import VehicleIcon from "@/components/vehicle-icon";
 
 function FreshnessBadge({ timestamp }: { timestamp: DateArg<Date> }) {
     const [, setTick] = useState(0);
@@ -150,19 +142,6 @@ export function VehiclePositionMapMarker({
 
     const { fillPercentage, hasData, isBoardable } = getOccupancyState();
 
-    const vehicleIconMap: Record<RouteType, string> = {
-        BUS: mdiBus,
-        TRAM: mdiTram,
-        FERRY: mdiFerry,
-        CABLE_TRAM: mdiTram,
-        SUBWAY: mdiSubway,
-        AERIAL_LIFT: mdiGondola,
-        FUNICULAR: mdiTrainCar,
-        TROLLEYBUS: mdiBusElectric,
-        MONORAIL: mdiTrain,
-        RAIL: mdiTrain,
-    };
-
     return (
         <Marker {...markerProps}>
             <ResponsiveModal>
@@ -203,8 +182,8 @@ export function VehiclePositionMapMarker({
                                 </motion.div>
                             )}
 
-                            <Icon
-                                path={vehicleIconMap[vehicleType]}
+                            <VehicleIcon
+                                routeType={vehicleType}
                                 className="relative z-10 drop-shadow-md dark:saturate-75 brightness-90"
                                 size={1}
                                 color={

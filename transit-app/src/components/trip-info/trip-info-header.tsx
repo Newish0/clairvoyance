@@ -4,9 +4,11 @@ import { ensureHexColorStartsWithHash } from "@/utils/css";
 import { Link } from "@tanstack/react-router";
 import type { Direction } from "database/models/enums";
 import { X, ArrowLeftRight } from "lucide-react";
+import VehicleIcon from "../vehicle-icon";
 
 export type TripInfoHeaderProps = {
     routeShortName?: string | null;
+    routeLongName?: string | null;
     headsign?: string | null;
     stopName?: string | null;
     routeColor?: string | null;
@@ -23,6 +25,7 @@ export type TripInfoHeaderProps = {
 
 export function TripInfoHeader({
     routeShortName,
+    routeLongName,
     headsign,
     stopName,
     routeColor,
@@ -34,19 +37,19 @@ export function TripInfoHeader({
         <div className="flex justify-between">
             <div className="flex items-center space-x-2 w-full overflow-hidden">
                 <Badge
-                    variant="secondary"
-                    className="text-sm font-bold"
+                    variant="default"
+                    className="text-sm font-bold max-w-16 text-wrap whitespace-normal text-center leading-4"
                     style={{
                         backgroundColor: ensureHexColorStartsWithHash(routeColor),
                         color: ensureHexColorStartsWithHash(routeTextColor),
                     }}
                 >
-                    {routeShortName || "---"}
+                    {routeShortName || routeLongName || "---"}
                 </Badge>
 
                 <div className="overflow-hidden">
                     <div className="flex items-center gap-2">
-                        <p className="font-semibold truncate">{headsign || "---"}</p>
+                        <p className="font-semibold text-wrap">{headsign || "---"}</p>
                         {oppositeTripSearchParams && (
                             <Link
                                 to="/nt"

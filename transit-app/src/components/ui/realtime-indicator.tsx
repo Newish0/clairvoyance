@@ -26,8 +26,7 @@ export const RealTimeIndicator: React.FC<RealTimeIndicatorProps> = ({
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                {/* TODO: FIx tooltip trigger placement */}
-                <div className={cn("absolute top-0 right-0 h-2 w-2", className)}>
+                <div className={cn("relative h-2 w-2", className)}>
                     <div
                         className={cn(
                             "absolute top-0 left-0 h-2 w-2 rounded-full animate-ping pointer-events-auto",

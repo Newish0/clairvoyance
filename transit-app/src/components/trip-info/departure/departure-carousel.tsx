@@ -1,4 +1,4 @@
-import { DepartureTime } from "@/components/trip-info/depature-time";
+import { DepartureTime } from "@/components/trip-info/departure/departure-time";
 import { VirtualizedSchedule } from "@/components/trip-info/virtualized-schedule";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
@@ -20,6 +20,7 @@ import { differenceInSeconds } from "date-fns";
 
 export type CarouselDeparture = {
     tripInstanceId: number;
+    tripHeadsign: string | null;
     predictedDepartureTime: Date | string | null;
     scheduledDepartureTime: Date | string | null;
     predictedArrivalTime: Date | string | null;
@@ -51,6 +52,15 @@ export function DepartureCarousel({
     direction,
     activeTripInstanceId,
 }: DepartureCarouselProps) {
+    const hasMultiTripHeadsigns = items.some(
+        (a) =>
+            a.type === "departure" &&
+            items.some(
+                (b) =>
+                    b.type === "departure" && b.departure.tripHeadsign !== a.departure.tripHeadsign,
+            ),
+    );
+
     return (
         <Carousel
             opts={{
@@ -91,10 +101,7 @@ export function DepartureCarousel({
                             : null;
 
                     return (
-                        <CarouselItem
-                            key={departure.tripInstanceId}
-                            className="basis-1/3 lg:basis-1/4"
-                        >
+                        <CarouselItem key={departure.tripInstanceId} className="basis-3/10">
                             <Link
                                 to="."
                                 search={{
@@ -109,7 +116,7 @@ export function DepartureCarousel({
                             >
                                 <Card
                                     className={cn(
-                                        "p-0 my-1 bg-card/15",
+                                        "p-2 bg-card/15 h-full",
                                         departure.tripInstanceId === activeTripInstanceId
                                             ? "bg-card/80 dark:bg-card/60"
                                             : "",
@@ -117,19 +124,34 @@ export function DepartureCarousel({
                                 >
                                     <CardContent
                                         className={cn(
-                                            "flex items-center justify-center h-16 relative",
+                                            "flex flex-col items-center justify-center text-center px-0 h-full",
                                             {
                                                 "line-through text-muted-foreground":
                                                     departure.scheduleRelationship === "SKIPPED",
                                             },
                                         )}
                                     >
-                                        <DepartureTime datetime={time || null} />
-                                        {delayInSeconds !== null && (
-                                            <RealTimeIndicator
-                                                delaySeconds={delayInSeconds}
-                                                className="mt-2 mr-2"
-                                            />
+                                        <div className="flex items-center gap-1">
+                                            <DepartureTime datetime={time || null} />
+                                            {delayInSeconds !== null && (
+                                                <RealTimeIndicator
+                                                    delaySeconds={delayInSeconds}
+                                                    className="-mt-2"
+                                                />
+                                            )}
+                                        </div>
+
+                                        {hasMultiTripHeadsigns && (
+                                            <>
+                                                <Separator
+                                                    orientation="horizontal"
+                                                    className="my-2 w-full"
+                                                />
+
+                                                <h5 className="text-xs text-muted-foreground text-wrap leading-tight">
+                                                    {departure.tripHeadsign}
+                                                </h5>
+                                            </>
                                         )}
                                     </CardContent>
                                 </Card>
@@ -138,11 +160,11 @@ export function DepartureCarousel({
                     );
                 })}
 
-                <CarouselItem className="basis-1/3 lg:basis-1/4">
+                <CarouselItem className="basis-3/10">
                     <ResponsiveModal>
                         <ResponsiveModalTrigger asChild>
-                            <Card className={cn("p-0 bg-card/15 cursor-pointer")}>
-                                <CardContent className="flex items-center justify-center h-16 relative">
+                            <Card className={cn("p-0 bg-card/15 cursor-pointer h-full")}>
+                                <CardContent className="flex items-center justify-center px-0 h-full">
                                     <div className="font-bold text-sm">More...</div>
                                 </CardContent>
                             </Card>

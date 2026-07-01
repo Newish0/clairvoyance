@@ -2,7 +2,7 @@ import { TripMap } from "@/components/maps/trip-map";
 import type { TripMapStopInfo } from "@/components/maps/types";
 import PrimaryPanel from "@/components/primary-panel";
 import { AlertCarousel } from "@/components/trip-info/alert-carousel";
-import { DepartureCarousel } from "@/components/trip-info/departure-carousel";
+import { DepartureCarousel } from "@/components/trip-info/departure/departure-carousel";
 import { TripInfoHeader } from "@/components/trip-info/trip-info-header";
 import { TripPanelSkeleton } from "@/components/trip-info/trip-panel-skeleton";
 import { TripTimelineSection } from "@/components/trip-info/trip-timeline-section";
@@ -193,6 +193,7 @@ function RouteComponent() {
                         <>
                             <TripInfoHeader
                                 routeShortName={targetTripInst.trip?.route?.shortName}
+                                routeLongName={targetTripInst.trip?.route?.longName}
                                 headsign={targetTripInst.trip?.headsign}
                                 stopName={targetStopTimeInst?.stop?.name}
                                 routeColor={targetTripInst.trip?.route?.color}

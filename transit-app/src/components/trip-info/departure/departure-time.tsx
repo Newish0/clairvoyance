@@ -1,5 +1,5 @@
 import { differenceInMinutes, format, type DateArg } from "date-fns";
-import { SlidingNumber } from "../ui/countdown";
+import { SlidingNumber } from "@/components/ui/countdown";
 import { useEffect, useRef, useState } from "react";
 
 interface TripTimeProps {
@@ -46,18 +46,18 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
 
     if (minutes < ONE_HOUR_IN_MINUTES) {
         return (
-            <>
+            <div className="flex items-center gap-1">
                 <span className="text-lg font-bold">
                     <SlidingNumber value={Math.abs(minutes)} direction={"down"} />
                 </span>
                 <span className="text-xs">min</span>
-            </>
+            </div>
         );
     }
 
     // Fallback: show formatted time
     return (
-        <>
+        <div>
             <span className="text-sm font-bold text-nowrap">
                 {format(props.datetime, "h") + ":" + format(props.datetime, "mm")}
             </span>
@@ -65,6 +65,6 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
             {/* {departureDays > 0 && (
                 <sup>+{departureDays}</sup>
             )} */}
-        </>
+        </div>
     );
 };
