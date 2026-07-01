@@ -10,6 +10,7 @@ COPY transit-api/server/package.json ./transit-api/server/package.json
 COPY transit-api/test-client/package.json ./transit-api/test-client/package.json
 COPY transit-ingest/package.json ./transit-ingest/package.json
 COPY transit-app/package.json ./transit-app/package.json
+COPY transit-app/scripts/ ./transit-app/scripts/
 RUN bun install --frozen-lockfile --filter transit-app
 
 COPY transit-app/ ./transit-app/
