@@ -1,4 +1,4 @@
-FROM docker.io/oven/bun:1.3 AS builder
+FROM docker.io/oven/bun:1.3-debian AS builder
 WORKDIR /app
 
 ARG VITE_API_URL=/api
@@ -19,6 +19,7 @@ COPY transit-api/ ./transit-api/
 COPY tsconfig.json ./
 
 WORKDIR /app/transit-app
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN bun run build
 
 FROM docker.io/nginx:alpine
