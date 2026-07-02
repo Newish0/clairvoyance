@@ -121,7 +121,7 @@ function TransitApp() {
                 noMarginSnapPoints={[]}
             >
                 <div className="flex items-center gap-2 px-4">
-                    <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2">
+                    <div className="px-4 py-2 rounded-full bg-primary-foreground/60 backdrop-blur-md text-secondary-foreground font-medium text-sm w-full flex justify-between items-center gap-2 overflow-hidden">
                         <MapPin size={16} />
                         <span className="truncate text-center">
                             Near{" "}
