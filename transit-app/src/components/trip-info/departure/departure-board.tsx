@@ -57,8 +57,6 @@ export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) =>
         ([, a], [, b]) => score(Object.values(a).flat()[0]) - score(Object.values(b).flat()[0]),
     );
 
-    console.log(grouped)
-
     return (
         <AnimatePresence mode="sync">
             {grouped.map(([key, depsByDir]) => (
