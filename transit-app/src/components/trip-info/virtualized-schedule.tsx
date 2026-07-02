@@ -143,7 +143,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
     const virtualItems = virtualizer.getVirtualItems();
 
     // Scroll to the next upcoming trip on first load. useLayoutEffect so it
-    // happens before paint — no flash of the top of the list.
+    // happens before paint - no flash of the top of the list.
     useLayoutEffect(() => {
         if (!departurePages || !parentRef.current || hasScrolledToNow.current) return;
 
@@ -186,7 +186,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
     // Fetch previous page when close to the top. index <= 2 instead of === 0
     // so we trigger slightly before the user hits the loader row (overscan: 5
     // keeps index 0 rendered well before it's visible).
-    // Scroll restoration is handled by anchorTo: 'end' above — no manual math.
+    // Scroll restoration is handled by anchorTo: 'end' above - no manual math.
     useEffect(() => {
         if (isFetching || !hasScrolledToNow.current) return;
         const firstItem = virtualItems[0];

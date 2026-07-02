@@ -54,7 +54,7 @@ export interface SliderSetting extends BaseSetting {
     min: number;
     max: number;
     step?: number;
-    showValue?: boolean;
+    displayValue?: boolean | ((value: number) => ReactNode);
 }
 
 export interface TextareaSetting extends BaseSetting {
@@ -149,9 +149,11 @@ function SettingItem({
                             step={setting.step || 1}
                             className="flex-1"
                         />
-                        {setting.showValue && (
+                        {setting.displayValue && (
                             <span className="text-sm text-muted-foreground w-12 text-right">
-                                {setting.value}
+                                {typeof setting.displayValue === "function"
+                                    ? setting.displayValue(setting.value)
+                                    : setting.value}
                             </span>
                         )}
                     </div>

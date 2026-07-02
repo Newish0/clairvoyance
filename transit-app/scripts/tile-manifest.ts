@@ -37,7 +37,7 @@ export function assertManifestAgrees(manifest: TileManifest, dirName: string): v
     for (const p of paths) {
         if (!p.startsWith(expected)) {
             throw new Error(
-                `tiles path "${p}" doesn't match dirName "${dirName}" — expected prefix "${expected}"`,
+                `tiles path "${p}" doesn't match dirName "${dirName}" - expected prefix "${expected}"`,
             );
         }
     }

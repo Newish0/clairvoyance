@@ -10,9 +10,10 @@ import { haversine } from "@/utils/geo";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useDebounce } from "ahooks";
+import { useMovementThreshold } from "@/hooks/use-movement-threshold";
 import { Loader2, MapPin, X } from "lucide-react";
 import { LngLat } from "maplibre-gl";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import z from "zod";
 
 const SearchSchema = z.object({
@@ -36,6 +37,9 @@ function TransitApp() {
 
     const geolocation = useGeolocation();
     useGeolocationToast(geolocation);
+
+    const [movementThresholdMeters] = useMovementThreshold();
+    const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
 
     const fixedUserLocation =
         search.lat !== undefined && search.lng !== undefined
@@ -72,6 +76,12 @@ function TransitApp() {
     const handleLocationChange: NonNullable<ExploreMapProps["onLocationChange"]> = useCallback(
         (lat, lng, viewBounds) => {
             if (fixedUserLocation) return;
+            // Noise gate - skip refetch if movement below threshold (GPS drift / micro-pan)
+            if (lastPositionRef.current) {
+                const distanceKm = haversine(lastPositionRef.current, { lat, lng });
+                if (distanceKm * 1000 < movementThresholdMeters) return;
+            }
+            lastPositionRef.current = { lat, lng };
             const diagonalDistanceKm = haversine(
                 viewBounds.getNorthEast(),
                 viewBounds.getSouthWest(),
@@ -89,7 +99,7 @@ function TransitApp() {
                 radiusMeters: clampedRadiusMeters,
             }));
         },
-        [setNearbyTripsQueryParams, fixedUserLocation],
+        [setNearbyTripsQueryParams, fixedUserLocation, movementThresholdMeters],
     );
 
     const handleReturnToPrevPage = useCallback(() => {

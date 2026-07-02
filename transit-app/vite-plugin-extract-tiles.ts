@@ -25,7 +25,7 @@ export function extractTiles({ outputDir, dirName }: ExtractTilesOptions): Plugi
                 execSync("pmtiles version", { stdio: "ignore" });
             } catch {
                 this.warn(
-                    "pmtiles CLI not found — install from https://github.com/protomaps/go-pmtiles/releases",
+                    "pmtiles CLI not found - install from https://github.com/protomaps/go-pmtiles/releases",
                 );
                 return;
             }

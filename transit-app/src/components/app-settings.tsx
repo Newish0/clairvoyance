@@ -1,7 +1,8 @@
+import { useMovementThreshold } from "@/hooks/use-movement-threshold";
+import { useGeolocation, type GeolocationStatus } from "./geolocation-provider";
 import { useTheme, type Theme } from "./theme-provider";
 import { Button } from "./ui/button";
 import { Settings, type SettingSection } from "./ui/settings";
-import { useGeolocation, type GeolocationStatus } from "./geolocation-provider";
 
 const locationDescriptions: Record<GeolocationStatus, string> = {
     idle: "Allow the app to access your location",
@@ -14,6 +15,7 @@ const locationDescriptions: Record<GeolocationStatus, string> = {
 export const AppSettings = () => {
     const { status, requestPermission, stopWatching } = useGeolocation();
     const { theme, setTheme } = useTheme();
+    const [movementThreshold, setMovementThreshold] = useMovementThreshold();
 
     const location = status === "watching" || status === "requesting";
 
@@ -57,6 +59,19 @@ export const AppSettings = () => {
                             stopWatching();
                         }
                     },
+                },
+                {
+                    id: "movement-threshold",
+                    type: "slider",
+                    label: "Movement Threshold",
+                    description:
+                        "Minimum distance (m) before refreshing nearby trips. Reduces battery & data.",
+                    value: movementThreshold,
+                    onChange: setMovementThreshold,
+                    min: 25,
+                    max: 200,
+                    step: 25,
+                    displayValue: (v: number) => `${v}m`,
                 },
             ],
         },

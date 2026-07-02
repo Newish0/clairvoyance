@@ -93,7 +93,7 @@ export function parseEWKB(hex: string): ParsedEWKB {
 }
 
 // ---------------------------------------------------------------------------
-// 1. geometry_point — Point column with xy object in/out
+// 1. geometry_point - Point column with xy object in/out
 //    Uses EWKT for insert, parses EWKB on select.
 //    Mirrors built-in PgGeometryObject but actually stores correct SQL type.
 // ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ export const geometryPoint = (name: string, srid = 4326) =>
     })(name);
 
 // ---------------------------------------------------------------------------
-// 2. geometry_point_tuple — Point column with [x, y] tuple in/out
+// 2. geometry_point_tuple - Point column with [x, y] tuple in/out
 // ---------------------------------------------------------------------------
 
 export const geometryPointTuple = (name: string, srid = 4326) =>
@@ -138,7 +138,7 @@ export const geometryPointTuple = (name: string, srid = 4326) =>
     })(name);
 
 // ---------------------------------------------------------------------------
-// 3. geometry_linestring — LineString column with array of [x,y] coords
+// 3. geometry_linestring - LineString column with array of [x,y] coords
 // ---------------------------------------------------------------------------
 
 export const geometryLineString = (name: string, srid = 4326) =>
@@ -160,7 +160,7 @@ export const geometryLineString = (name: string, srid = 4326) =>
     })(name);
 
 // ---------------------------------------------------------------------------
-// 4. geometry_linestring_xy — LineString returning XY objects instead of tuples
+// 4. geometry_linestring_xy - LineString returning XY objects instead of tuples
 // ---------------------------------------------------------------------------
 
 export const geometryLineStringXY = (name: string, srid = 4326) =>

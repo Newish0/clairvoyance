@@ -54,7 +54,7 @@ export async function fetchProtobuf(
     if (prevCachedHeaders?.etag) {
         headers["If-None-Match"] = prevCachedHeaders.etag;
     } else if (prevCachedHeaders?.lastModified) {
-        // Only fall back to Last-Modified if no ETag — ETag is more reliable
+        // Only fall back to Last-Modified if no ETag - ETag is more reliable
         headers["If-Modified-Since"] = prevCachedHeaders.lastModified;
     }
 
