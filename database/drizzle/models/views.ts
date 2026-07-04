@@ -1,4 +1,4 @@
-import { and, eq, getColumns, gte, isNotNull, lt, sql } from "drizzle-orm";
+import { eq, getColumns, sql } from "drizzle-orm";
 import { doublePrecision, integer, text, timestamp } from "drizzle-orm/pg-core";
 import {
     pickupDropOffEnum,
@@ -7,87 +7,11 @@ import {
     type AlertStatus,
 } from "./enums";
 import { schema } from "./schema";
-import {
-    alerts,
-    routes,
-    stopTimes,
-    tripInstances,
-    trips,
-    type stopTimeRealtimeInstances,
-} from "./tables";
+import { alerts, routes, stopTimes, trips } from "./tables";
 
 // =========================================================
 // VIEWS
 // =========================================================
-
-/**
- * This view is used when we have no stopTimeInstances (i.e. no realtime trip updates).
- *
- * Remark:
- * Limit to trip instances starting within [-14 days, +1 month) of now.
- * This bounds the materialized view's size, keeping refreshes more deterministic
- * and avoiding unbounded growth as new trip instances are created.
- */
-
-export const stopTimeStaticInstances = schema
-    .materializedView("stop_time_static_instances")
-    .as((qb) =>
-        qb
-            .select({
-                // Must explicitly use as "trip_instance_id" and "stop_time_id" to avoid error `column "id" specified more than once`
-                tripInstanceId: sql<number>`${tripInstances.id}`.as("trip_instance_id"),
-                stopTimeId: sql<number>`${stopTimes.id}`.as("stop_time_id"),
-
-                stopSequence: stopTimes.stopSequence,
-                stopId: stopTimes.stopId,
-                timepoint: stopTimes.timepoint,
-                scheduledArrivalTime: sql<Date>`(${tripInstances.startDatetime} + (
-                    ${stopTimes.arrivalTime}::interval - (
-                        SELECT ${stopTimes.arrivalTime}::interval
-                        FROM ${stopTimes}
-                        WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
-                        AND ${stopTimes.stopSequence} = 1
-                    )
-                ))::timestamptz`.as("scheduled_arrival_time"),
-
-                // Subtract first stop's arrival time (not departure) because tripInstances.startDatetime
-                // corresponds to when the trip arrives at the first stop, so all times are relative to that
-                scheduledDepartureTime: sql<Date>`(${tripInstances.startDatetime} + (
-                    ${stopTimes.departureTime}::interval - (
-                        SELECT ${stopTimes.arrivalTime}::interval
-                        FROM ${stopTimes}
-                        WHERE ${stopTimes.tripId} = ${tripInstances.tripId}
-                        AND ${stopTimes.stopSequence} = 1
-                    )
-                ))::timestamptz`.as("scheduled_departure_time"),
-
-                stopHeadsign: stopTimes.stopHeadsign,
-                pickupType: stopTimes.pickupType,
-                dropOffType: stopTimes.dropOffType,
-                shapeDistTraveled: stopTimes.shapeDistTraveled,
-            } satisfies Record<
-                keyof Omit<
-                    typeof stopTimeRealtimeInstances.$inferSelect,
-                    | "id"
-                    | "lastUpdatedAt"
-                    | "predictedArrivalTime"
-                    | "predictedDepartureTime"
-                    | "predictedArrivalUncertainty"
-                    | "predictedDepartureUncertainty"
-                    | "scheduleRelationship"
-                > &
-                    "timepoint",
-                any
-            >)
-            .from(tripInstances)
-            .innerJoin(stopTimes, eq(tripInstances.tripId, stopTimes.tripId))
-            .where(
-                and(
-                    gte(tripInstances.startDatetime, sql`now() - interval '14 days'`),
-                    lt(tripInstances.startDatetime, sql`now() + interval '1 month'`),
-                ),
-            ),
-    );
 
 /**
  * Merges stopTimeRealtimeInstances with stopTimeStaticInstances.
