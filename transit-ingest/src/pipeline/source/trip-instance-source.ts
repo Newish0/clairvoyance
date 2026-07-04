@@ -321,7 +321,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
             const valuesClause = sql.join(
                 slice.map(
                     (c) =>
-                        sql`(${c.trip.id}::integer, ${c.date}::varchar, ${c.startTime}::varchar)`,
+                        sql`(${this.agencyId}::text, ${c.trip.id}::integer, ${c.date}::varchar, ${c.startTime}::varchar)`,
                 ),
                 sql.raw(", "),
             );
@@ -337,9 +337,7 @@ export class TripInstanceSource implements Source<TripInstanceRow> {
                     and(
                         eq(tables.tripInstances.agencyId, this.agencyId),
                         eq(tables.tripInstances.state, "DIRTY"),
-                        gte(tables.tripInstances.startDate, chunkStart),
-                        lte(tables.tripInstances.startDate, chunkEnd),
-                        sql`(${tables.tripInstances.tripId}, ${tables.tripInstances.startDate}, ${tables.tripInstances.startTime}) IN (VALUES ${valuesClause})`,
+                        sql`(${tables.tripInstances.agencyId}, ${tables.tripInstances.tripId}, ${tables.tripInstances.startDate}, ${tables.tripInstances.startTime}) IN (VALUES ${valuesClause})`,
                     ),
                 );
 

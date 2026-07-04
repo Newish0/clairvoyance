@@ -289,12 +289,13 @@ export const tripInstances = schema.table(
         }),
     },
     (t) => [
-        unique("uq_trip_instances_trip_start_date_start_time").on(
+        unique("uq_trip_instances_agency_trip_start_date_start_time").on(
+            t.agencyId,
             t.tripId,
             t.startDate,
             t.startTime,
         ),
-        index("idx_trip_instances_start_date_state").on(t.startDate, t.state),
+        index("idx_trip_instances_start_date").on(t.startDate),
         index("idx_trip_instances_start_datetime").on(t.startDatetime),
     ],
 );

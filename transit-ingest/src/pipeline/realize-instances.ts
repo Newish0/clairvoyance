@@ -25,7 +25,7 @@ export async function runRealizeInstances(
             new TripInstanceTransformer(),
             new UpsertSink(
                 tripInstances,
-                [tripInstances.tripId, tripInstances.startDate, tripInstances.startTime],
+                [tripInstances.agencyId, tripInstances.tripId, tripInstances.startDate, tripInstances.startTime],
                 ["id", "lastTripUpdateAt"],
             ),
         );
