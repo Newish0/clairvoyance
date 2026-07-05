@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { type } from "arktype";
 import yaml from "js-yaml";
-import type { Db } from "./db/client";
 import { deleteAll } from "./db/delete";
 import { runStaticPipeline, runRealtimePipeline, runRealizePipeline } from "./pipeline/run";
+import type { Db } from "database";
 
 export interface ConfigPhases {
     static: boolean;

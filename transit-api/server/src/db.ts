@@ -3,8 +3,9 @@ import { Pool } from "pg";
 import * as tables from "database/models/tables";
 import * as views from "database/models/views";
 import { schemaRelations } from "database/models/relations";
+import { Db } from "database";
 
-export function getDb(url: string) {
+export function getDb(url: string): Db {
     if (!url) {
         throw new Error("DATABASE_URL must be provided or set in environment");
     }
@@ -21,5 +22,3 @@ export function getDb(url: string) {
 
     return db;
 }
-
-export type Db = ReturnType<typeof getDb>;

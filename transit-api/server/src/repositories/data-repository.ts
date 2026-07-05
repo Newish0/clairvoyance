@@ -1,4 +1,4 @@
-import { Db } from "../db";
+import { Db } from "database";
 
 export abstract class DataRepository {
     protected db: Db;

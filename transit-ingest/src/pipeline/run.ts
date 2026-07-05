@@ -1,12 +1,13 @@
 import type { Logger } from "pino";
 import type { Result } from "neverthrow";
-import { getDb, type Db } from "../db/client";
+import { getDb } from "../db/client";
 import { createContext } from "./core/context";
 import type { IngestError } from "./core/error";
 import { runStatic } from "./gtfs-static";
 import { runRealtime } from "./gtfs-realtime";
 import type { CachedHeaders } from "./source/protobuf-source";
 import { runRealizeInstances } from "./realize-instances";
+import type { Db } from "database";
 
 export function resolveDb(databaseUrl?: string): Db {
     if (!databaseUrl) {

@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import { err, ok, type Result } from "neverthrow";
 import { type IngestError } from "../pipeline/core/error";
-import type { Db } from "./client.ts";
-
+import type { Db } from "database";
 
 export async function deleteAll(db: Db): Promise<Result<void, IngestError>> {
     try {

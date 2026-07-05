@@ -1,6 +1,6 @@
 import pino from "pino";
-import type { Db } from "../../db/client";
 import type { IngestError } from "./error";
+import type { Db } from "database";
 
 export type PipelineConfig = {
     agencyId: string;

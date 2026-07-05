@@ -1,6 +1,6 @@
+import type { Db } from "database";
 import { getColumns, SQL, sql, type InferInsertModel } from "drizzle-orm";
 import { PgColumn, PgTable, type PgUpdateSetSource } from "drizzle-orm/pg-core";
-import type { Db } from "./client";
 
 /**
  * Upsert an array of rows into a Postgres table.
