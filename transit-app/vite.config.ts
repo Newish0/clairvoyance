@@ -4,7 +4,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { extractTiles } from "./vite-plugin-extract-tiles";
-import { resolve } from "node:path";
+import { drizzleMigrations } from "./vite-plugin-migrations";
+import { dirname, resolve } from "node:path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -12,6 +16,10 @@ export default defineConfig({
         extractTiles({
             outputDir: resolve(__dirname, "public"),
             dirName: "pmtiles",
+        }),
+        drizzleMigrations({
+            migrationsDir: resolve(dirname(require.resolve("database")), "migrations"),
+            outputPath: resolve(__dirname, "src/workers/migrations.gen.json"),
         }),
         tanstackRouter({ autoCodeSplitting: true }),
         tailwindcss(),
@@ -21,11 +29,6 @@ export default defineConfig({
             },
         }),
     ],
-    // test: {
-    //     globals: true,
-    //     environment: "jsdom",
-    // },
-
     resolve: {
         alias: {
             "@": resolve(__dirname, "./src"),

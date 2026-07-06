@@ -1,12 +1,15 @@
 {
   "files.watcherExclude": {
-    "**/routeTree.gen.ts": true
+    "**/routeTree.gen.ts": true,
+    "**/migrations.gen.json": true
   },
   "search.exclude": {
-    "**/routeTree.gen.ts": true
+    "**/routeTree.gen.ts": true,
+    "**/migrations.gen.json": true
   },
   "files.readonlyInclude": {
-    "**/routeTree.gen.ts": true
+    "**/routeTree.gen.ts": true,
+    "**/migrations.gen.json": true
   },
   "[typescript]": {
     "editor.tabSize": 4
