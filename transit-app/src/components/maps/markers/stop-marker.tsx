@@ -6,7 +6,7 @@ import type { inferProcedureOutput } from "@trpc/server";
 import { AnimatePresence, motion, MotionValue, useMotionValue, useTransform } from "framer-motion";
 import { useEffect } from "react";
 import { Marker, useMap } from "react-map-gl/maplibre";
-import type { AppRouter } from "transit-api";
+import type { AppRouter } from "transit-api-core/types";
 import { Badge } from "../../ui/badge";
 
 type NearbyStop = inferProcedureOutput<AppRouter["stop"]["getNearby"]>[number];

@@ -31,7 +31,7 @@ import type { inferProcedureOutput } from "@trpc/server";
 import type { AlertCause, AlertEffect, AlertSeverity } from "database/models/enums";
 import { addMonths, differenceInCalendarDays, fromUnixTime, getUnixTime } from "date-fns";
 import type { ComponentProps } from "react";
-import type { AppRouter } from "transit-api";
+import type { AppRouter } from "transit-api-core/types";
 
 function getCauseIcon(cause: AlertCause) {
     const iconMap: Record<AlertCause, React.ElementType> = {

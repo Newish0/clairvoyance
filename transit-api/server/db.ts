@@ -1,13 +1,15 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import type { Db } from "database";
+import { schemaRelations } from "database/models/relations";
 import * as tables from "database/models/tables";
 import * as views from "database/models/views";
-import { schemaRelations } from "database/models/relations";
-import { Db } from "database";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
-export function getDb(url: string): Db {
+const DATABASE_URL = process.env.DATABASE_URL!;
+
+export function getDb(url: string = DATABASE_URL): Db {
     if (!url) {
-        throw new Error("DATABASE_URL must be provided or set in environment");
+        throw new Error("url must be provided or set in environment");
     }
 
     const pool = new Pool({

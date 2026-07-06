@@ -10,9 +10,13 @@
   "type": "module",
   "workspaces": [
     "database/drizzle",
+    "transit-api/core",
     "transit-api/server",
     "transit-api/test-client",
     "transit-app",
     "transit-ingest"
-  ]
+  ],
+  "scripts": {
+    "dev:api": "bun --watch transit-api/server/index.ts"
+  }
 }

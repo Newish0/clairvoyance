@@ -1,8 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { createContext } from "./context";
-import { appRouter } from "./app-router";
-
-export type { AppRouter } from "./types";
+import { appRouter } from "transit-api-core";
+import { getDb } from "./db";
 
 const port = Bun.env.PORT || 8000;
 
@@ -11,7 +9,7 @@ const handler = (req: Request) =>
         router: appRouter,
         req,
         endpoint: "/",
-        createContext,
+        createContext: async () => ({ db: await getDb() }),
         onError({ error }) {
             if (error.code === "INTERNAL_SERVER_ERROR") {
                 console.error("Something went wrong", error);

@@ -11,7 +11,7 @@ import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import superjson from "superjson";
-import type { AppRouter } from "transit-api";
+import type { AppRouter } from "transit-api-core/types";
 
 import reportWebVitals from "./reportWebVitals.ts";
 import "./globals.css";

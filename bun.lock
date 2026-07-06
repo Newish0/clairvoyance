@@ -28,8 +28,8 @@
         "typescript": "^5",
       },
     },
-    "transit-api/server": {
-      "name": "transit-api",
+    "transit-api/core": {
+      "name": "transit-api-core",
       "version": "1.0.50",
       "dependencies": {
         "@trpc/server": "^11.6.0",
@@ -38,13 +38,32 @@
         "drizzle-orm": "^1.0.0-beta.22",
         "geojson": "^0.5.0",
         "neverthrow": "^8.2.0",
-        "pg": "^8.21.0",
         "superjson": "^2.2.2",
         "valibot": "^1.1.0",
       },
       "devDependencies": {
         "@types/pg": "^8.20.0",
         "bun-types": "latest",
+      },
+    },
+    "transit-api/server": {
+      "name": "transit-api-server",
+      "dependencies": {
+        "@trpc/server": "^11.6.0",
+        "database": "workspace:*",
+        "drizzle-orm": "^1.0.0-beta.22",
+        "neverthrow": "^8.2.0",
+        "pg": "^8.21.0",
+        "superjson": "^2.2.2",
+        "transit-api-core": "workspace:*",
+        "valibot": "^1.1.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/pg": "^8.20.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
       },
     },
     "transit-api/test-client": {
@@ -151,7 +170,7 @@
         "eslint": "^9.38.0",
         "globals": "^16.4.0",
         "jsdom": "^27.0.1",
-        "transit-api": "workspace:*",
+        "transit-api-core": "workspace:*",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.46.2",
         "vite": "^7.1.11",
@@ -1909,9 +1928,11 @@
 
     "tr46": ["tr46@6.0.0", "", { "dependencies": { "punycode": "^2.3.1" } }, "sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw=="],
 
-    "transit-api": ["transit-api@workspace:transit-api/server"],
-
     "transit-api-client": ["transit-api-client@workspace:transit-api/test-client"],
+
+    "transit-api-core": ["transit-api-core@workspace:transit-api/core"],
+
+    "transit-api-server": ["transit-api-server@workspace:transit-api/server"],
 
     "transit-app": ["transit-app@workspace:transit-app"],
 

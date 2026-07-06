@@ -1,5 +1,5 @@
 import type { inferProcedureOutput } from "@trpc/server";
-import type { AppRouter } from "transit-api";
+import type { AppRouter } from "transit-api-core/types";
 
 export type TripMapStopInfo = {
     stopId: number;

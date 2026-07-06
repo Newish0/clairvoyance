@@ -16,7 +16,7 @@ import { Link } from "@tanstack/react-router";
 import type { inferProcedureOutput } from "@trpc/server";
 import { format } from "date-fns";
 import type { ReactNode } from "react";
-import type { AppRouter } from "transit-api";
+import type { AppRouter } from "transit-api-core/types";
 import { AlertCarousel } from "./alert-carousel";
 import { cn } from "@/lib/utils";
 

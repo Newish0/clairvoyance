@@ -1,0 +1,31 @@
+{
+  "name": "transit-api-core",
+  "version": "1.0.50",
+  "scripts": {},
+  "dependencies": {
+    "@trpc/server": "^11.6.0",
+    "@types/geojson": "^7946.0.16",
+    "database": "workspace:*",
+    "drizzle-orm": "^1.0.0-beta.22",
+    "geojson": "^0.5.0",
+    "neverthrow": "^8.2.0",
+    "superjson": "^2.2.2",
+    "valibot": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "bun-types": "latest"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    }
+  },
+  "type": "module"
+}

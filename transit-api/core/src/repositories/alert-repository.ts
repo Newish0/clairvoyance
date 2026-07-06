@@ -2,7 +2,7 @@ import { Direction, RouteType } from "database/models/enums";
 import * as tables from "database/models/tables";
 import { EntitySelector } from "database/models/types";
 import * as views from "database/models/views";
-import { and, eq, getColumns, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { getColumns, sql } from "drizzle-orm";
 import { DataRepository } from "./data-repository";
 
 type AffectedEntitySelector = {

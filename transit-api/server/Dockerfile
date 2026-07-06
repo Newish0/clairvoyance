@@ -5,6 +5,7 @@ ARG TARGETARCH
 
 COPY package.json bun.lock ./
 COPY database/drizzle/package.json ./database/drizzle/package.json
+COPY transit-api/core/package.json ./transit-api/core/package.json
 COPY transit-api/server/package.json ./transit-api/server/package.json
 COPY transit-api/test-client/package.json ./transit-api/test-client/package.json
 COPY transit-ingest/package.json ./transit-ingest/package.json
