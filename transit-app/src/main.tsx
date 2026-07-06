@@ -6,21 +6,33 @@ import {
     httpSubscriptionLink,
     loggerLink,
     splitLink,
+    unstable_localLink,
 } from "@trpc/client";
+import type { inferRouterOutputs } from "@trpc/server";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import superjson from "superjson";
+import { appRouter } from "transit-api-core";
 import type { AppRouter } from "transit-api-core/types";
+import PageLoader from "./components/page-loader.tsx";
+import { getDb } from "./offline/db.ts";
 
-import reportWebVitals from "./reportWebVitals.ts";
 import "./globals.css";
+import reportWebVitals from "./reportWebVitals.ts";
 
 import { routeTree } from "./routeTree.gen";
-import type { inferRouterOutputs } from "@trpc/server";
-import PageLoader from "./components/page-loader.tsx";
 
-export const queryClient = new QueryClient();
+export const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            networkMode: "always",
+        },
+        mutations: {
+            networkMode: "always",
+        },
+    },
+});
 
 // API URL from environment variable, default to localhost:8000 for local development
 // Can be overridden via VITE_API_URL env var (e.g., in Docker build)
@@ -29,15 +41,28 @@ const API_URL = import.meta.env.VITE_API_URL || "./api";
 export const trpcClient = createTRPCClient<AppRouter>({
     links: [
         loggerLink(),
+
         splitLink({
-            // uses the httpSubscriptionLink for subscriptions
-            condition: (op) => op.type === "subscription",
-            true: httpSubscriptionLink({
-                url: API_URL,
-                transformer: superjson,
+            condition: () => {
+                return navigator.onLine;
+            },
+            true: splitLink({
+                condition: (op) => op.type === "subscription",
+                true: httpSubscriptionLink({
+                    url: API_URL,
+                    transformer: superjson,
+                }),
+                false: httpBatchLink({
+                    url: API_URL,
+                    transformer: superjson,
+                }),
             }),
-            false: httpBatchLink({
-                url: API_URL,
+            false: unstable_localLink({
+                router: appRouter,
+                createContext: async () => ({ db: await getDb() }),
+                onError: (opts) => {
+                    console.error("Error:", opts.error);
+                },
                 transformer: superjson,
             }),
         }),

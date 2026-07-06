@@ -19,7 +19,7 @@ export default defineConfig({
         }),
         drizzleMigrations({
             migrationsDir: resolve(dirname(require.resolve("database")), "migrations"),
-            outputPath: resolve(__dirname, "src/workers/migrations.gen.json"),
+            outputPath: resolve(__dirname, "src/offline/migrations.gen.json"),
         }),
         tanstackRouter({ autoCodeSplitting: true }),
         tailwindcss(),
@@ -33,6 +33,9 @@ export default defineConfig({
         alias: {
             "@": resolve(__dirname, "./src"),
         },
+    },
+    optimizeDeps: {
+        exclude: ["@electric-sql/pglite", "@electric-sql/pglite-postgis"],
     },
     build: {
         ssr: false,

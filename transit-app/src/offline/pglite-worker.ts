@@ -1,11 +1,10 @@
-import { PGlite } from "@electric-sql/pglite";
+import { IdbFs, PGlite } from "@electric-sql/pglite";
 import { postgis } from "@electric-sql/pglite-postgis";
-import { OpfsAhpFS } from "@electric-sql/pglite/opfs-ahp";
 import { worker } from "@electric-sql/pglite/worker";
 
 import migrations from "./migrations.gen.json";
 
-const DATABASE_PERSIST_PATH = "./data/transit-pglite";
+const DATABASE_PERSIST_PATH = "transit-pglite";
 const MIGRATIONS_TABLE = "__drizzle_migrations";
 
 interface MigrationRow {
@@ -22,14 +21,15 @@ const migrate = async (pg: PGlite) => {
             timestamp BIGINT NOT NULL
         )`);
 
-    const applied = await pg.query<MigrationRow>(`SELECT hash FROM "__drizzle_migrations"`);
+    const applied = await pg.query<MigrationRow>(`SELECT hash FROM "${MIGRATIONS_TABLE}"`);
     const appliedHashes = new Set(applied.rows.map((r) => r.hash));
 
     for (const m of migrations) {
         if (appliedHashes.has(m.id)) continue;
         await pg.exec(m.sql);
-        await pg.query(`INSERT INTO "__drizzle_migrations" (hash, timestamp) VALUES ($1, now())`, [
+        await pg.query(`INSERT INTO "${MIGRATIONS_TABLE}" (hash, timestamp) VALUES ($1, $2)`, [
             m.id,
+            Date.now(),
         ]);
     }
 };
@@ -37,11 +37,15 @@ const migrate = async (pg: PGlite) => {
 worker({
     async init() {
         const pg = new PGlite({
-            fs: new OpfsAhpFS(DATABASE_PERSIST_PATH),
+            fs: new IdbFs(DATABASE_PERSIST_PATH),
             extensions: { postgis },
         });
 
+        console.debug("[pglite worker] init", DATABASE_PERSIST_PATH);
+
         await migrate(pg);
+
+        console.debug("[pglite worker] migrations applied");
 
         return pg;
     },
