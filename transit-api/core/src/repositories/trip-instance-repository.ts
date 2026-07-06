@@ -394,9 +394,9 @@ export class TripInstancesRepository extends DataRepository {
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
                             ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
+                            AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
                         THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                            ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
                         WHEN
                             ${latestVehiclePosition.currentStopSequence} IS NOT NULL
                         THEN
@@ -407,24 +407,20 @@ export class TripInstancesRepository extends DataRepository {
                 })
                 .from(views.stopTimeInstances)
                 .innerJoin(
-                    tables.stopTimes,
-                    sql`${views.stopTimeInstances.stopTimeId} = ${tables.stopTimes.id}`,
-                )
-                .innerJoin(
-                    tables.trips,
-                    sql`${tables.stopTimes.tripId}            = ${tables.trips.id}`,
-                )
-                .innerJoin(
-                    tables.routes,
-                    sql`${tables.trips.routeId}               = ${tables.routes.id}`,
-                )
-                .innerJoin(
                     tables.tripInstances,
                     sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
                 )
+                .innerJoin(
+                    tables.trips,
+                    sql`${tables.tripInstances.tripId}            = ${tables.trips.id}`,
+                )
+                .innerJoin(
+                    tables.routes,
+                    sql`${tables.trips.routeId}                   = ${tables.routes.id}`,
+                )
                 .leftJoin(
                     latestVehiclePosition,
-                    sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
+                    sql`${latestVehiclePosition.tripInstanceId}   = ${views.stopTimeInstances.tripInstanceId}`,
                 )
                 .where(
                     and(
@@ -512,9 +508,9 @@ export class TripInstancesRepository extends DataRepository {
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
                             ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${tables.stopTimes.shapeDistTraveled} IS NOT NULL
+                            AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
                         THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${tables.stopTimes.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                            ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
                         WHEN
                             ${latestVehiclePosition.currentStopSequence} IS NOT NULL
                         THEN
@@ -525,24 +521,20 @@ export class TripInstancesRepository extends DataRepository {
                 })
                 .from(views.stopTimeInstances)
                 .innerJoin(
-                    tables.stopTimes,
-                    sql`${views.stopTimeInstances.stopTimeId} = ${tables.stopTimes.id}`,
-                )
-                .innerJoin(
-                    tables.trips,
-                    sql`${tables.stopTimes.tripId}            = ${tables.trips.id}`,
-                )
-                .innerJoin(
-                    tables.routes,
-                    sql`${tables.trips.routeId}               = ${tables.routes.id}`,
-                )
-                .innerJoin(
                     tables.tripInstances,
                     sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
                 )
+                .innerJoin(
+                    tables.trips,
+                    sql`${tables.tripInstances.tripId}            = ${tables.trips.id}`,
+                )
+                .innerJoin(
+                    tables.routes,
+                    sql`${tables.trips.routeId}                   = ${tables.routes.id}`,
+                )
                 .leftJoin(
                     latestVehiclePosition,
-                    sql`${latestVehiclePosition.tripInstanceId} = ${views.stopTimeInstances.tripInstanceId}`,
+                    sql`${latestVehiclePosition.tripInstanceId}   = ${views.stopTimeInstances.tripInstanceId}`,
                 )
                 .where(
                     and(
