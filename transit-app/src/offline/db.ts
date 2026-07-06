@@ -3,9 +3,14 @@ import type { Db } from "database";
 import { schemaRelations } from "database/models/relations";
 import { drizzle } from "drizzle-orm/pglite";
 import PGLiteWorker from "./pglite-worker?worker";
-import { postgis } from "@electric-sql/pglite-postgis";
+
+let _db: Db | null = null;
 
 export const getDb = async (): Promise<Db> => {
+    if (_db) {
+        return _db;
+    }
+
     const pg = await PGliteWorkerWrapper.create(new PGLiteWorker(), {
         id: "transit-pglite",
     });
@@ -14,6 +19,8 @@ export const getDb = async (): Promise<Db> => {
         client: pg as any,
         relations: schemaRelations,
     });
+
+    _db = db;
 
     return db;
 };
