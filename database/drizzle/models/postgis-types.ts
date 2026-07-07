@@ -3,180 +3,184 @@
  *
  * Custom Drizzle column types for PostGIS geometry.
  *
- * Why custom types?
- * - drizzle-orm@1.0.0-beta.22's built-in `geometry()` HARDCODES `geometry(point,...)` in getSQLType()
- *   regardless of the `type` option. The type option is silently ignored.
- * - For LineString (and any non-Point geometry) you MUST use customType.
- * - We also build an enhanced Point type that round-trips EWKB correctly via EWKT inserts.
+ * Why custom types? drizzle-orm@1.0.0-beta.22's built-in geometry() hardcodes
+ * geometry(point,...) regardless of the `type` option, so LineString needs
+ * customType.
  *
- * EWKB decoding is done manually (no external deps) matching drizzle's own utils approach.
+ * Two read shapes, same column:
+ * - Flat selects get raw EWKB hex text over the wire.
+ * - Relational queries (`with: {...}`) build results via row_to_json/json_agg,
+ *   and Postgres's implicit geometry -> json cast produces GeoJSON instead
+ *   (`{ type: "Point", coordinates: [x, y] }`). `parsePointValue`/
+ *   `parseLineStringValue` below handle both.
+ *
+ * `data` is typed non-null (XY, not XY | null) so Drizzle's `.notNull()`
+ * narrowing works correctly on columns like vehiclePositions.location.
+ * A genuine null (nullable column, no value) returns `null as unknown as T`
+ * silently - that's the expected case Drizzle's own wrapper accounts for.
+ * A non-null but unparseable value (corrupt data) throws instead of
+ * returning a fake value - same crash you'd get downstream from a stray
+ * null either way, but with a stack trace pointing at the actual bad row
+ * instead of a `.x` on undefined three frames later.
+ *
+ * Deliberately uses DataView/Uint8Array rather than Buffer - Buffer needs
+ * @types/node and doesn't exist on non-Node runtimes (edge/Workers); DataView
+ * is a plain JS/web standard, zero extra config either way.
+ *
+ * ponytail: assumes 2D geometry only (matches how every column here is
+ * declared - geometry(Point,srid) / geometry(LineString,srid), no Z). Add Z
+ * handling if a 3D column is ever introduced.
  */
 
 import { customType } from "drizzle-orm/pg-core";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/** x = longitude, y = latitude */
 export type XY = { x: number; y: number };
 export type LineCoords = [number, number][];
 
 // ---------------------------------------------------------------------------
-// EWKB parser (handles Point and LineString, little-endian and big-endian)
+// EWKB parsing (flat-select path)
 // ---------------------------------------------------------------------------
-
-function hexToBytes(hex: string): Uint8Array {
-    const bytes: number[] = [];
-    for (let c = 0; c < hex.length; c += 2) {
-        bytes.push(parseInt(hex.slice(c, c + 2), 16));
-    }
-    return new Uint8Array(bytes);
-}
 
 interface ParsedEWKB {
     type: "Point" | "LineString" | "unknown";
-    srid?: number;
     point?: XY;
     points?: XY[];
 }
 
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
 export function parseEWKB(hex: string): ParsedEWKB {
-    const bytes = hexToBytes(hex);
-    const view = new DataView(bytes.buffer);
-    let offset = 0;
-
-    const byteOrder = bytes[offset]; // 1 = little-endian, 0 = big-endian
-    const le = byteOrder === 1;
-    offset += 1;
-
-    const rawType = view.getUint32(offset, le);
-    offset += 4;
-
-    const hasZ = !!(rawType & 0x80000000);
-    const hasSRID = !!(rawType & 0x20000000);
-    const geomType = rawType & 0x0000ffff;
-
-    let srid: number | undefined;
-    if (hasSRID) {
-        srid = view.getUint32(offset, le);
-        offset += 4;
+    if (
+        typeof hex !== "string" ||
+        hex.length < 10 ||
+        hex.length % 2 !== 0 ||
+        !/^[0-9a-fA-F]+$/.test(hex)
+    ) {
+        return { type: "unknown" };
     }
 
-    const coordSize = hasZ ? 3 : 2;
+    try {
+        const bytes = hexToBytes(hex);
+        const view = new DataView(bytes.buffer);
+        const le = view.getUint8(0) === 1;
+        const rawType = view.getUint32(1, le);
+        const hasSRID = !!(rawType & 0x20000000);
+        const geomType = rawType & 0xffff;
+        let offset = hasSRID ? 9 : 5;
 
-    function readPoint(): XY {
-        const x = view.getFloat64(offset, le);
-        const y = view.getFloat64(offset + 8, le);
-        offset += 8 * coordSize;
-        return { x, y };
-    }
+        const readPoint = (): XY => {
+            const x = view.getFloat64(offset, le);
+            const y = view.getFloat64(offset + 8, le);
+            offset += 16;
+            return { x, y };
+        };
 
-    // wkbPoint = 1
-    if (geomType === 1) {
-        const point = readPoint();
-        return { type: "Point", srid, point };
-    }
+        if (geomType === 1) return { type: "Point", point: readPoint() };
 
-    // wkbLineString = 2
-    if (geomType === 2) {
-        const numPoints = view.getUint32(offset, le);
-        offset += 4;
-        const points: XY[] = [];
-        for (let i = 0; i < numPoints; i++) {
-            points.push(readPoint());
+        if (geomType === 2) {
+            const count = view.getUint32(offset, le);
+            offset += 4;
+            return { type: "LineString", points: Array.from({ length: count }, readPoint) };
         }
-        return { type: "LineString", srid, points };
-    }
 
-    return { type: "unknown" };
+        return { type: "unknown" };
+    } catch {
+        // Truncated/corrupt hex -> a DataView read ran past the end. One
+        // catch replaces a bounds-check before every single field read.
+        return { type: "unknown" };
+    }
 }
 
 // ---------------------------------------------------------------------------
-// 1. geometry_point - Point column with xy object in/out
-//    Uses EWKT for insert, parses EWKB on select.
-//    Mirrors built-in PgGeometryObject but actually stores correct SQL type.
+// Shared parsers - GeoJSON (relational-query path) or EWKB hex (flat select).
+// Called only for non-null values; throw on anything unrecognized.
+//
+// GeoJSON coordinates are cast to fixed-length tuples ([number, number],
+// not number[]) so destructuring gives `number`, not `number | undefined`,
+// under noUncheckedIndexedAccess - the runtime Array.isArray/.length checks
+// still guard against genuinely short/malformed input before the cast.
+// ---------------------------------------------------------------------------
+
+function parsePointValue(value: unknown): XY {
+    if (typeof value === "object" && value !== null) {
+        const v = value as { type?: string; coordinates?: [number, number] };
+        if (v.type === "Point" && Array.isArray(v.coordinates) && v.coordinates.length >= 2) {
+            const [x, y] = v.coordinates;
+            return { x, y };
+        }
+    } else if (typeof value === "string") {
+        const parsed = parseEWKB(value);
+        if (parsed.type === "Point" && parsed.point) return parsed.point;
+    }
+    throw new Error(`postgis-types: unparseable Point geometry: ${JSON.stringify(value)}`);
+}
+
+function parseLineStringValue(value: unknown): XY[] {
+    if (typeof value === "object" && value !== null) {
+        const v = value as { type?: string; coordinates?: [number, number][] };
+        if (
+            v.type === "LineString" &&
+            Array.isArray(v.coordinates) &&
+            v.coordinates.every((c) => Array.isArray(c) && c.length >= 2)
+        ) {
+            return v.coordinates.map(([x, y]) => ({ x, y }));
+        }
+    } else if (typeof value === "string") {
+        const parsed = parseEWKB(value);
+        if (parsed.type === "LineString" && parsed.points) return parsed.points;
+    }
+    throw new Error(`postgis-types: unparseable LineString geometry: ${JSON.stringify(value)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Column types
 // ---------------------------------------------------------------------------
 
 export const geometryPoint = (name: string, srid = 4326) =>
     customType<{ data: XY; driverData: string }>({
-        dataType() {
-            return `geometry(Point,${srid})`;
-        },
-        toDriver(value: XY): string {
-            // EWKT format: PostGIS accepts this directly
-            return `SRID=${srid};POINT(${value.x} ${value.y})`;
-        },
-        fromDriver(value: string): XY {
-            const parsed = parseEWKB(value);
-            if (parsed.type !== "Point" || !parsed.point) {
-                throw new Error(`Expected Point EWKB, got: ${parsed.type}`);
-            }
-            return parsed.point;
+        dataType: () => `geometry(Point,${srid})`,
+        toDriver: (v: XY) => `SRID=${srid};POINT(${v.x} ${v.y})`,
+        fromDriver(value: unknown): XY {
+            if (value == null) return null as unknown as XY;
+            return parsePointValue(value);
         },
     })(name);
-
-// ---------------------------------------------------------------------------
-// 2. geometry_point_tuple - Point column with [x, y] tuple in/out
-// ---------------------------------------------------------------------------
 
 export const geometryPointTuple = (name: string, srid = 4326) =>
     customType<{ data: [number, number]; driverData: string }>({
-        dataType() {
-            return `geometry(Point,${srid})`;
-        },
-        toDriver(value: [number, number]): string {
-            return `SRID=${srid};POINT(${value[0]} ${value[1]})`;
-        },
-        fromDriver(value: string): [number, number] {
-            const parsed = parseEWKB(value);
-            if (parsed.type !== "Point" || !parsed.point) {
-                throw new Error(`Expected Point EWKB, got: ${parsed.type}`);
-            }
-            return [parsed.point.x, parsed.point.y];
+        dataType: () => `geometry(Point,${srid})`,
+        toDriver: (v: [number, number]) => `SRID=${srid};POINT(${v[0]} ${v[1]})`,
+        fromDriver(value: unknown): [number, number] {
+            if (value == null) return null as unknown as [number, number];
+            const point = parsePointValue(value);
+            return [point.x, point.y];
         },
     })(name);
-
-// ---------------------------------------------------------------------------
-// 3. geometry_linestring - LineString column with array of [x,y] coords
-// ---------------------------------------------------------------------------
 
 export const geometryLineString = (name: string, srid = 4326) =>
     customType<{ data: LineCoords; driverData: string }>({
-        dataType() {
-            return `geometry(LineString,${srid})`;
-        },
-        toDriver(value: LineCoords): string {
-            const coordStr = value.map(([x, y]) => `${x} ${y}`).join(", ");
-            return `SRID=${srid};LINESTRING(${coordStr})`;
-        },
-        fromDriver(value: string): LineCoords {
-            const parsed = parseEWKB(value);
-            if (parsed.type !== "LineString" || !parsed.points) {
-                throw new Error(`Expected LineString EWKB, got: ${parsed.type}`);
-            }
-            return parsed.points.map((p) => [p.x, p.y]);
+        dataType: () => `geometry(LineString,${srid})`,
+        toDriver: (v: LineCoords) =>
+            `SRID=${srid};LINESTRING(${v.map(([x, y]) => `${x} ${y}`).join(", ")})`,
+        fromDriver(value: unknown): LineCoords {
+            if (value == null) return null as unknown as LineCoords;
+            return parseLineStringValue(value).map((p) => [p.x, p.y]);
         },
     })(name);
 
-// ---------------------------------------------------------------------------
-// 4. geometry_linestring_xy - LineString returning XY objects instead of tuples
-// ---------------------------------------------------------------------------
-
 export const geometryLineStringXY = (name: string, srid = 4326) =>
     customType<{ data: XY[]; driverData: string }>({
-        dataType() {
-            return `geometry(LineString,${srid})`;
-        },
-        toDriver(value: XY[]): string {
-            const coordStr = value.map((p) => `${p.x} ${p.y}`).join(", ");
-            return `SRID=${srid};LINESTRING(${coordStr})`;
-        },
-        fromDriver(value: string): XY[] {
-            const parsed = parseEWKB(value);
-            if (parsed.type !== "LineString" || !parsed.points) {
-                throw new Error(`Expected LineString EWKB, got: ${parsed.type}`);
-            }
-            return parsed.points;
+        dataType: () => `geometry(LineString,${srid})`,
+        toDriver: (v: XY[]) =>
+            `SRID=${srid};LINESTRING(${v.map((p) => `${p.x} ${p.y}`).join(", ")})`,
+        fromDriver(value: unknown): XY[] {
+            if (value == null) return null as unknown as XY[];
+            return parseLineStringValue(value);
         },
     })(name);
