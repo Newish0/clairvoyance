@@ -88,7 +88,7 @@ const MultiDeparturesCard: React.FC<{ departures: Departure[]; oppositeStopId?: 
             }}
         >
             <div className="py-2 space-y-1">
-                <div className="flex gap-1 items-center">
+                <div className="flex gap-2 items-center">
                     {d.routeType !== "BUS" && (
                         <VehicleIcon
                             routeType={d.routeType}
@@ -98,7 +98,7 @@ const MultiDeparturesCard: React.FC<{ departures: Departure[]; oppositeStopId?: 
                     )}
                     <Badge
                         variant="default"
-                        className="text-sm font-bold py-0"
+                        className="text-sm font-bold py-0 min-w-9"
                         style={{
                             backgroundColor: ensureHexColorStartsWithHash(d.routeColor),
                             color: ensureHexColorStartsWithHash(d.routeTextColor),
@@ -112,9 +112,9 @@ const MultiDeparturesCard: React.FC<{ departures: Departure[]; oppositeStopId?: 
                     </div>
                 </div>
 
-                <p className="ml-7 text-xs text-muted-foreground truncate">At {stopName}</p>
+                <p className="ml-1 text-xs text-muted-foreground truncate">At {stopName}</p>
 
-                <div className="space-y-1 ml-7">
+                <div className="space-y-0 ml-1">
                     {departures.map((d, i) => (
                         <MultiDeparturesRow key={i} departure={d} />
                     ))}
