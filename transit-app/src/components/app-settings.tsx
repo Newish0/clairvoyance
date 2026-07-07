@@ -1,5 +1,6 @@
 import { useMovementThreshold } from "@/hooks/use-movement-threshold";
 import { useGeolocation, type GeolocationStatus } from "./geolocation-provider";
+import { OfflineAreaManager } from "./offline-area-manager";
 import { useTheme, type Theme } from "./theme-provider";
 import { Button } from "./ui/button";
 import { Settings, type SettingSection } from "./ui/settings";
@@ -72,6 +73,19 @@ export const AppSettings = () => {
                     max: 200,
                     step: 25,
                     displayValue: (v: number) => `${v}m`,
+                },
+            ],
+        },
+        {
+            title: "Offline",
+            description: "Manage your offline data",
+            settings: [
+                {
+                    id: "Manage-offline",
+                    type: "custom",
+                    label: "Manage Offline",
+                    description: "Manage your offline data",
+                    render: () => <OfflineAreaManager />,
                 },
             ],
         },
