@@ -9,7 +9,7 @@ import {
 import { useOfflineAreas } from "@/hooks/use-offline-areas";
 import { getDb } from "@/offline/db";
 import { pruneOfflineData } from "@/offline/manage";
-import { AlertTriangle, DatabaseCheck, Loader2, MapPin, Trash2 } from "lucide-react";
+import { AlertTriangle, SaveCheck, Loader2, MapPin, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import OfflineAreaSelector from "./offline-area-selector";
@@ -83,9 +83,13 @@ export const OfflineAreaManager = () => {
                                     <p className="text-xs text-muted-foreground">
                                         {formatBytes(area.sizeBytes)}
                                     </p>
-                                    {isOutdated && (
+                                    {isOutdated ? (
                                         <p className="text-xs text-destructive-foreground">
                                             Outdated since {formatDate(area.dateRange[1], "PPp")}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">
+                                            Expires on {formatDate(area.dateRange[1], "PPp")}
                                         </p>
                                     )}
                                 </div>
@@ -103,7 +107,7 @@ export const OfflineAreaManager = () => {
                                 />
                             )}
                             {area.state === "downloaded" && (
-                                <DatabaseCheck className="size-4 text-primary" />
+                                <SaveCheck className="size-4 text-primary" />
                             )}
 
                             <Button

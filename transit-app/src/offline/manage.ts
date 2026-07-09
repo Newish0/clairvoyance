@@ -138,14 +138,16 @@ export async function saveOfflineData(
     data: inferProcedureOutput<AppRouter["offlineSync"]["getArea"]>,
 ) {
     await db.transaction(async (tx) => {
-        await upsertMany(tx, tables.tripInstances, data.tripInstances, tables.tripInstances.id);
-        await upsertMany(tx, tables.stopTimeStaticInstances, data.stopTimeStaticInstances, [
-            tables.stopTimeStaticInstances.tripInstanceId,
-            tables.stopTimeStaticInstances.stopTimeId,
+        await Promise.all([
+            upsertMany(tx, tables.tripInstances, data.tripInstances, tables.tripInstances.id),
+            upsertMany(tx, tables.stopTimeStaticInstances, data.stopTimeStaticInstances, [
+                tables.stopTimeStaticInstances.tripInstanceId,
+                tables.stopTimeStaticInstances.stopTimeId,
+            ]),
+            upsertMany(tx, tables.stops, data.stops, tables.stops.id),
+            upsertMany(tx, tables.routes, data.routes, tables.routes.id),
+            upsertMany(tx, tables.trips, data.trips, tables.trips.id),
+            upsertMany(tx, tables.shapes, data.shapes, tables.shapes.id),
         ]);
-        await upsertMany(tx, tables.stops, data.stops, tables.stops.id);
-        await upsertMany(tx, tables.routes, data.routes, tables.routes.id);
-        await upsertMany(tx, tables.trips, data.trips, tables.trips.id);
-        await upsertMany(tx, tables.shapes, data.shapes, tables.shapes.id);
     });
 }
