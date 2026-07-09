@@ -31,6 +31,7 @@ export const alertRouter = router({
             return alerts;
         }),
 
+    /** @deprecated see tables.ts */
     getActivesForEntity: publicProcedure
         .input(entitySelectionQuery)
         .query(async ({ input, ctx }) => {

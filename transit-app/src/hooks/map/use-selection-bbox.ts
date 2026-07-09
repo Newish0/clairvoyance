@@ -5,13 +5,27 @@ import { LngLatBounds } from "maplibre-gl";
 
 export type PixelBounds = [[number, number], [number, number]];
 
+const DEFAULT_MAX_BBOX_METERS = 30_000; // 30km - keep in sync with offline-sync router
+const METERS_PER_DEGREE_LAT = 111_320;
+
+function bboxExceedsLimit(bounds: LngLatBounds, maxBboxMeters: number): boolean {
+    const west = bounds.getWest();
+    const south = bounds.getSouth();
+    const east = bounds.getEast();
+    const north = bounds.getNorth();
+    const midLatRad = ((south + north) / 2) * (Math.PI / 180);
+    const heightMeters = (north - south) * METERS_PER_DEGREE_LAT;
+    const widthMeters = (east - west) * METERS_PER_DEGREE_LAT * Math.cos(midLatRad);
+    return heightMeters > maxBboxMeters || widthMeters > maxBboxMeters;
+}
+
 /**
  * Tracks a square region, fixed in screen-space and centered on the map
  * container, sized as `min(width, height) - 2 * marginPx`. Returns the
  * live geographic bbox for that square plus its pixel size (for rendering
  * the overlay square itself).
  */
-export function useSelectionBbox(marginPx: number) {
+export function useSelectionBbox(marginPx: number, maxBboxMeters = DEFAULT_MAX_BBOX_METERS) {
     const { current: map } = useMap();
     const [bounds, setBounds] = useState<LngLatBounds | null>(null);
     const [squareSizePx, setSquareSizePx] = useState(0);
@@ -49,5 +63,10 @@ export function useSelectionBbox(marginPx: number) {
         };
     }, [map, recompute]);
 
-    return { bounds, squareSizePx, pixelBounds };
+    return {
+        bounds,
+        squareSizePx,
+        pixelBounds,
+        exceedsLimit: bounds ? bboxExceedsLimit(bounds, maxBboxMeters) : false,
+    };
 }

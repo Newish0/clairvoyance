@@ -1,4 +1,4 @@
-import { Download, Trash2, Loader2, AlertTriangle, MapPin } from "lucide-react";
+import { DatabaseCheck, Trash2, Loader2, AlertTriangle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineAreas } from "@/hooks/use-offline-areas";
 import {
@@ -18,13 +18,15 @@ function formatBytes(bytes?: number) {
 }
 
 export const OfflineAreaManager = () => {
-    const { areas, removeArea } = useOfflineAreas();
+    const { areas, removeArea, createArea, updateArea } = useOfflineAreas();
 
     if (areas.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">
                 No offline areas downloaded yet.
                 <AreaSelectorModal
+                    createArea={createArea}
+                    updateArea={updateArea}
                     trigger={
                         <Button variant="link" size="sm">
                             Select an area
@@ -36,14 +38,14 @@ export const OfflineAreaManager = () => {
     }
 
     return (
-        <ul className="flex flex-col gap-2 p-2">
+        <ul className="flex flex-col gap-2">
             {areas.map((area) => (
                 <li
                     key={area.id}
                     className="flex items-center justify-between gap-3 rounded-md border p-3"
                 >
                     <div className="flex items-center gap-2 overflow-hidden">
-                        <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <MapPin className="size-4 shrink-0 text-muted-foreground" />
                         <div className="overflow-hidden">
                             <p className="truncate text-sm font-medium">{area.name}</p>
                             <p className="text-xs text-muted-foreground">
@@ -54,39 +56,51 @@ export const OfflineAreaManager = () => {
 
                     <div className="flex items-center gap-2">
                         {area.state === "downloading" && (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            <Loader2 className="size-4 animate-spin text-muted-foreground" />
                         )}
                         {area.state === "error" && (
                             <AlertTriangle
-                                className="h-4 w-4 text-destructive"
+                                className="size-4 text-destructive"
                                 aria-label={area.error ?? "Download failed"}
                             />
                         )}
                         {area.state === "downloaded" && (
-                            <Download className="h-4 w-4 text-primary" />
+                            <DatabaseCheck className="size-4 text-primary" />
                         )}
                         <Button size="icon" variant="ghost" onClick={() => removeArea(area.id)}>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                         </Button>
                     </div>
                 </li>
             ))}
+
+            <AreaSelectorModal
+                createArea={createArea}
+                updateArea={updateArea}
+                trigger={
+                    <Button variant="link" size="sm">
+                        Add an area
+                    </Button>
+                }
+            />
         </ul>
     );
 };
 
-const AreaSelectorModal: React.FC<{ trigger: React.ReactNode }> = ({ trigger }) => {
-    return (
-        <ResponsiveModal>
-            <ResponsiveModalTrigger asChild>{trigger}</ResponsiveModalTrigger>
-            <ResponsiveModalContent className="min-w-2/3 max-w-3xl">
-                <ResponsiveModalHeader>
-                    <ResponsiveModalTitle>Select an area</ResponsiveModalTitle>
-                </ResponsiveModalHeader>
-                <div className="p-4 overflow-auto">
-                    <OfflineAreaSelector />
-                </div>
-            </ResponsiveModalContent>
-        </ResponsiveModal>
-    );
-};
+const AreaSelectorModal: React.FC<{
+    trigger: React.ReactNode;
+    createArea: ReturnType<typeof useOfflineAreas>["createArea"];
+    updateArea: ReturnType<typeof useOfflineAreas>["updateArea"];
+}> = ({ trigger, createArea, updateArea }) => (
+    <ResponsiveModal>
+        <ResponsiveModalTrigger asChild>{trigger}</ResponsiveModalTrigger>
+        <ResponsiveModalContent className="min-w-2/3 max-w-3xl">
+            <ResponsiveModalHeader>
+                <ResponsiveModalTitle>Select an area</ResponsiveModalTitle>
+            </ResponsiveModalHeader>
+            <div className="p-4 overflow-auto">
+                <OfflineAreaSelector createArea={createArea} updateArea={updateArea} />
+            </div>
+        </ResponsiveModalContent>
+    </ResponsiveModal>
+);

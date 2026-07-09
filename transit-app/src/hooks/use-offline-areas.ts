@@ -23,7 +23,7 @@ export type OfflineArea = z.infer<typeof areaSchema>;
 const KEY = "offline-areas";
 
 export function useOfflineAreas() {
-    const [areas = [], setAreas] = useLocalStorageState<OfflineArea[]>(KEY, {
+    const [areas, setAreas] = useLocalStorageState<OfflineArea[]>(KEY, {
         defaultValue: [],
         listenStorageChange: true, // cross-tab sync, handled by ahooks
         deserializer: (raw) => {
@@ -45,9 +45,17 @@ export function useOfflineAreas() {
         return area;
     });
 
-    const updateArea = useMemoizedFn((id: string, patch: Partial<OfflineArea>) => {
-        setAreas(areas.map((a) => (a.id === id ? { ...a, ...patch, updatedAt: Date.now() } : a)));
-    });
+    const updateArea = useMemoizedFn(
+        (id: string, patch: Partial<Omit<OfflineArea, "id" | "createdAt" | "updatedAt">>) => {
+            setAreas(
+                areas.map((a) =>
+                    a.id === id
+                        ? { ...a, ...patch, createdAt: a.createdAt, updatedAt: Date.now() }
+                        : a,
+                ),
+            );
+        },
+    );
 
     const removeArea = useMemoizedFn((id: string) => {
         setAreas(areas.filter((a) => a.id !== id));

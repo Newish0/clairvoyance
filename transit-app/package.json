@@ -66,7 +66,7 @@
     "framer-motion": "^12.23.24",
     "geojson": "^0.5.0",
     "input-otp": "^1.4.2",
-    "lucide-react": "^0.545.0",
+    "lucide-react": "^1.23.0",
     "maplibre-gl": "^5.9.0",
     "next-themes": "^0.4.6",
     "pmtiles": "^4.3.0",

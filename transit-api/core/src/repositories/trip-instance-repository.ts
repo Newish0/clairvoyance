@@ -628,7 +628,7 @@ export class TripInstancesRepository extends DataRepository {
 
             yield results;
 
-            await Bun.sleep(pollIntervalMs);
+            await new Promise((r) => setTimeout(r, pollIntervalMs));
         }
     }
 

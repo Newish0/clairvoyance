@@ -10,6 +10,8 @@ import {
 } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import maplibre from "maplibre-gl";
+import { Protocol } from "pmtiles";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import superjson from "superjson";
@@ -22,6 +24,10 @@ import "./globals.css";
 import reportWebVitals from "./reportWebVitals.ts";
 
 import { routeTree } from "./routeTree.gen";
+
+// Global singleton: Setup maplibre protocol to support pmtiles
+const protocol = new Protocol();
+maplibre.addProtocol("pmtiles", protocol.tile);
 
 export const queryClient = new QueryClient({
     defaultOptions: {
@@ -43,8 +49,12 @@ export const trpcClient = createTRPCClient<AppRouter>({
         loggerLink(),
 
         splitLink({
-            condition: () => {
-                return navigator.onLine;
+            condition: (op) => {
+                // Failsafe to disallow downloading offline data from offline data
+                if (op.path.startsWith("offlineSync")) return true;
+
+                return navigator.onLine && false;
+                // return navigator.onLine;
             },
             true: splitLink({
                 condition: (op) => op.type === "subscription",

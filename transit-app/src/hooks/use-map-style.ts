@@ -1,19 +1,9 @@
 import { useTheme } from "@/components/theme-provider";
 import { layers, namedFlavor } from "@protomaps/basemaps";
-import { Protocol } from "pmtiles";
-import maplibre from "maplibre-gl";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 export function useProtoMapsStyle(activeTilesUrl: string) {
     const { displayedTheme } = useTheme();
-
-    useEffect(() => {
-        const protocol = new Protocol();
-        maplibre.addProtocol("pmtiles", protocol.tile);
-        return () => {
-            maplibre.removeProtocol("pmtiles");
-        };
-    }, []);
 
     const mapStyle = useMemo(() => {
         const baseLayers = layers("protomaps", namedFlavor(displayedTheme), { lang: "en" });

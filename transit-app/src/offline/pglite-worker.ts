@@ -1,10 +1,11 @@
 import { IdbFs, PGlite } from "@electric-sql/pglite";
 import { postgis } from "@electric-sql/pglite-postgis";
 import { worker } from "@electric-sql/pglite/worker";
-import { getTableName, getTableUniqueName } from "drizzle-orm";
+import { getTableName } from "drizzle-orm";
 import * as drizzleTables from "database/models/tables";
 
 import migrations from "./migrations.gen.json";
+import { getTableConfig } from "drizzle-orm/pg-core";
 
 const DATABASE_PERSIST_PATH = "transit-pglite";
 const MIGRATIONS_TABLE = "__drizzle_migrations";
@@ -37,7 +38,7 @@ const migrate = async (pg: PGlite) => {
 };
 
 /** Allow only subset of data -> need not follow foreign key constraints */
-const removeFkConstraints = async (pg: PGlite, tables: string[]) => {
+const removeFkConstraints = async (pg: PGlite, tables: string[], schema: string) => {
     if (tables.length === 0) return;
 
     const { rows } = await pg.query(
@@ -52,10 +53,10 @@ const removeFkConstraints = async (pg: PGlite, tables: string[]) => {
         JOIN pg_class c ON c.oid = con.conrelid
         JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE con.contype = 'f'
-          AND n.nspname = 'public'
+          AND n.nspname = $2
           AND c.relname = ANY($1::text[]);
         `,
-        [tables],
+        [tables, schema],
     );
 
     for (const { sql } of rows as { sql: string }[]) {
@@ -64,47 +65,39 @@ const removeFkConstraints = async (pg: PGlite, tables: string[]) => {
 };
 
 /** Convert SERIAL / IDENTITY columns into plain INTEGER columns */
-const removeAutoIncrement = async (pg: PGlite, tables: string[]) => {
+const removeAutoIncrement = async (pg: PGlite, tables: string[], schema: string) => {
     if (tables.length === 0) return;
 
-    // Drop IDENTITY from identity columns
     const { rows: identityRows } = await pg.query(
         `
         SELECT format(
             'ALTER TABLE %I.%I ALTER COLUMN %I DROP IDENTITY IF EXISTS;',
-            table_schema,
-            table_name,
-            column_name
+            table_schema, table_name, column_name
         ) AS sql
         FROM information_schema.columns
-        WHERE table_schema = 'public'
+        WHERE table_schema = $2
           AND table_name = ANY($1::text[])
           AND is_identity = 'YES';
         `,
-        [tables],
+        [tables, schema],
     );
-
     for (const { sql } of identityRows as { sql: string }[]) {
         await pg.exec(sql);
     }
 
-    // Drop DEFAULT nextval(...) from serial columns
     const { rows: serialRows } = await pg.query(
         `
         SELECT format(
             'ALTER TABLE %I.%I ALTER COLUMN %I DROP DEFAULT;',
-            table_schema,
-            table_name,
-            column_name
+            table_schema, table_name, column_name
         ) AS sql
         FROM information_schema.columns
-        WHERE table_schema = 'public'
+        WHERE table_schema = $2
           AND table_name = ANY($1::text[])
           AND column_default LIKE 'nextval(%';
         `,
-        [tables],
+        [tables, schema],
     );
-
     for (const { sql } of serialRows as { sql: string }[]) {
         await pg.exec(sql);
     }
@@ -122,12 +115,14 @@ worker({
         await migrate(pg);
         console.debug("[pglite worker] migrations applied");
 
-        const tables = Object.values(drizzleTables).map(getTableUniqueName);
+        const tableObjs = Object.values(drizzleTables);
+        const tables = tableObjs.map(getTableName);
+        const schema = getTableConfig(tableObjs[0]).schema ?? "public"; // "transit"
 
-        await removeFkConstraints(pg, tables);
+        await removeFkConstraints(pg, tables, schema);
         console.debug("[pglite worker] removed fk constraints");
 
-        await removeAutoIncrement(pg, tables);
+        await removeAutoIncrement(pg, tables, schema);
         console.debug("[pglite worker] removed auto increment");
 
         return pg;

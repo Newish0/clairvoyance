@@ -43,4 +43,23 @@ export class StopRepository extends DataRepository {
             )
             .orderBy((t) => t.distanceMeters);
     }
+
+    public async findStopsInBbox({
+        west,
+        south,
+        east,
+        north,
+    }: {
+        west: number;
+        south: number;
+        east: number;
+        north: number;
+    }) {
+        return this.db
+            .select()
+            .from(tables.stops)
+            .where(
+                sql`${tables.stops.location}::geometry && ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)`,
+            );
+    }
 }
