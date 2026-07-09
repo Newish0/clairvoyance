@@ -4,23 +4,17 @@ import { schemaRelations } from "database/models/relations";
 import { drizzle } from "drizzle-orm/pglite";
 import PGLiteWorker from "./pglite-worker?worker";
 
-let _db: Db | null = null;
+let _dbPromise: Promise<Db> | null = null;
 
 export const getDb = async (): Promise<Db> => {
-    if (_db) {
-        return _db;
-    }
+    if (_dbPromise) return _dbPromise;
 
-    const pg = await PGliteWorkerWrapper.create(new PGLiteWorker(), {
-        id: "transit-pglite",
-    });
+    _dbPromise = (async () => {
+        const pg = await PGliteWorkerWrapper.create(new PGLiteWorker(), {
+            id: "transit-pglite",
+        });
+        return drizzle({ client: pg as any, relations: schemaRelations });
+    })();
 
-    const db = drizzle({
-        client: pg as any,
-        relations: schemaRelations,
-    });
-
-    _db = db;
-
-    return db;
+    return _dbPromise;
 };
