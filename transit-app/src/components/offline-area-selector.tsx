@@ -1,15 +1,15 @@
-import { useCallback, useState } from "react";
-import type { LngLatBounds } from "maplibre-gl";
-import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProtoMap } from "./maps/proto-map";
-import { SelectionSquareOverlay } from "./maps/selection-square-overlay";
 import { useOfflineAreas } from "@/hooks/use-offline-areas";
 import { trpcClient } from "@/main";
-import { addDays, startOfDay } from "date-fns";
 import { getDb } from "@/offline/db";
-import * as tables from "database/models/tables";
-import { upsertMany } from "@/offline/upsert";
+import { saveOfflineData } from "@/offline/manage";
+import { addDays, startOfDay } from "date-fns";
+import { Download, Loader2 } from "lucide-react";
+import type { LngLatBounds } from "maplibre-gl";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
+import { ProtoMap } from "./maps/proto-map";
+import { SelectionSquareOverlay } from "./maps/selection-square-overlay";
 
 type Selection = {
     bounds: LngLatBounds | null;
@@ -20,54 +20,44 @@ type Selection = {
 const OfflineAreaSelector: React.FC<{
     createArea: ReturnType<typeof useOfflineAreas>["createArea"];
     updateArea: ReturnType<typeof useOfflineAreas>["updateArea"];
-}> = ({ createArea, updateArea }) => {
+    onComplete?: () => void;
+}> = ({ createArea, updateArea, onComplete }) => {
     const [selection, setSelection] = useState<Selection | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
     const handleDownload = async () => {
         if (!selection?.bounds || selection.exceedsLimit) return;
+
+        const start = startOfDay(new Date());
+        const end = addDays(start, 2);
+
         const area = createArea({
             name: selection.name ?? "Unnamed area",
             bounds: selection.bounds,
+            dateRange: [start.getTime(), end.getTime()],
         });
         setPendingId(area.id);
 
         try {
             const data = await trpcClient.offlineSync.getArea.query({
                 bounds: area.bbox,
-                dateRange: [startOfDay(new Date()), addDays(startOfDay(new Date()), 2)],
+                dateRange: [start, end],
             });
-
-            console.log(data);
 
             const db = await getDb();
-            await db.transaction(async (tx) => {
-                console.log("Inserting data");
-                await upsertMany(
-                    tx,
-                    tables.tripInstances,
-                    data.tripInstances,
-                    tables.tripInstances.id,
-                );
-                await upsertMany(tx, tables.stopTimeStaticInstances, data.stopTimeStaticInstances, [
-                    tables.stopTimeStaticInstances.tripInstanceId,
-                    tables.stopTimeStaticInstances.stopTimeId,
-                ]);
-                await upsertMany(tx, tables.stops, data.stops, tables.stops.id);
-                await upsertMany(tx, tables.routes, data.routes, tables.routes.id);
-                await upsertMany(tx, tables.trips, data.trips, tables.trips.id);
-                await upsertMany(tx, tables.shapes, data.shapes, tables.shapes.id);
-            });
+            await saveOfflineData(db, data);
 
             const bytes = new TextEncoder().encode(JSON.stringify(data)).length;
-
             updateArea(area.id, { state: "downloaded", sizeBytes: bytes });
-            console.log("Downloaded", bytes, "bytes");
+
+            toast.success(`Downloaded offline area "${area.name}"`);
         } catch (e) {
             updateArea(area.id, { state: "error", error: (e as Error).message });
-            console.error(e);
+
+            toast.error((e as Error).message);
         } finally {
             setPendingId(null);
+            onComplete?.();
         }
     };
 

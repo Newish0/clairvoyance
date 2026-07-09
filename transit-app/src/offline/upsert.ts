@@ -30,7 +30,7 @@ export async function upsertMany<T extends PgTable>(
     values: InferInsertModel<T>[],
     target: PgColumn | PgColumn[],
     ignore: (keyof T["_"]["columns"])[] = [],
-    chunkSize: number = 256,
+    chunkSize: number = 512,
 ) {
     if (values.length === 0) return;
 

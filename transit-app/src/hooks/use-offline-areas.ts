@@ -9,7 +9,8 @@ const areaSchema = z.object({
     id: z.string(),
     name: z.string(),
     bbox: bboxSchema,
-    state: z.enum(["downloading", "downloaded", "error"]),
+    dateRange: z.tuple([z.number(), z.number()]), // epoch ms [start, end] used at download time
+    state: z.enum(["downloading", "downloaded", "deleting", "error"]),
     sizeBytes: z.number().optional(),
     error: z.string().optional(),
     createdAt: z.number(),
@@ -32,18 +33,21 @@ export function useOfflineAreas() {
         },
     });
 
-    const createArea = useMemoizedFn((input: { name: string; bounds: LngLatBounds }) => {
-        const area: OfflineArea = {
-            id: crypto.randomUUID(),
-            name: input.name,
-            bbox: input.bounds.toArray(),
-            state: "downloading",
-            createdAt: Date.now(),
-            updatedAt: null,
-        };
-        setAreas([...areas, area]);
-        return area;
-    });
+    const createArea = useMemoizedFn(
+        (input: { name: string; bounds: LngLatBounds; dateRange: [number, number] }) => {
+            const area: OfflineArea = {
+                id: crypto.randomUUID(),
+                name: input.name,
+                bbox: input.bounds.toArray(),
+                dateRange: input.dateRange,
+                state: "downloading",
+                createdAt: Date.now(),
+                updatedAt: null,
+            };
+            setAreas([...areas, area]);
+            return area;
+        },
+    );
 
     const updateArea = useMemoizedFn(
         (id: string, patch: Partial<Omit<OfflineArea, "id" | "createdAt" | "updatedAt">>) => {
