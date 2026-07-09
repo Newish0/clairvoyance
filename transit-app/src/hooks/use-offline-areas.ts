@@ -13,6 +13,9 @@ const areaSchema = z.object({
     state: z.enum(["downloading", "downloaded", "deleting", "error"]),
     sizeBytes: z.number().optional(),
     error: z.string().optional(),
+    tilesUrl: z.string().optional(),       // pmtiles file URL for cached tiles
+    tileRanges: z.number().optional(),     // number of byte ranges cached
+    tileBytes: z.number().optional(),      // total bytes of tile data cached
     createdAt: z.number(),
     updatedAt: z.number().nullable(),
 });

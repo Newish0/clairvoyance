@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { extractTiles } from "./vite-plugin-extract-tiles";
@@ -28,6 +29,19 @@ export default defineConfig({
                 plugins: ["babel-plugin-react-compiler"],
             },
         }),
+        VitePWA({
+            registerType: "autoUpdate",
+            workbox: {
+                maximumFileSizeToCacheInBytes: 24 * 1024 * 1024,
+                globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,wasm,data,tar,gz,json}"],
+                globIgnores: ["**/*.pmtiles"],
+                navigateFallback: "/index.html",
+                skipWaiting: true,
+                clientsClaim: true,
+            },
+            manifest: false,
+            devOptions: { enabled: false },
+        }),
     ],
     resolve: {
         alias: {
@@ -39,6 +53,9 @@ export default defineConfig({
     },
     build: {
         ssr: false,
+    },
+    worker: {
+        format: "es",
     },
     server: {
         proxy: {

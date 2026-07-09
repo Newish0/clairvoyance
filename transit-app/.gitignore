@@ -9,3 +9,4 @@ count.txt
 .tanstack
 .output
 public/pmtiles/*.pmtiles
+dev-dist

@@ -11,7 +11,7 @@ import {
 import type { inferRouterOutputs } from "@trpc/server";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import maplibre from "maplibre-gl";
-import { Protocol } from "pmtiles";
+import { PMTiles, Protocol } from "pmtiles";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import superjson from "superjson";
@@ -26,8 +26,25 @@ import reportWebVitals from "./reportWebVitals.ts";
 import { routeTree } from "./routeTree.gen";
 
 // Global singleton: Setup maplibre protocol to support pmtiles
-const protocol = new Protocol();
-maplibre.addProtocol("pmtiles", protocol.tile);
+export const pmtilesProtocol = new Protocol();
+maplibre.addProtocol("pmtiles", pmtilesProtocol.tile);
+
+// Re-register IdbSource-backed PMTiles for previously downloaded offline areas
+import { IdbSource } from "./offline/pmtiles-source";
+(async () => {
+    try {
+        const raw = localStorage.getItem("offline-areas");
+        if (!raw) return;
+        const areas = JSON.parse(raw);
+        for (const area of areas) {
+            if (area.tilesUrl && area.state === "downloaded") {
+                pmtilesProtocol.add(new PMTiles(new IdbSource(area.tilesUrl)));
+            }
+        }
+    } catch {
+        // ponytail: silent - offline areas best-effort on reload
+    }
+})();
 
 export const queryClient = new QueryClient({
     defaultOptions: {
@@ -53,8 +70,9 @@ export const trpcClient = createTRPCClient<AppRouter>({
                 // Failsafe to disallow downloading offline data from offline data
                 if (op.path.startsWith("offlineSync")) return true;
 
-                return navigator.onLine && false;
-                // return navigator.onLine;
+                // FIXME: this is a hack for dev only
+                // return navigator.onLine && false;
+                return navigator.onLine;
             },
             true: splitLink({
                 condition: (op) => op.type === "subscription",
