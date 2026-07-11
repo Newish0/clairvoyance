@@ -1,4 +1,5 @@
 import { useMovementThreshold } from "@/hooks/use-movement-threshold";
+import { useOfflineMode } from "@/hooks/use-offline-mode";
 import { useGeolocation, type GeolocationStatus } from "./geolocation-provider";
 import { OfflineAreaManager } from "./offline-area-manager";
 import { useTheme, type Theme } from "./theme-provider";
@@ -17,6 +18,7 @@ export const AppSettings = () => {
     const { status, requestPermission, stopWatching } = useGeolocation();
     const { theme, setTheme } = useTheme();
     const [movementThreshold, setMovementThreshold] = useMovementThreshold();
+    const [offlineModeEnabled, setOfflineModeEnabled] = useOfflineMode();
 
     const location = status === "watching" || status === "requesting";
 
@@ -81,10 +83,19 @@ export const AppSettings = () => {
             description: "Manage your offline data",
             settings: [
                 {
+                    id: "offline-mode",
+                    type: "switch",
+                    label: "Offline Mode",
+                    description: "Enable offline support. Uses additional RAM for local database.",
+                    value: offlineModeEnabled,
+                    onChange: setOfflineModeEnabled,
+                },
+                {
                     id: "Manage-offline",
                     type: "custom",
                     label: "Manage Offline",
                     description: "Manage your offline data",
+                    disabled: !offlineModeEnabled,
                     render: () => <OfflineAreaManager />,
                 },
             ],
@@ -123,7 +134,7 @@ export const AppSettings = () => {
 
     return (
         <>
-            <Settings sections={settingsSections} />
+            <Settings sections={settingsSections} variant="compact"/>
         </>
     );
 };

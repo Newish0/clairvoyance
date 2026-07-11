@@ -70,9 +70,9 @@ export const trpcClient = createTRPCClient<AppRouter>({
                 // Failsafe to disallow downloading offline data from offline data
                 if (op.path.startsWith("offlineSync")) return true;
 
-                // FIXME: this is a hack for dev only
-                // return navigator.onLine && false;
-                return navigator.onLine;
+                // offline-mode check: disabled -> always use online link, no PGlite init
+                const offlineModeEnabled = localStorage.getItem("offline-mode-enabled") === "true";
+                return offlineModeEnabled ? navigator.onLine : true;
             },
             true: splitLink({
                 condition: (op) => op.type === "subscription",

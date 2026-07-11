@@ -22,13 +22,13 @@ export interface BaseSetting {
     label: string;
     description?: string;
     type: SettingType;
+    disabled?: boolean;
 }
 
 export interface SwitchSetting extends BaseSetting {
     type: "switch";
     value: boolean;
     onChange: (value: boolean) => void;
-    disabled?: boolean;
 }
 
 export interface InputSetting extends BaseSetting {
@@ -81,6 +81,7 @@ export type Setting =
 export interface SettingSection {
     title: string;
     description?: string;
+    disabled?: boolean;
     settings: Setting[];
 }
 
@@ -118,12 +119,17 @@ function SettingItem({
                         onChange={(e) => setting.onChange(e.target.value)}
                         placeholder={setting.placeholder}
                         className="max-w-md"
+                        disabled={setting.disabled}
                     />
                 );
 
             case "select":
                 return (
-                    <Select value={setting.value} onValueChange={setting.onChange}>
+                    <Select
+                        value={setting.value}
+                        onValueChange={setting.onChange}
+                        disabled={setting.disabled}
+                    >
                         <SelectTrigger id={setting.id} className="max-w-md">
                             <SelectValue placeholder={setting.placeholder} />
                         </SelectTrigger>
@@ -148,6 +154,7 @@ function SettingItem({
                             max={setting.max}
                             step={setting.step || 1}
                             className="flex-1"
+                            disabled={setting.disabled}
                         />
                         {setting.displayValue && (
                             <span className="text-sm text-muted-foreground w-12 text-right">
@@ -168,6 +175,7 @@ function SettingItem({
                         placeholder={setting.placeholder}
                         rows={setting.rows || 4}
                         className="max-w-2xl"
+                        disabled={setting.disabled}
                     />
                 );
 
@@ -179,16 +187,21 @@ function SettingItem({
         }
     };
 
-    const isInlineControl = setting.type === "switch";
+    const isInlineControl = setting.type === "switch" || setting.type === "select";
     const isFullWidth = setting.type === "textarea" || setting.type === "custom";
 
     if (variant === "compact") {
         return (
-            <div className="flex flex-col gap-2 py-3">
+            <div
+                className={cn(
+                    "flex flex-col gap-2 py-3",
+                    setting.disabled && "opacity-50 pointer-events-none",
+                )}
+            >
                 <div
                     className={cn(
                         "flex items-start justify-between gap-4",
-                        isInlineControl && "items-center"
+                        isInlineControl && "items-center",
                     )}
                 >
                     <div className="flex-1 space-y-1">
@@ -199,7 +212,7 @@ function SettingItem({
                             <p className="text-sm text-muted-foreground">{setting.description}</p>
                         )}
                     </div>
-                    {isInlineControl && <div className="flex-shrink-0">{renderControl()}</div>}
+                    {isInlineControl && <div className="shrink-0">{renderControl()}</div>}
                 </div>
                 {!isInlineControl && <div className="mt-2">{renderControl()}</div>}
             </div>
@@ -210,7 +223,8 @@ function SettingItem({
         <div
             className={cn(
                 "grid gap-3 py-4",
-                isFullWidth ? "grid-cols-1" : "md:grid-cols-2 grid-cols-1"
+                isFullWidth ? "grid-cols-1" : "md:grid-cols-2 grid-cols-1",
+                setting.disabled && "opacity-50 pointer-events-none",
             )}
         >
             <div className="space-y-1">
@@ -232,7 +246,10 @@ export function Settings({ sections, className, variant = "default" }: SettingsP
     return (
         <div className={cn("space-y-6", className)}>
             {sections.map((section, sectionIndex) => (
-                <Card key={sectionIndex}>
+                <Card
+                    key={sectionIndex}
+                    className={cn(section.disabled && "opacity-50 pointer-events-none select-none")}
+                >
                     <CardHeader>
                         <CardTitle>{section.title}</CardTitle>
                         {section.description && (
@@ -241,7 +258,7 @@ export function Settings({ sections, className, variant = "default" }: SettingsP
                     </CardHeader>
                     <CardContent>
                         <div className="divide-y">
-                            {section.settings.map((setting, settingIndex) => (
+                            {section.settings.map((setting) => (
                                 <SettingItem key={setting.id} setting={setting} variant={variant} />
                             ))}
                         </div>

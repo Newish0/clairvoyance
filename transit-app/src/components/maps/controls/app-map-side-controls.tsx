@@ -25,14 +25,15 @@ export default function AppMapSideControls() {
                         <SettingsIcon />
                     </Button>
                 </ResponsiveModalTrigger>
-                <ResponsiveModalContent className="min-w-1/2 max-w-3xl">
+                <ResponsiveModalContent className="md:min-w-1/2 md:max-w-3xl max-h-full md:max-h-3/4 flex flex-col">
                     <ResponsiveModalHeader>
                         <ResponsiveModalTitle>Settings</ResponsiveModalTitle>
                         <ResponsiveModalDescription>
                             Manage your preferences
                         </ResponsiveModalDescription>
                     </ResponsiveModalHeader>
-                    <div className="p-4 overflow-auto">
+
+                    <div className="h-full pl-4 pr-0 md:p-0 overflow-auto">
                         <AppSettings />
                     </div>
                 </ResponsiveModalContent>

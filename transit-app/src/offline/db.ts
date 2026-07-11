@@ -5,9 +5,11 @@ import { drizzle } from "drizzle-orm/pglite";
 import PGLiteWorker from "./pglite-worker?worker";
 import type { PGlite } from "@electric-sql/pglite";
 
-let _dbPromise: Promise<Db> | null = null;
+export type PGliteDb = Db<PGlite>;
 
-export const getDb = async (): Promise<Db> => {
+let _dbPromise: Promise<PGliteDb> | null = null;
+
+export const getDb = async (): Promise<PGliteDb> => {
     if (_dbPromise) return _dbPromise;
 
     _dbPromise = (async () => {
@@ -24,4 +26,10 @@ export const getDb = async (): Promise<Db> => {
     return _dbPromise;
 };
 
-export type PGliteDb = Db<PGlite>;
+// TODO
+/** Close PGlite worker and reset cached db reference. Call when disabling offline mode. */
+// export const destroyDb = async () => {
+//     const db = await getDb();
+//     db.$client.close();
+//     indexedDB.deleteDatabase('/pglite/my-database')
+// };
