@@ -125,6 +125,9 @@ worker({
         await removeAutoIncrement(pg, tables, schema);
         console.debug("[pglite worker] removed auto increment");
 
+        await pg.syncToFs();
+        console.debug("[pglite worker] synced to fs");
+
         return pg;
     },
 });

@@ -1,9 +1,10 @@
 import type { OfflineArea } from "@/hooks/use-offline-areas";
 import type { inferProcedureOutput } from "@trpc/server";
-import type { Db } from "database";
+
 import * as tables from "database/models/tables";
 import { notInArray, sql } from "drizzle-orm";
 import type { AppRouter } from "transit-api-core/types";
+import type { PGliteDb } from "./db";
 import { upsertMany } from "./upsert";
 
 /**
@@ -17,7 +18,7 @@ import { upsertMany } from "./upsert";
  * Pass the full, up-to-date list of areas you want to KEEP (i.e. already
  * excluding anything the user just removed).
  */
-export async function pruneOfflineData(db: Db, keepAreas: OfflineArea[]): Promise<void> {
+export async function pruneOfflineData(db: PGliteDb, keepAreas: OfflineArea[]): Promise<void> {
     const keepStopIds = new Set<number>();
     const keepTripInstanceIds = new Set<number>();
     const keepTripIds = new Set<number>();
@@ -131,10 +132,12 @@ export async function pruneOfflineData(db: Db, keepAreas: OfflineArea[]): Promis
                 keepStopIds.size > 0 ? notInArray(tables.stops.id, [...keepStopIds]) : sql`true`,
             );
     });
+
+    await db.$client.syncToFs();
 }
 
 export async function saveOfflineData(
-    db: Db,
+    db: PGliteDb,
     data: inferProcedureOutput<AppRouter["offlineSync"]["getArea"]>,
 ) {
     await db.transaction(async (tx) => {
@@ -150,4 +153,6 @@ export async function saveOfflineData(
             upsertMany(tx, tables.shapes, data.shapes, tables.shapes.id),
         ]);
     });
+
+    await db.$client.syncToFs();
 }
