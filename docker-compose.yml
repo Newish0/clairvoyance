@@ -1,79 +1,95 @@
 services:
-  db:
-    build:
-      context: .
-      dockerfile: database/Dockerfile
-    container_name: clairvoyance-db
-    environment:
-      POSTGRES_DB: transit
-      POSTGRES_USER: transit
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-transit_pass}
-    volumes:
-      - pgdata:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U transit"]
-      interval: 10s
-      retries: 5
-    networks:
-      - internal
-    restart: unless-stopped
+    db:
+        build:
+            context: .
+            dockerfile: database/Dockerfile
+        container_name: clairvoyance-db
+        environment:
+            POSTGRES_DB: transit
+            POSTGRES_USER: transit
+            POSTGRES_PASSWORD: ${PG_PASSWORD:-transit_pass}
+        volumes:
+            - pgdata:/var/lib/postgresql
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U transit"]
+            interval: 10s
+            retries: 5
+        networks:
+            - internal
+        restart: unless-stopped
 
-  db-migration:
-    build:
-      context: .
-      dockerfile: database/drizzle/Dockerfile
-    environment:
-      DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - internal
-    restart: no
+    db-migration:
+        build:
+            context: .
+            dockerfile: database/drizzle/Dockerfile
+        environment:
+            DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - internal
+        restart: no
 
-  transit-api:
-    build:
-      context: .
-      dockerfile: transit-api/server/Dockerfile
-    environment:
-      DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
-      PORT: 8000
-    depends_on:
-      db-migration:
-        condition: service_completed_successfully
-    networks:
-      - internal
-    restart: unless-stopped
+    transit-api:
+        build:
+            context: .
+            dockerfile: transit-api/server/Dockerfile
+        environment:
+            DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
+            PORT: 8000
+        depends_on:
+            db-migration:
+                condition: service_completed_successfully
+        networks:
+            - internal
+        restart: unless-stopped
 
-  gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
-      args:
-        VITE_API_URL: /api
-    ports:
-      - "${PORT:-8080}:80"
-    depends_on:
-      - transit-api
-    networks:
-      - internal
-    restart: unless-stopped
+    gateway:
+        build:
+            context: .
+            dockerfile: gateway/Dockerfile
+            args:
+                VITE_API_URL: /api
+        ports:
+            - "${PORT:-8080}:80"
+        depends_on:
+            - transit-api
+        networks:
+            - internal
+        restart: unless-stopped
 
-  transit-ingest:
-    build:
-      context: .
-      dockerfile: transit-ingest/Dockerfile
-    environment:
-      DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
-    depends_on:
-      db-migration:
-        condition: service_completed_successfully
-    networks:
-      - internal
+    transit-ingest-static:
+        build:
+            context: .
+            dockerfile: transit-ingest/Dockerfile
+            target: static
+        environment:
+            DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
+        depends_on:
+            db-migration:
+                condition: service_completed_successfully
+        networks:
+            - internal
+        restart: no
+
+    transit-ingest-realtime:
+        build:
+            context: .
+            dockerfile: transit-ingest/Dockerfile
+            target: realtime
+        environment:
+            DATABASE_URL: postgres://transit:${PG_PASSWORD:-transit_pass}@db:5432/transit
+        depends_on:
+            db-migration:
+                condition: service_completed_successfully
+        networks:
+            - internal
+        restart: unless-stopped
 
 volumes:
-  pgdata:
+    pgdata:
 
 networks:
-  internal:
-    driver: bridge
+    internal:
+        driver: bridge

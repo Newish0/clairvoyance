@@ -16,15 +16,20 @@ COPY database/ ./database/
 COPY tsconfig.json ./
 
 RUN case "$TARGETARCH" in \
-      amd64) BUN_TARGET="bun-linux-x64-baseline" ;; \
-      arm64) BUN_TARGET="bun-linux-arm64" ;; \
-      *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
-    esac && \
-    bun build --compile --target=$BUN_TARGET \
-    ./transit-ingest/src/main.ts --outfile /app/ingest
+	amd64) BUN_TARGET="bun-linux-x64-baseline" ;; \
+	arm64) BUN_TARGET="bun-linux-arm64" ;; \
+	*) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
+	esac && \
+	bun build --compile --target=$BUN_TARGET \
+	./transit-ingest/src/main.ts --outfile /app/ingest
 
-FROM docker.io/debian:stable-slim
+FROM docker.io/debian:stable-slim AS base
 COPY --from=builder /app/ingest /usr/local/bin/ingest
 COPY --from=builder /app/transit-ingest/appconfig.yaml /etc/ingest/appconfig.yaml
 USER nobody
-ENTRYPOINT ["ingest", "from-config", "/etc/ingest/appconfig.yaml", "-v"]
+
+FROM base AS static
+ENTRYPOINT ["ingest", "from-config", "/etc/ingest/appconfig.yaml", "-v", "--static", "--realize"]
+
+FROM base AS realtime
+ENTRYPOINT ["ingest", "from-config", "/etc/ingest/appconfig.yaml", "-v", "--realtime"]
