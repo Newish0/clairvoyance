@@ -78,7 +78,7 @@ export class TripUpdateSink implements Sink<TransformedTripUpdate> {
                 ctx.db,
                 tables.stopTimeRealtimeInstances,
                 tu.stopTimeInstancesToUpsert,
-                [tables.stopTimeRealtimeInstances.id],
+                [tables.stopTimeRealtimeInstances.tripInstanceId, tables.stopTimeRealtimeInstances.stopSequence],
                 ["id"],
             )
         }

@@ -107,6 +107,8 @@ export async function runRealtimePipeline(
             const sleepDuration = pollInterval * 1000 - elapsed;
             if (sleepDuration > 0) {
                 await sleep(sleepDuration, controller.signal);
+            } else if (sleepDuration < 0) {
+                ctx.logger.warn({ pollInterval, elapsed }, "Realtime loop can't keep up with poll interval");
             }
         }
     } finally {
