@@ -26,95 +26,68 @@ const safeFetchProtobuf = fromAsyncThrowable(fetchProtobuf, (e: unknown) => e as
 export async function runRealtime(
     ctx: Context,
     urls: string[],
-    pollInterval: number,
+    lastHashes: Map<string, string>,
+    lastCachedHeaders: Map<string, CachedHeaders>,
 ): Promise<Result<RealtimeSummary, IngestError>> {
-    const lastHashes = new Map<string, string>();
-    const lastCachedHeaders = new Map<string, CachedHeaders>();
+    for (const url of urls) {
+        const fetchResult = await safeFetchProtobuf(
+            url,
+            ctx.controller.signal,
+            lastHashes.get(url),
+            lastCachedHeaders.get(url),
+        );
 
-    while (!ctx.controller.signal.aborted) {
-        const loopStart = Date.now();
-
-        for (const url of urls) {
-            const fetchResult = await safeFetchProtobuf(
-                url,
-                ctx.controller.signal,
-                lastHashes.get(url),
-                lastCachedHeaders.get(url),
+        if (fetchResult.isErr()) {
+            ctx.errors.push(fetchResult.error);
+            ctx.skipped++;
+            ctx.logger.error(
+                { url, err: fetchResult.error },
+                "Feed fetch failed, continuing to next",
             );
-
-            if (fetchResult.isErr()) {
-                ctx.errors.push(fetchResult.error);
-                ctx.skipped++;
-                ctx.logger.error(
-                    { url, err: fetchResult.error },
-                    "Feed fetch failed, continuing to next",
-                );
-                continue;
-            }
-
-            const result = fetchResult.value;
-
-            if (!result.changed) {
-                ctx.logger.debug({ url }, "Feed unchanged (304 or hash match), skipping");
-                continue;
-            }
-
-            const { data } = result;
-
-            const prevHash = lastHashes.get(url);
-
-            if (prevHash === data.hash) {
-                ctx.logger.debug({ url, hash: data.hash }, "Feed unchanged, skipping");
-                continue;
-            }
-
-            ctx.logger.debug(
-                { url, bytes: data.bytes.length, hash: data.hash },
-                "Processing realtime feed",
-            );
-
-            const pipelineResult = await runPipelines(ctx, data, url);
-
-            if (pipelineResult.isErr()) {
-                ctx.errors.push(pipelineResult.error);
-                ctx.skipped++;
-                ctx.logger.error(
-                    { url, err: pipelineResult.error },
-                    "Feed failed, continuing to next",
-                );
-                continue;
-            }
-
-            // Only record hash after successful pipeline run - failed feeds should be retried
-            lastHashes.set(url, data.hash);
-            lastCachedHeaders.set(url, result.cachedHeaders);
-
-            ctx.logger.debug(
-                { url, errors: ctx.errors.length, skipped: ctx.skipped },
-                "Feed processed",
-            );
+            continue;
         }
 
-        if (pollInterval <= 0) break;
+        const result = fetchResult.value;
 
-        const loopElapse = Date.now() - loopStart;
-        const sleepDuration = pollInterval * 1000 - loopElapse;
-        ctx.logger.debug({ loopElapse }, "Realtime loop finished");
+        if (!result.changed) {
+            ctx.logger.debug({ url }, "Feed unchanged (304 or hash match), skipping");
+            continue;
+        }
 
-        ctx.logger.debug({ pollInterval, sleepDuration }, "Waiting for next poll");
-        await new Promise<void>((resolve) => {
-            let cleaned = false;
-            const cleanup = () => {
-                if (cleaned) return;
-                cleaned = true;
-                clearTimeout(timer);
-                ctx.controller.signal.removeEventListener("abort", onAbort);
-                resolve();
-            };
-            const timer = setTimeout(cleanup, sleepDuration);
-            const onAbort = () => cleanup();
-            ctx.controller.signal.addEventListener("abort", onAbort, { once: true });
-        });
+        const { data } = result;
+
+        const prevHash = lastHashes.get(url);
+
+        if (prevHash === data.hash) {
+            ctx.logger.debug({ url, hash: data.hash }, "Feed unchanged, skipping");
+            continue;
+        }
+
+        ctx.logger.debug(
+            { url, bytes: data.bytes.length, hash: data.hash },
+            "Processing realtime feed",
+        );
+
+        const pipelineResult = await runPipelines(ctx, data, url);
+
+        if (pipelineResult.isErr()) {
+            ctx.errors.push(pipelineResult.error);
+            ctx.skipped++;
+            ctx.logger.error(
+                { url, err: pipelineResult.error },
+                "Feed failed, continuing to next",
+            );
+            continue;
+        }
+
+        // Only record hash after successful pipeline run - failed feeds should be retried
+        lastHashes.set(url, data.hash);
+        lastCachedHeaders.set(url, result.cachedHeaders);
+
+        ctx.logger.debug(
+            { url, errors: ctx.errors.length, skipped: ctx.skipped },
+            "Feed processed",
+        );
     }
 
     return ok({ errors: ctx.errors, skipped: ctx.skipped });

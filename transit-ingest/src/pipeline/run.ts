@@ -5,6 +5,7 @@ import { createContext } from "./core/context";
 import type { IngestError } from "./core/error";
 import { runStatic } from "./gtfs-static";
 import { runRealtime } from "./gtfs-realtime";
+import type { CachedHeaders } from "./source/protobuf-source";
 import { runRealizeInstances } from "./realize-instances";
 
 export function resolveDb(databaseUrl?: string): Db {
@@ -57,6 +58,21 @@ export async function runStaticPipeline(
     });
 }
 
+async function sleep(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve) => {
+        if (signal.aborted) return resolve();
+        const timer = setTimeout(() => {
+            signal.removeEventListener("abort", onAbort);
+            resolve();
+        }, ms);
+        const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+    });
+}
+
 export async function runRealtimePipeline(
     db: Db,
     agencyId: string,
@@ -65,19 +81,34 @@ export async function runRealtimePipeline(
     verbose: boolean,
     pretty: boolean,
 ): Promise<void> {
-    const ctx = createContext(db, { agencyId, verbose, pretty });
-    const onSigint = () => ctx.controller.abort();
+    const controller = new AbortController();
+    const onSigint = () => controller.abort();
     process.on("SIGINT", onSigint);
 
-    ctx.logger.info({ agencyId, urls, poll: pollInterval }, "Realtime config");
+    let lastHashes = new Map<string, string>();
+    let lastCachedHeaders = new Map<string, CachedHeaders>();
 
     try {
-        const result = await runRealtime(ctx, urls, pollInterval);
-        logSummary(result, ctx.logger, {
-            ok: "Realtime data processed successfully.",
-            warn: "Realtime data processed with recoverable errors",
-            err: "Realtime processing failed",
-        });
+        while (!controller.signal.aborted) {
+            const loopStart = Date.now();
+            const ctx = createContext(db, { agencyId, verbose, pretty });
+
+            const result = await runRealtime(ctx, urls, lastHashes, lastCachedHeaders);
+
+            logSummary(result, ctx.logger, {
+                ok: "Realtime data processed successfully.",
+                warn: "Realtime data processed with recoverable errors",
+                err: "Realtime processing failed",
+            });
+
+            if (pollInterval <= 0) break;
+
+            const elapsed = Date.now() - loopStart;
+            const sleepDuration = pollInterval * 1000 - elapsed;
+            if (sleepDuration > 0) {
+                await sleep(sleepDuration, controller.signal);
+            }
+        }
     } finally {
         process.removeListener("SIGINT", onSigint);
     }
