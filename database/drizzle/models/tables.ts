@@ -5,6 +5,7 @@ import {
     doublePrecision,
     index,
     integer,
+    interval,
     jsonb,
     primaryKey,
     serial,
@@ -253,6 +254,11 @@ export const stopTimes = schema.table(
         dropOffType: pickupDropOffEnum("drop_off_type"),
         timepoint: timepointEnum("timepoint").default("EXACT"),
         shapeDistTraveled: doublePrecision("shape_dist_traveled"),
+
+        /** Pre-computed offset from first stop's arrival_time (interval). Eliminates correlated subquery in stopTimeStaticInstances view. */
+        relativeArrivalOffset: interval("relative_arrival_offset"),
+        /** Pre-computed offset from first stop's arrival_time (interval). Eliminates correlated subquery in stopTimeStaticInstances view. */
+        relativeDepartureOffset: interval("relative_departure_offset"),
     },
     (t) => [
         unique("uq_stop_times_agency_trip_sequence").on(t.agencyId, t.tripSid, t.stopSequence),
@@ -297,32 +303,6 @@ export const tripInstances = schema.table(
         ),
         index("idx_trip_instances_start_date").on(t.startDate),
         index("idx_trip_instances_start_datetime").on(t.startDatetime),
-    ],
-);
-
-export const stopTimeStaticInstances = schema.table(
-    "stop_time_static_instances",
-    {
-        tripInstanceId: integer("trip_instance_id").notNull(),
-        stopTimeId: integer("stop_time_id").notNull(),
-        stopSequence: integer("stop_sequence").notNull(),
-        stopId: integer("stop_id").notNull(),
-        timepoint: timepointEnum("timepoint"),
-        scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
-        scheduledDepartureTime: timestamp("scheduled_departure_time", { withTimezone: true }),
-        stopHeadsign: text("stop_headsign"),
-        pickupType: pickupDropOffEnum("pickup_type"),
-        dropOffType: pickupDropOffEnum("drop_off_type"),
-        shapeDistTraveled: doublePrecision("shape_dist_traveled"),
-    },
-    (t) => [
-        unique("uq_stop_time_static_instances_trip_instance_stop_time").on(
-            t.tripInstanceId, t.stopTimeId
-        ),
-        index("idx_stop_time_static_instances_trip_instance_stop").on(
-            t.tripInstanceId, t.stopId
-        ),
-        index("idx_stop_time_static_instances_stop_id").on(t.stopId),
     ],
 );
 

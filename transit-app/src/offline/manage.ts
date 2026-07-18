@@ -143,14 +143,15 @@ export async function saveOfflineData(
     await db.transaction(async (tx) => {
         await Promise.all([
             upsertMany(tx, tables.tripInstances, data.tripInstances, tables.tripInstances.id),
-            upsertMany(tx, tables.stopTimeStaticInstances, data.stopTimeStaticInstances, [
-                tables.stopTimeStaticInstances.tripInstanceId,
-                tables.stopTimeStaticInstances.stopTimeId,
-            ]),
             upsertMany(tx, tables.stops, data.stops, tables.stops.id),
             upsertMany(tx, tables.routes, data.routes, tables.routes.id),
             upsertMany(tx, tables.trips, data.trips, tables.trips.id),
             upsertMany(tx, tables.shapes, data.shapes, tables.shapes.id),
+            upsertMany(tx, tables.stopTimes, data.stopTimes, [
+                tables.stopTimes.agencyId,
+                tables.stopTimes.tripSid,
+                tables.stopTimes.stopSequence,
+            ]),
         ]);
     });
 

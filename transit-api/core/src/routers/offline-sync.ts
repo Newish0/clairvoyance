@@ -100,6 +100,17 @@ export const offlineSyncRouter = router({
                 },
             });
 
+            const tripIds = [...new Set(tripInstances.map((trip) => trip.tripId))];
+
+            const stopTimes = await ctx.db.query.stopTimes.findMany({
+                where: {
+                    tripId: {
+                        in: tripIds,
+                    },
+                },
+                orderBy: (stops, { asc }) => [asc(stops.tripId), asc(stops.stopSequence)],
+            });
+
             const shapes = await ctx.db.query.shapes.findMany({
                 where: {
                     id: {
@@ -112,28 +123,22 @@ export const offlineSyncRouter = router({
                 },
             });
 
-            const stopTimeStaticInstances = await ctx.db.query.stopTimeStaticInstances.findMany({
-                where: {
-                    tripInstanceId: {
-                        in: tripInstanceIds,
-                    },
-                },
-            });
+            const stopIds = [
+                ...new Set(stopTimes.map((st) => st.stopId).filter((id) => id !== null)),
+            ];
 
             const stops = await ctx.db.query.stops.findMany({
                 where: {
                     id: {
-                        in: [
-                            ...new Set(stopTimeStaticInstances.map((stopTime) => stopTime.stopId)),
-                        ],
+                        in: stopIds,
                     },
                 },
             });
 
             return {
-                stops,
-                stopTimeStaticInstances,
                 tripInstances,
+                stopTimes,
+                stops,
                 routes,
                 trips,
                 shapes,

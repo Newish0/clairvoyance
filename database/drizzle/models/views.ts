@@ -7,22 +7,53 @@ import {
     type AlertStatus,
 } from "./enums";
 import { schema } from "./schema";
-import { alerts, routes, stopTimes, trips } from "./tables";
+import { alerts, routes, stopTimes, tripInstances, trips } from "./tables";
 
 // =========================================================
 // VIEWS
 // =========================================================
 
 /**
- * Merges stopTimeRealtimeInstances with stopTimeStaticInstances.
+ * Full computed view of static stop time instances (trip_instances × stop_times).
+ * Uses pre-computed relative_arrival_offset/relative_departure_offset on stop_times
+ * to avoid correlated subqueries. Covers the full 1-month window.
+ * Slower than the materialized active table — use for time-tolerant queries.
+ */
+export const stopTimeStaticInstances = schema.view("stop_time_static_instances", {
+    tripInstanceId: integer("trip_instance_id").notNull(),
+    stopTimeId: integer("stop_time_id").notNull(),
+    stopSequence: integer("stop_sequence").notNull(),
+    stopId: integer("stop_id").notNull(),
+    timepoint: timepointEnum("timepoint"),
+    scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
+    scheduledDepartureTime: timestamp("scheduled_departure_time", { withTimezone: true }),
+    stopHeadsign: text("stop_headsign"),
+    pickupType: pickupDropOffEnum("pickup_type"),
+    dropOffType: pickupDropOffEnum("drop_off_type"),
+    shapeDistTraveled: doublePrecision("shape_dist_traveled"),
+}).as(sql`
+    SELECT
+        ti.id AS trip_instance_id,
+        st.id AS stop_time_id,
+        st.stop_sequence,
+        st.stop_id,
+        st.timepoint,
+        (ti.start_datetime + st.relative_arrival_offset)::timestamptz AS scheduled_arrival_time,
+        (ti.start_datetime + st.relative_departure_offset)::timestamptz AS scheduled_departure_time,
+        st.stop_headsign,
+        st.pickup_type,
+        st.drop_off_type,
+        st.shape_dist_traveled
+    FROM transit.trip_instances ti
+    INNER JOIN transit.stop_times st ON st.trip_id = ti.trip_id
+`);
+
+/**
+ * Merges stopTimeRealtimeInstances with stopTimeStaticInstances (computed view).
  * Falls back to static values when no realtime data exists for a stop.
  *
  * Simple LEFT JOIN on (trip_instance_id, stop_id) - predicate-pushable, allowing
- * the planner to filter stop_time_static_instances by stop_id before the join.
- *
- * Branch 2 (rt.stop_id IS NULL -> join on stop_sequence) was dropped because:
- *   - stop_id is NOT NULL on both stop_times and stop_time_realtime_instances
- *   - flex/on-demand service is explicitly out of scope (see table definitions)
+ * the planner to filter stop_time_static_instances_full by stop_id before the join.
  *
  * WARNING: keep Drizzle column definitions in sync with the SQL.
  */
@@ -76,6 +107,85 @@ export const stopTimeInstances = schema.view("stop_time_instances", {
     LEFT JOIN transit.stop_time_realtime_instances rt
         ON  rt.trip_instance_id = st.trip_instance_id
         AND rt.stop_id          = st.stop_id
+`);
+
+/**
+ * Active-only variant of stopTimeInstances.
+ * Pure view — computes static instances on the fly from trip_instances × stop_times
+ * with a 4-day rolling window instead of reading from a materialized table.
+ *
+ * Simple LEFT JOIN on (trip_instance_id, stop_id) - predicate-pushable, allowing
+ * the planner to filter by stop_id before the join.
+ *
+ * WARNING: keep Drizzle column definitions in sync with the SQL.
+ */
+export const stopTimeInstancesActive = schema.view("stop_time_instances_active", {
+    id: integer("id"),
+    tripInstanceId: integer("trip_instance_id").notNull(),
+    stopTimeId: integer("stop_time_id"),
+    stopSequence: integer("stop_sequence").notNull(),
+    stopId: integer("stop_id").notNull(),
+    timepoint: timepointEnum("timepoint"),
+    shapeDistTraveled: doublePrecision("shape_dist_traveled"),
+    scheduledArrivalTime: timestamp("scheduled_arrival_time", { withTimezone: true }),
+    scheduledDepartureTime: timestamp("scheduled_departure_time", { withTimezone: true }),
+    predictedArrivalTime: timestamp("predicted_arrival_time", { withTimezone: true }),
+    predictedDepartureTime: timestamp("predicted_departure_time", { withTimezone: true }),
+    predictedArrivalUncertainty: integer("predicted_arrival_uncertainty"),
+    predictedDepartureUncertainty: integer("predicted_departure_uncertainty"),
+    scheduleRelationship: stopTimeUpdateScheduleRelationshipEnum("schedule_relationship"),
+    stopHeadsign: text("stop_headsign"),
+    pickupType: pickupDropOffEnum("pickup_type"),
+    dropOffType: pickupDropOffEnum("drop_off_type"),
+    lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }),
+    effectiveTime: timestamp("effective_time", { withTimezone: true }),
+}).as(sql`
+    SELECT
+        rt.id,
+        static.trip_instance_id,
+        static.stop_time_id,
+        static.stop_sequence,
+        static.stop_id,
+        static.timepoint,
+        static.shape_dist_traveled,
+        COALESCE(rt.scheduled_arrival_time,   static.scheduled_arrival_time)   AS scheduled_arrival_time,
+        COALESCE(rt.scheduled_departure_time, static.scheduled_departure_time) AS scheduled_departure_time,
+        rt.predicted_arrival_time,
+        rt.predicted_departure_time,
+        rt.predicted_arrival_uncertainty,
+        rt.predicted_departure_uncertainty,
+        rt.schedule_relationship,
+        COALESCE(rt.stop_headsign, static.stop_headsign) AS stop_headsign,
+        COALESCE(rt.pickup_type,   static.pickup_type)   AS pickup_type,
+        COALESCE(rt.drop_off_type, static.drop_off_type) AS drop_off_type,
+        rt.last_updated_at,
+        COALESCE(
+            rt.predicted_departure_time,
+            COALESCE(rt.scheduled_departure_time, static.scheduled_departure_time),
+            rt.predicted_arrival_time,
+            COALESCE(rt.scheduled_arrival_time, static.scheduled_arrival_time)
+        ) AS effective_time
+    FROM (
+        SELECT
+            ti.id AS trip_instance_id,
+            st.id AS stop_time_id,
+            st.stop_sequence,
+            st.stop_id,
+            st.timepoint,
+            (ti.start_datetime + st.relative_arrival_offset)::timestamptz AS scheduled_arrival_time,
+            (ti.start_datetime + st.relative_departure_offset)::timestamptz AS scheduled_departure_time,
+            st.stop_headsign,
+            st.pickup_type,
+            st.drop_off_type,
+            st.shape_dist_traveled
+        FROM transit.trip_instances ti
+        INNER JOIN transit.stop_times st ON st.trip_id = ti.trip_id
+        WHERE ti.start_datetime >= now() - interval '4 days'
+          AND ti.start_datetime < now() + interval '4 days'
+    ) static
+    LEFT JOIN transit.stop_time_realtime_instances rt
+        ON  rt.trip_instance_id = static.trip_instance_id
+        AND rt.stop_id          = static.stop_id
 `);
 
 /**

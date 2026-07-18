@@ -49,6 +49,10 @@ export const schemaRelations = defineRelations(
                 from: r.tripInstances.id,
                 to: r.stopTimeInstances.tripInstanceId,
             }),
+            stopTimeInstancesActive: r.many.stopTimeInstancesActive({
+                from: r.tripInstances.id,
+                to: r.stopTimeInstancesActive.tripInstanceId,
+            }),
             positions: r.many.vehiclePositions({
                 from: r.tripInstances.id,
                 to: r.vehiclePositions.tripInstanceId,
@@ -75,6 +79,34 @@ export const schemaRelations = defineRelations(
         stopTimeRealtimeInstances: {
             stop: r.one.stops({
                 from: r.stopTimeRealtimeInstances.stopId,
+                to: r.stops.id,
+            }),
+        },
+        stopTimeStaticInstances: {
+            tripInstance: r.one.tripInstances({
+                from: r.stopTimeStaticInstances.tripInstanceId,
+                to: r.tripInstances.id,
+            }),
+            stopTime: r.one.stopTimes({
+                from: r.stopTimeStaticInstances.stopTimeId,
+                to: r.stopTimes.id,
+            }),
+            stop: r.one.stops({
+                from: r.stopTimeStaticInstances.stopId,
+                to: r.stops.id,
+            }),
+        },
+        stopTimeInstancesActive: {
+            tripInstance: r.one.tripInstances({
+                from: r.stopTimeInstancesActive.tripInstanceId,
+                to: r.tripInstances.id,
+            }),
+            stopTime: r.one.stopTimes({
+                from: r.stopTimeInstancesActive.stopTimeId,
+                to: r.stopTimes.id,
+            }),
+            stop: r.one.stops({
+                from: r.stopTimeInstancesActive.stopId,
                 to: r.stops.id,
             }),
         },

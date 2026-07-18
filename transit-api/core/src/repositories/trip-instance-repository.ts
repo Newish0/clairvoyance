@@ -100,10 +100,12 @@ export class TripInstancesRepository extends DataRepository {
         tripInstanceLookbackHours,
         tripInstanceLookaheadHours,
         exclude = [],
+        stopTimeView = views.stopTimeInstances,
     }: NearbyTripsParams & {
         tripInstanceLookbackHours: number;
         tripInstanceLookaheadHours: number;
         exclude?: NearbyTripsExclude;
+        stopTimeView?: typeof views.stopTimeInstances | typeof views.stopTimeInstancesActive;
     }) {
         const realtimeThresholdDate = getMsAgo(realtimeMaxAgeMs);
         const afterWithTolerance = new Date(after.getTime() - effectiveTimeToleranceSec * 1000);
@@ -177,16 +179,16 @@ export class TripInstancesRepository extends DataRepository {
                             'dir:' || ${tables.trips.direction}::text
                         )`.as("dedup_key"),
 
-                    stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
+                    stopTimeInstanceId: stopTimeView.id.as("stop_time_instance_id"),
                     tripInstanceId: targetTrips.id,
                     startDate: tables.tripInstances.startDate,
-                    scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
-                    predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
-                    scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
-                    predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
-                    scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
+                    scheduledDepartureTime: stopTimeView.scheduledDepartureTime,
+                    predictedDepartureTime: stopTimeView.predictedDepartureTime,
+                    scheduledArrivalTime: stopTimeView.scheduledArrivalTime,
+                    predictedArrivalTime: stopTimeView.predictedArrivalTime,
+                    scheduleRelationship: stopTimeView.scheduleRelationship,
 
-                    effectiveTime: views.stopTimeInstances.effectiveTime,
+                    effectiveTime: stopTimeView.effectiveTime,
 
                     // "Is the vehicle still at/before this stop?"
                     //
@@ -198,13 +200,13 @@ export class TripInstancesRepository extends DataRepository {
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
                             ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
+                            AND ${stopTimeView.shapeDistTraveled} IS NOT NULL
                         THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                            ${latestVehiclePosition.shapeDistTraveled} <= ${stopTimeView.shapeDistTraveled} + ${stillAtStopToleranceMeters}
                         WHEN
                             ${latestVehiclePosition.currentStopSequence} IS NOT NULL
                         THEN
-                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                            ${latestVehiclePosition.currentStopSequence} <= ${stopTimeView.stopSequence}
                         ELSE
                             false
                     END`.as("is_still_at_stop"),
@@ -216,35 +218,29 @@ export class TripInstancesRepository extends DataRepository {
                 )
                 .innerJoin(tables.trips, sql`${tables.tripInstances.tripId} = ${tables.trips.id}`)
                 .innerJoin(tables.routes, sql`${tables.trips.routeId} = ${tables.routes.id}`)
-                .innerJoin(
-                    views.stopTimeInstances,
-                    sql`${targetTrips.id} = ${views.stopTimeInstances.tripInstanceId}`,
-                )
-                .innerJoin(
-                    tables.stops,
-                    sql`${views.stopTimeInstances.stopId} = ${tables.stops.id}`,
-                )
+                .innerJoin(stopTimeView, sql`${targetTrips.id} = ${stopTimeView.tripInstanceId}`)
+                .innerJoin(tables.stops, sql`${stopTimeView.stopId} = ${tables.stops.id}`)
                 .leftJoin(
                     latestVehiclePosition,
                     sql`${latestVehiclePosition.tripInstanceId} = ${targetTrips.id}`,
                 )
                 .where(
                     and(
-                        inArray(views.stopTimeInstances.stopId, nearbyStopIds),
+                        inArray(stopTimeView.stopId, nearbyStopIds),
                         // Duplicates the isStillAtStop CASE logic above to filter
                         // BEFORE the WindowAgg + sort. Can't reference the alias
                         // in the same SELECT's WHERE clause, so it's inlined here.
                         sql`(
                                 (
                                     ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                                    AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
-                                    AND ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                                    AND ${stopTimeView.shapeDistTraveled} IS NOT NULL
+                                    AND ${latestVehiclePosition.shapeDistTraveled} <= ${stopTimeView.shapeDistTraveled} + ${stillAtStopToleranceMeters}
                                 )
                                 OR (
                                     ${latestVehiclePosition.currentStopSequence} IS NOT NULL
-                                    AND ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                                    AND ${latestVehiclePosition.currentStopSequence} <= ${stopTimeView.stopSequence}
                                 )
-                                OR ${views.stopTimeInstances.effectiveTime} >= ${afterWithTolerance}
+                                OR ${stopTimeView.effectiveTime} >= ${afterWithTolerance}
                             )`,
                     ),
                 ),
@@ -309,6 +305,7 @@ export class TripInstancesRepository extends DataRepository {
             ...rest,
             tripInstanceLookbackHours,
             tripInstanceLookaheadHours,
+            stopTimeView: views.stopTimeInstancesActive,
         });
     }
 
@@ -376,39 +373,40 @@ export class TripInstancesRepository extends DataRepository {
         const candidates = this.db.$with("candidates").as(
             this.db
                 .select({
-                    stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
-                    tripInstanceId: views.stopTimeInstances.tripInstanceId,
-                    stopSequence: views.stopTimeInstances.stopSequence,
+                    stopTimeInstanceId:
+                        views.stopTimeInstancesActive.id.as("stop_time_instance_id"),
+                    tripInstanceId: views.stopTimeInstancesActive.tripInstanceId,
+                    stopSequence: views.stopTimeInstancesActive.stopSequence,
                     startDate: tables.tripInstances.startDate,
-                    scheduledDepartureTime: views.stopTimeInstances.scheduledDepartureTime,
-                    predictedDepartureTime: views.stopTimeInstances.predictedDepartureTime,
-                    scheduledArrivalTime: views.stopTimeInstances.scheduledArrivalTime,
-                    predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
-                    scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
-                    lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
+                    scheduledDepartureTime: views.stopTimeInstancesActive.scheduledDepartureTime,
+                    predictedDepartureTime: views.stopTimeInstancesActive.predictedDepartureTime,
+                    scheduledArrivalTime: views.stopTimeInstancesActive.scheduledArrivalTime,
+                    predictedArrivalTime: views.stopTimeInstancesActive.predictedArrivalTime,
+                    scheduleRelationship: views.stopTimeInstancesActive.scheduleRelationship,
+                    lastUpdatedAt: views.stopTimeInstancesActive.lastUpdatedAt,
 
                     tripHeadsign: tables.trips.headsign,
 
-                    effectiveTime: views.stopTimeInstances.effectiveTime,
+                    effectiveTime: views.stopTimeInstancesActive.effectiveTime,
 
                     isStillAtStop: sql<boolean>`CASE
                         WHEN
                             ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
+                            AND ${views.stopTimeInstancesActive.shapeDistTraveled} IS NOT NULL
                         THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                            ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstancesActive.shapeDistTraveled} + ${stillAtStopToleranceMeters}
                         WHEN
                             ${latestVehiclePosition.currentStopSequence} IS NOT NULL
                         THEN
-                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstancesActive.stopSequence}
                         ELSE
                             false
                     END`.as("is_still_at_stop"),
                 })
-                .from(views.stopTimeInstances)
+                .from(views.stopTimeInstancesActive)
                 .innerJoin(
                     tables.tripInstances,
-                    sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
+                    sql`${views.stopTimeInstancesActive.tripInstanceId} = ${tables.tripInstances.id}`,
                 )
                 .innerJoin(
                     tables.trips,
@@ -420,13 +418,13 @@ export class TripInstancesRepository extends DataRepository {
                 )
                 .leftJoin(
                     latestVehiclePosition,
-                    sql`${latestVehiclePosition.tripInstanceId}   = ${views.stopTimeInstances.tripInstanceId}`,
+                    sql`${latestVehiclePosition.tripInstanceId}   = ${views.stopTimeInstancesActive.tripInstanceId}`,
                 )
                 .where(
                     and(
                         gte(tables.tripInstances.startDatetime, tripInstanceFrom),
                         lte(tables.tripInstances.startDatetime, tripInstanceTo),
-                        eq(views.stopTimeInstances.stopId, stopId),
+                        eq(views.stopTimeInstancesActive.stopId, stopId),
                         eq(tables.routes.id, routeId),
                         direction && eq(tables.trips.direction, direction),
                     ),

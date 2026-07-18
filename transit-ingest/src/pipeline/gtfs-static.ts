@@ -21,6 +21,7 @@ import { TripTransformer } from "./transformer/trip-transformer";
 import { runRealizeInstances } from "./realize-instances";
 import { CalendarTransformer } from "./transformer/calendar-transformer";
 import { StopParentRefSource } from "./source/stop-parent-ref-source";
+import { StopTimeOffsetSource } from "./source/stop-time-offset-source";
 
 export type PipelineSummary = {
     errors: IngestError[];
@@ -127,6 +128,30 @@ export async function runStatic(
         ),
     );
 
+    const stopTimeOffsetPipeline = pipe(
+        new StopTimeOffsetSource(ctx.config.agencyId),
+        new UpsertSink(
+            tables.stopTimes,
+            [tables.stopTimes.id],
+            [
+                "id",
+                "agencyId",
+                "tripId",
+                "stopId",
+                "tripSid",
+                "stopSid",
+                "stopSequence",
+                "arrivalTime",
+                "departureTime",
+                "stopHeadsign",
+                "pickupType",
+                "dropOffType",
+                "timepoint",
+                "shapeDistTraveled",
+            ],
+        ),
+    );
+
     const allPipelinesResult = await (async () => {
         try {
             // IMPORTANT: The order of execution is matters
@@ -140,6 +165,7 @@ export async function runStatic(
             await shapesPipeline(ctx);
             await tripsPipeline(ctx);
             await stopTimesPipeline(ctx);
+            await stopTimeOffsetPipeline(ctx);
         } catch (e) {
             const error = fatalError("PIPELINE_ERROR", "Pipeline execution failed", e);
             ctx.errors.push(error);
