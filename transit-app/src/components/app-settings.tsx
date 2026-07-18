@@ -134,7 +134,7 @@ export const AppSettings = () => {
 
     return (
         <>
-            <Settings sections={settingsSections} variant="compact"/>
+            <Settings sections={settingsSections} variant="compact" />
         </>
     );
 };

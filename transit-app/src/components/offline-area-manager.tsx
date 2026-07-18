@@ -92,8 +92,9 @@ export const OfflineAreaManager = () => {
     return (
         <ul className="flex flex-col gap-2">
             {areas.map((area) => {
-                const isOutdated = area.dateRange[1] < Date.now();
                 const isLoading = area.state === "downloading" || area.state === "deleting";
+                const isOutdated = !isLoading && area.dateRange[1] < Date.now();
+
                 return (
                     <li
                         key={area.id}
@@ -104,9 +105,11 @@ export const OfflineAreaManager = () => {
                             <div className="overflow-hidden">
                                 <p className="truncate text-sm font-medium">{area.name}</p>
                                 <div className="flex items-center gap-x-2 flex-wrap">
-                                    <p className="text-xs text-muted-foreground">
-                                        {formatBytes(area.sizeBytes)}
-                                    </p>
+                                    {area.sizeBytes !== undefined && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {formatBytes(area.sizeBytes)}
+                                        </p>
+                                    )}
                                     {isOutdated ? (
                                         <p className="text-xs text-destructive-foreground">
                                             Outdated since {formatDate(area.dateRange[1], "PPp")}

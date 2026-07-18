@@ -15,6 +15,16 @@ export type DownloadResult = {
 };
 
 /**
+ * Snapshot storage usage via the Storage Manager API. Returns undefined if
+ * unsupported so callers can fall back to an estimate.
+ */
+async function getStorageUsage(): Promise<number | undefined> {
+    if (!navigator.storage?.estimate) return undefined;
+    const { usage } = await navigator.storage.estimate();
+    return usage;
+}
+
+/**
  * Fetch area data from server, upsert into PGlite, cache tiles to IDB.
  * Throws on failure - caller handles state transitions.
  */
@@ -30,7 +40,13 @@ export async function executeAreaDownload(
     });
 
     const db = await getDb();
+
+    // Snapshot storage usage immediately before/after the write so dataBytes
+    // reflects what actually landed on disk (PGlite's real storage format),
+    // rather than the size of the JSON wire payload.
+    const usageBefore = await getStorageUsage();
     await saveOfflineData(db, data);
+    const usageAfter = await getStorageUsage();
 
     const bboxFlat: [number, number, number, number] = [
         bbox[0][0],
@@ -62,7 +78,17 @@ export async function executeAreaDownload(
         pmtilesProtocol.add(new PMTiles(new IdbSource(tilesUrl)));
     }
 
-    const dataBytes = new TextEncoder().encode(JSON.stringify(data)).length;
+    // Prefer the measured on-disk delta; fall back to the JSON-size estimate
+    // if the Storage Manager API is unavailable or returned nothing usable.
+    const measuredDelta =
+        usageBefore !== undefined && usageAfter !== undefined
+            ? usageAfter - usageBefore
+            : undefined;
+    const dataBytes =
+        measuredDelta !== undefined && measuredDelta > 0
+            ? measuredDelta
+            : new TextEncoder().encode(JSON.stringify(data)).length;
+
     const tileBytes = tileRanges?.reduce((s, r) => s + r.length, 0) ?? 0;
 
     return {
