@@ -38,6 +38,19 @@ export default defineConfig({
                 navigateFallback: "/index.html",
                 skipWaiting: true,
                 clientsClaim: true,
+                runtimeCaching: [
+                    {
+                        urlPattern: /^https:\/\/protomaps\.github\.io\/basemaps-assets\/(fonts|sprites)\/.*/i,
+                        handler: "CacheFirst",
+                        options: {
+                            cacheName: "protomaps-assets",
+                            expiration: {
+                                maxEntries: 100,
+                                maxAgeSeconds: 60 * 60 * 24 * 30,
+                            },
+                        },
+                    },
+                ],
             },
             manifest: false,
             devOptions: { enabled: false },

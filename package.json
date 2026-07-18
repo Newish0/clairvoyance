@@ -17,6 +17,7 @@
     "transit-ingest"
   ],
   "scripts": {
-    "dev:api": "bun --bun --watch transit-api/server/index.ts"
+    "dev:api": "bun --bun --watch transit-api/server/index.ts",
+    "dev:app": "bun --bun --filter transit-app dev"
   }
 }

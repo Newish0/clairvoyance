@@ -12,6 +12,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { GeolocationProvider } from "@/components/geolocation-provider";
 import type { TRPCClient } from "@trpc/client";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export interface RouterAppContext {
     trpcClient: TRPCClient<AppRouter>;
@@ -20,12 +23,24 @@ export interface RouterAppContext {
 }
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
-    component: () => (
+    component: Root,
+});
+
+function Root() {
+    const { isOnline } = useOnlineStatus();
+
+    useEffect(() => {
+        if (!isOnline) {
+            toast.warning("You are offline");
+        }
+    }, [isOnline]);
+
+    return (
         <>
             <ThemeProvider defaultTheme="dark" storageKey="transit-app-ui-theme">
                 {/* IMPORTANT: Toaster MUST mount outside of GeolocationProvider
                      because geolocation prompt uses Toaster */}
-                <Toaster />
+                <Toaster richColors />
                 <GeolocationProvider options={{ enableHighAccuracy: true }}>
                     <Outlet />
                 </GeolocationProvider>
@@ -49,5 +64,5 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
                 />
             )}
         </>
-    ),
-});
+    );
+}

@@ -54,6 +54,19 @@ export const limitBBox = (
 };
 
 /**
+ * Check if a point falls within a bounding box.
+ * Bbox format: [[west, south], [east, north]] - matches LngLatBounds#toArray()
+ * ponytail: antimeridian crossing not handled
+ */
+export function isPointInBbox(
+    point: { lat: number; lng: number },
+    bbox: [[number, number], [number, number]],
+): boolean {
+    const [[west, south], [east, north]] = bbox;
+    return point.lng >= west && point.lng <= east && point.lat >= south && point.lat <= north;
+}
+
+/**
  * Get distance between two coordinates in km
  */
 export const haversine = (

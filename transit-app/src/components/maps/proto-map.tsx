@@ -5,6 +5,8 @@ import { useMemoizedFn } from "ahooks";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useState, type ComponentProps } from "react";
 import Map, { AttributionControl } from "react-map-gl/maplibre";
+import OutsideOfflineAreaLayer from "./layers/outside-offline-area-layer";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 type MapProps = ComponentProps<typeof Map>;
 type ProtoMapProps = Omit<
@@ -26,6 +28,7 @@ export const ProtoMap = ({ onMove, ...props }: ProtoMapProps) => {
             ? `${import.meta.env.BASE_URL}${tilesUrl}`
             : `${import.meta.env.BASE_URL}pmtiles/world-base.pmtiles`,
     );
+    const { isOnline } = useOnlineStatus();
 
     const handleMove = useMemoizedFn((evt: Parameters<NonNullable<MapProps["onMove"]>>[0]) => {
         const { longitude: lon, latitude: lat, zoom } = evt.viewState;
@@ -54,6 +57,7 @@ export const ProtoMap = ({ onMove, ...props }: ProtoMapProps) => {
                 compact
                 style={{ opacity: 0.7, margin: 0 }}
             />
+            {isOnline ? null : <OutsideOfflineAreaLayer />}
             {props.children}
         </Map>
     );
