@@ -1,4 +1,4 @@
-import { differenceInMinutes, format, type DateArg } from "date-fns";
+import { differenceInDays, differenceInMinutes, format, type DateArg } from "date-fns";
 import { SlidingNumber } from "@/components/ui/countdown";
 import { useEffect, useRef, useState } from "react";
 
@@ -15,7 +15,7 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
 
     const [minutes, setMinutes] = useState(differenceInMinutes(props.datetime, new Date()));
     const intervalId = useRef<ReturnType<typeof setInterval> | null>(null);
-    // const departureDays = differenceInDays(props.datetime, new Date());
+    const departureDays = differenceInDays(props.datetime, new Date());
 
     useEffect(() => {
         intervalId.current = setInterval(() => {
@@ -57,14 +57,14 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
 
     // Fallback: show formatted time
     return (
-        <div>
-            <span className="text-sm font-bold text-nowrap">
+        <div className="text-nowrap">
+            <span className="text-sm font-bold">
                 {format(props.datetime, "h") + ":" + format(props.datetime, "mm")}
             </span>
             <span className="text-xs">{format(props.datetime, "a")} </span>
-            {/* {departureDays > 0 && (
-                <sup>+{departureDays}</sup>
-            )} */}
+            {departureDays > 0 && (
+                <sup className="text-muted-foreground font-extrabold">+{departureDays}</sup>
+            )}
         </div>
     );
 };

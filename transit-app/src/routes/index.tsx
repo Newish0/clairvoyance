@@ -3,6 +3,7 @@ import { ExploreMap, type ExploreMapProps } from "@/components/maps/explore-map"
 import PrimaryPanel from "@/components/primary-panel";
 import { DepartureBoard } from "@/components/trip-info/departure/departure-board";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useGeolocationToast } from "@/hooks/use-geolocation-toast";
 import { cn } from "@/lib/utils";
 import { trpcOptions } from "@/main";
@@ -55,7 +56,11 @@ function TransitApp() {
         maxWait: 6000,
     });
 
-    const { data: nearbyTrips, isFetching: isFetchingNearbyTrips } = useQuery({
+    const {
+        data: nearbyActiveTrips,
+        isFetching: isFetchingNearbyActiveTrips,
+        isLoading: isLoadingNearbyActiveTrips,
+    } = useQuery({
         ...trpcOptions.tripInstance.getNearbyActive.queryOptions(debouncedNearbyTripsQueryParams),
         staleTime: 0,
         gcTime: 0,
@@ -63,14 +68,23 @@ function TransitApp() {
         refetchInterval: 60_000,
     });
 
+    const [showInactive, setShowInactive] = useState(false);
+
+    const { data: nearbyInactiveTrips, isLoading: isLoadingNearbyInactiveTrips } = useQuery({
+        ...trpcOptions.tripInstance.getNearbyInactive.queryOptions(debouncedNearbyTripsQueryParams),
+        enabled: showInactive,
+        staleTime: 0,
+        gcTime: 0,
+    });
+
     const closestStopName = useMemo(
         () =>
-            nearbyTrips &&
-            nearbyTrips.reduce(
+            nearbyActiveTrips &&
+            nearbyActiveTrips.reduce(
                 (prev, curr) => (prev && prev.distanceMeters < curr.distanceMeters ? prev : curr),
-                nearbyTrips.at(0),
+                nearbyActiveTrips.at(0),
             )?.stopName,
-        [nearbyTrips],
+        [nearbyActiveTrips],
     );
 
     const handleLocationChange: NonNullable<ExploreMapProps["onLocationChange"]> = useCallback(
@@ -134,7 +148,7 @@ function TransitApp() {
                             size={16}
                             className={cn(
                                 "animate-spin",
-                                isFetchingNearbyTrips ? "visible" : "invisible",
+                                isFetchingNearbyActiveTrips ? "visible" : "invisible",
                             )}
                         />
                     </div>
@@ -156,7 +170,34 @@ function TransitApp() {
                     data-vaul-no-drag={isScrolled || undefined}
                     onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 10)}
                 >
-                    <DepartureBoard departures={nearbyTrips || []} />
+                    <DepartureBoard departures={nearbyActiveTrips || []} />
+
+                    {showInactive ? (
+                        <>
+                            <div className="relative flex justify-center items-center">
+                                <Separator className="absolute z-0" />
+                                <span className="text-xs text-muted-foreground rounded-full bg-background-foreground/10 backdrop-blur-md px-2 py-1 z-1">
+                                    Inactive trips
+                                </span>
+                            </div>
+                            {isLoadingNearbyInactiveTrips ? (
+                                <Loader2 size={16} className={cn("animate-spin mx-auto")} />
+                            ) : (
+                                <DepartureBoard departures={nearbyInactiveTrips || []} />
+                            )}
+                        </>
+                    ) : (
+                        !isLoadingNearbyActiveTrips &&
+                        !showInactive && (
+                            <Button
+                                variant="link"
+                                className="w-full"
+                                onClick={() => setShowInactive(true)}
+                            >
+                                Show inactive trips
+                            </Button>
+                        )
+                    )}
                 </div>
             </PrimaryPanel>
         </div>

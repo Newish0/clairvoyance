@@ -9,7 +9,7 @@ type DepartureBoardProps = {
 };
 
 export const DepartureBoard: React.FC<DepartureBoardProps> = ({ departures }) => {
-    if (!departures.length) return <div className="p-2">No departures</div>;
+    if (!departures.length) return <div className="p-2 text-center">No departures</div>;
 
     const now = new Date();
 
