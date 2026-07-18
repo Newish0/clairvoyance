@@ -53,7 +53,7 @@ export const stopTimeStaticInstances = schema.view("stop_time_static_instances",
  * Falls back to static values when no realtime data exists for a stop.
  *
  * Simple LEFT JOIN on (trip_instance_id, stop_id) - predicate-pushable, allowing
- * the planner to filter stop_time_static_instances_full by stop_id before the join.
+ * the planner to filter stop_time_static_instances by stop_id before the join.
  *
  * WARNING: keep Drizzle column definitions in sync with the SQL.
  */
