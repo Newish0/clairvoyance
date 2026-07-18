@@ -4,25 +4,26 @@ import { useEffect, useRef, useState } from "react";
 
 interface TripTimeProps {
     datetime: DateArg<Date> | null;
+    variant?: "short" | "long";
 }
 
 const ONE_HOUR_IN_MINUTES = 60;
 
-export const DepartureTime: React.FC<TripTimeProps> = (props) => {
-    if (!props.datetime) {
+export const DepartureTime: React.FC<TripTimeProps> = ({ datetime, variant = "short" }) => {
+    if (!datetime) {
         return <span className="text-xs">---</span>;
     }
 
-    const [minutes, setMinutes] = useState(differenceInMinutes(props.datetime, new Date()));
+    const [minutes, setMinutes] = useState(differenceInMinutes(datetime, new Date()));
     const intervalId = useRef<ReturnType<typeof setInterval> | null>(null);
-    const departureDays = differenceInDays(props.datetime, new Date());
+    const departureDays = differenceInDays(datetime, new Date());
 
     useEffect(() => {
         intervalId.current = setInterval(() => {
-            if (!props.datetime) {
+            if (!datetime) {
                 return;
             }
-            setMinutes(differenceInMinutes(props.datetime, new Date()));
+            setMinutes(differenceInMinutes(datetime, new Date()));
         }, 1000);
 
         return () => {
@@ -30,7 +31,7 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
                 clearInterval(intervalId.current);
             }
         };
-    }, [props.datetime]);
+    }, [datetime]);
 
     if (minutes < 0) {
         return (
@@ -56,15 +57,27 @@ export const DepartureTime: React.FC<TripTimeProps> = (props) => {
     }
 
     // Fallback: show formatted time
-    return (
-        <div className="text-nowrap">
-            <span className="text-sm font-bold">
-                {format(props.datetime, "h") + ":" + format(props.datetime, "mm")}
-            </span>
-            <span className="text-xs">{format(props.datetime, "a")} </span>
-            {departureDays > 0 && (
-                <sup className="text-muted-foreground font-extrabold">+{departureDays}</sup>
-            )}
-        </div>
-    );
+    if (variant === "short") {
+        return (
+            <div className="text-nowrap">
+                <span className="text-sm font-bold">
+                    {format(datetime, "h") + ":" + format(datetime, "mm")}
+                </span>
+                <span className="text-xs">{format(datetime, "a")} </span>
+                {departureDays > 0 && (
+                    <sup className="text-muted-foreground font-extrabold">+{departureDays}</sup>
+                )}
+            </div>
+        );
+    } else {
+        return (
+            <div className="text-nowrap">
+                <div className="text-xs font-extrabold">{format(datetime, "eee")}</div>
+                <span className="text-sm font-bold">
+                    {format(datetime, "h") + ":" + format(datetime, "mm")}
+                </span>
+                <span className="text-xs">{format(datetime, "a")} </span>
+            </div>
+        );
+    }
 };

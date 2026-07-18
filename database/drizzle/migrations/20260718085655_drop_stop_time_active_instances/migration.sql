@@ -1,0 +1,1 @@
+DROP VIEW "transit"."stop_time_instances_active";

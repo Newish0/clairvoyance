@@ -176,9 +176,13 @@ function TransitApp() {
                         <>
                             <div className="relative flex justify-center items-center">
                                 <Separator className="absolute z-0" />
-                                <span className="text-xs text-muted-foreground rounded-full bg-background-foreground/10 backdrop-blur-md px-2 py-1 z-1">
-                                    Inactive trips
-                                </span>
+                                <Button
+                                    variant="ghost"
+                                    className="text-xs text-muted-foreground rounded-full bg-background-foreground/10 backdrop-blur-md px-2 py-1 h-min z-1"
+                                    onClick={() => setShowInactive(false)}
+                                >
+                                    Hide Inactive trips
+                                </Button>
                             </div>
                             {isLoadingNearbyInactiveTrips ? (
                                 <Loader2 size={16} className={cn("animate-spin mx-auto")} />

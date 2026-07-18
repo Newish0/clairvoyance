@@ -309,7 +309,7 @@ export const tripInstances = schema.table(
 /**
  * A stopTimeRealtimeInstance is ONLY generated when a realtime trip update arrives.
  * It contains all the realtime fields from realtime trip updates (and some static values if realtime counterpart is missing).
- * For static stopTimes, we use the static stopTimesStaticInstances view or ideally the faster stopTimeInstancesActive when possible.
+ * For static stopTimes, we use the static stopTimesStaticInstances view.
  *
  * Design: Choose to not include flex/on-demand service in this table
  *         so we can constrain stopId to be not null

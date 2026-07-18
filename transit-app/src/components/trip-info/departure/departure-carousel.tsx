@@ -135,7 +135,7 @@ export function DepartureCarousel({
                                         )}
                                     >
                                         <div className="flex items-center gap-1">
-                                            <DepartureTime datetime={time || null} />
+                                            <DepartureTime datetime={time || null} variant="long" />
                                             {delayInSeconds !== null && (
                                                 <RealTimeIndicator
                                                     delaySeconds={delayInSeconds}

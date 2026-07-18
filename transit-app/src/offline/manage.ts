@@ -2,6 +2,7 @@ import type { OfflineArea } from "@/hooks/use-offline-areas";
 import type { inferProcedureOutput } from "@trpc/server";
 
 import * as tables from "database/models/tables";
+import * as views from "database/models/views";
 import { inArray, notInArray, sql } from "drizzle-orm";
 import type { AppRouter } from "transit-api-core/types";
 import type { PGliteDb } from "./db";
@@ -145,6 +146,7 @@ export async function saveOfflineData(
                 tables.stopTimes.stopSequence,
             ]),
         ]);
+        await tx.refreshMaterializedView(views.stopRoutes);
     });
 
     await db.$client.syncToFs();
