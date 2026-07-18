@@ -6,10 +6,11 @@ import {
     ResponsiveModalTitle,
     ResponsiveModalTrigger,
 } from "@/components/ui/responsible-dialog";
-import { useOfflineAreas } from "@/hooks/use-offline-areas";
+import { useOfflineAreas, type OfflineArea } from "@/hooks/use-offline-areas";
 import { getDb } from "@/offline/db";
+import { executeAreaDownload } from "@/offline/download";
 import { pruneOfflineData } from "@/offline/manage";
-import { AlertTriangle, SaveCheck, Loader2, MapPin, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import OfflineAreaSelector from "./offline-area-selector";
@@ -48,6 +49,29 @@ export const OfflineAreaManager = () => {
         removeArea(id);
     };
 
+    const handleUpdateArea = async (area: OfflineArea) => {
+        if (area.state === "downloading") return;
+
+        updateArea(area.id, { state: "downloading" });
+
+        try {
+            const result = await executeAreaDownload(area.bbox);
+            updateArea(area.id, { state: "downloaded", ...result });
+
+            // Prune data no longer covered by any area's date range
+            const db = await getDb();
+            const updatedAreas = areas.map((a) =>
+                a.id === area.id ? { ...a, ...result, state: "downloaded" as const } : a,
+            );
+            await pruneOfflineData(db, updatedAreas);
+
+            toast.success(`Updated offline area "${area.name}"`);
+        } catch (e) {
+            updateArea(area.id, { state: "error", error: (e as Error).message });
+            toast.error((e as Error).message);
+        }
+    };
+
     if (areas.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">
@@ -79,7 +103,7 @@ export const OfflineAreaManager = () => {
                             <MapPin className="size-4 shrink-0 text-muted-foreground" />
                             <div className="overflow-hidden">
                                 <p className="truncate text-sm font-medium">{area.name}</p>
-                                <div className="flex items-center gap-2 [&>*+*]:before:content-['·'] [&>*+*]:before:mr-2 [&>*+*]:before:text-muted-foreground">
+                                <div className="flex items-center gap-x-2 flex-wrap">
                                     <p className="text-xs text-muted-foreground">
                                         {formatBytes(area.sizeBytes)}
                                     </p>
@@ -106,8 +130,16 @@ export const OfflineAreaManager = () => {
                                     aria-label={area.error ?? "Download failed"}
                                 />
                             )}
+
                             {area.state === "downloaded" && (
-                                <SaveCheck className="size-4 text-primary" />
+                                <Button
+                                    disabled={isLoading}
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleUpdateArea(area)}
+                                >
+                                    <RefreshCw className="size-4" />
+                                </Button>
                             )}
 
                             <Button

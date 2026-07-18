@@ -1,14 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { useOfflineAreas } from "@/hooks/use-offline-areas";
-import { pmtilesProtocol, trpcClient } from "@/main";
-import { getDb } from "@/offline/db";
-import { saveOfflineData } from "@/offline/manage";
-import { planRanges } from "@/offline/pmtiles-plan";
-import { IdbSource } from "@/offline/pmtiles-source";
-import { addDays, startOfDay } from "date-fns";
+import { executeAreaDownload } from "@/offline/download";
 import { Download, Loader2 } from "lucide-react";
 import type { LngLatBounds } from "maplibre-gl";
-import { PMTiles } from "pmtiles";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { ProtoMap } from "./maps/proto-map";
@@ -31,72 +25,19 @@ const OfflineAreaSelector: React.FC<{
     const handleDownload = async () => {
         if (!selection?.bounds || selection.exceedsLimit) return;
 
-        const start = startOfDay(new Date());
-        const end = addDays(start, 2);
-
         const area = createArea({
             name: selection.name ?? "Unnamed area",
             bounds: selection.bounds,
-            dateRange: [start.getTime(), end.getTime()],
+            dateRange: [Date.now(), Date.now()], // placeholder, executeAreaDownload uses its own default
         });
         setPendingId(area.id);
 
         try {
-            const data = await trpcClient.offlineSync.getArea.query({
-                bounds: area.bbox,
-                dateRange: [start, end],
-            });
-
-            const db = await getDb();
-            await saveOfflineData(db, data);
-
-            // Cache tiles for offline map
-            const bboxFlat: [number, number, number, number] = [
-                area.bbox[0][0],
-                area.bbox[0][1],
-                area.bbox[1][0],
-                area.bbox[1][1], // w, s, e, n
-            ];
-            const manifestUrl = `${import.meta.env.BASE_URL}pmtiles/manifest.json`;
-            const manifest = await fetch(manifestUrl).then((r) => r.json());
-            const centerLon = (area.bbox[0][0] + area.bbox[1][0]) / 2;
-            const centerLat = (area.bbox[0][1] + area.bbox[1][1]) / 2;
-            const dataset = manifest.datasets.find(
-                (d: any) =>
-                    centerLon >= d.bbox.minLon &&
-                    centerLon <= d.bbox.maxLon &&
-                    centerLat >= d.bbox.minLat &&
-                    centerLat <= d.bbox.maxLat,
-            );
-            let tilesUrl: string | undefined;
-            // ponytail: world-base too large to cache (45MB+), skip if no dataset matches
-            if (dataset) {
-                tilesUrl = `${import.meta.env.BASE_URL}${dataset.tiles}`;
-                const { ranges } = await planRanges(
-                    tilesUrl,
-                    bboxFlat,
-                    Math.max(10, dataset.minZoom),
-                    16,
-                );
-                pmtilesProtocol.add(new PMTiles(new IdbSource(tilesUrl)));
-                const tileBytes = ranges.reduce((s: number, r: any) => s + r.length, 0);
-                const bytes = new TextEncoder().encode(JSON.stringify(data)).length;
-                updateArea(area.id, {
-                    state: "downloaded",
-                    sizeBytes: bytes + tileBytes,
-                    tilesUrl,
-                    tileRanges: ranges.length,
-                    tileBytes,
-                });
-            } else {
-                const bytes = new TextEncoder().encode(JSON.stringify(data)).length;
-                updateArea(area.id, { state: "downloaded", sizeBytes: bytes });
-            }
-
+            const result = await executeAreaDownload(area.bbox);
+            updateArea(area.id, { state: "downloaded", ...result });
             toast.success(`Downloaded offline area "${area.name}"`);
         } catch (e) {
             updateArea(area.id, { state: "error", error: (e as Error).message });
-
             toast.error((e as Error).message);
         } finally {
             setPendingId(null);
