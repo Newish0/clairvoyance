@@ -30,9 +30,9 @@ async function getStorageUsage(): Promise<number | undefined> {
  */
 export async function executeAreaDownload(
     bbox: [[number, number], [number, number]],
-    dateRange?: [Date, Date],
+    dateRange: [Date, Date] = [startOfDay(new Date()), addDays(startOfDay(new Date()), 7)],
 ): Promise<DownloadResult> {
-    const [start, end] = dateRange ?? [startOfDay(new Date()), addDays(startOfDay(new Date()), 2)];
+    const [start, end] = dateRange;
 
     const data = await trpcClient.offlineSync.getArea.query({
         bounds: bbox,

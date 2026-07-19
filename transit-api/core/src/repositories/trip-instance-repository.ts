@@ -301,7 +301,7 @@ export class TripInstancesRepository extends DataRepository {
      */
     public async findNearbyActiveTrips({
         tripInstanceLookbackHours = 16,
-        tripInstanceLookaheadHours = 36,
+        tripInstanceLookaheadHours = 24,
         ...rest
     }: NearbyTripsParams) {
         return this.findNearbyTrips({

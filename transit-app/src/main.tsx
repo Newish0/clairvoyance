@@ -19,6 +19,7 @@ import { appRouter } from "transit-api-core";
 import type { AppRouter } from "transit-api-core/types";
 import PageLoader from "./components/page-loader.tsx";
 import { getDb } from "./offline/db.ts";
+import { IdbSource } from "./offline/pmtiles-source";
 
 import "./globals.css";
 import reportWebVitals from "./reportWebVitals.ts";
@@ -30,7 +31,6 @@ export const pmtilesProtocol = new Protocol();
 maplibre.addProtocol("pmtiles", pmtilesProtocol.tile);
 
 // Re-register IdbSource-backed PMTiles for previously downloaded offline areas
-import { IdbSource } from "./offline/pmtiles-source";
 (async () => {
     try {
         const raw = localStorage.getItem("offline-areas");
