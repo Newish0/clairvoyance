@@ -53,8 +53,6 @@ type TripItem = {
 
 type RenderItem = LoaderItem | DateHeaderItem | HourHeaderItem | TripItem;
 
-// TODO: fix bug where if there is a gap in schedule we fail to load past gap
-//       b/c we assume no data = end of schedule
 export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) => {
     const [currentViewingDate, setCurrentViewingDate] = useState<Date>(new Date());
     const [initialDate, setInitialDate] = useState<Date>(addHours(currentViewingDate, -3));
@@ -93,7 +91,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         let prevEffectiveTime: Date | null = null;
 
         for (const d of departures) {
-            if (prevEffectiveTime!?.getDate() !== d.effectiveTime?.getDate()) {
+            if (!prevEffectiveTime || prevEffectiveTime?.getDate() !== d.effectiveTime?.getDate()) {
                 items.push({
                     type: "date-header",
                     id: `date-header-${d.effectiveTime?.toISOString() ?? "unknown"}`,
@@ -101,7 +99,10 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
                 });
             }
 
-            if (prevEffectiveTime!?.getHours() !== d.effectiveTime?.getHours()) {
+            if (
+                !prevEffectiveTime ||
+                prevEffectiveTime?.getHours() !== d.effectiveTime?.getHours()
+            ) {
                 items.push({
                     type: "hour-header",
                     id: `hour-header-${d.effectiveTime?.toISOString() ?? "unknown"}`,
@@ -133,12 +134,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         getScrollElement: () => parentRef.current,
         estimateSize: () => 48,
         overscan: 5,
-        // Stable item identity across prepends. Without this, every index shifts
-        // on prepend and the virtualizer can't track what was on screen.
-        getItemKey: (index) => itemsToRender[index]?.id ?? index,
-        // End-anchored mode (TanStack Virtual v3, May 2026): when items are prepended,
-        // the virtualizer finds the same keyed item and adjusts scrollTop automatically.
-        // No manual scroll math needed.
+        getItemKey: (index) => itemsToRender[index]!.id,
         anchorTo: "end",
     });
 
@@ -204,25 +200,6 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
         hasScrolledToNow.current = false; // re-run the initial scroll for the new date
     };
 
-    const renderItem = (item: RenderItem) => {
-        switch (item.type) {
-            case "loader":
-                return <LoadingRow direction={item.direction} />;
-            case "date-header":
-                return <DateHeaderRow headerText={item.headerText} />;
-            case "hour-header":
-                return <HourHeaderRow headerText={item.headerText} />;
-            case "trip":
-                return (
-                    <TripInstanceRow
-                        departure={item.departure}
-                        isActive={item.isActive}
-                        {...props}
-                    />
-                );
-        }
-    };
-
     return (
         <div className="space-y-4">
             <Card className="p-4 bg-primary/5">
@@ -268,7 +245,7 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
                                         transform: `translateY(${virtualItem.start}px)`,
                                     }}
                                 >
-                                    {renderItem(item)}
+                                    <RenderItemComponent item={item} otherProps={props} />
                                 </div>
                             );
                         })}
@@ -277,6 +254,28 @@ export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) =
             </Card>
         </div>
     );
+};
+
+const RenderItemComponent: React.FC<{
+    item: RenderItem;
+    otherProps: { agencyId: string; routeId: number; stopId: number; direction?: Direction };
+}> = ({ item, otherProps }) => {
+    switch (item.type) {
+        case "loader":
+            return <LoadingRow direction={item.direction} />;
+        case "date-header":
+            return <DateHeaderRow headerText={item.headerText} />;
+        case "hour-header":
+            return <HourHeaderRow headerText={item.headerText} />;
+        case "trip":
+            return (
+                <TripInstanceRow
+                    departure={item.departure}
+                    isActive={item.isActive}
+                    {...otherProps}
+                />
+            );
+    }
 };
 
 const TripInstanceRow: React.FC<{
@@ -307,7 +306,7 @@ const TripInstanceRow: React.FC<{
         >
             <div
                 className={cn(
-                    "px-4 py-3 border-b hover:bg-muted/50 transition-colors",
+                    "h-12 flex flex-col justify-center px-4 py-3 border-b hover:bg-muted/50 transition-colors",
                     isActive && "bg-muted/60",
                 )}
             >
@@ -336,7 +335,7 @@ const TripInstanceRow: React.FC<{
 };
 
 const LoadingRow: React.FC<{ direction: "previous" | "next" }> = ({ direction }) => (
-    <div className="px-4 py-3 border-b bg-secondary/70">
+    <div className="h-12 flex flex-col justify-center px-4 py-3 border-b bg-secondary/70">
         <div className="font-medium">
             Loading {direction === "previous" ? "previous" : "more"} trips...
         </div>
@@ -344,13 +343,13 @@ const LoadingRow: React.FC<{ direction: "previous" | "next" }> = ({ direction })
 );
 
 const DateHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => (
-    <div className="px-4 py-3 border-b bg-background/70">
-        <span className="text-lg font-semibold">{headerText}</span>
+    <div className="h-12 flex flex-col justify-center px-4 py-3 border-b bg-background/50">
+        <span className="text-lg text-muted-foreground font-semibold">{headerText}</span>
     </div>
 );
 
 const HourHeaderRow: React.FC<{ headerText: string }> = ({ headerText }) => (
-    <div className="px-4 py-2 border-b bg-muted/50">
+    <div className="h-12 flex flex-col justify-center px-4 py-2 border-b bg-background/30">
         <span className="text-sm text-muted-foreground">{headerText}</span>
     </div>
 );

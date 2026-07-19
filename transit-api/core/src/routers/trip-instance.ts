@@ -77,18 +77,16 @@ export const tripInstanceRouter = router({
                 stopId: v.pipe(v.number(), v.integer()),
                 routeId: v.pipe(v.number(), v.integer()),
                 direction: v.optional(v.picklist(directionEnum.enumValues)),
-                from: v.date(),
-                to: v.optional(v.date()),
+                cursor: v.date(),
+                order: v.optional(v.picklist(["asc", "desc"])),
                 limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))),
-                offset: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
                 stillAtStopToleranceMeters: v.optional(v.number()),
                 realtimeMaxAgeMs: v.optional(v.number()),
             }),
         )
         .query(async ({ input, ctx }) => {
             const repo = new TripInstancesRepository(ctx.db);
-            const data = await repo.findDepartures(input);
-            return data;
+            return repo.findDepartures(input);
         }),
 
     livePositions: publicProcedure

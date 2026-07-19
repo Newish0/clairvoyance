@@ -215,8 +215,14 @@ export class TripInstancesRepository extends DataRepository {
                 )
                 .innerJoin(tables.trips, sql`${tables.tripInstances.tripId} = ${tables.trips.id}`)
                 .innerJoin(tables.routes, sql`${tables.trips.routeId} = ${tables.routes.id}`)
-                .innerJoin(views.stopTimeInstances, sql`${targetTrips.id} = ${views.stopTimeInstances.tripInstanceId}`)
-                .innerJoin(tables.stops, sql`${views.stopTimeInstances.stopId} = ${tables.stops.id}`)
+                .innerJoin(
+                    views.stopTimeInstances,
+                    sql`${targetTrips.id} = ${views.stopTimeInstances.tripInstanceId}`,
+                )
+                .innerJoin(
+                    tables.stops,
+                    sql`${views.stopTimeInstances.stopId} = ${tables.stops.id}`,
+                )
                 .leftJoin(
                     latestVehiclePosition,
                     sql`${latestVehiclePosition.tripInstanceId} = ${targetTrips.id}`,
@@ -369,8 +375,7 @@ export class TripInstancesRepository extends DataRepository {
         const candidates = this.db.$with("candidates").as(
             this.db
                 .select({
-                    stopTimeInstanceId:
-                        views.stopTimeInstances.id.as("stop_time_instance_id"),
+                    stopTimeInstanceId: views.stopTimeInstances.id.as("stop_time_instance_id"),
                     tripInstanceId: views.stopTimeInstances.tripInstanceId,
                     stopSequence: views.stopTimeInstances.stopSequence,
                     startDate: tables.tripInstances.startDate,
@@ -459,20 +464,18 @@ export class TripInstancesRepository extends DataRepository {
         stopId,
         routeId,
         direction,
-        from,
-        to,
+        cursor,
+        order = "asc",
         limit = 20,
-        offset = 0,
         stillAtStopToleranceMeters = 50,
         realtimeMaxAgeMs = FIVE_MIN_IN_MS,
     }: {
         stopId: number;
         routeId: number;
         direction?: enums.Direction;
-        from: Date;
-        to?: Date;
+        cursor: Date;
+        order?: "asc" | "desc";
         limit?: number;
-        offset?: number;
         stillAtStopToleranceMeters?: number;
         realtimeMaxAgeMs?: number;
     }) {
@@ -492,43 +495,35 @@ export class TripInstancesRepository extends DataRepository {
                     predictedArrivalTime: views.stopTimeInstances.predictedArrivalTime,
                     scheduleRelationship: views.stopTimeInstances.scheduleRelationship,
                     lastUpdatedAt: views.stopTimeInstances.lastUpdatedAt,
-
                     tripHeadsign: tables.trips.headsign,
-
                     effectiveTime: views.stopTimeInstances.effectiveTime,
-
-                    // Metadata only - not used for filtering here.
-                    // UI can use this to distinguish "bus is here now" from scheduled/historic.
                     isStillAtStop: sql<boolean>`CASE
-                        WHEN
-                            ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
-                            AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
-                        THEN
-                            ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
-                        WHEN
-                            ${latestVehiclePosition.currentStopSequence} IS NOT NULL
-                        THEN
-                            ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
-                        ELSE
-                            false
-                    END`.as("is_still_at_stop"),
+                    WHEN
+                        ${latestVehiclePosition.shapeDistTraveled} IS NOT NULL
+                        AND ${views.stopTimeInstances.shapeDistTraveled} IS NOT NULL
+                    THEN
+                        ${latestVehiclePosition.shapeDistTraveled} <= ${views.stopTimeInstances.shapeDistTraveled} + ${stillAtStopToleranceMeters}
+                    WHEN
+                        ${latestVehiclePosition.currentStopSequence} IS NOT NULL
+                    THEN
+                        ${latestVehiclePosition.currentStopSequence} <= ${views.stopTimeInstances.stopSequence}
+                    ELSE
+                        false
+                END`.as("is_still_at_stop"),
                 })
                 .from(views.stopTimeInstances)
                 .innerJoin(
                     tables.tripInstances,
-                    sql`${views.stopTimeInstances.tripInstanceId} = ${tables.tripInstances.id}`,
+                    eq(views.stopTimeInstances.tripInstanceId, tables.tripInstances.id),
                 )
-                .innerJoin(
-                    tables.trips,
-                    sql`${tables.tripInstances.tripId}            = ${tables.trips.id}`,
-                )
-                .innerJoin(
-                    tables.routes,
-                    sql`${tables.trips.routeId}                   = ${tables.routes.id}`,
-                )
+                .innerJoin(tables.trips, eq(tables.tripInstances.tripId, tables.trips.id))
+                .innerJoin(tables.routes, eq(tables.trips.routeId, tables.routes.id))
                 .leftJoin(
                     latestVehiclePosition,
-                    sql`${latestVehiclePosition.tripInstanceId}   = ${views.stopTimeInstances.tripInstanceId}`,
+                    eq(
+                        latestVehiclePosition.tripInstanceId,
+                        views.stopTimeInstances.tripInstanceId,
+                    ),
                 )
                 .where(
                     and(
@@ -544,28 +539,35 @@ export class TripInstancesRepository extends DataRepository {
                 .select({
                     ...getColumns(candidates),
                     isLast: sql<boolean>`RANK() OVER (
-                        PARTITION BY
-                            ${candidates.tripInstanceId},
-                            ${candidates.startDate}
-                        ORDER BY ${candidates.effectiveTime} DESC
-                    ) = 1`.as("is_last"),
+                    PARTITION BY ${candidates.tripInstanceId}, ${candidates.startDate}
+                    ORDER BY ${candidates.effectiveTime} DESC
+                ) = 1`.as("is_last"),
                 })
                 .from(candidates),
         );
 
-        return this.db
+        // Strict > / < : cursor is "last row already returned", never re-included.
+        // First page nudges the cursor 1ms so the anchor instant isn't excluded (see hook).
+        const cursorCondition =
+            order === "asc"
+                ? sql`${annotated.effectiveTime} > ${cursor}`
+                : sql`${annotated.effectiveTime} < ${cursor}`;
+
+        const rows = await this.db
             .with(latestVehiclePosition, candidates, annotated)
             .select()
             .from(annotated)
-            .where(
-                and(
-                    gte(annotated.effectiveTime, from),
-                    to ? lte(annotated.effectiveTime, to) : undefined,
-                ),
+            .where(cursorCondition)
+            .orderBy(
+                order === "asc" ? annotated.effectiveTime : desc(annotated.effectiveTime),
+                // stopTimeInstanceId order for tie-break only
+                order === "asc" ? annotated.stopTimeInstanceId : desc(annotated.stopTimeInstanceId),
             )
-            .orderBy(annotated.effectiveTime)
-            .limit(limit)
-            .offset(offset);
+            .limit(limit);
+
+        // desc query reads newest-first; flip so every page is chronological
+        // before it ever reaches the client.
+        return order === "desc" ? rows.reverse() : rows;
     }
 
     public async *watchLivePositions({
