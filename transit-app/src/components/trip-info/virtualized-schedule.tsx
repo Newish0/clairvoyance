@@ -53,6 +53,8 @@ type TripItem = {
 
 type RenderItem = LoaderItem | DateHeaderItem | HourHeaderItem | TripItem;
 
+// TODO: fix bug where if there is a gap in schedule we fail to load past gap
+//       b/c we assume no data = end of schedule
 export const VirtualizedSchedule: React.FC<VirtualizedScheduleProps> = (props) => {
     const [currentViewingDate, setCurrentViewingDate] = useState<Date>(new Date());
     const [initialDate, setInitialDate] = useState<Date>(addHours(currentViewingDate, -3));
@@ -322,7 +324,7 @@ const TripInstanceRow: React.FC<{
                         {delayInSeconds !== null && (
                             <RealTimeIndicator
                                 delaySeconds={delayInSeconds}
-                                className="-mt-1 -mr-3"
+                                className="inline ml-1"
                             />
                         )}
                     </div>

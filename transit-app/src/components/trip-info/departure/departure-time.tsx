@@ -72,7 +72,9 @@ export const DepartureTime: React.FC<TripTimeProps> = ({ datetime, variant = "sh
     } else {
         return (
             <div className="text-nowrap">
-                <div className="text-xs font-extrabold">{format(datetime, "eee")}</div>
+                {departureDays > 0 && (
+                    <div className="text-xs font-extrabold">{format(datetime, "eee")}</div>
+                )}
                 <span className="text-sm font-bold">
                     {format(datetime, "h") + ":" + format(datetime, "mm")}
                 </span>
