@@ -15,6 +15,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { OfflineDownloadProgress, type DownloadProgress } from "./offline-download-progress";
 import OfflineAreaSelector from "./offline-area-selector";
+import OfflineAreaViewer from "./offline-area-viewer";
 import { formatDate } from "date-fns";
 
 function formatBytes(bytes?: number) {
@@ -34,6 +35,7 @@ export const OfflineAreaManager = () => {
     const [updateProgress, setUpdateProgress] = useState<Record<string, DownloadProgress | null>>(
         {},
     );
+    const [viewingArea, setViewingArea] = useState<OfflineArea | null>(null);
 
     const handleRemoveOfflineArea = async (id: string) => {
         const area = areas.find((a) => a.id === id);
@@ -112,7 +114,13 @@ export const OfflineAreaManager = () => {
                         <div className="flex items-center gap-2 overflow-hidden">
                             <MapPin className="size-4 shrink-0 text-muted-foreground" />
                             <div className="overflow-hidden">
-                                <p className="truncate text-sm font-medium">{area.name}</p>
+                                <button
+                                    type="button"
+                                    className="truncate text-left text-sm font-medium hover:underline"
+                                    onClick={() => setViewingArea(area)}
+                                >
+                                    {area.name}
+                                </button>
                                 <div className="flex items-center gap-x-2 flex-wrap">
                                     {area.sizeBytes !== undefined && (
                                         <p className="text-xs text-muted-foreground">
@@ -188,6 +196,8 @@ export const OfflineAreaManager = () => {
                     </Button>
                 }
             />
+
+            <ViewAreaModal area={viewingArea} onClose={() => setViewingArea(null)} />
         </ul>
     );
 };
@@ -212,6 +222,26 @@ const AreaSelectorModal: React.FC<{
                         updateArea={updateArea}
                         onComplete={() => setIsOpen(false)}
                     />
+                </div>
+            </ResponsiveModalContent>
+        </ResponsiveModal>
+    );
+};
+
+const ViewAreaModal: React.FC<{
+    area: OfflineArea | null;
+    onClose: () => void;
+}> = ({ area, onClose }) => {
+    return (
+        <ResponsiveModal open={area !== null} onOpenChange={(open) => !open && onClose()}>
+            <ResponsiveModalContent className="min-w-2/3 max-w-3xl">
+                <ResponsiveModalHeader>
+                    <ResponsiveModalTitle>{area?.name ?? "Offline area"}</ResponsiveModalTitle>
+                </ResponsiveModalHeader>
+                <div className="p-4 overflow-auto">
+                    {area && (
+                        <OfflineAreaViewer bbox={area.bbox} name={area.name} onComplete={onClose} />
+                    )}
                 </div>
             </ResponsiveModalContent>
         </ResponsiveModal>
