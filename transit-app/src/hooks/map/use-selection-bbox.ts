@@ -2,21 +2,18 @@ import { useEffect, useState } from "react";
 import { useMap } from "react-map-gl/maplibre";
 import { useMemoizedFn } from "ahooks";
 import { LngLatBounds } from "maplibre-gl";
+import { bboxSizeMeters } from "@/utils/geo";
 
 export type PixelBounds = [[number, number], [number, number]];
 
 const DEFAULT_MAX_BBOX_METERS = 30_000; // 30km - keep in sync with offline-sync router
-const METERS_PER_DEGREE_LAT = 111_320;
 
 function bboxExceedsLimit(bounds: LngLatBounds, maxBboxMeters: number): boolean {
-    const west = bounds.getWest();
-    const south = bounds.getSouth();
-    const east = bounds.getEast();
-    const north = bounds.getNorth();
-    const midLatRad = ((south + north) / 2) * (Math.PI / 180);
-    const heightMeters = (north - south) * METERS_PER_DEGREE_LAT;
-    const widthMeters = (east - west) * METERS_PER_DEGREE_LAT * Math.cos(midLatRad);
-    return heightMeters > maxBboxMeters || widthMeters > maxBboxMeters;
+    const { width, height } = bboxSizeMeters([
+        [bounds.getWest(), bounds.getSouth()],
+        [bounds.getEast(), bounds.getNorth()],
+    ]);
+    return height > maxBboxMeters || width > maxBboxMeters;
 }
 
 /**

@@ -1,4 +1,5 @@
-import { convertCssColorToHex, resolveCssColor } from "@/utils/css";
+import { METERS_PER_DEGREE_LAT, metersPerDegreeLon } from "@/utils/geo";
+import { convertCssColorToHex } from "@/utils/css";
 import { useEffect, useMemo } from "react";
 import { Layer, Source, useMap } from "react-map-gl/maplibre";
 
@@ -11,13 +12,8 @@ export type AreaBboxLayerProps = {
     maskOpacity?: number;
 };
 
-const METERS_PER_DEGREE_LAT = 111320;
 // Mercator projection limit, used for the outer "world" ring
 const WORLD_LAT_LIMIT = 85;
-
-function metersPerDegreeLon(latitude: number) {
-    return METERS_PER_DEGREE_LAT * Math.cos((latitude * Math.PI) / 180);
-}
 
 /**
  * Builds a rounded-rectangle ring (array of [lon, lat] points) from a bbox.
@@ -30,9 +26,7 @@ function createRoundedRectangle(
     segmentsPerCorner = 12,
 ): [number, number][] {
     const [[west, south], [east, north]] = bbox;
-
-    const centerLat = (south + north) / 2;
-    const mPerLon = metersPerDegreeLon(centerLat);
+    const mPerLon = metersPerDegreeLon((south + north) / 2);
     const mPerLat = METERS_PER_DEGREE_LAT;
 
     const widthM = (east - west) * mPerLon;

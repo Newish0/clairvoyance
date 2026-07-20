@@ -88,3 +88,17 @@ export const haversine = (
 
     return R * c;
 };
+
+export const METERS_PER_DEGREE_LAT = 111_320;
+
+export const metersPerDegreeLon = (latitude: number) =>
+    METERS_PER_DEGREE_LAT * Math.cos((latitude * Math.PI) / 180);
+
+export function bboxSizeMeters(bbox: [[number, number], [number, number]]) {
+    const [[west, south], [east, north]] = bbox;
+    const midLatRad = ((south + north) / 2) * (Math.PI / 180);
+    return {
+        width: (east - west) * METERS_PER_DEGREE_LAT * Math.cos(midLatRad),
+        height: (north - south) * METERS_PER_DEGREE_LAT,
+    };
+}
