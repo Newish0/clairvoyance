@@ -1,46 +1,67 @@
-import { METERS_PER_DEGREE_LAT, metersPerDegreeLon } from "@/utils/geo";
 import { convertCssColorToHex } from "@/utils/css";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layer, Source, useMap } from "react-map-gl/maplibre";
+import type maplibregl from "maplibre-gl";
 
 export type AreaBboxLayerProps = {
     bbox: [[number, number], [number, number]];
     fit?: boolean;
-    /** Corner radius in meters */
+    /** Corner radius in CSS pixels - same idea as border-radius */
     radius?: number;
     /** Opacity of the darkened area outside the border */
     maskOpacity?: number;
 };
 
-// Mercator projection limit, used for the outer "world" ring
 const WORLD_LAT_LIMIT = 85;
 
 /**
- * Builds a rounded-rectangle ring (array of [lon, lat] points) from a bbox.
- * Works by projecting the bbox into a local meters-based plane, drawing
- * quarter-circle arcs at each corner, then converting back to lon/lat.
+ * Builds a rounded-rectangle ring (array of [lon, lat] points) from a bbox,
+ * with the corner radius specified in *screen pixels*.
+ *
+ * Works by projecting the bbox corners into pixel space (map.project),
+ * drawing the rounded rect there, then unprojecting each point back to
+ * lon/lat (map.unproject). This piggybacks on MapLibre's own projection
+ * math, so it's correct at any zoom without reimplementing Mercator scale
+ * factors ourselves.
+ *
+ * Caveat: assumes bearing = 0 / pitch = 0 (north-up, flat view). With
+ * rotation or tilt, the projected bbox is no longer an axis-aligned screen
+ * rectangle, so this bounding-boxes the 4 projected corners as an
+ * approximation - fine for small rotations, slightly off at extremes.
  */
 function createRoundedRectangle(
+    map: maplibregl.Map,
     bbox: [[number, number], [number, number]],
-    radiusMeters: number,
+    radiusPx: number,
     segmentsPerCorner = 12,
+    clampThreshold = 0.5,
 ): [number, number][] {
     const [[west, south], [east, north]] = bbox;
-    const mPerLon = metersPerDegreeLon((south + north) / 2);
-    const mPerLat = METERS_PER_DEGREE_LAT;
 
-    const widthM = (east - west) * mPerLon;
-    const heightM = (north - south) * mPerLat;
+    const sw = map.project([west, south]);
+    const se = map.project([east, south]);
+    const ne = map.project([east, north]);
+    const nw = map.project([west, north]);
 
-    // clamp radius so it never exceeds half the width/height
-    const r = Math.max(0, Math.min(radiusMeters, widthM / 2, heightM / 2));
+    const left = Math.min(sw.x, nw.x);
+    const right = Math.max(se.x, ne.x);
+    const top = Math.min(nw.y, ne.y); // screen y grows downward
+    const bottom = Math.max(sw.y, se.y);
 
-    // arc centers + angle ranges, in local meters space (origin at [west, south])
+    const widthPx = right - left;
+    const heightPx = bottom - top;
+
+    // clamp radius so it never exceeds half the width/height at clampThreshold = 0.5
+    const r = Math.max(0, Math.min(radiusPx, widthPx * clampThreshold, heightPx * clampThreshold));
+
+    // Build corners in a local y-up plane (same layout as a meters plane
+    // would use), then flip y -> screen space (y-down) right before
+    // unprojecting.
     const corners = [
         { cx: r, cy: r, startAngle: 180, endAngle: 270 }, // bottom-left
-        { cx: widthM - r, cy: r, startAngle: 270, endAngle: 360 }, // bottom-right
-        { cx: widthM - r, cy: heightM - r, startAngle: 0, endAngle: 90 }, // top-right
-        { cx: r, cy: heightM - r, startAngle: 90, endAngle: 180 }, // top-left
+        { cx: widthPx - r, cy: r, startAngle: 270, endAngle: 360 }, // bottom-right
+        { cx: widthPx - r, cy: heightPx - r, startAngle: 0, endAngle: 90 }, // top-right
+        { cx: r, cy: heightPx - r, startAngle: 90, endAngle: 180 }, // top-left
     ];
 
     const points: [number, number][] = [];
@@ -49,10 +70,14 @@ function createRoundedRectangle(
         for (let i = 0; i <= segmentsPerCorner; i++) {
             const angle = startAngle + ((endAngle - startAngle) * i) / segmentsPerCorner;
             const rad = (angle * Math.PI) / 180;
-            const x = cx + r * Math.cos(rad);
-            const y = cy + r * Math.sin(rad);
+            const localX = cx + r * Math.cos(rad);
+            const localY = cy + r * Math.sin(rad);
 
-            points.push([west + x / mPerLon, south + y / mPerLat]);
+            const pixelX = left + localX;
+            const pixelY = bottom - localY; // local y-up -> screen y-down
+
+            const { lng, lat } = map.unproject([pixelX, pixelY]);
+            points.push([lng, lat]);
         }
     }
 
@@ -66,30 +91,53 @@ export function AreaBboxLayer({
     radius = 25,
     maskOpacity = 0.4,
 }: AreaBboxLayerProps) {
-    const { current: map } = useMap();
+    const { current: mapRef } = useMap();
+
+    // project()/unproject() depend on the map's current zoom/bearing/pitch.
+    // useMemo can't "see" that from the `map` object reference alone, so we
+    // bump this counter on the relevant events to force a recompute.
+    const [tick, setTick] = useState(0);
 
     useEffect(() => {
-        if (!fit || !map) return;
-        map.fitBounds(bbox, { padding: 40, animate: false });
-    }, [fit, map, bbox]);
+        if (!fit || !mapRef) return;
+        mapRef.fitBounds(bbox, { padding: 40, animate: false });
+    }, [fit, mapRef, bbox]);
 
-    const borderRing = useMemo(() => createRoundedRectangle(bbox, radius), [bbox, radius]);
+    useEffect(() => {
+        if (!mapRef) return;
+        const onChange = () => setTick((t) => t + 1);
+        mapRef.on("zoom", onChange);
+        mapRef.on("rotate", onChange);
+        mapRef.on("pitch", onChange);
+        onChange();
+        return () => {
+            mapRef.off("zoom", onChange);
+            mapRef.off("rotate", onChange);
+            mapRef.off("pitch", onChange);
+        };
+    }, [mapRef]);
 
-    // Border feature: just the rounded-rect outline
-    const borderFeature = useMemo(
-        () => ({
+    const borderRing = useMemo(() => {
+        const map = mapRef?.getMap();
+        if (!map) return null;
+        return createRoundedRectangle(map, bbox, radius, 24, 0.2);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapRef, bbox, radius, tick]);
+
+    const borderFeature = useMemo(() => {
+        if (!borderRing) return null;
+        return {
             type: "Feature" as const,
             properties: {},
             geometry: {
                 type: "Polygon" as const,
                 coordinates: [borderRing],
             },
-        }),
-        [borderRing],
-    );
+        };
+    }, [borderRing]);
 
-    // Mask feature: a world-covering polygon with the rounded-rect as a hole
     const maskFeature = useMemo(() => {
+        if (!borderRing) return null;
         const worldRing: [number, number][] = [
             [-180, -WORLD_LAT_LIMIT],
             [180, -WORLD_LAT_LIMIT],
@@ -107,6 +155,8 @@ export function AreaBboxLayer({
             },
         };
     }, [borderRing]);
+
+    if (!borderFeature || !maskFeature) return null;
 
     return (
         <>
