@@ -17,6 +17,9 @@ const t = initTRPC.context<Context>().create({
             reconnectAfterInactivityMs: 5_000,
         },
     },
+    jsonl: {
+        pingMs: 3000,
+    },
 });
 
 /**

@@ -5,6 +5,7 @@ import { Download, Loader2 } from "lucide-react";
 import type { LngLatBounds } from "maplibre-gl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { OfflineDownloadProgress, type DownloadProgress } from "./offline-download-progress";
 import { ProtoMap } from "./maps/proto-map";
 import { SelectionSquareOverlay } from "./maps/selection-square-overlay";
 
@@ -21,6 +22,7 @@ const OfflineAreaSelector: React.FC<{
 }> = ({ createArea, updateArea, onComplete }) => {
     const [selection, setSelection] = useState<Selection | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
+    const [progress, setProgress] = useState<DownloadProgress | null>(null);
 
     const handleDownload = async () => {
         if (!selection?.bounds || selection.exceedsLimit) return;
@@ -31,9 +33,10 @@ const OfflineAreaSelector: React.FC<{
             dateRange: [Date.now(), Date.now()], // placeholder, executeAreaDownload uses its own default
         });
         setPendingId(area.id);
+        setProgress(null);
 
         try {
-            const result = await executeAreaDownload(area.bbox);
+            const result = await executeAreaDownload(area.bbox, (p) => setProgress(p));
             updateArea(area.id, { state: "downloaded", ...result });
             toast.success(`Downloaded offline area "${area.name}"`);
         } catch (e) {
@@ -41,6 +44,7 @@ const OfflineAreaSelector: React.FC<{
             toast.error((e as Error).message);
         } finally {
             setPendingId(null);
+            setProgress(null);
             onComplete?.();
         }
     };
@@ -60,7 +64,7 @@ const OfflineAreaSelector: React.FC<{
                 <SelectionSquareOverlay marginPx={40} onBbox={handleBbox} />
             </ProtoMap>
 
-            <div className="flex items-center justify-center">
+            <div className="flex flex-col gap-2">
                 <Button
                     className="pointer-events-auto w-full"
                     size="default"
@@ -78,6 +82,13 @@ const OfflineAreaSelector: React.FC<{
                             : `Download ${selection?.name ?? "this area"}`}
                     </span>
                 </Button>
+
+                {isDownloading && progress && (
+                    <OfflineDownloadProgress
+                        progress={progress}
+                        className="pointer-events-auto rounded-md border p-2"
+                    />
+                )}
             </div>
         </div>
     );

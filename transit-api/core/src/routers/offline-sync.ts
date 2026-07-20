@@ -7,6 +7,27 @@ const MAX_RANGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_BBOX_METERS = 30_000; // 30km
 const METERS_PER_DEGREE_LAT = 111_320;
 
+export type SyncTableName = "tripInstances" | "routes" | "trips" | "stopTimes" | "shapes" | "stops";
+
+export type SyncProgressChunk = {
+    type: "progress";
+    stage: "fetching";
+    table: SyncTableName;
+    tableIndex: number;
+    totalTables: number;
+    rowCount: number;
+};
+
+export type SyncTableChunk<T = unknown> = {
+    type: "table";
+    name: SyncTableName;
+    rows: T[];
+};
+
+export type SyncCompleteChunk = { type: "complete" };
+
+export type SyncChunk = SyncProgressChunk | SyncTableChunk | SyncCompleteChunk;
+
 const dateRangeSchema = v.pipe(
     v.tuple([v.date(), v.date()]),
     v.check(
@@ -42,7 +63,7 @@ export const offlineSyncRouter = router({
                 dateRange: dateRangeSchema,
             }),
         )
-        .query(async ({ input, ctx }) => {
+        .query(async function* ({ input, ctx }) {
             const [[west, south], [east, north]] = input.bounds;
             const [start, end] = input.dateRange;
 
@@ -84,6 +105,20 @@ export const offlineSyncRouter = router({
                 },
             });
 
+            function* emitTable<T>(name: SyncTableName, index: number, rows: T[]) {
+                yield {
+                    type: "progress",
+                    stage: "fetching",
+                    table: name,
+                    tableIndex: index,
+                    totalTables: 6,
+                    rowCount: rows.length,
+                };
+                yield { type: "table", name, rows };
+            }
+
+            yield* emitTable("tripInstances", 0, tripInstances);
+
             const routes = await ctx.db.query.routes.findMany({
                 where: {
                     id: {
@@ -92,6 +127,8 @@ export const offlineSyncRouter = router({
                 },
             });
 
+            yield* emitTable("routes", 1, routes);
+
             const trips = await ctx.db.query.trips.findMany({
                 where: {
                     id: {
@@ -99,6 +136,8 @@ export const offlineSyncRouter = router({
                     },
                 },
             });
+
+            yield* emitTable("trips", 2, trips);
 
             const tripIds = [...new Set(tripInstances.map((trip) => trip.tripId))];
 
@@ -110,6 +149,8 @@ export const offlineSyncRouter = router({
                 },
                 orderBy: (stops, { asc }) => [asc(stops.tripId), asc(stops.stopSequence)],
             });
+
+            yield* emitTable("stopTimes", 3, stopTimes);
 
             const shapes = await ctx.db.query.shapes.findMany({
                 where: {
@@ -123,6 +164,8 @@ export const offlineSyncRouter = router({
                 },
             });
 
+            yield* emitTable("shapes", 4, shapes);
+
             const stopIds = [
                 ...new Set(stopTimes.map((st) => st.stopId).filter((id) => id !== null)),
             ];
@@ -135,13 +178,8 @@ export const offlineSyncRouter = router({
                 },
             });
 
-            return {
-                tripInstances,
-                stopTimes,
-                stops,
-                routes,
-                trips,
-                shapes,
-            };
+            yield* emitTable("stops", 5, stops);
+
+            yield { type: "complete" };
         }),
 });

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import {
     createTRPCClient,
-    httpBatchLink,
+    httpBatchStreamLink,
     httpSubscriptionLink,
     loggerLink,
     splitLink,
@@ -80,7 +80,7 @@ export const trpcClient = createTRPCClient<AppRouter>({
                     url: API_URL,
                     transformer: superjson,
                 }),
-                false: httpBatchLink({
+                false: httpBatchStreamLink({
                     url: API_URL,
                     transformer: superjson,
                 }),

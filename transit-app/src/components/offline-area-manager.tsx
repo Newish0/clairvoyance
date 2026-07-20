@@ -13,6 +13,7 @@ import { pruneOfflineData } from "@/offline/manage";
 import { AlertTriangle, Loader2, MapPin, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { OfflineDownloadProgress, type DownloadProgress } from "./offline-download-progress";
 import OfflineAreaSelector from "./offline-area-selector";
 import { formatDate } from "date-fns";
 
@@ -30,6 +31,9 @@ function formatBytes(bytes?: number) {
 
 export const OfflineAreaManager = () => {
     const { areas, removeArea, createArea, updateArea } = useOfflineAreas();
+    const [updateProgress, setUpdateProgress] = useState<Record<string, DownloadProgress | null>>(
+        {},
+    );
 
     const handleRemoveOfflineArea = async (id: string) => {
         const area = areas.find((a) => a.id === id);
@@ -53,9 +57,12 @@ export const OfflineAreaManager = () => {
         if (area.state === "downloading") return;
 
         updateArea(area.id, { state: "downloading" });
+        setUpdateProgress((prev) => ({ ...prev, [area.id]: null }));
 
         try {
-            const result = await executeAreaDownload(area.bbox);
+            const result = await executeAreaDownload(area.bbox, (p) =>
+                setUpdateProgress((prev) => ({ ...prev, [area.id]: p })),
+            );
             updateArea(area.id, { state: "downloaded", ...result });
 
             // Prune data no longer covered by any area's date range
@@ -69,6 +76,8 @@ export const OfflineAreaManager = () => {
         } catch (e) {
             updateArea(area.id, { state: "error", error: (e as Error).message });
             toast.error((e as Error).message);
+        } finally {
+            setUpdateProgress((prev) => ({ ...prev, [area.id]: null }));
         }
     };
 
@@ -124,9 +133,21 @@ export const OfflineAreaManager = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {isLoading && (
-                                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                            )}
+                            {isLoading &&
+                                (area.state === "downloading" && updateProgress[area.id] ? (
+                                    <div className="flex justify-center items-center size-9">
+                                        <OfflineDownloadProgress
+                                            progress={updateProgress[area.id]!}
+                                            variant="compact"
+                                            className="size-4"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-center items-center size-9">
+                                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                                    </div>
+                                ))}
+
                             {area.state === "error" && (
                                 <AlertTriangle
                                     className="size-4 text-destructive"

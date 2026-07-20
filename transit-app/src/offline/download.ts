@@ -1,8 +1,9 @@
 import { pmtilesProtocol, trpcClient } from "@/main";
 import { getDb } from "@/offline/db";
-import { saveOfflineData } from "@/offline/manage";
+import { saveOfflineData, type SyncPayload } from "@/offline/manage";
 import { planRanges } from "@/offline/pmtiles-plan";
 import { IdbSource } from "@/offline/pmtiles-source";
+import type { SyncChunk } from "transit-api-core/types";
 import { addDays, startOfDay } from "date-fns";
 import { PMTiles } from "pmtiles";
 
@@ -13,6 +14,34 @@ export type DownloadResult = {
     tileBytes?: number;
     dateRange: [number, number]; // epoch ms [start, end] - the range actually used
 };
+
+export type DownloadProgress = {
+    stage: "fetching" | "saving" | "planning-tiles" | "caching-tiles" | "complete";
+    message: string;
+    tableIndex: number;
+    totalTables: number;
+    rowCount?: number;
+};
+
+export function getProgressValue(progress: DownloadProgress | null): number {
+    if (!progress) return -1;
+
+    if (progress.stage === "fetching") {
+        return ((progress.tableIndex + 1) / progress.totalTables) * 100;
+    }
+    switch (progress.stage) {
+        case "saving":
+            return 80;
+        case "planning-tiles":
+            return 90;
+        case "caching-tiles":
+            return 95;
+        case "complete":
+            return 100;
+        default:
+            return 0;
+    }
+}
 
 /**
  * Snapshot storage usage via the Storage Manager API. Returns undefined if
@@ -30,14 +59,44 @@ async function getStorageUsage(): Promise<number | undefined> {
  */
 export async function executeAreaDownload(
     bbox: [[number, number], [number, number]],
+    onProgress?: (progress: DownloadProgress) => void,
     dateRange: [Date, Date] = [startOfDay(new Date()), addDays(startOfDay(new Date()), 7)],
 ): Promise<DownloadResult> {
     const [start, end] = dateRange;
 
-    const data = await trpcClient.offlineSync.getArea.query({
+    const payload: SyncPayload = {
+        tripInstances: [],
+        routes: [],
+        trips: [],
+        stopTimes: [],
+        shapes: [],
+        stops: [],
+    };
+
+    for await (const raw of await trpcClient.offlineSync.getArea.query({
         bounds: bbox,
         dateRange: [start, end],
-    });
+    })) {
+        const chunk = raw as SyncChunk;
+        if (chunk.type === "progress") {
+            onProgress?.({
+                stage: "fetching",
+                message: `Fetched ${chunk.table} (${chunk.rowCount} rows)`,
+                tableIndex: chunk.tableIndex,
+                totalTables: chunk.totalTables,
+                rowCount: chunk.rowCount,
+            });
+        } else if (chunk.type === "table") {
+            (payload[chunk.name] as unknown[]).push(...chunk.rows);
+        } else if (chunk.type === "complete") {
+            onProgress?.({
+                stage: "saving",
+                message: "Saving data locally",
+                tableIndex: 6,
+                totalTables: 6,
+            });
+        }
+    }
 
     const db = await getDb();
 
@@ -45,7 +104,7 @@ export async function executeAreaDownload(
     // reflects what actually landed on disk (PGlite's real storage format),
     // rather than the size of the JSON wire payload.
     const usageBefore = await getStorageUsage();
-    await saveOfflineData(db, data);
+    await saveOfflineData(db, payload);
     const usageAfter = await getStorageUsage();
 
     const bboxFlat: [number, number, number, number] = [
@@ -87,7 +146,7 @@ export async function executeAreaDownload(
     const dataBytes =
         measuredDelta !== undefined && measuredDelta > 0
             ? measuredDelta
-            : new TextEncoder().encode(JSON.stringify(data)).length;
+            : new TextEncoder().encode(JSON.stringify(payload)).length;
 
     const tileBytes = tileRanges?.reduce((s, r) => s + r.length, 0) ?? 0;
 

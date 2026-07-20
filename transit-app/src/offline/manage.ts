@@ -1,10 +1,8 @@
 import type { OfflineArea } from "@/hooks/use-offline-areas";
-import type { inferProcedureOutput } from "@trpc/server";
 
 import * as tables from "database/models/tables";
 import * as views from "database/models/views";
 import { inArray, notInArray, sql } from "drizzle-orm";
-import type { AppRouter } from "transit-api-core/types";
 import type { PGliteDb } from "./db";
 import { upsertMany } from "./upsert";
 
@@ -129,9 +127,18 @@ export async function pruneOfflineData(db: PGliteDb, keepAreas: OfflineArea[]): 
     await db.$client.syncToFs();
 }
 
+export type SyncPayload = {
+    tripInstances: (typeof tables.tripInstances.$inferSelect)[];
+    routes: (typeof tables.routes.$inferSelect)[];
+    trips: (typeof tables.trips.$inferSelect)[];
+    stopTimes: (typeof tables.stopTimes.$inferSelect)[];
+    shapes: (typeof tables.shapes.$inferSelect)[];
+    stops: (typeof tables.stops.$inferSelect)[];
+};
+
 export async function saveOfflineData(
     db: PGliteDb,
-    data: inferProcedureOutput<AppRouter["offlineSync"]["getArea"]>,
+    data: SyncPayload,
 ) {
     await db.transaction(async (tx) => {
         await Promise.all([
