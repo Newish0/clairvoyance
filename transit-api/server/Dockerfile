@@ -22,7 +22,7 @@ RUN case "$TARGETARCH" in \
       *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
     esac && \
     bun build --compile --target=$BUN_TARGET \
-    ./transit-api/server/src/index.ts --outfile /app/api
+    ./transit-api/server/index.ts --outfile /app/api
 
 FROM docker.io/debian:stable-slim
 COPY --from=builder /app/api /usr/local/bin/api
